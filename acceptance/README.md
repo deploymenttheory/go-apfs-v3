@@ -133,6 +133,21 @@ concurrent boundary reads and a large logical file whose index must stay on disk
 
 ## CI tiers
 
+The **macOS filesystem compatibility** workflow has two visible stages:
+
+1. **Record Apple filesystem reference data (macOS 15/26/27)** creates disk
+   images with Apple tools and records how macOS reads them. Separate steps show
+   volume identity; file contents, metadata and forks; names, links and
+   fragmentation; and compression. Its artifacts contain the images, observations
+   and provenance needed to repeat a comparison.
+2. **Compare Go with macOS reference data (Linux/Windows/macOS)** reads every
+   reference image through Go and checks the results against all three macOS
+   versions. Missing evidence or mismatched results fail the workflow.
+
+This proves the covered Go operations agree with Apple's observed behavior on
+portable hosts. Each job's summary explains its evidence and the comparison's
+limits; compilation alone does not establish filesystem compatibility.
+
 - PR: all unit checks, lint, six cross-builds, retained-corpus replay on Linux,
   Windows, and macOS, and relevant native qualification for reader changes.
 - Nightly/manual: fresh macOS 15/26/27 producers and Linux/Windows replay of

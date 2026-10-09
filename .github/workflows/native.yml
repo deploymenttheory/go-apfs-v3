@@ -1,4 +1,4 @@
-name: Native acceptance
+name: macOS filesystem compatibility
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ env:
 
 jobs:
   produce:
-    name: Native producer macOS ${{ matrix.major }}
+    name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
@@ -41,20 +41,34 @@ jobs:
             major: 27
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Native capture (no Go implementation involved)
+      - name: Record volume layout and identity
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
+      - name: Record file contents, metadata and resource forks
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-reading --output artifacts/native/files/macos-${{ matrix.major }}
+      - name: Record filename lookup, hard links and fragmented forks
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-semantics --output artifacts/native/semantics/macos-${{ matrix.major }}
+      - name: Record compressed contents and raw compression storage
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-compression --output artifacts/native/compression/macos-${{ matrix.major }}
+      - name: Explain the recorded reference data
         run: |
-          python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
-          python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-reading --output artifacts/native/files/macos-${{ matrix.major }}
-          python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-semantics --output artifacts/native/semantics/macos-${{ matrix.major }}
-          python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-compression --output artifacts/native/compression/macos-${{ matrix.major }}
-      - name: Retain diagnostics even on failure
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Apple filesystem reference data
+          Apple tools created APFS, case-sensitive APFS, HFS+ and HFSX disk images.
+          Native macOS filesystem APIs recorded the expected names, identities,
+          contents, metadata, resource forks and compression results.
+
+          The four steps above isolate what is being checked. The uploaded images,
+          observations, capture scripts and hashes provide the reference data for
+          the Go reader comparisons on Linux, Windows and macOS.
+          EOF
+      - name: Upload Apple-tool diagnostics, including failures
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: native-diagnostics-${{ matrix.major }}
           path: artifacts/native/**/*.diagnostics.json
           if-no-files-found: error
-      - name: Publish complete native corpus
+      - name: Upload reference images, observations and provenance
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: native-corpus-${{ matrix.major }}
@@ -66,14 +80,20 @@ jobs:
           if-no-files-found: error
 
   replay:
-    name: Native comparison (${{ matrix.os }})
+    name: Compare Go with macOS reference data (${{ matrix.platform }})
     needs: produce
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-26]
+        include:
+          - os: ubuntu-24.04
+            platform: Linux
+          - os: windows-2025
+            platform: Windows
+          - os: macos-26
+            platform: macOS
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
@@ -85,7 +105,7 @@ jobs:
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
-      - name: Compare all required native producers
+      - name: Verify Go results against macOS 15, 26 and 27 observations
         run: go test -v -count=1 -timeout 5m ./acceptance
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
@@ -93,13 +113,31 @@ jobs:
           APFS_NATIVE_SEMANTICS: ../artifacts/native/semantics
           APFS_NATIVE_COMPRESSION: ../artifacts/native/compression
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
+      - name: Explain the compatibility result
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Go reader compatibility verified
+          On this host, Go matched the reference observations captured on macOS
+          15, 26 and 27 for APFS, case-sensitive APFS, HFS+ and HFSX.
+
+          Comparisons cover volume identity, file contents and metadata, forks,
+          filename lookup, hard links, fragmented forks and transparent compression.
+          Every required reference set must be present. A mismatch fails this job.
+          Image hashes are checked before and after reading to verify preservation.
+
+          Older macOS kernels can reject LZ4 filesystem types while Apple's public
+          codec decodes them. Those recorded outcomes remain distinct; the Go LZ4
+          comparison uses the native codec result in those cases.
+          EOF
 
   complete:
+    name: Require all filesystem compatibility checks
     if: always()
     needs: [produce, replay]
     runs-on: ubuntu-24.04
     steps:
-      - name: Require all producer and consumer cells
+      - name: Require every macOS reference capture and Go comparison
         env:
           PRODUCERS: ${{ needs.produce.result }}
           CONSUMERS: ${{ needs.replay.result }}

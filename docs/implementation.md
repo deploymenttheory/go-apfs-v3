@@ -49,8 +49,9 @@ The file-semantics family passed all required producers and replay hosts in
 The file-compression family now adds native decmpfs types 1, 3, 4 and 7–16,
 logical/raw storage separation, native public-codec readback, stored blocks,
 resource descriptor gaps, inactive attributes and a malformed active-file control.
-Retained macOS 27 evidence passes locally; fresh macOS 15/26/27 production and
-Linux/Windows/macOS replay are required by this change's CI. Short parser fuzz campaigns,
+The compression implementation passed fresh macOS 15/26/27 reference capture and
+Linux/Windows/macOS replay in [PR #10's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37974021258).
+Every reader change continues to require that full matrix. Short parser fuzz campaigns,
 unit tests, race detection, vet, lint and cross-builds supplement native evidence.
 
 Retained manifests identify the captured OS build. Fresh captures require the
