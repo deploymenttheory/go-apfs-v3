@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; broader key profiles and historical views pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -62,8 +62,10 @@ The encrypted-DMG increment adds six Apple-created images covering AES-128/256,
 APFS, case-sensitive APFS, HFS+ and HFSX, raw/compressed storage, Unicode and
 changed passwords, and independent APFS encryption inside a DMG. Each compares
 107 native objects and checks credential rejection, read-only preservation and
-image-view lifetime. Retained macOS 27.0.1 evidence passes locally; fresh
-macOS 15/26/27 capture and all three replay hosts remain required for the PR.
+image-view lifetime. Fresh macOS 15/26/27 capture and all three replay hosts passed
+in [PR #12's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37982231632).
+The macOS 15 images exercise 3DES password-key wrapping; the retained macOS 27
+images exercise AES wrapping. Both carry AES-128/256 encrypted payloads.
 
 Every reader change continues to require that full matrix. Short parser fuzz campaigns,
 unit tests, race detection, vet, lint and cross-builds supplement native evidence.
@@ -72,12 +74,88 @@ Retained manifests identify the captured OS build. Fresh captures require the
 expected major version and fail on a mislabeled runner. These scenarios do not
 qualify write, mount or recovery capabilities.
 
-Remaining reader work includes broader encryption profiles, snapshots/sealed views,
+Remaining reader work includes broader encryption profiles, sealed views,
 historical name profiles and broader damaged-image handling. HFS+ directory
 hard links, generation-store and dataless file contents fail explicitly. Fragmented
 metadata and attribute-continuation fixtures remain unqualified. A small set of
 native fixtures is evidence for these scenarios,
 not a declaration of support for every image in the wild.
+
+## APFS snapshot reader increment
+
+Provide read-only enumeration and access to retained APFS snapshots. This is
+part of phase 2; snapshot creation, deletion and revert by Go remain in phase 6.
+The user operation is to select a historical filesystem state and read its
+files and metadata on Linux or Windows, including files removed from the live
+volume after the snapshot was taken.
+
+Implementation scope:
+
+- List snapshot names, transaction identifiers (XIDs), timestamps and flags;
+  expose UUIDs when available, preserving the distinction from uncaptured data.
+- Open a snapshot by an explicit name or XID through a fixed read-only view.
+  Object-map resolution, tree validation and `Identity.View` must use that
+  selected view. Opening one must not change the live volume or another view.
+- Reuse the existing file, metadata, attribute, fork, compression and encryption
+  readers. Keep snapshot selection in the APFS engine and expose it through
+  `snapshot list` and explicit selectors on CLI `list`/`cat`.
+- Bound snapshot-tree traversal and validate record lengths, references, object
+  types, checksums and transaction limits. Missing or damaged snapshots must
+  fail explicitly; they must never fall back to the live filesystem.
+
+Use the snapshot metadata and object-map layouts in Apple's
+[APFS reference](https://developer.apple.com/support/apple-file-system/Apple-File-System-Reference.pdf),
+with pinned source provenance for any translated code. Existing tree decoding
+should be shared where its format rules match; snapshot-specific interpretation
+stays explicit.
+
+The local feasibility gate passed without special runner provisioning. Apple
+Software Restore (`asr`) creates temporary snapshots during replication. The
+collector observes its own child's snapshot, pauses the child, mounts the
+snapshot read-only, then resumes the copy to successful completion. The mount
+prevents cleanup from deleting that snapshot. After unmounting, the retained
+snapshot must still appear in Apple's inventory. All source/target volumes are
+disposable images. The captured names are Apple's actual `com.apple.asr.*` names;
+Unicode snapshot names are not part of native qualification.
+
+Direct unentitled syscalls and `apfs_systemsnapshot` had failed with EPERM;
+those failures did not establish that new runners were needed. The native
+collector uses the replication workflow instead. It neither changes host security
+settings nor creates snapshot structures with Go. A missed snapshot, timeout,
+failed copy or failed filesystem verification fails capture.
+
+Native snapshot capture has passed on macOS 15, 26 and 27. The retained macOS 27
+corpus matches Go for 111–112 objects in each live/historical state in approximately
+one second; the complete retained acceptance suite takes approximately four
+seconds locally. Fresh capture and replay of every producer on Linux, Windows
+and macOS are required by [PR #13's compatibility checks](https://github.com/deploymenttheory/go-apfs-v3/pull/13/checks).
+Qualification results are recorded in that PR; native capture alone does not
+establish portable compatibility.
+
+Add one `snapshot-reading` acceptance family with three initial profiles:
+ordinary APFS, case-sensitive APFS, and software-encrypted APFS inside an
+encrypted DMG. Each retains two snapshots and a later live state. Between states,
+change file contents, rename and delete entries, modify metadata, attributes and
+resource forks, and exercise hard links, clones, sparse data and compression.
+Read each retained snapshot through a native read-only mount of the final image;
+expected results must not be inferred from the fixture-writing recipe.
+
+The comparison must prove that older names, contents and metadata remain visible
+only in the appropriate states, that objects retain the right identity within
+each view, and that interleaved reads cannot mix states. Include empty inventory,
+unknown/deleted snapshot selection, cancellation, corruption and borrowed-key
+lifetime checks. Preserve source image hashes and record native commands,
+observations, source hashes and OS builds.
+
+Require fresh macOS 15/26/27 captures and Linux/Windows/macOS replay, plus the
+existing regression matrix. Reuse the common file observation/comparison code;
+report capture and replay duration and avoid a Cartesian product of every
+encryption, compression and filename profile.
+
+Sealed-system integrity verification, arbitrary checkpoint recovery, dataless
+snapshots and snapshot mutation are outside this increment. HFS+ retains its
+existing reader and regression coverage. Preservation-aware extraction and
+workspaces remain the next larger phase after the reader readiness review.
 
 ## Required phase gates
 

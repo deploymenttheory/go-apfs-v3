@@ -157,3 +157,38 @@ func TestCancelledInspectionReturnsNoReport(t *testing.T) {
 		t.Fatal("canceled command produced a report")
 	}
 }
+
+func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
+	image := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", "apfs.dmg")
+	var out, diagnostics bytes.Buffer
+	if err := run(context.Background(), []string{"snapshot", "list", "--json", image}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	var inventory struct {
+		Schema    int
+		Volume    string
+		Snapshots []json.RawMessage
+	}
+	if err := json.Unmarshal(out.Bytes(), &inventory); err != nil {
+		t.Fatal(err)
+	}
+	if inventory.Schema != 1 || inventory.Volume == "" || inventory.Snapshots == nil || len(inventory.Snapshots) != 0 || diagnostics.Len() != 0 {
+		t.Fatal("invalid empty snapshot inventory", out.String(), diagnostics.String())
+	}
+	for _, selectors := range [][]string{
+		{"--snapshot-name", "absent"}, {"--snapshot-xid", "1"}, {"--snapshot-xid", "0"},
+		{"--snapshot-name", ""}, {"--snapshot-name", "absent", "--snapshot-xid", "1"},
+	} {
+		out.Reset()
+		args := append([]string{"cat"}, selectors...)
+		args = append(args, image, "Fixture/example.txt")
+		if err := run(context.Background(), args, nil, &out, &diagnostics); err == nil || out.Len() != 0 {
+			t.Fatal("invalid snapshot selector exposed live content", selectors, err)
+		}
+	}
+	out.Reset()
+	hfs := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", "hfsplus.dmg")
+	if err := run(context.Background(), []string{"snapshot", "list", hfs}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrUnsupported) || out.Len() != 0 {
+		t.Fatal("HFS snapshot inventory", err)
+	}
+}

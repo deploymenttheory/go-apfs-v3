@@ -56,6 +56,18 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 		return corrupt("file identifier", 0)
 	}
 	target := recordPrefix{id, kind}
+	return v.walkRecords(ctx, recordTree{v.root, 14, false}, &target, yield)
+}
+
+type recordTree struct {
+	root     OID
+	subtype  uint32
+	physical bool
+}
+
+// walkRecords shares bounded variable-record traversal between the filesystem
+// and snapshot metadata trees. A nil target enumerates the whole tree.
+func (v *Volume) walkRecords(ctx context.Context, tree recordTree, target *recordPrefix, yield func(record) error) error {
 	seen := map[OID]bool{}
 	var visit func(OID, int, int) error
 	visit = func(oid OID, depth, expectedLevel int) error {
@@ -69,9 +81,13 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 			return corrupt("filesystem tree cycle or repeated child", 0)
 		}
 		seen[oid] = true
-		mapping, err := v.container.resolve(v.omap, oid, v.container.XID)
-		if err != nil {
-			return err
+		mapping := objectMapping{address: PhysicalAddress(oid)}
+		if !tree.physical {
+			var err error
+			mapping, err = v.container.resolve(v.omap, oid, v.xid)
+			if err != nil {
+				return err
+			}
 		}
 		objectType := uint32(3)
 		if depth == 0 {
@@ -83,8 +99,15 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 			return err
 		}
 		flags, level := le.Uint16(b[32:]), int(le.Uint16(b[34:]))
-		if OID(le.Uint64(b[8:])) != oid || XID(le.Uint64(b[16:])) > v.container.XID || le.Uint32(b[28:]) != 14 || (depth == 0) != (flags&1 != 0) || (level == 0) != (flags&2 != 0) || (expectedLevel >= 0 && level != expectedLevel) {
+		if OID(le.Uint64(b[8:])) != oid || XID(le.Uint64(b[16:])) > v.xid || le.Uint32(b[28:]) != tree.subtype || (depth == 0) != (flags&1 != 0) || (level == 0) != (flags&2 != 0) || (expectedLevel >= 0 && level != expectedLevel) {
 			return corrupt("filesystem tree node header", int64(address)*int64(v.container.BlockSize))
+		}
+		storage := uint32(0)
+		if tree.physical {
+			storage = 0x40000000
+		}
+		if le.Uint32(b[24:])&0xc0000000 != storage {
+			return corrupt("tree object storage type", int64(address)*int64(v.container.BlockSize))
 		}
 		if flags&^uint16(3) != 0 {
 			return fmt.Errorf("filesystem tree node flags %#x: %w", flags, filesystem.ErrUnsupported)
@@ -94,7 +117,10 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 			return err
 		}
 		for i, r := range entries {
-			cmp := prefix(r.key).compare(target)
+			cmp := 0
+			if target != nil {
+				cmp = prefix(r.key).compare(*target)
+			}
 			if cmp > 0 {
 				break
 			}
@@ -105,7 +131,7 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 					}
 				}
 			} else {
-				if i+1 < len(entries) && prefix(entries[i+1].key).compare(target) < 0 {
+				if target != nil && i+1 < len(entries) && prefix(entries[i+1].key).compare(*target) < 0 {
 					continue
 				}
 				if len(r.value) != 8 {
@@ -118,7 +144,7 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 		}
 		return nil
 	}
-	return visit(v.root, 0, -1)
+	return visit(tree.root, 0, -1)
 }
 
 func variableRecords(b []byte, root bool) ([]record, error) {

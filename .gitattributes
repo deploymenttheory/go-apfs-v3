@@ -7,12 +7,7 @@
 *.json text eol=lf
 
 # Native hashes bind exact original bytes, including scripts and plist output.
-acceptance/testdata/native/** -text
-acceptance/testdata/files/** -text
-acceptance/testdata/semantics/** -text
-acceptance/testdata/compression/** -text
-acceptance/testdata/encryption/** -text
-acceptance/testdata/encrypted-dmg/** -text
+acceptance/testdata/** -text
 
 # Review the pinned inputs and generator for these reproducible tables.
 internal/names/*_tables.go linguist-generated=true

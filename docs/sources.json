@@ -12,9 +12,10 @@
         "apfs/records.go",
         "apfs/reader.go",
         "apfs/keybag.go",
-        "apfs/encryption.go"
+        "apfs/encryption.go",
+        "apfs/snapshot.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters."
     },
     {
       "id": "apple-tn1150",
@@ -508,6 +509,41 @@
       ],
       "evidence": "acceptance/testdata/encrypted-dmg/macos-27/manifest.json",
       "basis": "Six Apple-created AES-128/256 encrcdsa v2 images cover APFS, case-sensitive APFS, HFS+, HFSX, UDZO and raw UDRW, Unicode/changed/rejected passwords and an independently encrypted APFS volume. Each has 107 observed objects from a final read-only mount. Current native password records wrap with AES-192-CBC, declare an 8-byte IV and use a zero-extended 16-byte AES IV. Retained capture and file/source hashes are immutable; older wrapping profiles require their own native CI evidence."
+    },
+    {
+      "id": "apple-xnu-snapshot-api",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "components": [
+        "acceptance/native/snapshot_reading.py"
+      ],
+      "files": [
+        {
+          "path": "bsd/sys/snapshot.h",
+          "sha256": "b5566bd2c29664227be380282941bb0d0f42e6fc73ffa471fc4ee4e7fa3ab235"
+        },
+        {
+          "path": "bsd/sys/attr.h",
+          "sha256": "928e84be59bb06eaa0abb3caba330b0a1c46c74115a9c078bb3aca1763fddce9"
+        },
+        {
+          "path": "bsd/vfs/vfs_syscalls.c",
+          "sha256": "b30d68fb85f34b864b5e71e3127541c2674e0fb52e59d6ee072c8b0ecbb46a4f"
+        }
+      ],
+      "basis": "Public snapshot enumeration and attribute ABI studied for an original Python ctypes collector. Kernel entitlement checks explain direct-call rejection; no kernel implementation copied. Apple asr and mount_apfs perform native snapshot creation and retention on disposable volumes."
+    },
+    {
+      "id": "native-apfs-snapshots-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/snapshot.go",
+        "apfs/records.go",
+        "apfs/reader.go"
+      ],
+      "evidence": "acceptance/testdata/snapshots/macos-27/manifest.json",
+      "basis": "Apple-created replication snapshots, UUID/XID inventory, native timestamps and final read-only historical mounts independently qualify two historical states alongside live state in ordinary, case-sensitive and nested encrypted APFS. The first saved superblock has no extended metadata OID; the live OID resolves the snapshot UUID at its XID. Unicode snapshot names and non-leaf snapshot metadata trees remain unqualified."
     }
   ]
 }

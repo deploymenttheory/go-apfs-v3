@@ -41,6 +41,8 @@ jobs:
             major: 27
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Record APFS snapshot inventories and historical files
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
       - name: Record volume layout and identity
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
       - name: Record file contents, metadata and resource forks
@@ -60,9 +62,9 @@ jobs:
           Apple tools created APFS, case-sensitive APFS, HFS+ and HFSX disk images.
           Native macOS filesystem APIs recorded the expected names, identities,
           contents, metadata, resource forks, compression, APFS password unlocks
-          and password-protected DMG images.
+          password-protected DMG images and retained APFS snapshot histories.
 
-          The six steps above isolate what is being checked. The uploaded images,
+          The seven steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -84,6 +86,7 @@ jobs:
             artifacts/native/compression/macos-${{ matrix.major }}/
             artifacts/native/encryption/macos-${{ matrix.major }}/
             artifacts/native/encrypted-dmg/macos-${{ matrix.major }}/
+            artifacts/native/snapshots/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -121,6 +124,7 @@ jobs:
           APFS_NATIVE_COMPRESSION: ../artifacts/native/compression
           APFS_NATIVE_ENCRYPTION: ../artifacts/native/encryption
           APFS_NATIVE_ENCRYPTED_DMG: ../artifacts/native/encrypted-dmg
+          APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
       - name: Explain the compatibility result
         shell: bash
@@ -135,6 +139,8 @@ jobs:
           and read-only APFS unlocking with correct, wrong and changed passwords.
           Encrypted DMG cases cover AES-128/256, raw/compressed images and an
           independently encrypted APFS volume inside an encrypted image.
+          Snapshot comparisons check two retained historical states and the later
+          live filesystem, including names and files removed after a snapshot.
           Apple CommonCrypto independently checks the APFS encryption primitives.
           Every required reference set must be present. A mismatch fails this job.
           Image hashes are checked before and after reading to verify preservation.

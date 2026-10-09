@@ -50,7 +50,7 @@ func (v *Volume) inode(ctx context.Context, id uint64) (inode, error) {
 		m.ModifyTime = filesystem.Observed(time.Unix(0, int64(le.Uint64(b[24:]))).UTC())
 		m.ChangeTime = filesystem.Observed(time.Unix(0, int64(le.Uint64(b[32:]))).UTC())
 		m.AccessTime = filesystem.Observed(time.Unix(0, int64(le.Uint64(b[40:]))).UTC())
-		result.node = filesystem.Node{Identity: filesystem.Identity{Volume: v.UUID, Object: id, View: uint64(v.container.XID)}, Metadata: m}
+		result.node = filesystem.Node{Identity: filesystem.Identity{Volume: v.UUID, Object: id, View: uint64(v.xid)}, Metadata: m}
 		if mode&0170000 != 0040000 {
 			result.node.Links = filesystem.Observed(le.Uint32(b[56:]))
 		}

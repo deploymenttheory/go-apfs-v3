@@ -93,6 +93,28 @@ handle host limitations. Journal API-mediated changes and publish coherent
 generations; external edits require explicit import. Preserving source ACL
 bytes and enforcing host ACLs are separate capabilities.
 
+## Historical APFS reads
+
+A volume carries a private transaction bound. The live reader uses its selected
+container checkpoint; a snapshot reader uses the retained snapshot XID and the
+physical snapshot superblock's filesystem root. Both resolve virtual filesystem
+objects through the live volume's object map, which preserves retained versions.
+`Identity.View` reports the selected transaction. Opening another view never
+mutates an existing reader or caches a global current snapshot.
+
+Snapshot metadata and its name index are validated as one bounded inventory.
+The filesystem and physical snapshot metadata trees share record bounds and
+traversal, while their storage classes and subtypes remain explicit. Extended
+snapshot metadata is resolved at the snapshot XID from the live metadata OID;
+the saved snapshot superblock can predate that OID's creation. Native UUID
+observations qualify this distinction.
+
+A historical reader borrows its parent's unlocked key owner and exposes only
+`filesystem.Reader`. It cannot close or transfer those keys. Closing the owning
+unlock invalidates historical metadata, values and decoded compression caches;
+independent unlocks remain usable. There is no live-view fallback when snapshot
+selection, metadata validation or historical object resolution fails.
+
 ## Encrypted APFS reads
 
 `Volume.Unlock` reads the selected checkpoint's container keylocker, locates the
@@ -186,8 +208,11 @@ file-type carving is separate from the planned filesystem-aware recovery.
 Decoder bounds: 16 MiB UDIF plist; 64 MiB stored/decoded compressed chunk; 1 TiB
 UDIF logical disk; 4096 GPT/APM entries; 32 tree levels; 65536 checkpoint
 descriptor blocks; one million visited nodes/extents per file operation. These
-are not total process-memory guarantees. The UDIF cache
-retains one decoded chunk under a mutex. Configurable shared budgets are pending.
+are not total process-memory guarantees. Under a mutex, the UDIF cache retains
+up to eight recently used chunks and at most 64 MiB of decoded bytes. This avoids
+repeated decompression when historical filesystem roots and their object map
+occupy different chunks. Eviction and image close clear decoded bytes.
+Configurable shared budgets are pending.
 decmpfs bounds are 3802 stored attribute bytes, 64 KiB logical inline contents,
 64 KiB per resource block and 1 MiB encoded bytes per block. Exceeding an encoded
 or logical decoding budget returns `ErrLimit`; unknown types return
