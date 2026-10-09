@@ -141,7 +141,9 @@ def capture(work, corpus, command, create_files, observe_files, sha256):
                 raise RuntimeError("native snapshot did not survive unmount")
             return result["name"]
         finally:
-            command("hdiutil", "detach", device)
+            # ASR remounts its disposable target, which background services can
+            # open immediately. This copy is discarded, so force only its eject.
+            command("hdiutil", "detach", "-force", device)
 
 
     def info(device):

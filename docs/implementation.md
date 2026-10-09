@@ -125,7 +125,7 @@ settings nor creates snapshot structures with Go. A missed snapshot, timeout,
 failed copy or failed filesystem verification fails capture.
 
 Local macOS 27 capture passed all three profiles, and Go replay matched the
-112 objects in each live/historical state in approximately six seconds. Fresh
+111–112 objects in each live/historical state in approximately six seconds. Fresh
 macOS 15/26/27 capture and the complete portable matrix remain the PR gate.
 
 Add one `snapshot-reading` acceptance family with three initial profiles:
