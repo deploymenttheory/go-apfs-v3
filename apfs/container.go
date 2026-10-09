@@ -54,6 +54,10 @@ type Volume struct {
 	rootType                   uint32
 	id                         [16]byte
 	keys                       *volumeKeys
+	xid                        XID
+	snapMeta                   OID
+	snapMetaType               uint32
+	snapMetaExt                OID
 }
 
 // Open borrows source. It selects the highest valid container superblock in
@@ -142,17 +146,24 @@ func Open(source block.Source) (*Container, error) {
 		if string(b[32:36]) != "APSB" || OID(le.Uint64(b[8:])) != oid || XID(le.Uint64(b[16:])) > c.XID {
 			return nil, corrupt("volume superblock", int64(address)*int64(bs))
 		}
-		name := b[704:960]
-		if end := bytes.IndexByte(name, 0); end >= 0 {
-			name = name[:end]
-		}
-		features, flags := le.Uint64(b[56:]), le.Uint64(b[264:])
-		v := Volume{OID: oid, UUID: uuid(b[240:256]), Name: string(name), Role: le.Uint16(b[964:]), VolumeGroup: uuid(b[1008:1024]), CaseSensitive: features&1 == 0, Flags: flags, CompatibleFeatures: le.Uint64(b[40:]), ReadOnlyCompatibleFeatures: le.Uint64(b[48:]), IncompatibleFeatures: features, Encrypted: flags&1 == 0, Sealed: features&0x20 != 0, Files: le.Uint64(b[184:]), Directories: le.Uint64(b[192:]), Snapshots: le.Uint64(b[216:])}
-		copy(v.id[:], b[240:256])
-		v.container, v.omap, v.root, v.rootType = c, PhysicalAddress(le.Uint64(b[128:])), OID(le.Uint64(b[136:])), le.Uint32(b[116:])
+		v := c.volume(b, c.XID)
 		c.Volumes = append(c.Volumes, v)
 	}
 	return c, nil
+}
+
+// volume decodes an already verified current or snapshot superblock.
+func (c *Container) volume(b []byte, xid XID) Volume {
+	name := b[704:960]
+	if end := bytes.IndexByte(name, 0); end >= 0 {
+		name = name[:end]
+	}
+	features, flags := le.Uint64(b[56:]), le.Uint64(b[264:])
+	v := Volume{OID: OID(le.Uint64(b[8:])), UUID: uuid(b[240:256]), Name: string(name), Role: le.Uint16(b[964:]), VolumeGroup: uuid(b[1008:1024]), CaseSensitive: features&1 == 0, Flags: flags, CompatibleFeatures: le.Uint64(b[40:]), ReadOnlyCompatibleFeatures: le.Uint64(b[48:]), IncompatibleFeatures: features, Encrypted: flags&1 == 0, Sealed: features&0x20 != 0, Files: le.Uint64(b[184:]), Directories: le.Uint64(b[192:]), Snapshots: le.Uint64(b[216:])}
+	copy(v.id[:], b[240:256])
+	v.container, v.omap, v.root, v.rootType = c, PhysicalAddress(le.Uint64(b[128:])), OID(le.Uint64(b[136:])), le.Uint32(b[116:])
+	v.xid, v.snapMeta, v.snapMetaType, v.snapMetaExt = xid, OID(le.Uint64(b[152:])), le.Uint32(b[124:]), OID(le.Uint64(b[1000:]))
+	return v
 }
 
 func (c *Container) object(address PhysicalAddress, kind uint32) ([]byte, error) {

@@ -63,7 +63,7 @@ APFS_NATIVE_FILES=../artifacts/files go test -v -run TestNativeFileReading ./acc
 
 Environment paths above are relative to the acceptance package's working directory.
 Use absolute paths for a corpus elsewhere. Default `go test ./...` replays all
-four retained families without native tools. A missing family fails the suite.
+retained families without native tools. A missing family fails the suite.
 
 ## File semantics
 
@@ -93,7 +93,7 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all four families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all seven families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
@@ -221,3 +221,48 @@ Unit tests isolate bounds, checksums, short reads, concurrency, and corruption.
 Fuzz targets exercise parser entry points. Coverage is diagnostic. Every new
 scenario must explain its value and independent expected result as plainly as
 the table above.
+
+## APFS snapshots
+
+Purpose: let forensic and packaging consumers read a selected historical state
+without mixing its files with the live filesystem.
+
+| Cases | Independent native expectation | Portable assertions |
+| --- | --- | --- |
+| APFS, case-sensitive APFS, encrypted APFS inside AES-256 DMG | Two retained snapshots and the later live state, observed from final read-only mounts | Exact snapshot names/XIDs/UUIDs/timestamps and the common file/metadata/fork comparison for all three states |
+| Modified hard link, clone, sparse ranges, attributes, resource fork, permissions; renamed/deleted/recreated files | Native reads, `lstat`, xattrs and positive/negative lookups in each historical mount | Historical bytes, identities, metadata and lookup results match; interleaved values do not mix states |
+| Empty inventory and a created then deleted snapshot | Native inventory before creation and after deletion | Missing/deleted selections fail without live fallback |
+| Borrowed encryption keys and damaged historical metadata | Independently unlocked native source; corruption only in test overlays | Closing an unlock invalidates its snapshot values/caches; independent unlocks survive; corruption returns no reader |
+
+`native/snapshot_reading.py` retains snapshots created by Apple's `asr` during
+replication to a disposable target. It observes the child's snapshot through
+`fs_snapshot_list`, pauses only that child, mounts the snapshot, then resumes
+and requires the copy to finish successfully. Mounting pins the snapshot against
+ASR cleanup; capture verifies it still exists after unmounting. The temporary
+target is discarded. A 16 MiB allocated, compressible file outside `Fixture`
+gives the observer time to mount; it supplies no expected filesystem results.
+All subprocesses have deadlines and a missed snapshot fails capture.
+
+This workflow needs no custom entitlement or host security changes. It uses
+Apple's actual snapshot names rather than invented recipe names. Snapshot UUIDs
+come from `diskutil`; timestamps come from native attribute enumeration. Unicode
+snapshot names and non-leaf snapshot metadata trees are not yet natively qualified.
+The filesystem trees within the snapshots do span multiple nodes.
+
+macOS may reuse an unlock when reattaching after ASR. Capture explicitly locks
+such a volume, records that locked state, requires rejection of the DMG password
+as an APFS password, then unlocks with the separate APFS credential. Portable
+replay also requires that opening the DMG alone leaves APFS inaccessible.
+`diskutil verifyVolume` and `hdiutil verify` must pass; image hashes must remain
+unchanged by the final native and portable reads.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario snapshot-reading --output artifacts/snapshots/macos-27
+APFS_NATIVE_SNAPSHOTS=../artifacts/snapshots go test -v -run TestNativeSnapshotReading ./acceptance
+```
+
+Retained macOS 27 replay takes approximately six seconds locally. The CI gate
+requires fresh macOS 15/26/27 reference captures and each Linux/Windows/macOS
+consumer to replay all three. Snapshot creation/deletion/revert by Go, sealed
+system verification, dataless snapshots and arbitrary checkpoint recovery remain
+outside this family.

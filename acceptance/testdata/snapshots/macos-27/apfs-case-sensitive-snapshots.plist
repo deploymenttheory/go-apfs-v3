@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Snapshots</key>
+	<array>
+		<dict>
+			<key>LimitingContainerShrink</key>
+			<false/>
+			<key>Purgeable</key>
+			<true/>
+			<key>RevertTo</key>
+			<false/>
+			<key>RootTo</key>
+			<false/>
+			<key>SnapshotName</key>
+			<string>com.apple.asr.57769</string>
+			<key>SnapshotUUID</key>
+			<string>534C684D-5AA4-4050-9FFF-E5FFDA5DDA86</string>
+			<key>SnapshotXID</key>
+			<integer>4</integer>
+		</dict>
+		<dict>
+			<key>LimitingContainerShrink</key>
+			<true/>
+			<key>Purgeable</key>
+			<true/>
+			<key>RevertTo</key>
+			<false/>
+			<key>RootTo</key>
+			<false/>
+			<key>SnapshotName</key>
+			<string>com.apple.asr.57809</string>
+			<key>SnapshotUUID</key>
+			<string>24C6BBC9-165A-4EB7-A5D4-6B94B3190D90</string>
+			<key>SnapshotXID</key>
+			<integer>7</integer>
+		</dict>
+	</array>
+</dict>
+</plist>

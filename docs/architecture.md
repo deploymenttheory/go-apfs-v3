@@ -93,6 +93,28 @@ handle host limitations. Journal API-mediated changes and publish coherent
 generations; external edits require explicit import. Preserving source ACL
 bytes and enforcing host ACLs are separate capabilities.
 
+## Historical APFS reads
+
+A volume carries a private transaction bound. The live reader uses its selected
+container checkpoint; a snapshot reader uses the retained snapshot XID and the
+physical snapshot superblock's filesystem root. Both resolve virtual filesystem
+objects through the live volume's object map, which preserves retained versions.
+`Identity.View` reports the selected transaction. Opening another view never
+mutates an existing reader or caches a global current snapshot.
+
+Snapshot metadata and its name index are validated as one bounded inventory.
+The filesystem and physical snapshot metadata trees share record bounds and
+traversal, while their storage classes and subtypes remain explicit. Extended
+snapshot metadata is resolved at the snapshot XID from the live metadata OID;
+the saved snapshot superblock can predate that OID's creation. Native UUID
+observations qualify this distinction.
+
+A historical reader borrows its parent's unlocked key owner and exposes only
+`filesystem.Reader`. It cannot close or transfer those keys. Closing the owning
+unlock invalidates historical metadata, values and decoded compression caches;
+independent unlocks remain usable. There is no live-view fallback when snapshot
+selection, metadata validation or historical object resolution fails.
+
 ## Encrypted APFS reads
 
 `Volume.Unlock` reads the selected checkpoint's container keylocker, locates the

@@ -15,11 +15,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
 
 type fileObservation struct {
+	Snapshots             *nativeSnapshots             `json:"snapshots,omitempty"`
+	SnapshotPasswords     *nativeSnapshotPasswords     `json:"snapshotPasswords,omitempty"`
 	DiskImage             *nativeDiskImage             `json:"diskImage,omitempty"`
 	Encryption            *nativeEncryption            `json:"encryption,omitempty"`
 	CompressionRejections []nativeCompressionRejection `json:"compressionRejections,omitempty"`
@@ -87,7 +90,7 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			}
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
-			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py"}[scenario]
+			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py", "snapshot-reading": "snapshot_reading.py"}[scenario]
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
@@ -103,6 +106,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 				for _, id := range []string{"apfs-aes128", "apfs-case-sensitive-aes256", "hfsplus-aes128", "hfsx-aes256", "hfsplus-raw-aes256", "apfs-nested-aes256"} {
 					wantIDs[scenario+"/"+id] = false
 				}
+			}
+			if scenario == "snapshot-reading" {
+				wantIDs = map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/apfs-encrypted-dmg": false}
 			}
 			if len(c.Cases) != len(wantIDs) {
 				t.Fatal("incomplete file-reading inventory")
@@ -130,7 +136,12 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					if scenario == "disk-image-encryption" && want.DiskImage == nil {
 						t.Fatal("missing encrypted-image evidence")
 					}
-					img := openReferenceImage(t, filepath.Join(dir, test.Image), want.DiskImage, dir)
+					var img *diskimage.Image
+					if want.SnapshotPasswords != nil {
+						img = openSnapshotImage(t, filepath.Join(dir, test.Image), want.SnapshotPasswords, dir)
+					} else {
+						img = openReferenceImage(t, filepath.Join(dir, test.Image), want.DiskImage, dir)
+					}
 					defer img.Close()
 					r, err := inspect.Image(context.Background(), img)
 					if err != nil {
@@ -156,7 +167,13 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					if scenario == "file-encryption" || want.Encryption != nil {
 						reader = unlockForReplay(t, reader, want.Encryption, test.Expected, dir)
 					}
+					if want.SnapshotPasswords != nil {
+						reader = unlockSnapshotVolume(t, reader, want.SnapshotPasswords)
+					}
 					compareFiles(t, reader, want)
+					if scenario == "snapshot-reading" {
+						compareSnapshots(t, reader, want, dir)
+					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)
 					}

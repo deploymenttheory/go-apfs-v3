@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -17,11 +18,10 @@ import (
 func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
-	partition := flags.Int("partition", -1, "on-disk partition index (required if ambiguous)")
-	volume := flags.String("volume", "", "APFS UUID or HFS volume ID (required if ambiguous)")
+	options := readerFlags(flags)
 	jsonOutput := flags.Bool("json", false, "list as one JSON record per entry")
-	passwordFile := flags.String("password-file", "", "APFS password bytes in FILE; - reads stdin to EOF; no newline removal")
-	imagePasswordFile := flags.String("image-password-file", "", "DMG envelope password bytes in FILE; - reads stdin to EOF")
+	snapshotName := flags.String("snapshot-name", "", "exact retained APFS snapshot name")
+	snapshotXID := flags.Uint64("snapshot-xid", 0, "retained APFS snapshot transaction identifier")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -31,46 +31,35 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 	if *jsonOutput && args[0] == "cat" {
 		return fmt.Errorf("cat emits file bytes; --json applies to list")
 	}
-	if *passwordFile == "-" && *imagePasswordFile == "-" {
-		return fmt.Errorf("image and volume passwords cannot both consume stdin; use a file for one")
+	var byName, byXID bool
+	flags.Visit(func(f *flag.Flag) {
+		byName = byName || f.Name == "snapshot-name"
+		byXID = byXID || f.Name == "snapshot-xid"
+	})
+	if byName && byXID {
+		return fmt.Errorf("choose either --snapshot-name or --snapshot-xid")
 	}
-	img, err := openImage(ctx, flags.Arg(0), *imagePasswordFile, input)
+	if (byName && *snapshotName == "") || (byXID && *snapshotXID == 0) {
+		return fmt.Errorf("snapshot selector must be nonempty and nonzero")
+	}
+	reader, cleanup, err := options.open(ctx, flags.Arg(0), input)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if e := img.Close(); err == nil {
-			err = e
-		}
-	}()
-	report, err := inspect.Image(ctx, img)
-	if err != nil {
-		return err
-	}
-	reader, err := selectReader(report, *partition, *volume)
-	if err != nil {
-		return err
-	}
-	if *passwordFile != "" {
+	defer func() { err = errors.Join(err, cleanup()) }()
+	if byName || byXID {
 		v, ok := reader.(*apfs.Volume)
-		if !ok || !v.Encrypted {
-			return fmt.Errorf("--password-file requires an encrypted APFS volume")
+		if !ok {
+			return fmt.Errorf("snapshot selection requires APFS: %w", filesystem.ErrUnsupported)
 		}
-		password, err := readPassword(*passwordFile, input)
+		if byName {
+			reader, err = v.OpenSnapshotName(ctx, *snapshotName)
+		} else {
+			reader, err = v.OpenSnapshot(ctx, apfs.XID(*snapshotXID))
+		}
 		if err != nil {
 			return err
 		}
-		unlocked, err := v.Unlock(ctx, password)
-		clear(password)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if e := unlocked.Close(); err == nil {
-				err = e
-			}
-		}()
-		reader = unlocked
 	}
 	id, err := filesystem.Lookup(ctx, reader, flags.Arg(1))
 	if err != nil {
@@ -100,6 +89,65 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 		_, err := fmt.Fprintln(out, e.Name)
 		return err
 	})
+}
+
+// readerOptions is shared by file and snapshot commands. The returned cleanup
+// closes an owned unlock before its image; historical views borrow both.
+type readerOptions struct {
+	partition                               int
+	volume, passwordFile, imagePasswordFile string
+}
+
+func readerFlags(flags *flag.FlagSet) *readerOptions {
+	o := &readerOptions{}
+	flags.IntVar(&o.partition, "partition", -1, "on-disk partition index (required if ambiguous)")
+	flags.StringVar(&o.volume, "volume", "", "APFS UUID or HFS volume ID (required if ambiguous)")
+	flags.StringVar(&o.passwordFile, "password-file", "", "APFS password bytes in FILE; - reads stdin to EOF; no newline removal")
+	flags.StringVar(&o.imagePasswordFile, "image-password-file", "", "DMG envelope password bytes in FILE; - reads stdin to EOF")
+	return o
+}
+
+func (o *readerOptions) open(ctx context.Context, path string, input io.Reader) (reader filesystem.Reader, cleanup func() error, err error) {
+	if o.passwordFile == "-" && o.imagePasswordFile == "-" {
+		return nil, nil, fmt.Errorf("image and volume passwords cannot both consume stdin; use a file for one")
+	}
+	img, err := openImage(ctx, path, o.imagePasswordFile, input)
+	if err != nil {
+		return nil, nil, err
+	}
+	cleanup = img.Close
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, cleanup())
+			cleanup = nil
+		}
+	}()
+	report, err := inspect.Image(ctx, img)
+	if err != nil {
+		return nil, cleanup, err
+	}
+	reader, err = selectReader(report, o.partition, o.volume)
+	if err != nil {
+		return nil, cleanup, err
+	}
+	if o.passwordFile != "" {
+		v, ok := reader.(*apfs.Volume)
+		if !ok || !v.Encrypted {
+			return nil, cleanup, fmt.Errorf("--password-file requires an encrypted APFS volume")
+		}
+		password, err := readPassword(o.passwordFile, input)
+		if err != nil {
+			return nil, cleanup, err
+		}
+		unlocked, err := v.Unlock(ctx, password)
+		clear(password)
+		if err != nil {
+			return nil, cleanup, err
+		}
+		cleanup = func() error { return errors.Join(unlocked.Close(), img.Close()) }
+		reader = unlocked
+	}
+	return reader, cleanup, nil
 }
 
 func openImage(ctx context.Context, path, passwordFile string, input io.Reader) (*diskimage.Image, error) {

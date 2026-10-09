@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; broader key profiles and historical views pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented and locally qualified, full snapshot matrix pending; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -74,14 +74,14 @@ Retained manifests identify the captured OS build. Fresh captures require the
 expected major version and fail on a mislabeled runner. These scenarios do not
 qualify write, mount or recovery capabilities.
 
-Remaining reader work includes broader encryption profiles, snapshots/sealed views,
+Remaining reader work includes broader encryption profiles, sealed views,
 historical name profiles and broader damaged-image handling. HFS+ directory
 hard links, generation-store and dataless file contents fail explicitly. Fragmented
 metadata and attribute-continuation fixtures remain unqualified. A small set of
 native fixtures is evidence for these scenarios,
 not a declaration of support for every image in the wild.
 
-## Proposed next reader increment: APFS snapshots
+## APFS snapshot reader increment
 
 Provide read-only enumeration and access to retained APFS snapshots. This is
 part of phase 2; snapshot creation, deletion and revert by Go remain in phase 6.
@@ -109,9 +109,24 @@ with pinned source provenance for any translated code. Existing tree decoding
 should be shared where its format rules match; snapshot-specific interpretation
 stays explicit.
 
-The first gate is native feasibility: prove that Apple tools/APIs can create,
-enumerate and mount snapshots of disposable images on all three required macOS
-runners, including any privilege requirements. Failed capture is a failed gate.
+The local feasibility gate passed without special runner provisioning. Apple
+Software Restore (`asr`) creates temporary snapshots during replication. The
+collector observes its own child's snapshot, pauses the child, mounts the
+snapshot read-only, then resumes the copy to successful completion. The mount
+prevents cleanup from deleting that snapshot. After unmounting, the retained
+snapshot must still appear in Apple's inventory. All source/target volumes are
+disposable images. The captured names are Apple's actual `com.apple.asr.*` names;
+Unicode snapshot names are not part of native qualification.
+
+Direct unentitled syscalls and `apfs_systemsnapshot` had failed with EPERM;
+those failures did not establish that new runners were needed. The native
+collector uses the replication workflow instead. It neither changes host security
+settings nor creates snapshot structures with Go. A missed snapshot, timeout,
+failed copy or failed filesystem verification fails capture.
+
+Local macOS 27 capture passed all three profiles, and Go replay matched the
+112 objects in each live/historical state in approximately six seconds. Fresh
+macOS 15/26/27 capture and the complete portable matrix remain the PR gate.
 
 Add one `snapshot-reading` acceptance family with three initial profiles:
 ordinary APFS, case-sensitive APFS, and software-encrypted APFS inside an

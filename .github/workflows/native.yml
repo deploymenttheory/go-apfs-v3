@@ -62,9 +62,9 @@ jobs:
           Apple tools created APFS, case-sensitive APFS, HFS+ and HFSX disk images.
           Native macOS filesystem APIs recorded the expected names, identities,
           contents, metadata, resource forks, compression, APFS password unlocks
-          and password-protected DMG images.
+          password-protected DMG images and retained APFS snapshot histories.
 
-          The six steps above isolate what is being checked. The uploaded images,
+          The seven steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -124,6 +124,7 @@ jobs:
           APFS_NATIVE_COMPRESSION: ../artifacts/native/compression
           APFS_NATIVE_ENCRYPTION: ../artifacts/native/encryption
           APFS_NATIVE_ENCRYPTED_DMG: ../artifacts/native/encrypted-dmg
+          APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
       - name: Explain the compatibility result
         shell: bash
@@ -138,6 +139,8 @@ jobs:
           and read-only APFS unlocking with correct, wrong and changed passwords.
           Encrypted DMG cases cover AES-128/256, raw/compressed images and an
           independently encrypted APFS volume inside an encrypted image.
+          Snapshot comparisons check two retained historical states and the later
+          live filesystem, including names and files removed after a snapshot.
           Apple CommonCrypto independently checks the APFS encryption primitives.
           Every required reference set must be present. A mismatch fails this job.
           Image hashes are checked before and after reading to verify preservation.
