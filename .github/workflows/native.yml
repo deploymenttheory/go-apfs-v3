@@ -41,6 +41,8 @@ jobs:
             major: 27
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Record APFS snapshot inventories and historical files
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
       - name: Record volume layout and identity
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
       - name: Record file contents, metadata and resource forks
@@ -84,6 +86,7 @@ jobs:
             artifacts/native/compression/macos-${{ matrix.major }}/
             artifacts/native/encryption/macos-${{ matrix.major }}/
             artifacts/native/encrypted-dmg/macos-${{ matrix.major }}/
+            artifacts/native/snapshots/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:

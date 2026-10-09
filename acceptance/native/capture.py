@@ -32,7 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-major", type=int, choices=[15, 26, 27], required=True)
-    parser.add_argument("--scenario", choices=["volume-inspection", "file-reading", "file-semantics", "file-compression", "file-encryption", "disk-image-encryption"], default="volume-inspection")
+    parser.add_argument("--scenario", choices=["volume-inspection", "file-reading", "file-semantics", "file-compression", "file-encryption", "disk-image-encryption", "snapshot-reading"], default="volume-inspection")
     args = parser.parse_args()
     if platform.system() != "Darwin":
         parser.error("native capture requires macOS")
@@ -111,6 +111,9 @@ def main():
         elif args.scenario == "disk-image-encryption":
             import disk_image_encryption
             cases = disk_image_encryption.capture(work, corpus, command, create_files, observe_files, sha256)
+        elif args.scenario == "snapshot-reading":
+            import snapshot_reading
+            cases = snapshot_reading.capture(work, corpus, command, create_files, observe_files, sha256)
         else:
             cases = []
             profiles = [("apfs", "APFS", "APFS", False),
@@ -199,6 +202,10 @@ def main():
             manifest["producer"]["sources"] = [{"source": helper.name, "sha256": sha256(helper)}]
         if args.scenario == "disk-image-encryption":
             helper = corpus / "disk_image_encryption.py"
+            shutil.copyfile(Path(__file__).with_name(helper.name), helper)
+            manifest["producer"]["sources"] = [{"source": helper.name, "sha256": sha256(helper)}]
+        if args.scenario == "snapshot-reading":
+            helper = corpus / "snapshot_reading.py"
             shutil.copyfile(Path(__file__).with_name(helper.name), helper)
             manifest["producer"]["sources"] = [{"source": helper.name, "sha256": sha256(helper)}]
         (corpus / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
