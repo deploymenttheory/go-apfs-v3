@@ -1,75 +1,99 @@
-# Template
+# go-apfs-v3
 
-This repository serves as a **Default Template Repository** according official [GitHub Contributing Guidelines][ProjectSetup] for healthy contributions. It brings you clean default Templates for several areas:
+Portable macOS filesystem operations in Go for forensics, application packaging,
+and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
+contracts while retaining separate filesystem engines.
 
-- [Azure DevOps Pull Requests](.azuredevops/PULL_REQUEST_TEMPLATE.md) ([`.azuredevops\PULL_REQUEST_TEMPLATE.md`](`.azuredevops\PULL_REQUEST_TEMPLATE.md`))
-- [Azure Pipelines](.pipelines/pipeline.yml) ([`.pipelines/pipeline.yml`](`.pipelines/pipeline.yml`))
-- [GitHub Workflows](.github/workflows/)
-  - [Super Linter](.github/workflows/linter.yml) ([`.github/workflows/linter.yml`](`.github/workflows/linter.yml`))
-  - [Sample Workflows](.github/workflows/workflow.yml) ([`.github/workflows/workflow.yml`](`.github/workflows/workflow.yml`))
-- [GitHub Pull Requests](.github/PULL_REQUEST_TEMPLATE.md) ([`.github/PULL_REQUEST_TEMPLATE.md`](`.github/PULL_REQUEST_TEMPLATE.md`))
-- [GitHub Issues](.github/ISSUE_TEMPLATE/)
-  - [Feature Requests](.github/ISSUE_TEMPLATE/FEATURE_REQUEST.md) ([`.github/ISSUE_TEMPLATE/FEATURE_REQUEST.md`](`.github/ISSUE_TEMPLATE/FEATURE_REQUEST.md`))
-  - [Bug Reports](.github/ISSUE_TEMPLATE/BUG_REPORT.md) ([`.github/ISSUE_TEMPLATE/BUG_REPORT.md`](`.github/ISSUE_TEMPLATE/BUG_REPORT.md`))
-- [Codeowners](.github/CODEOWNERS) ([`.github/CODEOWNERS`](`.github/CODEOWNERS`)) _adjust usernames once cloned_
-- [Wiki and Documentation](docs/) ([`docs/`](`docs/`))
-- [gitignore](.gitignore) ([`.gitignore`](.gitignore))
-- [gitattributes](.gitattributes) ([`.gitattributes`](.gitattributes))
-- [Changelog](CHANGELOG.md) ([`CHANGELOG.md`](`CHANGELOG.md`))
-- [Code of Conduct](CODE_OF_CONDUCT.md) ([`CODE_OF_CONDUCT.md`](`CODE_OF_CONDUCT.md`))
-- [Contribution](CONTRIBUTING.md) ([`CONTRIBUTING.md`](`CONTRIBUTING.md`))
-- [License](LICENSE) ([`LICENSE`](`LICENSE`)) _adjust projectname once cloned_
-- [Readme](README.md) ([`README.md`](`README.md`))
-- [Security](SECURITY.md) ([`SECURITY.md`](`SECURITY.md`))
+**Status: initial read-only implementation.** The executable inspects images,
+lists directories and reads uncompressed files. Encryption unlocking, writes,
+recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
+for the complete agreed scope and qualification gates. This is a clean API break
+from v2.
 
+## Build and use
 
-## Status
+Go 1.27 or later. The current core has no external Go dependencies or cgo.
 
-[![Super Linter](<https://github.com/segraef/Template/actions/workflows/linter.yml/badge.svg>)](<https://github.com/segraef/Template/actions/workflows/linter.yml>)
+```sh
+go build -o ./bin/apfs ./cmd/apfs
+./bin/apfs inspect image.dmg
+./bin/apfs inspect --json image.dmg
+./bin/apfs list image.dmg /Applications
+./bin/apfs cat image.dmg /Applications/Example.app/Contents/Info.plist
+```
 
-[![Sample Workflow](<https://github.com/segraef/Template/actions/workflows/workflow.yml/badge.svg>)](<https://github.com/segraef/Template/actions/workflows/workflow.yml>)
+`info` is an alias for structural inspection. Flags precede the image argument.
+Output goes to stdout; errors go to stderr.
+File paths use exact names from enumeration. Symlinks are not followed.
+When several filesystems match, select `--partition INDEX` and/or `--volume ID`.
 
-## Creating a repository from a template
+Currently implemented:
 
-You can [generate](https://github.com/segraef/Template/generate) a new repository with the same directory structure and files as an existing repository. More details can be found [here][CreateFromTemplate].
+- Sized read-only block sources and bounded partition views.
+- Raw images; UDIF images with raw, zero, zlib, and bzip2 chunks.
+- GPT header/table CRC validation and enumeration with 512/4096-byte sectors;
+  Apple Partition Map enumeration with 512-byte map blocks.
+- APFS container geometry, checkpoint selection, object-map lookup, volume names,
+  UUIDs, feature flags, encryption state, roles, and groups.
+- HFS+/HFSX volume geometry, flags, case policy, and catalog root-thread name.
+- Directory enumeration, file identity, native metadata, symlink targets,
+  uncompressed data, sparse APFS extents, resource forks and extended attributes.
+- Concurrent, bounded fork readers with independent close and cancellation.
+- Versioned JSON reports and typed corruption/unsupported errors.
 
-## Reporting Issues and Feedback
+Encrypted APFS state is reported but not unlocked. Invalid recognized structures
+fail explicitly. Inspection never replays a journal or repairs a source.
 
-### Issues and Bugs
+## Library
 
-If you find any bugs, please file an issue in the [GitHub Issues][GitHubIssues] page. Please fill out the provided template with the appropriate information.
+```go
+image, err := diskimage.Open("example.dmg")
+if err != nil {
+    return err
+}
+defer image.Close()
+report, err := inspect.Image(ctx, image)
+```
 
-If you are taking the time to mention a problem, even a seemingly minor one, it is greatly appreciated, and a totally valid contribution to this project. **Thank you!**
+Import `github.com/deploymenttheory/go-apfs-v3/diskimage` and
+`github.com/deploymenttheory/go-apfs-v3/inspect`. `diskimage.New` borrows a
+`block.Source`. Image decoding exposes the complete disk; callers select
+partitions explicitly. Filesystem engines borrow their source.
 
-## Feedback
+`apfs.Volume` and `hfsplus.Volume` implement `filesystem.Reader`. `ReadDir`
+enumerates names and object IDs; `Stat` returns logical metadata;
+`OpenData`/`OpenAttribute` return sized `ReadAt` values. Values and volume readers
+must finish before closing the image. `filesystem.LookupExact` is an explicit
+exact-spelling traversal; native case folding is still pending.
 
-If there is a feature you would like to see in here, please file an issue or feature request in the [GitHub Issues][GitHubIssues] page to provide direct feedback.
+## Verification
 
-## Contribution
+```sh
+go test ./...
+go test -race ./...
+go vet ./...
+golangci-lint run
+```
 
-If you would like to become an active contributor to this repository or project, please follow the instructions provided in [`CONTRIBUTING.md`][Contributing].
+Acceptance replays genuine retained macOS images against independent
+`diskutil` and native filesystem observations. The file-reading family compares
+105 objects in each of four filesystem variants, including contents, metadata,
+Unicode names, binary/empty/large attributes and resource forks. Each corpus
+records native source, observations, image hashes and the actual OS version/build.
+Images are hashed before and after portable reading.
 
-## Learn More
+[Acceptance instructions](acceptance/README.md) cover capture and cross-platform
+replay. Passing a macOS 27 fixture does not qualify macOS 15 or 26. Runtime
+qualification is distinct from cross-compilation.
 
-* [GitHub Documentation][GitHubDocs]
-* [Azure DevOps Documentation][AzureDevOpsDocs]
-* [Microsoft Azure Documentation][MicrosoftAzureDocs]
+## Design
 
-<!-- References -->
+- [Architecture and preservation contracts](docs/architecture.md)
+- [Implementation sequence and status](docs/implementation.md)
+- [Source inventory](docs/sources.json)
 
-<!-- Local -->
-[ProjectSetup]: <https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions>
-[CreateFromTemplate]: <https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/creating-a-repository-from-a-template>
-[GitHubDocs]: <https://docs.github.com/>
-[AzureDevOpsDocs]: <https://docs.microsoft.com/en-us/azure/devops/?view=azure-devops>
-[GitHubIssues]: <https://github.com/segraef/Template/issues>
-[Contributing]: CONTRIBUTING.md
+Metadata, forks, links, compression, and identity belong to file operations.
+Codesigning remains a consumer; signature construction is outside this library.
 
-<!-- External -->
-[Az]: <https://img.shields.io/powershellgallery/v/Az.svg?style=flat-square&label=Az>
-[AzGallery]: <https://www.powershellgallery.com/packages/Az/>
-[PowerShellCore]: <https://github.com/PowerShell/PowerShell/releases/latest>
-
-<!-- Docs -->
-[MicrosoftAzureDocs]: <https://docs.microsoft.com/en-us/azure/>
-[PowerShellDocs]: <https://docs.microsoft.com/en-us/powershell/>
+Original code is MIT licensed. The Apple-derived FinderInfo adapter retains
+APSL-2.0; see [third-party notices](THIRD_PARTY_NOTICES.md) and the source inventory.

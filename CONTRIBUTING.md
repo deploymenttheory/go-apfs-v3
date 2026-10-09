@@ -1,17 +1,30 @@
-# Contribution
+# Contributing
 
-Thanks for considering contributing to this project! We are really glad you are reading this, because we need volunteer developers to help this project come to fruition.
+Start with [architecture](docs/architecture.md), [implementation status](docs/implementation.md),
+and the [acceptance guide](acceptance/README.md). New operations need a stated
+preservation contract and an independent native acceptance case.
 
-Please note we have a code of conduct, please follow it in all your interactions with the project.
+## Checks
 
-## Issues
+```sh
+go test ./...
+go test -race ./...
+go vet ./...
+golangci-lint run
+```
 
-If you find any bugs, please file an issue in the [GitHub issues][GitHubIssues] page. Please fill out the provided template with the appropriate information.
+Use gofmt. Keep source decoding independent of CLI and native capture code.
+Do not silently discard metadata, reinterpret corruption as absence, or make a
+missing required fixture into a passing skip.
 
-If you are taking the time to mention a problem, even a seemingly minor one, it is greatly appreciated, and a totally valid contribution to this project. Thank you!
+Native observations are immutable. Retain their original source and hashes;
+changing Go code is not a reason to regenerate expectations. Capture new evidence
+into a new directory and review its inputs and behavioral differences.
 
-<!-- References -->
+Use ordinary unit tests for bounds, algorithms, invariants, and failure handling.
+Acceptance cases must explain the user operation, why it matters, the independent
+expectation, and the exact fields compared. Avoid redundant workflows and
+per-file coverage quotas.
 
-<!-- Local -->
-[GitHubIssues]: <https://github.com/segraef/Template/issues>
-[Contributing]: CONTRIBUTING.md
+Report issues at https://github.com/deploymenttheory/go-apfs-v3/issues.
+Follow [the code of conduct](CODE_OF_CONDUCT.md).
