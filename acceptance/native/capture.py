@@ -8,6 +8,7 @@ overwritten. Run on macOS; replay the resulting corpus on any supported host.
 
 import argparse
 import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -17,7 +18,9 @@ import plistlib
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
+import time
 
 
 def sha256(path):
@@ -50,7 +53,7 @@ def main():
         corpus.mkdir()
         commands = []
 
-        def command(*argv, fixture_input=None, expected_success=True):
+        def run_command(*argv, fixture_input=None, expected_success=True):
             display = [str(arg) if len(str(arg)) <= 256 else f"<{len(str(arg))} characters>" for arg in argv]
             print("native:", " ".join(display), flush=True)
             # Persist a start before invoking native code, including commands
@@ -88,6 +91,17 @@ def main():
             if result.returncode == 0 and not expected_success:
                 raise RuntimeError(f"command failed: {argv}: {result.stderr.decode(errors='replace')}")
             return result.stdout
+
+        def command(*argv, **kwargs):
+            # DiskImages can briefly retain a disposable image after unmount.
+            # Only detach's EBUSY is retried; every attempt is recorded above.
+            for attempt in range(6):
+                try:
+                    return run_command(*argv, **kwargs)
+                except subprocess.CalledProcessError as error:
+                    if argv[:2] != ("hdiutil", "detach") or error.returncode != errno.EBUSY or attempt == 5:
+                        raise
+                    time.sleep(1)
 
         def attach(image, readonly=False):
             options = ["-readonly"] if readonly else []

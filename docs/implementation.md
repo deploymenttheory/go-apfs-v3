@@ -126,7 +126,7 @@ failed copy or failed filesystem verification fails capture.
 
 Native snapshot capture has passed on macOS 15, 26 and 27. The retained macOS 27
 corpus matches Go for 111–112 objects in each live/historical state in approximately
-six seconds; the complete retained acceptance suite takes approximately eleven
+one second; the complete retained acceptance suite takes approximately four
 seconds locally. Fresh capture and replay of every producer on Linux, Windows
 and macOS are required by [PR #13's compatibility checks](https://github.com/deploymenttheory/go-apfs-v3/pull/13/checks).
 Qualification results are recorded in that PR; native capture alone does not

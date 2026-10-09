@@ -31,6 +31,9 @@ The collector uses only Python's standard library and Apple tools. It never
 invokes v3. Images are detached before completion is published. Commands have
 two-minute deadlines and diagnostics are retained beside the intended corpus
 even on failure. An interrupted or partial capture cannot pass as complete.
+DiskImages can transiently report `EBUSY` when detaching a disposable image.
+Only that cleanup command retries, at most six attempts one second apart;
+every result stays in the transcript. Other errors fail immediately.
 
 `manifest.json` binds image, raw observation, and recipe hashes to the actual
 OS version/build/architecture. Replay requires all four cases and rejects
@@ -242,9 +245,6 @@ ASR cleanup; capture verifies it still exists after unmounting. The temporary
 target is discarded. A 16 MiB allocated, compressible file outside `Fixture`
 gives the observer time to mount; it supplies no expected filesystem results.
 All subprocesses have deadlines and a missed snapshot fails capture.
-After unmounting the disposable target, its image detach can transiently report
-`EBUSY`. Only that cleanup command retries, at most six attempts one second
-apart; every result stays in the native transcript. Other errors fail immediately.
 
 This workflow needs no custom entitlement or host security changes. It uses
 Apple's actual snapshot names rather than invented recipe names. Snapshot UUIDs
@@ -264,7 +264,8 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario snapshot-rea
 APFS_NATIVE_SNAPSHOTS=../artifacts/snapshots go test -v -run TestNativeSnapshotReading ./acceptance
 ```
 
-Retained macOS 27 replay takes approximately six seconds locally. The CI gate
+Retained macOS 27 snapshot replay takes under one second locally; the complete
+retained acceptance suite takes approximately four seconds. The CI gate
 requires fresh macOS 15/26/27 reference captures and each Linux/Windows/macOS
 consumer to replay all three. Snapshot creation/deletion/revert by Go, sealed
 system verification, dataless snapshots and arbitrary checkpoint recovery remain

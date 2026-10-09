@@ -208,8 +208,11 @@ file-type carving is separate from the planned filesystem-aware recovery.
 Decoder bounds: 16 MiB UDIF plist; 64 MiB stored/decoded compressed chunk; 1 TiB
 UDIF logical disk; 4096 GPT/APM entries; 32 tree levels; 65536 checkpoint
 descriptor blocks; one million visited nodes/extents per file operation. These
-are not total process-memory guarantees. The UDIF cache
-retains one decoded chunk under a mutex. Configurable shared budgets are pending.
+are not total process-memory guarantees. Under a mutex, the UDIF cache retains
+up to eight recently used chunks and at most 64 MiB of decoded bytes. This avoids
+repeated decompression when historical filesystem roots and their object map
+occupy different chunks. Eviction and image close clear decoded bytes.
+Configurable shared budgets are pending.
 decmpfs bounds are 3802 stored attribute bytes, 64 KiB logical inline contents,
 64 KiB per resource block and 1 MiB encoded bytes per block. Exceeding an encoded
 or logical decoding budget returns `ErrLimit`; unknown types return

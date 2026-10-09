@@ -19,18 +19,24 @@ import (
 )
 
 const maxChunk = 64 << 20
+const maxCachedChunks = 8
 
 type chunk struct {
 	kind                             uint32
 	offset, size, stored, storedSize int64
 }
 type udif struct {
-	source block.Source
-	size   int64
-	chunks []chunk
-	mu     sync.Mutex
-	cached int
-	data   []byte
+	source    block.Source
+	size      int64
+	chunks    []chunk
+	mu        sync.Mutex
+	cache     []decodedChunk // oldest first; at most 64 MiB of decoded bytes
+	cacheSize int64
+}
+
+type decodedChunk struct {
+	index int
+	data  []byte
 }
 
 // The UDIF layer exposes the complete logical disk, including all partitions.
@@ -56,7 +62,7 @@ func openUDIF(source block.Source, footer []byte) (*udif, error) {
 	if sectors == 0 || sectors > (1<<40)/512 {
 		return nil, filesystem.ErrLimit
 	}
-	u := &udif{source: source, size: int64(sectors) * 512, cached: -1}
+	u := &udif{source: source, size: int64(sectors) * 512}
 	metadata := make([]byte, pl)
 	if err := block.ReadFull(source, metadata, int64(po)); err != nil {
 		return nil, err
@@ -198,9 +204,19 @@ func (u *udif) Size() int64 { return u.size }
 func (u *udif) clearCache() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	clear(u.data)
-	u.data = nil
-	u.cached = -1
+	for len(u.cache) != 0 {
+		u.evictChunk()
+	}
+}
+
+// Caller holds mu. Eviction and image close erase decoded plaintext.
+func (u *udif) evictChunk() {
+	u.cacheSize -= int64(len(u.cache[0].data))
+	clear(u.cache[0].data)
+	copy(u.cache, u.cache[1:])
+	last := len(u.cache) - 1
+	u.cache[last] = decodedChunk{}
+	u.cache = u.cache[:last]
 }
 func (u *udif) ReadAt(p []byte, off int64) (int, error) {
 	if off < 0 {
@@ -253,34 +269,48 @@ func (u *udif) readChunk(i int, p []byte, off int64) error {
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	if u.cached != i {
-		stored := io.NewSectionReader(u.source, c.stored, c.storedSize)
-		var decoded io.Reader
-		var closer io.Closer
-		if c.kind == 0x80000005 {
-			r, err := zlib.NewReader(stored)
-			if err != nil {
-				return fmt.Errorf("UDIF zlib: %w: %v", filesystem.ErrCorrupt, err)
-			}
-			decoded, closer = r, r
-		} else {
-			decoded = bzip2.NewReader(stored)
+	for n, entry := range u.cache {
+		if entry.index == i {
+			copy(u.cache[n:], u.cache[n+1:])
+			u.cache[len(u.cache)-1] = entry
+			copy(p, entry.data[off:off+int64(len(p))])
+			return nil
 		}
-		b, err := io.ReadAll(io.LimitReader(decoded, c.size+1))
-		if closer != nil {
-			closeErr := closer.Close()
-			if err == nil {
-				err = closeErr
-			}
-		}
-		if err != nil {
-			return fmt.Errorf("UDIF decompression: %w: %v", filesystem.ErrCorrupt, err)
-		}
-		if int64(len(b)) != c.size {
-			return corrupt("UDIF decoded chunk length")
-		}
-		u.data, u.cached = b, i
 	}
-	copy(p, u.data[off:off+int64(len(p))])
+	// Retain nearby filesystem/object-map chunks together without an unbounded
+	// image cache. Reserve space before decompressing another chunk.
+	for len(u.cache) != 0 && (len(u.cache) >= maxCachedChunks || u.cacheSize+c.size > maxChunk) {
+		u.evictChunk()
+	}
+	stored := io.NewSectionReader(u.source, c.stored, c.storedSize)
+	var decoded io.Reader
+	var closer io.Closer
+	if c.kind == 0x80000005 {
+		r, err := zlib.NewReader(stored)
+		if err != nil {
+			return fmt.Errorf("UDIF zlib: %w: %v", filesystem.ErrCorrupt, err)
+		}
+		decoded, closer = r, r
+	} else {
+		decoded = bzip2.NewReader(stored)
+	}
+	b, err := io.ReadAll(io.LimitReader(decoded, c.size+1))
+	if closer != nil {
+		closeErr := closer.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}
+	if err != nil {
+		clear(b)
+		return fmt.Errorf("UDIF decompression: %w: %v", filesystem.ErrCorrupt, err)
+	}
+	if int64(len(b)) != c.size {
+		clear(b)
+		return corrupt("UDIF decoded chunk length")
+	}
+	u.cache = append(u.cache, decodedChunk{i, b})
+	u.cacheSize += int64(len(b))
+	copy(p, b[off:off+int64(len(p))])
 	return nil
 }

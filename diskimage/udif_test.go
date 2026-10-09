@@ -96,3 +96,108 @@ func TestUDIFRejectsOversizedPlistBeforeAllocation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+type countingChunkSource struct {
+	*bytes.Reader
+	reads int
+}
+
+func (s *countingChunkSource) ReadAt(p []byte, off int64) (int, error) {
+	s.reads++
+	return s.Reader.ReadAt(p, off)
+}
+
+// Structural compressed runs isolate cache behavior; native acceptance proves
+// filesystem content. Reads alternate between runs as snapshot traversal does.
+func compressedRuns(t *testing.T, count, size int) (*udif, *countingChunkSource) {
+	t.Helper()
+	var stored bytes.Buffer
+	u := &udif{size: int64(count * size)}
+	for i := 0; i < count; i++ {
+		start := stored.Len()
+		z := zlib.NewWriter(&stored)
+		payload := bytes.Repeat([]byte{byte(i + 1)}, size)
+		if _, err := z.Write(payload); err != nil {
+			t.Fatal(err)
+		}
+		if err := z.Close(); err != nil {
+			t.Fatal(err)
+		}
+		u.chunks = append(u.chunks, chunk{0x80000005, int64(i * size), int64(size), int64(start), int64(stored.Len() - start)})
+	}
+	source := &countingChunkSource{Reader: bytes.NewReader(stored.Bytes())}
+	u.source = source
+	return u, source
+}
+
+func TestUDIFAlternatingChunksAndEviction(t *testing.T) {
+	u, source := compressedRuns(t, maxCachedChunks+1, 512)
+	read := func(i int) {
+		t.Helper()
+		b := make([]byte, 23)
+		if _, err := u.ReadAt(b, int64(i*512+7)); err != nil || !bytes.Equal(b, bytes.Repeat([]byte{byte(i + 1)}, len(b))) {
+			t.Errorf("chunk %d: wrong bytes or error %v", i, err)
+		}
+	}
+	for i := 0; i < maxCachedChunks; i++ {
+		read(i)
+	}
+	reads := source.reads
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Go(func() { read(i % maxCachedChunks) })
+	}
+	wg.Wait()
+	if source.reads != reads {
+		t.Fatal("alternating cached chunks re-read compressed source")
+	}
+	// Establish a known use order, then keep chunk zero while evicting chunk one.
+	for i := 0; i < maxCachedChunks; i++ {
+		read(i)
+	}
+	read(0)
+	evicted := u.cache[0].data
+	read(maxCachedChunks)
+	if !bytes.Equal(evicted, make([]byte, len(evicted))) {
+		t.Fatal("eviction retained decoded plaintext")
+	}
+	reads = source.reads
+	read(0)
+	if source.reads != reads {
+		t.Fatal("recently read chunk was evicted")
+	}
+	read(1)
+	if source.reads == reads || len(u.cache) > maxCachedChunks {
+		t.Fatal("evicted chunk was not decoded again or cache exceeded entry bound")
+	}
+	var plaintext [][]byte
+	for _, entry := range u.cache {
+		plaintext = append(plaintext, entry.data)
+	}
+	image := &Image{decoded: u}
+	if err := image.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range plaintext {
+		if !bytes.Equal(b, make([]byte, len(b))) {
+			t.Fatal("image close retained decoded plaintext")
+		}
+	}
+}
+
+func TestUDIFDecodedCacheByteBudget(t *testing.T) {
+	const size = 33 << 20
+	u, _ := compressedRuns(t, 2, size)
+	var b [1]byte
+	if _, err := u.ReadAt(b[:], 0); err != nil || b[0] != 1 {
+		t.Fatal(err)
+	}
+	first := u.cache[0].data
+	if _, err := u.ReadAt(b[:], size); err != nil || b[0] != 2 {
+		t.Fatal(err)
+	}
+	if u.cacheSize > maxChunk || len(u.cache) != 1 || !bytes.Equal(first, make([]byte, size)) {
+		t.Fatal("cache exceeded byte bound or retained evicted plaintext")
+	}
+	u.clearCache()
+}
