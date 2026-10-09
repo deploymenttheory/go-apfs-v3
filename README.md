@@ -5,8 +5,9 @@ and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
 **Status: initial read-only implementation.** The executable inspects images,
-lists directories and reads ordinary and transparently compressed files. Encryption unlocking, writes,
-recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
+lists directories, reads ordinary and transparently compressed files, and unlocks
+software-encrypted APFS volumes for reading. Writes, recovery and mounting are
+not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -20,6 +21,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs inspect --json image.dmg
 ./bin/apfs list image.dmg /Applications
 ./bin/apfs cat image.dmg /Applications/Example.app/Contents/Info.plist
+./bin/apfs cat --password-file ./password.bin encrypted.dmg /Fixture/example.txt
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
@@ -43,10 +45,21 @@ Currently implemented:
   extents for fragmented data and resource forks.
 - Shared decmpfs reading: stored data, zlib, LZVN, LZFSE, LZBITMAP and Apple
   framed LZ4, in attributes and resource forks, with bounded random reads.
-- Versioned JSON reports and typed corruption/unsupported errors.
+- APFS password/keybag unlocking, encrypted metadata and extent reads; immutable
+  unlocked views with explicit key lifetimes.
+- Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
-Encrypted APFS state is reported but not unlocked. Invalid recognized structures
-fail explicitly. Inspection never replays a journal or repairs a source.
+Password files contain exact bytes: no newline or whitespace is removed. Use
+`--password-file -` to read stdin through EOF. Passwords are never accepted as a
+literal command-line option. Inspection needs no password and reports locked
+volumes; `list` and `cat` require one to access their files.
+
+The qualified encryption profile uses APFS software single-key encryption with
+AES-256 key wrapping and AES-128-XTS sectors. Hardware/per-file keys, legacy key
+records and encrypted DMG envelopes remain unsupported. AES-256-XTS primitive
+vectors are tested independently; a native volume profile is not yet qualified.
+Invalid recognized structures fail explicitly. Inspection never replays a journal
+or repairs a source.
 
 ## Library
 
@@ -63,6 +76,12 @@ Import `github.com/deploymenttheory/go-apfs-v3/diskimage` and
 `github.com/deploymenttheory/go-apfs-v3/inspect`. `diskimage.New` borrows a
 `block.Source`. Image decoding exposes the complete disk; callers select
 partitions explicitly. Filesystem engines borrow their source.
+
+`lockedVolume.Unlock(ctx, passwordBytes)` returns a separate `*apfs.Volume`.
+The original volume stays locked. Close the unlocked view after its values;
+closing it invalidates those values and releases its key schedule, while other
+unlocks remain usable. The password is borrowed only for the call. Raw temporary
+keys are cleared; Go's AES API does not provide expanded-key zeroization.
 
 `apfs.Volume` and `hfsplus.Volume` implement `filesystem.Reader`. `ReadDir`
 enumerates names and object IDs; `Stat` returns logical metadata;

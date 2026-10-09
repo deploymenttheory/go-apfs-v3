@@ -46,3 +46,10 @@ v3 retains only decoders with bounded, caller-owned destinations. The LZ4
 decoder adapts v2 original MIT code and is not represented as an Apple C port.
 Revisions, source hashes, adaptations and independent native evidence are in the
 source inventory. No native compression framework or C code is linked at runtime.
+
+APFS encryption parsing and storage cryptography are original Go code using Go's
+standard AES, HMAC and SHA-256. Apple specifications, pinned format documentation
+and existing implementations were studied as recorded in the source inventory;
+no apfs-fuse GPL code or CommonCrypto implementation was copied or translated.
+The native acceptance collector calls installed Apple CommonCrypto APIs to
+produce independent reference vectors; production Go has no native dependency.

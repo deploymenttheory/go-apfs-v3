@@ -14,31 +14,30 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
-// Extent describes a logical byte range. Sparse must be explicit: a missing
-// extent is corruption, not permission to substitute zeros for unknown data.
+// Extent describes a logical byte range backed by a bounded source. A nil Data
+// explicitly represents zeros; a missing extent is corruption.
 type Extent struct {
-	Logical, Physical, Length int64
-	Sparse                    bool
+	Logical, Length int64
+	Data            block.Source
 }
 
 type value struct {
 	ctx     context.Context
-	source  block.Source
 	size    int64
 	extents []Extent
 	closed  atomic.Bool
 }
 
-func New(ctx context.Context, source block.Source, size int64, extents []Extent) (filesystem.Value, error) {
+func New(ctx context.Context, size int64, extents []Extent) (filesystem.Value, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if size < 0 || source == nil {
+	if size < 0 {
 		return nil, filesystem.ErrCorrupt
 	}
 	var end int64
 	for _, e := range extents {
-		if e.Logical != end || e.Length <= 0 || e.Length > int64(^uint64(0)>>1)-end || e.Physical < 0 || (!e.Sparse && (e.Physical > source.Size() || e.Length > source.Size()-e.Physical)) {
+		if e.Logical != end || e.Length <= 0 || e.Length > int64(^uint64(0)>>1)-end || (e.Data != nil && e.Length > e.Data.Size()) {
 			return nil, fmt.Errorf("fork extent range: %w", filesystem.ErrCorrupt)
 		}
 		end += e.Length
@@ -46,16 +45,16 @@ func New(ctx context.Context, source block.Source, size int64, extents []Extent)
 	if size > end {
 		return nil, fmt.Errorf("incomplete fork extents: %w", filesystem.ErrCorrupt)
 	}
-	return &value{ctx: ctx, source: source, size: size, extents: append([]Extent(nil), extents...)}, nil
+	return &value{ctx: ctx, size: size, extents: append([]Extent(nil), extents...)}, nil
 }
 
 func Bytes(ctx context.Context, data []byte) (filesystem.Value, error) {
 	source := bytes.NewReader(bytes.Clone(data))
 	var extents []Extent
 	if len(data) > 0 {
-		extents = []Extent{{Length: int64(len(data))}}
+		extents = []Extent{{Length: int64(len(data)), Data: source}}
 	}
-	return New(ctx, source, int64(len(data)), extents)
+	return New(ctx, int64(len(data)), extents)
 }
 
 func (v *value) Size() int64  { return v.size }
@@ -91,9 +90,9 @@ func (v *value) ReadAt(p []byte, off int64) (int, error) {
 		}
 		e := v.extents[index]
 		amount := min(int64(len(p)), e.Logical+e.Length-off)
-		if e.Sparse {
+		if e.Data == nil {
 			clear(p[:amount])
-		} else if err := block.ReadFull(v.source, p[:amount], e.Physical+off-e.Logical); err != nil {
+		} else if err := block.ReadFull(e.Data, p[:amount], off-e.Logical); err != nil {
 			return n, err
 		}
 		off += amount

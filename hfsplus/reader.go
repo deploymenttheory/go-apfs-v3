@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
 	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
@@ -192,9 +193,13 @@ func (v *Volume) forkValue(ctx context.Context, f *fork) (filesystem.Value, erro
 	}
 	extents := make([]forkvalue.Extent, 0, len(f.extents))
 	for _, e := range f.extents {
-		extents = append(extents, forkvalue.Extent{Logical: int64(e.logical), Physical: int64(e.physical), Length: int64(e.size)})
+		section, err := block.NewSection(v.source, int64(e.physical), int64(e.size))
+		if err != nil {
+			return nil, err
+		}
+		extents = append(extents, forkvalue.Extent{Logical: int64(e.logical), Length: int64(e.size), Data: section})
 	}
-	return forkvalue.New(ctx, v.source, int64(f.size), extents)
+	return forkvalue.New(ctx, int64(f.size), extents)
 }
 func (v *Volume) OpenData(ctx context.Context, id uint64) (filesystem.Value, error) {
 	b, err := v.catalogRecord(ctx, id)

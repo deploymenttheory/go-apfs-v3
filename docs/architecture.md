@@ -78,7 +78,8 @@ and dataless representations do not become zero-filled files.
 
 `OpenData` decodes logical data. `OpenRawData` reads the stored data fork;
 `OpenAttribute` always reads raw stored attributes, including decmpfs and any
-compression-owned resource fork. Inline compression can coexist with an
+compression-owned resource fork. On unlocked volumes these interfaces return
+plaintext storage; ciphertext remains available through the image source. Inline compression can coexist with an
 independent resource fork. Values serialize access to a single decoded 64 KiB
 block and check their retained context between blocks. Resource indexes are read
 on demand: opening a large logical file does not allocate its index or contents.
@@ -91,6 +92,38 @@ blobs in an explicitly identified metadata directory. Reversible name mappings
 handle host limitations. Journal API-mediated changes and publish coherent
 generations; external edits require explicit import. Preserving source ACL
 bytes and enforcing host ACLs are separate capabilities.
+
+## Encrypted APFS reads
+
+`Volume.Unlock` reads the selected checkpoint's container keylocker, locates the
+volume keybag, verifies each key record's HMAC and bounds password-derivation
+work before trying credentials. PBKDF2-HMAC-SHA256 derives the wrapping key;
+RFC 3394 integrity checks distinguish a rejected credential from a damaged VEK
+after successful KEK authentication. A root-tree checksum must pass before the
+unlocked view is returned. Password bytes are not normalized or retained.
+
+UUID-derived AES-XTS decodes the outer keybags; the password protects their
+wrapped keys. Object-map encryption flags select metadata decryption before
+checksum validation. File extents use their own `crypto_id` tweak, which must
+not be replaced by the current physical address. Read-only clone access uses the
+same extent machinery. The shared fork reader combines bounded sources or explicit
+sparse ranges; it knows nothing about keybags, XTS or APFS identifiers.
+
+An unlocked view owns an immutable key schedule behind a close/decryption lock.
+Separate unlocks have separate lifetimes. Closing one releases the schedule and
+invalidates its borrowed values, including inline attributes and decoded cache
+contents. It never closes the image. Temporary raw keys are cleared, but Go's
+AES and HMAC implementations do not expose erasure of their internal schedules.
+XTS provides confidentiality without file-content authentication: a successful
+unlock and valid metadata checksums do not prove that every data byte is intact.
+
+Current bounds are 1 MiB per keybag, 4096 entries, and ten million aggregate
+PBKDF2 iterations per unlock. Derivation checks cancellation every 1024 rounds;
+sector reads retain their caller's context. Known software single-key records
+with flags 0 or 0x10 are admitted. Legacy flag 2, hardware/per-file keys, extended
+crypto profiles and encrypted DMG envelopes fail or remain outside this layer.
+The native volume corpus qualifies AES-128-XTS; CommonCrypto also independently
+qualifies the AES-256-XTS primitive without claiming a matching volume profile.
 
 ## Forensics and writes
 
@@ -122,8 +155,7 @@ decmpfs bounds are 3802 stored attribute bytes, 64 KiB logical inline contents,
 or logical decoding budget returns `ErrLimit`; unknown types return
 `ErrUnsupported`. Codec scratch space is bounded independently of file size.
 
-Dirty-journal logical views, repair, sealed-volume file access, and encryption
-unlocking are not qualified. HFS+ directory hard links return unsupported errors.
+Dirty-journal logical views, repair, and sealed-volume file access are not qualified. HFS+ directory hard links return unsupported errors.
 Overflow resolution is shared by catalog, attributes,
 data and resource forks; the native fragmentation scenario directly qualifies
 data/resource forks. Fragmented metadata and attribute-continuation fixtures

@@ -1,5 +1,5 @@
 // Package apfs interprets Apple File System structures. This initial reader
-// supports structural inspection and bounded, unencrypted file reading.
+// supports structural inspection and bounded, read-only file access.
 // Layouts follow Apple's Apple File System Reference (2020-06-22).
 package apfs
 
@@ -21,13 +21,15 @@ type XID uint64
 type PhysicalAddress uint64
 
 type Container struct {
-	UUID       string          `json:"uuid"`
-	BlockSize  uint32          `json:"blockSize"`
-	BlockCount uint64          `json:"blockCount"`
-	XID        XID             `json:"xid"`
-	Checkpoint PhysicalAddress `json:"checkpoint"`
-	Volumes    []Volume        `json:"volumes"`
-	source     block.Source
+	UUID                           string          `json:"uuid"`
+	BlockSize                      uint32          `json:"blockSize"`
+	BlockCount                     uint64          `json:"blockCount"`
+	XID                            XID             `json:"xid"`
+	Checkpoint                     PhysicalAddress `json:"checkpoint"`
+	Volumes                        []Volume        `json:"volumes"`
+	source                         block.Source
+	id                             [16]byte
+	keylockerStart, keylockerCount uint64
 }
 
 type Volume struct {
@@ -50,6 +52,8 @@ type Volume struct {
 	omap                       PhysicalAddress
 	root                       OID
 	rootType                   uint32
+	id                         [16]byte
+	keys                       *volumeKeys
 }
 
 // Open borrows source. It selects the highest valid container superblock in
@@ -106,6 +110,8 @@ func Open(source block.Source) (*Container, error) {
 		}
 	}
 	c.UUID = uuid(selected[72:88])
+	copy(c.id[:], selected[72:88])
+	c.keylockerStart, c.keylockerCount = le.Uint64(selected[1296:]), le.Uint64(selected[1304:])
 	c.XID = XID(le.Uint64(selected[16:]))
 	// NX_INCOMPAT_VERSION2 is the current format. VERSION1 and FUSION
 	// require distinct interpretation; read-only compatible bits do not.
@@ -121,10 +127,14 @@ func Open(source block.Source) (*Container, error) {
 		if oid == 0 {
 			continue
 		}
-		address, err := c.resolve(omap, oid, c.XID)
+		mapping, err := c.resolve(omap, oid, c.XID)
 		if err != nil {
 			return nil, err
 		}
+		if mapping.encrypted {
+			return nil, corrupt("encrypted volume superblock mapping", 0)
+		}
+		address := mapping.address
 		b, err := c.object(address, 13)
 		if err != nil {
 			return nil, err
@@ -138,6 +148,7 @@ func Open(source block.Source) (*Container, error) {
 		}
 		features, flags := le.Uint64(b[56:]), le.Uint64(b[264:])
 		v := Volume{OID: oid, UUID: uuid(b[240:256]), Name: string(name), Role: le.Uint16(b[964:]), VolumeGroup: uuid(b[1008:1024]), CaseSensitive: features&1 == 0, Flags: flags, CompatibleFeatures: le.Uint64(b[40:]), ReadOnlyCompatibleFeatures: le.Uint64(b[48:]), IncompatibleFeatures: features, Encrypted: flags&1 == 0, Sealed: features&0x20 != 0, Files: le.Uint64(b[184:]), Directories: le.Uint64(b[192:]), Snapshots: le.Uint64(b[216:])}
+		copy(v.id[:], b[240:256])
 		v.container, v.omap, v.root, v.rootType = c, PhysicalAddress(le.Uint64(b[128:])), OID(le.Uint64(b[136:])), le.Uint32(b[116:])
 		c.Volumes = append(c.Volumes, v)
 	}

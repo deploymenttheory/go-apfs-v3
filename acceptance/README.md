@@ -131,6 +131,36 @@ content and arbitrary damaged-file recovery remain outside it. Focused unit
 checks exercise malformed lengths/indexes, codec errors, close/cancellation,
 concurrent boundary reads and a large logical file whose index must stay on disk.
 
+## Encrypted APFS reading
+
+| Scenario | Independent macOS evidence | What the comparison proves |
+| --- | --- | --- |
+| Ordinary, Unicode, long and changed passwords | `newfs_apfs` via `hdiutil`, `diskutil` unlock/change results | Correct credentials unlock the final image; wrong and replaced credentials fail |
+| Locked inspection and read-only unlocking | Locked/unlocked `diskutil` plists, unchanged image hashes | Inspection needs no credentials; reading does; neither changes source bytes |
+| 108 objects per image, including modified clones | Native final mount with ownership enabled | Encrypted metadata, extent-specific tweaks, data, sparse ranges, links, attributes and resource forks agree |
+| Native `ditto` compression inside encrypted storage | Native logical reads and metadata | Decryption feeds the same compression reader correctly |
+| PBKDF2, AES key unwrap, AES-128/256-XTS | Apple CommonCrypto output and damaged-key rejection | Primitive bytes agree independently of filesystem roundtrips |
+
+`native/file_encryption.py` uses only disposable attached image devices. Its
+passwords and cryptographic vector keys are public fixture values. Native
+`diskutil` refuses empty credentials; these are rejection controls, not proof
+about volumes formatted with an empty password. Unicode passwords are established
+through `diskutil changePassphrase`. Native mounts explicitly enable ownership
+so the kernel does not replace stored UID/GID values with the mounting user's IDs.
+
+The native volume profile uses AES-256 key wrapping and AES-128-XTS sectors.
+CommonCrypto AES-256-XTS vectors qualify the primitive, not a native volume
+profile. Hardware/per-file keys, legacy key records, encrypted DMG envelopes,
+encryption creation/modification by Go and recovery keys remain unqualified.
+Unit tests additionally check damaged authenticated metadata, key-record HMAC,
+DER bounds, iteration limits, cancellation, unaligned/concurrent reads, and key
+lifetime across independent unlocks, inline attributes and decoded caches.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario file-encryption --output artifacts/encryption/macos-27
+APFS_NATIVE_ENCRYPTION=../artifacts/encryption go test -v -run TestNativeEncryptedReading ./acceptance
+```
+
 ## CI tiers
 
 The **macOS filesystem compatibility** workflow has two visible stages:
@@ -138,7 +168,7 @@ The **macOS filesystem compatibility** workflow has two visible stages:
 1. **Record Apple filesystem reference data (macOS 15/26/27)** creates disk
    images with Apple tools and records how macOS reads them. Separate steps show
    volume identity; file contents, metadata and forks; names, links and
-   fragmentation; and compression. Its artifacts contain the images, observations
+   fragmentation; compression; and encrypted APFS files and passwords. Its artifacts contain the images, observations
    and provenance needed to repeat a comparison.
 2. **Compare Go with macOS reference data (Linux/Windows/macOS)** reads every
    reference image through Go and checks the results against all three macOS

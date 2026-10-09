@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "scenario": "file-encryption",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "14ca455569b11477647c5eac449b6c0016baf51e9dcee30c211a5cee2b3c36b5",
+    "sources": [
+      {
+        "source": "file_encryption.py",
+        "sha256": "298e13eef3467d8e1eddec7a0b00b7c9d6554de3c12e2c6ae7c23b994cf97af0"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "file-encryption/apfs",
+      "image": "apfs.dmg",
+      "sha256": "8d2a594053dda9d4d3cbbfc1338ccba8f5aa5f851e459a271d98cb0df9353b0d",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "d348e3bce938da3cf8701ec16ad5c76db6a922a19169eb649d0de052f06a7603",
+      "files": "apfs-files.json",
+      "filesSHA256": "4f0dae4e26370413f053d39d9b2c83884ba29853571f5e8324ad9aee394b9203",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "A8D45171-DC5C-4030-AE85-0FF676A73E86"
+      }
+    },
+    {
+      "id": "file-encryption/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "b449979330b635793edc755f0f530a19f7fc18a400cde6fe7bb503a9c7665acc",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "cf5d78082c9a9240fd6c07aed9bd03bcfe3a223649294ad337784faf65e8b6f8",
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "5d3a0ccd6ecd5991e969971c17d306b5dc7eac62e306e9e052d17bc0af407a2e",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "81EFA042-5771-4EE7-A67C-438ADF2E68A5"
+      }
+    },
+    {
+      "id": "file-encryption/apfs-long-password",
+      "image": "apfs-long-password.dmg",
+      "sha256": "79fde58ae9da6111888c236cacddd6107577d1905f50bc919fca0f9f82920ec4",
+      "observation": "apfs-long-password-diskutil.plist",
+      "observationSHA256": "ac2990924ed088d6df1d8ab822473e6ffb52959f3c3c752eafd2809c6a7fb19a",
+      "files": "apfs-long-password-files.json",
+      "filesSHA256": "d584827d2cfcbdb2e42b088afbca23b01b19ca60c51b14126bd930a9b76f7bd6",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-long-password",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "AEB2959F-E7BA-4AE3-847E-CD9EF3BAE123"
+      }
+    },
+    {
+      "id": "file-encryption/apfs-changed-password",
+      "image": "apfs-changed-password.dmg",
+      "sha256": "be79563d7e7d7aaec8b3efb0eba7aefe1d368073959323b1cc69e9419219afac",
+      "observation": "apfs-changed-password-diskutil.plist",
+      "observationSHA256": "6970f56175b014eae6cc91997ea91d26cf29caa80ce542dc8654aa908943ffca",
+      "files": "apfs-changed-password-files.json",
+      "filesSHA256": "545ce98e10edf80b9f3c85b9a1e21c3518eb9eb5ebbe6bb70f9d3379e66d2738",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-changed-password",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "CFAE0EC0-743F-4914-A299-C8BC268D0AA6"
+      }
+    }
+  ],
+  "cryptography": "cryptography.json",
+  "cryptographySHA256": "21d6b41eb21efc6a49b90fd58958b910f470d21c2c3810f74bdc8c6d485e3e0f"
+}

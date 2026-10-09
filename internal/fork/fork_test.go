@@ -13,13 +13,13 @@ import (
 )
 
 func TestSparseRangesAndIndependentConcurrentValues(t *testing.T) {
-	source := bytes.NewReader([]byte("abcdEFGH"))
-	extents := []Extent{{Logical: 0, Physical: 0, Length: 4}, {Logical: 4, Length: 8, Sparse: true}, {Logical: 12, Physical: 4, Length: 4}}
-	a, err := New(context.Background(), source, 15, extents)
+
+	extents := []Extent{{Logical: 0, Length: 4, Data: bytes.NewReader([]byte("abcd"))}, {Logical: 4, Length: 8}, {Logical: 12, Length: 4, Data: bytes.NewReader([]byte("EFGH"))}}
+	a, err := New(context.Background(), 15, extents)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := New(context.Background(), source, 15, extents)
+	b, err := New(context.Background(), 15, extents)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,13 +53,13 @@ func TestSparseRangesAndIndependentConcurrentValues(t *testing.T) {
 
 func TestMissingOverlappingAndOverflowingExtentsFail(t *testing.T) {
 	source := bytes.NewReader(make([]byte, 8))
-	for _, extents := range [][]Extent{nil, {{Logical: 1, Length: 2}}, {{Length: 4}, {Logical: 3, Length: 2}}, {{Length: 9}}, {{Length: 1<<63 - 1, Sparse: true}, {Logical: 1<<63 - 1, Length: 1, Sparse: true}}} {
-		if _, err := New(context.Background(), source, 4, extents); !errors.Is(err, filesystem.ErrCorrupt) {
+	for _, extents := range [][]Extent{nil, {{Logical: 1, Length: 2}}, {{Length: 4}, {Logical: 3, Length: 2}}, {{Length: 9, Data: source}}, {{Length: 1<<63 - 1}, {Logical: 1<<63 - 1, Length: 1}}} {
+		if _, err := New(context.Background(), 4, extents); !errors.Is(err, filesystem.ErrCorrupt) {
 			t.Fatalf("accepted invalid extents %+v: %v", extents, err)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	v, err := New(ctx, source, 8, []Extent{{Length: 8}})
+	v, err := New(ctx, 8, []Extent{{Length: 8, Data: source}})
 	if err != nil {
 		t.Fatal(err)
 	}

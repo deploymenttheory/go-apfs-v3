@@ -46,8 +46,8 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 	if v.container == nil {
 		return corrupt("unopened volume", 0)
 	}
-	if v.Encrypted {
-		return filesystem.ErrAuthentication
+	if err := v.access(); err != nil {
+		return err
 	}
 	if v.Sealed || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
 		return fmt.Errorf("filesystem tree features: %w", filesystem.ErrUnsupported)
@@ -69,7 +69,7 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 			return corrupt("filesystem tree cycle or repeated child", 0)
 		}
 		seen[oid] = true
-		address, err := v.container.resolve(v.omap, oid, v.container.XID)
+		mapping, err := v.container.resolve(v.omap, oid, v.container.XID)
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,8 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 		if depth == 0 {
 			objectType = 2
 		}
-		b, err := v.container.object(address, objectType)
+		address := mapping.address
+		b, err := v.object(mapping, objectType)
 		if err != nil {
 			return err
 		}

@@ -63,9 +63,11 @@ type observation struct {
 }
 
 type corpus struct {
-	Schema   int    `json:"schema"`
-	Scenario string `json:"scenario"`
-	Producer struct {
+	Cryptography       string `json:"cryptography,omitempty"`
+	CryptographySHA256 string `json:"cryptographySHA256,omitempty"`
+	Schema             int    `json:"schema"`
+	Scenario           string `json:"scenario"`
+	Producer           struct {
 		System       string `json:"system"`
 		Version      string `json:"version"`
 		Build        string `json:"build"`

@@ -17,7 +17,7 @@ import (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := run(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	if err := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		code := 1
 		if errors.Is(err, filesystem.ErrUnsupported) {
@@ -30,20 +30,20 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+func run(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: apfs inspect|info|list|cat [options] IMAGE [EXACT_PATH]")
+		return fmt.Errorf("usage: apfs inspect|info|list|cat [options] IMAGE [PATH]")
 	}
 	if args[0] == "licenses" {
 		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived FinderInfo adapter: Copyright (c) 2000-2023 Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nSee hfsplus/finderinfo.go, LICENSES/APSL-2.0.txt and THIRD_PARTY_NOTICES.md.")
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] IMAGE EXACT_PATH\n       apfs cat [--partition INDEX] [--volume ID] IMAGE EXACT_PATH\n\nRead-only inspection and uncompressed file reading. Paths use exact enumerated spelling; symlinks are not followed. Writes are not implemented yet.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--password-file FILE] IMAGE PATH\n\nRead-only inspection and ordinary, compressed or password-unlocked APFS file reading. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
 	}
 	if args[0] == "list" || args[0] == "cat" {
-		return readFiles(ctx, args, out, diagnostics)
+		return readFiles(ctx, args, input, out, diagnostics)
 	}
 	if args[0] != "inspect" && args[0] != "info" {
 		return fmt.Errorf("command %q: %w", args[0], filesystem.ErrUnsupported)
