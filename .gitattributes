@@ -5,3 +5,7 @@
 * text=auto
 
 *.json text eol=lf
+
+# Native hashes bind exact original bytes, including scripts and plist output.
+acceptance/testdata/native/** -text
+acceptance/testdata/files/** -text

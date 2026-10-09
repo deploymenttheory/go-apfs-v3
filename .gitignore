@@ -24,7 +24,8 @@
 /vendor/
 /bin/
 /dist/
-/pkg/
+/artifacts/
+*.diagnostics.json
 coverage.out
 coverage.html
 

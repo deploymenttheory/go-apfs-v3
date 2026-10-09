@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "id": "apple-apfs-reference-2020-06-22",
+      "kind": "specification",
+      "url": "https://developer.apple.com/support/apple-file-system/Apple-File-System-Reference.pdf",
+      "revision": "2020-06-22",
+      "components": [
+        "apfs/container.go",
+        "apfs/objectmap.go",
+        "apfs/records.go",
+        "apfs/reader.go"
+      ],
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate."
+    },
+    {
+      "id": "apple-tn1150",
+      "kind": "specification",
+      "url": "https://developer.apple.com/library/archive/technotes/tn/tn1150.html",
+      "revision": "TN1150",
+      "components": [
+        "hfsplus/volume.go",
+        "hfsplus/tree.go",
+        "hfsplus/reader.go"
+      ],
+      "basis": "Original Go interpretation of volume headers, catalog and fork structures, B-tree traversal and native timestamps. Modern attributes and Finder behavior additionally reference the pinned Apple HFS source."
+    },
+    {
+      "id": "v2-image-layout",
+      "kind": "prior-implementation-study",
+      "url": "https://github.com/deploymenttheory/go-apfs-v2/tree/2bd8a20/pkg/disk",
+      "revision": "2bd8a20",
+      "components": [
+        "diskimage/udif.go",
+        "diskimage/partition.go"
+      ],
+      "basis": "UDIF/GPT/APM layouts studied from v2 production code; independently implemented bounded full-disk reader. No test code imported."
+    },
+    {
+      "id": "apple-hfs-source",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "components": [
+        "hfsplus/finderinfo.go"
+      ],
+      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts.",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "files": [
+        {
+          "path": "core/hfs_xattr.c",
+          "sha256": "22413ad83654198946ad26797c074fc9c64500a9fe75abbfcff426731ddce117"
+        },
+        {
+          "path": "core/hfs_format.h",
+          "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+        },
+        {
+          "path": "core/hfs_vnops.c",
+          "sha256": "a07a8cd9bad0e485a6c7248facac3edcf66736727777715f8cf6a86fb77f3f44"
+        },
+        {
+          "path": "core/hfs_cnode.c",
+          "sha256": "d9fffdcd7cf157ba1fb9b804f27fef7e2dc712054452fd48c7baeab0966eb109"
+        },
+        {
+          "path": "APPLE_LICENSE",
+          "sha256": "addd5652908b2add7ba13bda59afa667580fa5732d41a4b65d2ce33bec6c5cb3"
+        }
+      ],
+      "licenseBasis": "The translated file header specifies APSL 2.0. The upstream root APPLE_LICENSE contains the older APSL 1.2 and is inventoried for provenance, not used as the license text for this translation.",
+      "licenseURL": "https://opensource.apple.com/apsl/",
+      "licenseSHA256": "2d0c12edaaf8d31fec6796fef99291b12e833b6bef28100975120a53d209e06d"
+    },
+    {
+      "id": "apple-copyfile-source",
+      "kind": "planned-port",
+      "url": "https://github.com/apple-oss-distributions/copyfile",
+      "components": [],
+      "basis": "Port applicable preservation algorithms, not kernel dispatch wrappers. No code ported yet."
+    },
+    {
+      "id": "apple-lzfse-source",
+      "kind": "planned-port",
+      "url": "https://github.com/lzfse/lzfse",
+      "components": [],
+      "basis": "No code ported yet. Zlib inspection fixtures do not qualify LZFSE."
+    },
+    {
+      "id": "native-apfs-file-reading-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/reader.go"
+      ],
+      "evidence": "acceptance/testdata/files/macos-27/manifest.json",
+      "basis": "Native symlink attributes include a final NUL which readlink/st_size exclude. Large ordinary attributes use storage flags 0x11 and the published stream layout; the extra bit has undocumented write semantics. Reading this specific encoding is compared byte-for-byte with native getxattr. This does not authorize ignoring other unknown bits or claim write compatibility."
+    }
+  ]
+}

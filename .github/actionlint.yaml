@@ -1,0 +1,6 @@
+# Hosted labels newer than the locally installed actionlint label inventory.
+# The native collector verifies the actual macOS major version at runtime.
+self-hosted-runner:
+  labels:
+    - macos-26
+    - xcode-27

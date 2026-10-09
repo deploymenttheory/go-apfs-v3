@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "scenario": "volume-inspection",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "f12b8a816793486b572b63406490a730ee6752486632cd0cde6c2d240c67dda1"
+  },
+  "cases": [
+    {
+      "id": "volume-inspection/apfs",
+      "image": "apfs.dmg",
+      "sha256": "f5f229b44764336a14710c3e32a2c5138375ef18aaa91a1d88e07a11c9d8a9ff",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "57b310c245ccac046819bd8b04dbaaf41db7b2080dfb8031babd3beda53619b6",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "BEEB1209-06F6-4EFF-8A1E-BC6F45ED9C70"
+      }
+    },
+    {
+      "id": "volume-inspection/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "30b4480a294a4ff5f4c3dee68bed41d93dfb43d6c1f9ab543fe498610f609884",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "de5427b1fc27dfbb0689e84668e7d0a733b257e68105a076b5f7abaffb3be3cc",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "5F2A6584-1CBD-493F-8F45-64CA28137571"
+      }
+    },
+    {
+      "id": "volume-inspection/hfsplus",
+      "image": "hfsplus.dmg",
+      "sha256": "97d25f17f8eb204a34e5a174489e34d65f43049d2a1dce13f859a06e1bb969e3",
+      "observation": "hfsplus-diskutil.plist",
+      "observationSHA256": "254ef8315bae3d8ab644df0c9239a57d2b1c209d9caf738c0ba8e88248f6247a",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      }
+    },
+    {
+      "id": "volume-inspection/hfsx",
+      "image": "hfsx.dmg",
+      "sha256": "e6cea1da701c0e394f52319b7f2f9b42260cc9ea64eaffc1c48ebb92b3d85e7c",
+      "observation": "hfsx-diskutil.plist",
+      "observationSHA256": "3c37423de60656aacd240f228e2e71e6beddee954da84a848d572c6eff8610d8",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      }
+    }
+  ]
+}
