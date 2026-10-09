@@ -12,11 +12,15 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
+	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
 var _ filesystem.Reader = (*Volume)(nil)
 
 func (v *Volume) Root() uint64 { return 2 }
+func (v *Volume) Lookup(ctx context.Context, parent uint64, name string) (filesystem.DirEntry, error) {
+	return names.Lookup(ctx, v, parent, name, func(s string) string { return names.HFS(s, v.CaseSensitive) })
+}
 func (v *Volume) readable(ctx context.Context, id uint64) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -31,8 +35,16 @@ func (v *Volume) readable(ctx context.Context, id uint64) error {
 }
 
 func (v *Volume) catalogRecord(ctx context.Context, id uint64) ([]byte, error) {
-	if err := v.readable(ctx, id); err != nil {
+	b, _, err := v.rawCatalogRecord(ctx, id)
+	if err != nil {
 		return nil, err
+	}
+	return v.resolveLink(ctx, b)
+}
+
+func (v *Volume) rawCatalogRecord(ctx context.Context, id uint64) ([]byte, uint32, error) {
+	if err := v.readable(ctx, id); err != nil {
+		return nil, 0, err
 	}
 	var parent uint32
 	var name []byte
@@ -51,10 +63,10 @@ func (v *Volume) catalogRecord(ctx context.Context, id uint64) ([]byte, error) {
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if !found {
-		return nil, fs.ErrNotExist
+		return nil, 0, fs.ErrNotExist
 	}
 	var data []byte
 	err = v.catalog.records(ctx, parent, func(r treeRecord) error {
@@ -70,24 +82,28 @@ func (v *Volume) catalogRecord(ctx context.Context, id uint64) ([]byte, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if data == nil {
-		return nil, bad("dangling catalog thread")
+		return nil, 0, bad("dangling catalog thread")
 	}
 	if be.Uint16(data) == 2 && len(data) != 248 {
-		return nil, bad("catalog file length")
+		return nil, 0, bad("catalog file length")
 	}
-	if be.Uint16(data) == 2 && string(data[48:56]) == "hlnkhfs+" {
-		return nil, fmt.Errorf("HFS+ indirect hard link: %w", filesystem.ErrUnsupported)
-	}
-	return data, nil
+	return data, parent, nil
 }
 
 func (v *Volume) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
-	b, err := v.catalogRecord(ctx, id)
+	b, parent, err := v.rawCatalogRecord(ctx, id)
 	if err != nil {
 		return filesystem.Node{}, err
+	}
+	b, err = v.resolveLink(ctx, b)
+	if err != nil {
+		return filesystem.Node{}, err
+	}
+	if uint64(be.Uint32(b[8:])) != id {
+		parent = v.privateID
 	}
 	m := filesystem.Metadata{Mode: filesystem.Observed(uint32(be.Uint16(b[42:]))), UID: filesystem.Observed(be.Uint32(b[32:])), GID: filesystem.Observed(be.Uint32(b[36:])), BSDFlags: filesystem.Observed(uint32(b[40])<<16 | uint32(b[41]))}
 	// UF_HIDDEN is persisted in Finder's kIsInvisible bit, outside BSDInfo.
@@ -98,10 +114,17 @@ func (v *Volume) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 		return filesystem.Observed(time.Unix(int64(be.Uint32(b[off:]))-2082844800, 0).UTC())
 	}
 	m.BirthTime, m.ModifyTime, m.ChangeTime, m.AccessTime = stamp(12), stamp(16), stamp(20), stamp(24)
-	n := filesystem.Node{Identity: filesystem.Identity{Volume: v.VolumeID, Object: id}, Metadata: m}
+	object := be.Uint32(b[8:])
+	n := filesystem.Node{Identity: filesystem.Identity{Volume: v.VolumeID, Object: uint64(object)}, Metadata: m}
 	if be.Uint16(b) == 2 {
 		n.Size = be.Uint64(b[88:])
 		n.Links = filesystem.Observed(uint32(1))
+		if v.privateID != 0 && parent == v.privateID {
+			n.Links.Value = be.Uint32(b[44:])
+			if n.Links.Value == 0 {
+				return filesystem.Node{}, bad("hard link count")
+			}
+		}
 	}
 	if m.BSDFlags.Value&0x20 != 0 {
 		return filesystem.Node{}, fmt.Errorf("HFS+ compressed logical size: %w", filesystem.ErrUnsupported)
@@ -132,17 +155,31 @@ func (v *Volume) ReadDir(ctx context.Context, id uint64, yield func(filesystem.D
 		if (kind != 1 && kind != 2) || len(r.value) < 88 || name == "" || name == "." || name == ".." {
 			return bad("catalog entry type or name")
 		}
+		if id == v.Root() && (name == privateDirectory || name == directoryLinks) {
+			return nil
+		}
+		b, err := v.resolveLink(ctx, r.value)
+		if err != nil {
+			return err
+		}
+		if be.Uint32(b[8:]) == 0 {
+			return bad("zero catalog object ID")
+		}
 		// HFS stores slash where the POSIX interface presents colon.
-		name = strings.ReplaceAll(name, "/", ":")
-		return yield(filesystem.DirEntry{Name: name, Object: uint64(be.Uint32(r.value[8:]))})
+		name = strings.ReplaceAll(strings.ReplaceAll(name, "/", ":"), "\x00", "\u2400")
+		return yield(filesystem.DirEntry{Name: name, Object: uint64(be.Uint32(b[8:]))})
 	})
 }
 
-func (v *Volume) openFork(ctx context.Context, b []byte) (filesystem.Value, error) {
-	f, err := openInlineFork(v.source, v.BlockSize, v.BlockCount, b)
+func (v *Volume) openFork(ctx context.Context, id uint32, kind byte, b []byte) (filesystem.Value, error) {
+	f, err := v.fileFork(ctx, id, kind, b)
 	if err != nil {
 		return nil, err
 	}
+	return v.forkValue(ctx, f)
+}
+
+func (v *Volume) forkValue(ctx context.Context, f *fork) (filesystem.Value, error) {
 	if f.size > math.MaxInt64 {
 		return nil, filesystem.ErrLimit
 	}
@@ -163,14 +200,14 @@ func (v *Volume) OpenData(ctx context.Context, id uint64) (filesystem.Value, err
 	if b[41]&0x20 != 0 {
 		return nil, fmt.Errorf("transparent compression: %w", filesystem.ErrUnsupported)
 	}
-	return v.openFork(ctx, b[88:168])
+	return v.openFork(ctx, be.Uint32(b[8:]), 0, b[88:168])
 }
 
-func (v *Volume) attributes(ctx context.Context, id uint64, yield func(string, []byte) error) error {
+func (v *Volume) attributes(ctx context.Context, id uint64, yield func(string, uint32, []byte) error) error {
 	if be.Uint64(v.attributeFork) == 0 {
 		return ctx.Err()
 	}
-	f, err := openInlineFork(v.source, v.BlockSize, v.BlockCount, v.attributeFork)
+	f, err := v.fileFork(ctx, 8, 0, v.attributeFork)
 	if err != nil {
 		return err
 	}
@@ -186,10 +223,11 @@ func (v *Volume) attributes(ctx context.Context, id uint64, yield func(string, [
 		if err != nil {
 			return err
 		}
-		if be.Uint32(r.key[8:]) != 0 {
-			return fmt.Errorf("attribute overflow extents: %w", filesystem.ErrUnsupported)
+		start := be.Uint32(r.key[8:])
+		if start != 0 && (be.Uint32(r.value) != 0x30 || len(r.value) != 72) {
+			return bad("attribute extent continuation")
 		}
-		return yield(name, r.value)
+		return yield(name, start, r.value)
 	})
 }
 func (v *Volume) ListAttributes(ctx context.Context, id uint64, yield func(string) error) error {
@@ -207,7 +245,23 @@ func (v *Volume) ListAttributes(ctx context.Context, id uint64, yield func(strin
 			return err
 		}
 	}
-	return v.attributes(ctx, id, func(name string, _ []byte) error { return yield(name) })
+	seen := map[string]bool{}
+	return v.attributes(ctx, uint64(be.Uint32(b[8:])), func(name string, start uint32, _ []byte) error {
+		if start != 0 {
+			if !seen[name] {
+				return bad("attribute extents without fork")
+			}
+			return nil
+		}
+		if seen[name] {
+			return bad("duplicate attribute")
+		}
+		if len(seen) >= 1<<17 {
+			return filesystem.ErrLimit
+		}
+		seen[name] = true
+		return yield(name)
+	})
 }
 func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (filesystem.Value, error) {
 	b, err := v.catalogRecord(ctx, id)
@@ -218,7 +272,7 @@ func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (fil
 		if be.Uint16(b) != 2 || be.Uint64(b[168:]) == 0 {
 			return nil, fs.ErrNotExist
 		}
-		return v.openFork(ctx, b[168:248])
+		return v.openFork(ctx, be.Uint32(b[8:]), 0xff, b[168:248])
 	}
 	if name == filesystem.FinderInfo {
 		info := finderInfo(b)
@@ -228,8 +282,19 @@ func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (fil
 		return forkvalue.Bytes(ctx, info)
 	}
 	var data []byte
-	err = v.attributes(ctx, id, func(n string, b []byte) error {
+	continuations := map[uint32][]byte{}
+	err = v.attributes(ctx, uint64(be.Uint32(b[8:])), func(n string, start uint32, b []byte) error {
 		if n != name {
+			return nil
+		}
+		if start != 0 {
+			if continuations[start] != nil {
+				return bad("duplicate attribute extent")
+			}
+			if len(continuations) >= 1<<17 {
+				return filesystem.ErrLimit
+			}
+			continuations[start] = bytes.Clone(b[8:])
 			return nil
 		}
 		if data != nil {
@@ -242,11 +307,14 @@ func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (fil
 		return nil, err
 	}
 	if data == nil {
+		if len(continuations) != 0 {
+			return nil, bad("attribute extents without fork")
+		}
 		return nil, fs.ErrNotExist
 	}
 	switch be.Uint32(data) {
 	case 0x10:
-		if len(data) < 16 {
+		if len(data) < 16 || len(continuations) != 0 {
 			return nil, bad("inline attribute header")
 		}
 		size := uint64(be.Uint32(data[12:]))
@@ -258,7 +326,14 @@ func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (fil
 		if len(data) != 88 {
 			return nil, bad("attribute fork")
 		}
-		return v.openFork(ctx, data[8:])
+		f, err := resolveFork(ctx, v.source, v.BlockSize, v.BlockCount, data[8:], func() (map[uint32][]byte, error) { return continuations, nil })
+		if err != nil {
+			return nil, err
+		}
+		if len(continuations) != 0 {
+			return nil, bad("unreachable attribute extents")
+		}
+		return v.forkValue(ctx, f)
 	default:
 		return nil, fmt.Errorf("attribute storage type: %w", filesystem.ErrUnsupported)
 	}
@@ -271,7 +346,7 @@ func (v *Volume) Readlink(ctx context.Context, id uint64) (target string, err er
 	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0120000 {
 		return "", fs.ErrInvalid
 	}
-	f, err := v.openFork(ctx, b[88:168])
+	f, err := v.openFork(ctx, be.Uint32(b[8:]), 0, b[88:168])
 	if err != nil {
 		return "", err
 	}

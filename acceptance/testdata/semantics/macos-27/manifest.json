@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "scenario": "file-semantics",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "b9c53ca727933e3e38671d9e3be49168ce33b8243caea208d1df7291229e4083"
+  },
+  "cases": [
+    {
+      "id": "file-semantics/apfs",
+      "image": "apfs.dmg",
+      "sha256": "31088ca94e373c9f5e951cbc64ed7848ed1145c393ae663de514075a3f57cb95",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "472793cc5c706071cd6a4592b5fe5b86d9f1db0feaacfe7b7972f3a25d07f39f",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "8779C0EC-6543-472E-B2A5-1145199BADF8"
+      },
+      "files": "apfs-files.json",
+      "filesSHA256": "fc08cc0f80dadf3911a50fa2b37688f283e4abc987db8897e4a40ad81181ccf9"
+    },
+    {
+      "id": "file-semantics/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "b57a8a7761ccd56fb5a9b786c3f8ec5fe11bd6d61e30188d400a205b04b3cbe6",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "b9b2e1e825302d2e2adefe99494ba5bdc255ffc4852ca9e5bc4df804cdfef4c1",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "D5B08E0F-E6F0-4AD9-8C9C-A19FD9AD72C4"
+      },
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "8dbf5f9e0f2ae57f0f103f75e2663fdfa12b040b08a3b004567cec985531869a"
+    },
+    {
+      "id": "file-semantics/hfsplus",
+      "image": "hfsplus.dmg",
+      "sha256": "033f67b505ae417375cee57ec6c28fdc230f5963985243d3150c15375c1190bb",
+      "observation": "hfsplus-diskutil.plist",
+      "observationSHA256": "aaa0c7a0a3e9570f153bb13c89b188ca630a785453d8d115afd7d0a8a9548594",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsplus-files.json",
+      "filesSHA256": "8c538fb8c771b85c949a39956435138bf6d00a05adcc0282128d5bcac82adc15"
+    },
+    {
+      "id": "file-semantics/hfsx",
+      "image": "hfsx.dmg",
+      "sha256": "baee5ed5dea50a392a40418a8aa8e0ec53383a9b699ebff185f3c3c83f030509",
+      "observation": "hfsx-diskutil.plist",
+      "observationSHA256": "710b6534ecdebf83e524e0803fd2cd3f1a9706b9395e24f3d0d567dabaa705fc",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsx-files.json",
+      "filesSHA256": "a879a565ce12b9539b8c649026998f88489d7ef5f80604525c4125a0d34f9a2f"
+    }
+  ]
+}

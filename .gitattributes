@@ -9,3 +9,7 @@
 # Native hashes bind exact original bytes, including scripts and plist output.
 acceptance/testdata/native/** -text
 acceptance/testdata/files/** -text
+acceptance/testdata/semantics/** -text
+
+# Review the pinned inputs and generator for these reproducible tables.
+internal/names/*_tables.go linguist-generated=true

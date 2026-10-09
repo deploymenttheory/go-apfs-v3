@@ -21,9 +21,11 @@ import (
 )
 
 type fileObservation struct {
-	Schema  int          `json:"schema"`
-	Root    string       `json:"root"`
-	Entries []nativeFile `json:"entries"`
+	Schema          int                    `json:"schema"`
+	Root            string                 `json:"root"`
+	Entries         []nativeFile           `json:"entries"`
+	Lookups         []nativeLookup         `json:"lookups,omitempty"`
+	FragmentedForks []nativeFragmentedFork `json:"fragmentedForks,omitempty"`
 }
 type nativeFile struct {
 	Path                  string `json:"path"`
@@ -48,9 +50,14 @@ type nativeValue struct {
 // names, identity, bytes, forks and logical metadata survive portable decoding.
 // Native capture is a separate program and never uses this implementation.
 func TestNativeFileReading(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_FILES")
+	testFileCorpus(t, "file-reading", "APFS_NATIVE_FILES", "testdata/files", 100, nil)
+}
+
+func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimum int, extra func(*testing.T, filesystem.Reader, fileObservation, string)) {
+	t.Helper()
+	root := os.Getenv(environment)
 	if root == "" {
-		root = "testdata/files"
+		root = fallback
 	}
 	paths, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
@@ -60,7 +67,7 @@ func TestNativeFileReading(t *testing.T) {
 		paths = append(paths, filepath.Join(root, "manifest.json"))
 	}
 	if len(paths) == 0 {
-		t.Fatalf("no file-reading corpus at %s", root)
+		t.Fatalf("no %s corpus at %s", scenario, root)
 	}
 	profiles := map[string]bool{}
 	for _, manifest := range paths {
@@ -68,13 +75,13 @@ func TestNativeFileReading(t *testing.T) {
 			var c corpus
 			decodeEvidence(t, manifest, &c)
 			major := strings.Split(c.Producer.Version, ".")[0]
-			if c.Schema != 1 || c.Scenario != "file-reading" || c.Producer.System != "macOS" || c.Producer.Build == "" || c.Producer.Architecture == "" || (major != "15" && major != "26" && major != "27") || profiles[major] {
-				t.Fatal("invalid or duplicate file-reading provenance")
+			if c.Schema != 1 || c.Scenario != scenario || c.Producer.System != "macOS" || c.Producer.Build == "" || c.Producer.Architecture == "" || (major != "15" && major != "26" && major != "27") || profiles[major] {
+				t.Fatal("invalid or duplicate file corpus provenance")
 			}
 			profiles[major] = true
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
-			wantIDs := map[string]bool{"file-reading/apfs": false, "file-reading/apfs-case-sensitive": false, "file-reading/hfsplus": false, "file-reading/hfsx": false}
+			wantIDs := map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/hfsplus": false, scenario + "/hfsx": false}
 			if len(c.Cases) != len(wantIDs) {
 				t.Fatal("incomplete file-reading inventory")
 			}
@@ -90,7 +97,7 @@ func TestNativeFileReading(t *testing.T) {
 					verifyDigest(t, dir, test.Files, test.FilesSHA256)
 					var want fileObservation
 					decodeEvidence(t, filepath.Join(dir, test.Files), &want)
-					if want.Schema != 1 || want.Root != "Fixture" || len(want.Entries) < 100 {
+					if want.Schema != 1 || want.Root != "Fixture" || len(want.Entries) < minimum {
 						t.Fatal("invalid or incomplete file observation")
 					}
 					img, err := diskimage.Open(filepath.Join(dir, test.Image))
@@ -120,6 +127,9 @@ func TestNativeFileReading(t *testing.T) {
 						t.Fatal("expected one native filesystem")
 					}
 					compareFiles(t, reader, want)
+					if extra != nil {
+						extra(t, reader, want, test.ID)
+					}
 					verifyDigest(t, dir, test.Image, test.SHA256)
 					t.Logf("matched %d native objects, contents, forks, attributes and metadata from macOS %s; source unchanged", len(want.Entries), c.Producer.Version)
 				})
@@ -129,7 +139,7 @@ func TestNativeFileReading(t *testing.T) {
 	if required := os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"); required != "" {
 		for _, major := range strings.Split(required, ",") {
 			if !profiles[major] {
-				t.Errorf("required file-reading producer macOS %s missing", major)
+				t.Errorf("required %s producer macOS %s missing", scenario, major)
 			}
 		}
 	}

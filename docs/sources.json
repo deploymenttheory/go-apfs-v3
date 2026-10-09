@@ -42,9 +42,12 @@
       "kind": "source-port",
       "url": "https://github.com/apple-oss-distributions/hfs",
       "components": [
-        "hfsplus/finderinfo.go"
+        "hfsplus/finderinfo.go",
+        "hfsplus/links.go",
+        "internal/names/hfs_tables.go",
+        "internal/names/generate.py"
       ],
-      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts.",
+      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts. Regular-file indirection follows cat_lookup/cat_resolvelink, including creation-date qualification and native inode identity. HFS+ comparison data translates gLatinCaseFold/gLowerCaseTable; the generator records the frozen UTF-16 comparison rules.",
       "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
       "license": "APSL-2.0",
       "licenseFile": "LICENSES/APSL-2.0.txt",
@@ -68,6 +71,18 @@
         {
           "path": "APPLE_LICENSE",
           "sha256": "addd5652908b2add7ba13bda59afa667580fa5732d41a4b65d2ce33bec6c5cb3"
+        },
+        {
+          "path": "core/UnicodeWrappers.c",
+          "sha256": "7300de813b94d41d14faf9aa2a0ddf436010bb43d258f81fc92ab841bc7157f2"
+        },
+        {
+          "path": "core/UCStringCompareData.h",
+          "sha256": "88773669ce79ebe2d6bcc84d3341c3c2586e649984ac97453adb1b8706440464"
+        },
+        {
+          "path": "core/hfs_catalog.c",
+          "sha256": "a459793a5f38d05ad3b5a8e6f9761aefb3d9dfeb077962a7a190b6812bd37dd6"
         }
       ],
       "licenseBasis": "The translated file header specifies APSL 2.0. The upstream root APPLE_LICENSE contains the older APSL 1.2 and is inventoried for provenance, not used as the license text for this translation.",
@@ -96,6 +111,53 @@
       ],
       "evidence": "acceptance/testdata/files/macos-27/manifest.json",
       "basis": "Native symlink attributes include a final NUL which readlink/st_size exclude. Large ordinary attributes use storage flags 0x11 and the published stream layout; the extra bit has undocumented write semantics. Reading this specific encoding is compared byte-for-byte with native getxattr. This does not authorize ignoring other unknown bits or claim write compatibility."
+    },
+    {
+      "id": "apple-xnu-name-comparison",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "components": [
+        "internal/names/generate.py",
+        "internal/names/apfs_tables.go",
+        "internal/names/hfs_tables.go",
+        "internal/names/names.go"
+      ],
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "basis": "Generation compiles the pinned normalizeOptCaseFoldU32Char and its local helpers and materializes the Unicode 16 mappings plus original combining classes in pure Go. ASCII folding and Hangul are algorithmic. HFS+ uses the separately frozen Unicode 3.2 decomposition/class data in vfs_utfconvdata.h. The checked inputs do not use the build host's Unicode library. Admission of unassigned/invalid native names and historical APFS profiles are outside current qualification. Native APFS observations independently qualify the selected comparison behavior; the APFS reference alone does not specify this modern profile.",
+      "files": [
+        {
+          "path": "bsd/vfs/vfs_unicode.c",
+          "sha256": "c92023ff31f0008de6f00c23ac33c3d8388b2588ba2eed91471ef51fabaf325d"
+        },
+        {
+          "path": "bsd/vfs/vfs_unicode_data.h",
+          "sha256": "69443aa4aeb34e0faf7790219d3dda1b3b4c3d13f05341ff2154f1501587eacd"
+        },
+        {
+          "path": "bsd/vfs/vfs_utfconv.c",
+          "sha256": "4cfa93d4cc2d60ea28752180c77323307a2b6908d21a68c7dd7e5caedafbc0e3"
+        },
+        {
+          "path": "bsd/vfs/vfs_utfconvdata.h",
+          "sha256": "696f99ae7235aad56b3af6201b482bda7530e422bda92aafeb9d59d280b4c032"
+        }
+      ],
+      "licenseBasis": "Apple table and HFS source headers specify APSL 2.0. The Unicode scalar normalizer additionally acknowledges Unicode and IBM/ICU; those copyright notices and their permission texts are retained in generated source and LICENSES."
+    },
+    {
+      "id": "native-file-semantics-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/reader.go",
+        "hfsplus/reader.go",
+        "hfsplus/links.go",
+        "hfsplus/extents.go",
+        "internal/names/names.go"
+      ],
+      "evidence": "acceptance/testdata/semantics/macos-27/manifest.json",
+      "basis": "Independent native lstat lookups include Unicode 11/14/16 case pairs, hard-link aliases share st_ino/st_nlink and all forks/metadata, and F_LOG2PHYS_EXT proves more than eight physical extents per fragmented HFS+ data/resource fork. Full hashes and native boundary samples qualify portable reads. Native evidence for other required macOS producers is generated and replayed in CI."
     }
   ]
 }

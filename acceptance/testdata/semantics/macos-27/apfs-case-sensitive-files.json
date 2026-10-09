@@ -1,0 +1,983 @@
+{
+  "schema": 1,
+  "root": "Fixture",
+  "entries": [
+    {
+      "path": "Fixture",
+      "object": 20,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925277459525,
+      "changeNS": 1791563925277459525,
+      "accessNS": 1791563925273181767,
+      "size": 160,
+      "links": 5,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/alias",
+      "object": 53,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925284548748,
+      "changeNS": 1791563925284548748,
+      "accessNS": 1791563925276089273,
+      "size": 8471,
+      "links": 3,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 33024,
+          "sha256": "48364ddbd0eaeccf8f10ac8bff6ce32a449a90938c409a34217de9be772131ad"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.link": {
+          "size": 7,
+          "sha256": "98fa873e669ac6d0c156991fd1b8eb50b0d8cf42cdf55525a79328b5727735c9"
+        }
+      },
+      "sha256": "7404e21e8d5b5876508345d9f8849e03387bfc105d81f2c08976f088f673ef62"
+    },
+    {
+      "path": "Fixture/links",
+      "object": 52,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925277007649,
+      "changeNS": 1791563925277007649,
+      "accessNS": 1791563925276020272,
+      "size": 128,
+      "links": 4,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/links/original",
+      "object": 53,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925284548748,
+      "changeNS": 1791563925284548748,
+      "accessNS": 1791563925276089273,
+      "size": 8471,
+      "links": 3,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 33024,
+          "sha256": "48364ddbd0eaeccf8f10ac8bff6ce32a449a90938c409a34217de9be772131ad"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.link": {
+          "size": 7,
+          "sha256": "98fa873e669ac6d0c156991fd1b8eb50b0d8cf42cdf55525a79328b5727735c9"
+        }
+      },
+      "sha256": "7404e21e8d5b5876508345d9f8849e03387bfc105d81f2c08976f088f673ef62"
+    },
+    {
+      "path": "Fixture/links/second",
+      "object": 53,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925284548748,
+      "changeNS": 1791563925284548748,
+      "accessNS": 1791563925276089273,
+      "size": 8471,
+      "links": 3,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 33024,
+          "sha256": "48364ddbd0eaeccf8f10ac8bff6ce32a449a90938c409a34217de9be772131ad"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.link": {
+          "size": 7,
+          "sha256": "98fa873e669ac6d0c156991fd1b8eb50b0d8cf42cdf55525a79328b5727735c9"
+        }
+      },
+      "sha256": "7404e21e8d5b5876508345d9f8849e03387bfc105d81f2c08976f088f673ef62"
+    },
+    {
+      "path": "Fixture/names",
+      "object": 21,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275868856,
+      "changeNS": 1791563925275868856,
+      "accessNS": 1791563925273265017,
+      "size": 544,
+      "links": 17,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/angstrom",
+      "object": 36,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274783895,
+      "changeNS": 1791563925274783895,
+      "accessNS": 1791563925274713936,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/angstrom/\u212b",
+      "object": 37,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274830228,
+      "changeNS": 1791563925274830228,
+      "accessNS": 1791563925274782478,
+      "size": 9,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "2ee2f10125b957033dfd0750dd1ee6fef72847054f0994dac539acd42943787a"
+    },
+    {
+      "path": "Fixture/names/ascii",
+      "object": 22,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273437267,
+      "changeNS": 1791563925273437267,
+      "accessNS": 1791563925273354642,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/ascii/ReadMe",
+      "object": 23,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273496434,
+      "changeNS": 1791563925273496434,
+      "accessNS": 1791563925273436309,
+      "size": 6,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "e6be3083cbcc792380f008fbd34573ae4915fbd790dd408df88485de792d2913"
+    },
+    {
+      "path": "Fixture/names/canonical",
+      "object": 24,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273646851,
+      "changeNS": 1791563925273646851,
+      "accessNS": 1791563925273559309,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/canonical/caf\u00e9",
+      "object": 25,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273705601,
+      "changeNS": 1791563925273705601,
+      "accessNS": 1791563925273645768,
+      "size": 10,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "43045e07e709b38e470076ff8235b68ca6e63400498c0aa847f6e743f230166e"
+    },
+    {
+      "path": "Fixture/names/colon",
+      "object": 50,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275932981,
+      "changeNS": 1791563925275932981,
+      "accessNS": 1791563925275866522,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/colon/a:b",
+      "object": 51,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275976147,
+      "changeNS": 1791563925275976147,
+      "accessNS": 1791563925275932022,
+      "size": 6,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "2cf7dfa85271cc3692d6572705aa84342f5b87ee90386b97d96eb37bbe2850c8"
+    },
+    {
+      "path": "Fixture/names/deseret",
+      "object": 40,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275101229,
+      "changeNS": 1791563925275101229,
+      "accessNS": 1791563925275030562,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/deseret/\ud801\udc00",
+      "object": 41,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275150687,
+      "changeNS": 1791563925275150687,
+      "accessNS": 1791563925275099979,
+      "size": 8,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "06a8eb95105646ce95047750039256c2b5c19c151edd383eca07bf672f74fc2d"
+    },
+    {
+      "path": "Fixture/names/hangul",
+      "object": 28,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274050519,
+      "changeNS": 1791563925274050519,
+      "accessNS": 1791563925273956352,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/hangul/\uac01",
+      "object": 29,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274125310,
+      "changeNS": 1791563925274125310,
+      "accessNS": 1791563925274040685,
+      "size": 7,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "111b85fadea6a164afa70a65f1d1d3bceca6498d54ec8cd7c8855e0a959164a8"
+    },
+    {
+      "path": "Fixture/names/ignorable",
+      "object": 48,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275768772,
+      "changeNS": 1791563925275768772,
+      "accessNS": 1791563925275698063,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/ignorable/ab",
+      "object": 49,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275821939,
+      "changeNS": 1791563925275821939,
+      "accessNS": 1791563925275767647,
+      "size": 10,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "2f46fb8cd71b155b51f1bb7a24043e74f03cd0c2da70676149bb20a6ed47d6f7"
+    },
+    {
+      "path": "Fixture/names/iota",
+      "object": 34,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274615270,
+      "changeNS": 1791563925274615270,
+      "accessNS": 1791563925274539228,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/iota/\u03b1\u0345\u0301",
+      "object": 35,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274668561,
+      "changeNS": 1791563925274668561,
+      "accessNS": 1791563925274614186,
+      "size": 5,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "cf1f2ce6702b1c8df8ea03ced3f21c50c28790a39af9c14574957584dd363ce3"
+    },
+    {
+      "path": "Fixture/names/ligature",
+      "object": 38,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274941937,
+      "changeNS": 1791563925274941937,
+      "accessNS": 1791563925274876228,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/ligature/\ufb00",
+      "object": 39,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274984979,
+      "changeNS": 1791563925274984979,
+      "accessNS": 1791563925274940687,
+      "size": 9,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "a144caf94237f69af0b4ba8b08ac33d50dfeb9eb33fe54c75ed03a2b9956ad45"
+    },
+    {
+      "path": "Fixture/names/reorder",
+      "object": 26,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273846602,
+      "changeNS": 1791563925273846602,
+      "accessNS": 1791563925273763435,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/reorder/a\u0301\u0327",
+      "object": 27,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925273898518,
+      "changeNS": 1791563925273898518,
+      "accessNS": 1791563925273845768,
+      "size": 8,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "60c877bd5e840df9d4293a1163a17b2cd84e63fc5b27d9a8931a491f6acb5cf7"
+    },
+    {
+      "path": "Fixture/names/sharp-s",
+      "object": 30,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274268477,
+      "changeNS": 1791563925274268477,
+      "accessNS": 1791563925274182769,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/sharp-s/Stra\u00dfe",
+      "object": 31,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274321436,
+      "changeNS": 1791563925274321436,
+      "accessNS": 1791563925274267102,
+      "size": 8,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "b728c786e72390713a55a7e89fc4a48064f3eb4f71062115e1ae0b96cb183c10"
+    },
+    {
+      "path": "Fixture/names/sigma",
+      "object": 32,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274445936,
+      "changeNS": 1791563925274445936,
+      "accessNS": 1791563925274372227,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/sigma/\u03a3",
+      "object": 33,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925274495269,
+      "changeNS": 1791563925274495269,
+      "accessNS": 1791563925274443894,
+      "size": 6,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "23f54da2ee8e35ce0ce26f79e9f90bf84fefc88836615a2b809e728aa229b310"
+    },
+    {
+      "path": "Fixture/names/unicode-11",
+      "object": 42,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275278604,
+      "changeNS": 1791563925275278604,
+      "accessNS": 1791563925275195312,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/unicode-11/\u1c90",
+      "object": 43,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275334438,
+      "changeNS": 1791563925275334438,
+      "accessNS": 1791563925275271188,
+      "size": 11,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "63bd0cd6c6eb1911f9a42ab6f14591fc31ff966f1a60fced4c2ca60ce2361227"
+    },
+    {
+      "path": "Fixture/names/unicode-14",
+      "object": 44,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275445105,
+      "changeNS": 1791563925275445105,
+      "accessNS": 1791563925275378979,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/unicode-14/\ud801\udd70",
+      "object": 45,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275489938,
+      "changeNS": 1791563925275489938,
+      "accessNS": 1791563925275443813,
+      "size": 11,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "34633af6cae2289b293a77c5f4c553a6604db3c837dbc6f30270c52a7a6a48b1"
+    },
+    {
+      "path": "Fixture/names/unicode-16",
+      "object": 46,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275607355,
+      "changeNS": 1791563925275607355,
+      "accessNS": 1791563925275532938,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/names/unicode-16/\u1c89",
+      "object": 47,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791563925,
+      "modifyNS": 1791563925275654813,
+      "changeNS": 1791563925275654813,
+      "accessNS": 1791563925275606188,
+      "size": 11,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "b2bef5fed4d894c31b7bad5c25b7036249cdca3cecd3854af47eff5800a1a529"
+    }
+  ],
+  "lookups": [
+    {
+      "path": "Fixture/names/ascii/ReadMe",
+      "object": 23
+    },
+    {
+      "path": "Fixture/names/ascii/readme",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ascii/README",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ascii/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/canonical/caf\u00e9",
+      "object": 25
+    },
+    {
+      "path": "Fixture/names/canonical/cafe\u0301",
+      "object": 25
+    },
+    {
+      "path": "Fixture/names/canonical/CAF\u00c9",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/canonical/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/reorder/a\u0301\u0327",
+      "object": 27
+    },
+    {
+      "path": "Fixture/names/reorder/a\u0327\u0301",
+      "object": 27
+    },
+    {
+      "path": "Fixture/names/reorder/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/hangul/\uac01",
+      "object": 29
+    },
+    {
+      "path": "Fixture/names/hangul/\u1100\u1161\u11a8",
+      "object": 29
+    },
+    {
+      "path": "Fixture/names/hangul/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sharp-s/Stra\u00dfe",
+      "object": 31
+    },
+    {
+      "path": "Fixture/names/sharp-s/STRASSE",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sharp-s/Strasse",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sharp-s/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sigma/\u03a3",
+      "object": 33
+    },
+    {
+      "path": "Fixture/names/sigma/\u03c3",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sigma/\u03c2",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/sigma/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/iota/\u03b1\u0345\u0301",
+      "object": 35
+    },
+    {
+      "path": "Fixture/names/iota/\u03b1\u0301\u03b9",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/iota/\u03b1\u0301\u0345",
+      "object": 35
+    },
+    {
+      "path": "Fixture/names/iota/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/angstrom/\u212b",
+      "object": 37
+    },
+    {
+      "path": "Fixture/names/angstrom/\u00c5",
+      "object": 37
+    },
+    {
+      "path": "Fixture/names/angstrom/A\u030a",
+      "object": 37
+    },
+    {
+      "path": "Fixture/names/angstrom/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ligature/\ufb00",
+      "object": 39
+    },
+    {
+      "path": "Fixture/names/ligature/ff",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ligature/FF",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ligature/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/deseret/\ud801\udc00",
+      "object": 41
+    },
+    {
+      "path": "Fixture/names/deseret/\ud801\udc28",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/deseret/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-11/\u1c90",
+      "object": 43
+    },
+    {
+      "path": "Fixture/names/unicode-11/\u10d0",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-11/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-14/\ud801\udd70",
+      "object": 45
+    },
+    {
+      "path": "Fixture/names/unicode-14/\ud801\udd97",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-14/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-16/\u1c89",
+      "object": 47
+    },
+    {
+      "path": "Fixture/names/unicode-16/\u1c8a",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/unicode-16/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ignorable/ab",
+      "object": 49
+    },
+    {
+      "path": "Fixture/names/ignorable/a\u200cb",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ignorable/a\ufeffb",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/ignorable/absent",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/colon/a:b",
+      "object": 51
+    },
+    {
+      "path": "Fixture/names/colon/A:B",
+      "object": 0
+    },
+    {
+      "path": "Fixture/names/colon/absent",
+      "object": 0
+    }
+  ],
+  "fragmentedForks": []
+}

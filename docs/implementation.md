@@ -6,8 +6,8 @@ and harness were not imported.
 
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
-| 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Implemented locally; three-version CI qualification pending |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Uncompressed reads, enumeration, metadata, symlinks, attributes and resource forks implemented; remaining reader features pending |
+| 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Uncompressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks and attributes implemented; compression/unlocking and historical views pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -32,19 +32,31 @@ APFS filesystem-owned attributes may be enumerable in addition to native-visible
 attributes. Fixtures include multi-node trees, empty files/attributes, binary data,
 sparse ranges, a 32 KiB ordinary attribute and a resource fork larger than 32 KiB.
 
-Retained local evidence covers macOS 27.0.1 (26A434). Fresh producer/consumer CI
-is configured for macOS 15/26/27 and Linux/Windows/macOS replay; those remote runs
-have not yet qualified this implementation. Short parser fuzz campaigns, unit
-tests, race detection, vet, lint and six cross-builds are local checks only.
+The file-semantics family adds 15 filename comparison cases with positive and
+negative native lookup results, three hard-link aliases modified through a link,
+and HFS+ data/resource forks whose fragmentation is independently measured by
+Darwin `F_LOG2PHYS_EXT`. The retained forks have 20 and 21 extents; complete hashes
+and random reads across every native extent boundary are compared. Original
+spelling, link identity/count, metadata and attributes remain part of the same
+file comparison. Apple C comparison tables are translated reproducibly; an older
+Unicode 9 assumption failed the native Georgian case and is not used.
+
+Retained local evidence covers macOS 27.0.1 (26A434). The previous inspection and
+file-reading families passed all three native producers and all three replay
+hosts in [PR #7's native run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37957366458).
+The new file-semantics family requires fresh macOS 15/26/27 production and
+Linux/Windows/macOS replay in this change's CI. Short parser fuzz campaigns,
+unit tests, race detection, vet, lint and cross-builds supplement native evidence.
 
 Retained manifests identify the captured OS build. Fresh captures require the
 expected major version and fail on a mislabeled runner. This scenario does not
 qualify write, mount, unlock, or recovery capabilities.
 
-Remaining reader work includes native name collation, hard links, overflow
-extents, compression, encryption, snapshots/sealed views and broader damaged-image
-handling. HFS+ hard-link indirection and compressed file reads currently fail
-explicitly. A small set of native fixtures is evidence for these scenarios,
+Remaining reader work includes compression, encryption, snapshots/sealed views,
+historical name profiles and broader damaged-image handling. HFS+ directory
+hard links and compressed file reads currently fail explicitly. Fragmented
+metadata and attribute-continuation fixtures remain unqualified. A small set of
+native fixtures is evidence for these scenarios,
 not a declaration of support for every image in the wild.
 
 ## Required phase gates
