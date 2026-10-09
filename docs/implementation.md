@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Uncompressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks and attributes implemented; compression/unlocking and historical views pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks and attributes implemented; unlocking and historical views pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -44,17 +44,23 @@ Unicode 9 assumption failed the native Georgian case and is not used.
 Retained local evidence covers macOS 27.0.1 (26A434). The previous inspection and
 file-reading families passed all three native producers and all three replay
 hosts in [PR #7's native run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37957366458).
-The new file-semantics family requires fresh macOS 15/26/27 production and
-Linux/Windows/macOS replay in this change's CI. Short parser fuzz campaigns,
+The file-semantics family passed all required producers and replay hosts in
+[PR #9's native run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37961351230).
+The file-compression family now adds native decmpfs types 1, 3, 4 and 7–16,
+logical/raw storage separation, native public-codec readback, stored blocks,
+resource descriptor gaps, inactive attributes and a malformed active-file control.
+The compression implementation passed fresh macOS 15/26/27 reference capture and
+Linux/Windows/macOS replay in [PR #10's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37974021258).
+Every reader change continues to require that full matrix. Short parser fuzz campaigns,
 unit tests, race detection, vet, lint and cross-builds supplement native evidence.
 
 Retained manifests identify the captured OS build. Fresh captures require the
 expected major version and fail on a mislabeled runner. This scenario does not
 qualify write, mount, unlock, or recovery capabilities.
 
-Remaining reader work includes compression, encryption, snapshots/sealed views,
+Remaining reader work includes encryption, snapshots/sealed views,
 historical name profiles and broader damaged-image handling. HFS+ directory
-hard links and compressed file reads currently fail explicitly. Fragmented
+hard links, generation-store and dataless file contents fail explicitly. Fragmented
 metadata and attribute-continuation fixtures remain unqualified. A small set of
 native fixtures is evidence for these scenarios,
 not a declaration of support for every image in the wild.

@@ -36,3 +36,13 @@ recorded in [the source inventory](docs/sources.json).
 
 Other APFS and HFS+ format reader code is an original Go interpretation of the
 referenced format specifications except where explicitly identified above.
+
+`internal/codec/lzfse` adapts Apple's LZFSE/LZVN decoder and FSE tables, copyright
+2015–2016 Apple Inc., under [BSD-3-Clause](internal/codec/lzfse/LICENSE).
+`internal/codec/lzbitmap` adapts Corellium's libzbitmap decoder, copyright 2022
+Corellium LLC, under [MIT](internal/codec/lzbitmap/LICENSE). The initial Go
+translations came from v2 production code, copyright 2026 Deployment Theory;
+v3 retains only decoders with bounded, caller-owned destinations. The LZ4
+decoder adapts v2 original MIT code and is not represented as an Apple C port.
+Revisions, source hashes, adaptations and independent native evidence are in the
+source inventory. No native compression framework or C code is linked at runtime.

@@ -63,7 +63,7 @@ APFS_NATIVE_FILES=../artifacts/files go test -v -run TestNativeFileReading ./acc
 
 Environment paths above are relative to the acceptance package's working directory.
 Use absolute paths for a corpus elsewhere. Default `go test ./...` replays all
-three retained families without native tools. A missing family fails the suite.
+four retained families without native tools. A missing family fails the suite.
 
 ## File semantics
 
@@ -93,11 +93,60 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all three families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all four families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
+## File compression
+
+Purpose: read compressed application contents identically on portable hosts,
+while preserving the original storage and metadata for forensic consumers.
+
+| Cases in each filesystem variant | Independent native expectation | Portable assertions |
+| --- | --- | --- |
+| decmpfs types 1, 3, 4, 7–16 | `ditto` for native LZVN; Apple buffer codecs for other payloads; final read-only kernel reads | Logical sizes, full hashes and compression type; same metadata/attribute comparisons as file-reading |
+| Attribute and resource-fork storage, mixed stored/compressed blocks, partial final block | Apple codec readback of final stored bytes, plus kernel readback | Full contents and reverse-order samples crossing 64 KiB boundaries |
+| Stored markers, empty type 1, zlib with/without Adler-32, resource descriptor gaps | Native mounted reads | Correct marker, checksum and explicit block-length interpretation |
+| Hard-link aliases, independent resource fork beside inline compression, ordinary xattr and mode | Native inode/link count, xattrs and `lstat` | Identity and metadata preserved; raw stored data fork remains separately accessible |
+| Inactive valid/malformed decmpfs attributes | Ordinary native file reads | Compression flag selects the source; stale storage never overrides data |
+| Malformed active LZFSE marker | Native logical size with premature EOF, EIO or EINVAL; raw attribute retained | Explicit corruption instead of invented or empty successful contents |
+
+The focused `native/file_compression.py` helper installs format storage using
+Apple-produced payloads and then decodes the final stored bytes again using the
+public Apple codecs. Native kernel readback is compared independently. macOS
+15/26 can lack filesystem registration for LZ4 types 15/16 while exposing the
+public LZ4 codec. Those cases record the kernel's EIO and compare Go with the
+native codec result; they are never labeled successful kernel reads or skipped.
+macOS 27 requires kernel readback for all admitted types. Both producer sources
+are hashed in the manifest. The retained corpus contains 27 ordinary observed
+objects and one separate malformed control per filesystem.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario file-compression --output artifacts/compression/macos-27
+APFS_NATIVE_COMPRESSION=../artifacts/compression go test -v -run TestNativeFileCompression ./acceptance
+```
+
+This family qualifies reading. Compression writing, generation-store/dataless
+content and arbitrary damaged-file recovery remain outside it. Focused unit
+checks exercise malformed lengths/indexes, codec errors, close/cancellation,
+concurrent boundary reads and a large logical file whose index must stay on disk.
+
 ## CI tiers
+
+The **macOS filesystem compatibility** workflow has two visible stages:
+
+1. **Record Apple filesystem reference data (macOS 15/26/27)** creates disk
+   images with Apple tools and records how macOS reads them. Separate steps show
+   volume identity; file contents, metadata and forks; names, links and
+   fragmentation; and compression. Its artifacts contain the images, observations
+   and provenance needed to repeat a comparison.
+2. **Compare Go with macOS reference data (Linux/Windows/macOS)** reads every
+   reference image through Go and checks the results against all three macOS
+   versions. Missing evidence or mismatched results fail the workflow.
+
+This proves the covered Go operations agree with Apple's observed behavior on
+portable hosts. Each job's summary explains its evidence and the comparison's
+limits; compilation alone does not establish filesystem compatibility.
 
 - PR: all unit checks, lint, six cross-builds, retained-corpus replay on Linux,
   Windows, and macOS, and relevant native qualification for reader changes.

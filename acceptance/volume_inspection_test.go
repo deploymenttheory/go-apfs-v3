@@ -72,6 +72,10 @@ type corpus struct {
 		Architecture string `json:"architecture"`
 		Source       string `json:"source"`
 		SourceSHA256 string `json:"sourceSHA256"`
+		Sources      []struct {
+			Source string `json:"source"`
+			SHA256 string `json:"sha256"`
+		} `json:"sources,omitempty"`
 	} `json:"producer"`
 	Cases []struct {
 		ID                string      `json:"id"`

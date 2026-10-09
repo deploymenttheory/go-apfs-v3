@@ -98,10 +98,41 @@
     },
     {
       "id": "apple-lzfse-source",
-      "kind": "planned-port",
+      "kind": "source-port",
       "url": "https://github.com/lzfse/lzfse",
-      "components": [],
-      "basis": "No code ported yet. Zlib inspection fixtures do not qualify LZFSE."
+      "components": [
+        "internal/codec/lzfse"
+      ],
+      "basis": "Decoder-only translation adapted from the inventoried v2 production port and reviewed against Apple C. Encoders, allocating convenience APIs and encoder tables were removed. Caller-owned bounded destinations, checked byte slices and explicit errors replace C pointers. Complete LZFSE blocks must match their declared decoded size. Native public-codec and filesystem observations qualify the admitted decmpfs profiles.",
+      "revision": "e634ca58b4821d9f3d560cdc6df5dec02ffc93fd",
+      "license": "BSD-3-Clause",
+      "licenseFile": "internal/codec/lzfse/LICENSE",
+      "files": [
+        {
+          "path": "src/lzfse_decode_base.c",
+          "sha256": "721b4061e4e655f0940b7cabcf506356c152716526e630981caf0e708d2f73d9"
+        },
+        {
+          "path": "src/lzvn_decode_base.c",
+          "sha256": "434647c83d4f3ed95c11465c5a3ec46f992ec94843928138039ea40be623957d"
+        },
+        {
+          "path": "src/lzfse_internal.h",
+          "sha256": "d08dc29d5440775de279d36783729131329df10cffd43ec6eff7dcfceef9f570"
+        },
+        {
+          "path": "src/lzfse_fse.h",
+          "sha256": "4e5c2228a4bb5e5f3faf4639d5688bc7caa5cf0c0f3a971ada4fbe3631f3a533"
+        },
+        {
+          "path": "src/lzfse_fse.c",
+          "sha256": "a97e309975487af269456a4e87ef516aedaf82ce469e37971fd5676f9cd5956b"
+        },
+        {
+          "path": "src/lzfse_decode.c",
+          "sha256": "4211f54b19b9e75adfe9c1c3797e24ecde16620d0c48a30e5bab2e57fb1a8e0f"
+        }
+      ]
     },
     {
       "id": "native-apfs-file-reading-27",
@@ -158,6 +189,111 @@
       ],
       "evidence": "acceptance/testdata/semantics/macos-27/manifest.json",
       "basis": "Independent native lstat lookups include Unicode 11/14/16 case pairs, hard-link aliases share st_ino/st_nlink and all forks/metadata, and F_LOG2PHYS_EXT proves more than eight physical extents per fragmented HFS+ data/resource fork. Full hashes and native boundary samples qualify portable reads. Native evidence for other required macOS producers is generated and replayed in CI."
+    },
+    {
+      "id": "libzbitmap-decoder",
+      "kind": "source-port",
+      "url": "https://github.com/eafer/libzbitmap",
+      "revision": "574abeae25b25c3319b9b6a9225cc7464e08ae88",
+      "components": [
+        "internal/codec/lzbitmap"
+      ],
+      "license": "MIT",
+      "licenseFile": "internal/codec/lzbitmap/LICENSE",
+      "files": [
+        {
+          "path": "libzbitmap.c",
+          "sha256": "52c2d9ad8ffd821d08ac65fc33d65b6ea848fe90e02e73e6a9dbc81c23ed826f"
+        },
+        {
+          "path": "libzbitmap.h",
+          "sha256": "a215cdcde2255ea551d15d69db0e301667d0fce659d3da73861f0cf255e9613b"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "40e65e7ba62903c113ae3f7dd582cc4e7a8e9719519a367381810f0d2d3539e2"
+        }
+      ],
+      "basis": "Decoder-only translation adapted from the inventoried v2 production port. Reviewed against Corellium libzbitmap C; this is not Apple-published source. Output is caller-owned and bounded before each chunk. Apple public-codec output and native filesystem reads provide independent qualification."
+    },
+    {
+      "id": "v2-decoder-translations",
+      "kind": "prior-implementation-adaptation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v2/tree/2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036/pkg/compression",
+      "revision": "2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036",
+      "components": [
+        "internal/codec/lzfse",
+        "internal/codec/lzbitmap",
+        "internal/codec/lz4"
+      ],
+      "files": [
+        {
+          "path": "pkg/compression/lzfse/decode.go",
+          "sha256": "e62ac662ca0ae968b3e67d87d7acd73d572a5d33ceccba0842a7e48e4c77d38c"
+        },
+        {
+          "path": "pkg/compression/lzfse/lzvn_decode.go",
+          "sha256": "e01c26e410c786af0457f122a9db845b06c87bf6933906ad0373497311014e81"
+        },
+        {
+          "path": "pkg/compression/lzfse/fse.go",
+          "sha256": "2f10252621077a83252f0affb3302f666628385cf2fc063d3a5eb625f1a412f0"
+        },
+        {
+          "path": "pkg/compression/lzfse/tables.go",
+          "sha256": "78859622e783aaab0eeb67ba9a16bf79ac9e5d7b398923bd9099b28b93398267"
+        },
+        {
+          "path": "pkg/compression/lzfse/LICENSE",
+          "sha256": "2a20082c2219edbbdb2e862a0566ba4f762a564ade7c04b09250ae4464bc4b32"
+        },
+        {
+          "path": "pkg/compression/lzbitmap/lzbitmap.go",
+          "sha256": "98e57de89eb74a5ac5278370effc5dadc17d41fcf990a7030934764b08c47d04"
+        },
+        {
+          "path": "pkg/compression/lz4/lz4.go",
+          "sha256": "2311f625b370f219c52bc87d9fba27f0531114bd84ccb442dd37b56ec7e8a1ab"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "95648575c5eaf04f7ce2556b6731851baeb66bf6096037c192f328a66f11a19b"
+        }
+      ],
+      "basis": "Only production decoder algorithms were retained, with upstream notices; no tests, encoders, decmpfs Handle or legacy filesystem orchestration imported. LZ4 framing is a v2 original MIT implementation, not an Apple C port; v3 requires complete bounded frames. Each codec is independently requalified from fresh native observations."
+    },
+    {
+      "id": "apple-xnu-decmpfs-format",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "components": [
+        "internal/decmpfs",
+        "apfs/reader.go",
+        "hfsplus/reader.go"
+      ],
+      "files": [
+        {
+          "path": "bsd/sys/decmpfs.h",
+          "sha256": "de165f10f5ee333a0c2ed69d49a5e81cdaeb0e394ee270a036f76248f970713d"
+        },
+        {
+          "path": "bsd/kern/decmpfs.c",
+          "sha256": "18dc3ff96bf71c686a45297e3c218aea21ee0ba6786527c0599e7111f157eb3e"
+        }
+      ],
+      "basis": "Original bounded reader using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied."
+    },
+    {
+      "id": "native-file-compression-27",
+      "kind": "native-observation",
+      "components": [
+        "internal/decmpfs",
+        "internal/codec",
+        "acceptance/native/file_compression.py"
+      ],
+      "evidence": "acceptance/testdata/compression/macos-27/manifest.json",
+      "basis": "Native ditto supplies LZVN filesystem storage. Apple public compression codecs supply other encoded payloads; final read-only kernel reads and public-codec decoding of stored bytes are independently compared. Types 1,3,4,7-16, stored markers, zlib optional checksum and resource descriptor gaps are exercised. Only 0xff is admitted as an LZFSE stored marker: a native malformed zero-marker file reports logical size but returns premature EOF; Go rejects it rather than synthesizing contents. macOS 15/26 may reject LZ4 types 15/16 at the filesystem layer even when their public codec decodes the stored bytes; CI records both outcomes explicitly."
     }
   ]
 }

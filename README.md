@@ -5,7 +5,7 @@ and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
 **Status: initial read-only implementation.** The executable inspects images,
-lists directories and reads uncompressed files. Encryption unlocking, writes,
+lists directories and reads ordinary and transparently compressed files. Encryption unlocking, writes,
 recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
@@ -41,6 +41,8 @@ Currently implemented:
 - Concurrent, bounded fork readers with independent close and cancellation.
 - Native filename lookup, regular-file hard-link identity, and HFS+ overflow
   extents for fragmented data and resource forks.
+- Shared decmpfs reading: stored data, zlib, LZVN, LZFSE, LZBITMAP and Apple
+  framed LZ4, in attributes and resource forks, with bounded random reads.
 - Versioned JSON reports and typed corruption/unsupported errors.
 
 Encrypted APFS state is reported but not unlocked. Invalid recognized structures
@@ -68,6 +70,10 @@ enumerates names and object IDs; `Stat` returns logical metadata;
 must finish before closing the image. `filesystem.Lookup` uses native comparison;
 `filesystem.LookupExact` preserves exact-spelling traversal for forensic callers.
 `Reader.Lookup` resolves one component and returns its stored spelling.
+`OpenData` returns logical decompressed bytes when `UF_COMPRESSED` is active;
+`Stat` reports the logical size and native compression type. `OpenRawData`
+retains the stored data fork, while `OpenAttribute` retains byte-exact decmpfs
+and resource-fork storage, including compression-owned resource forks.
 
 ## Verification
 
@@ -86,6 +92,9 @@ records native source, observations, image hashes and the actual OS version/buil
 Images are hashed before and after portable reading.
 The file-semantics family adds native positive/negative filename lookups,
 three aliases of one file, and independently verified fragmented HFS+ forks.
+The file-compression family adds each admitted decmpfs type, native codec
+readback, mixed stored/compressed blocks, raw storage, random reads, inactive
+attributes and a malformed active-file control.
 
 [Acceptance instructions](acceptance/README.md) cover capture and cross-platform
 replay. Passing a macOS 27 fixture does not qualify macOS 15 or 26. Runtime
@@ -100,5 +109,5 @@ qualification is distinct from cross-compilation.
 Metadata, forks, links, compression, and identity belong to file operations.
 Codesigning remains a consumer; signature construction is outside this library.
 
-Original code is MIT licensed. Apple-derived FinderInfo and comparison data retain
+Original code is MIT licensed. Derived codecs, FinderInfo and comparison data retain
 their upstream notices; see [third-party notices](THIRD_PARTY_NOTICES.md) and the source inventory.
