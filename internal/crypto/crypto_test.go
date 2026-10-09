@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"testing"
 )
@@ -36,7 +37,7 @@ func TestCryptoInputBounds(t *testing.T) {
 			t.Fatal(size, err)
 		}
 	}
-	if _, err := PasswordKey(context.Background(), nil, nil, 0); !errors.Is(err, ErrInvalid) {
+	if _, err := PBKDF2(context.Background(), sha256.New, nil, nil, 0, 32); !errors.Is(err, ErrInvalid) {
 		t.Fatal(err)
 	}
 }
@@ -55,8 +56,8 @@ func (c *cancelDuringWork) Err() error {
 }
 func TestPasswordDerivationCancellationClearsPartialKey(t *testing.T) {
 	ctx := &cancelDuringWork{Context: context.Background()}
-	key, err := PasswordKey(ctx, []byte("public fixture password"), make([]byte, 16), 1_000_000)
-	if !errors.Is(err, context.Canceled) || key != [32]byte{} || ctx.calls != 4 {
+	key, err := PBKDF2(ctx, sha256.New, []byte("public fixture password"), make([]byte, 16), 1_000_000, 32)
+	if !errors.Is(err, context.Canceled) || key != nil || ctx.calls != 4 {
 		t.Fatal("derivation did not stop and clear its partial result", err, ctx.calls)
 	}
 }

@@ -121,9 +121,47 @@ Current bounds are 1 MiB per keybag, 4096 entries, and ten million aggregate
 PBKDF2 iterations per unlock. Derivation checks cancellation every 1024 rounds;
 sector reads retain their caller's context. Known software single-key records
 with flags 0 or 0x10 are admitted. Legacy flag 2, hardware/per-file keys, extended
-crypto profiles and encrypted DMG envelopes fail or remain outside this layer.
+crypto profiles remain outside this layer. Encrypted DMG envelopes belong to
+`diskimage`, independently of the volume cipher.
 The native volume corpus qualifies AES-128-XTS; CommonCrypto also independently
 qualifies the AES-256-XTS primitive without claiming a matching volume profile.
+
+## Encrypted disk images
+
+The `diskimage` pipeline reads an optional `encrcdsa` envelope, then UDIF chunk
+encoding when present, then partitions. APFS or HFS+ consumes the resulting
+bounded partition. Image and APFS passwords are independent; unlocking the first
+never supplies a credential to the second. `OpenWithPassword` owns the input
+file; `NewWithPassword` borrows its source. Their contexts bound opening and key
+derivation, while image closure governs the decrypted view's lifetime.
+
+Version 2 password records use PBKDF2-HMAC-SHA1 and either AES-192-CBC or older
+3DES wrapping. CBC padding and the `CKIE` terminator must validate before keys
+are admitted. Current native AES wrapping keeps an 8-byte IV-size field and
+CBCPadIV8 identifier; the AES IV is zero-extended to 16 bytes. Payloads use
+AES-128/256-CBC with an HMAC-SHA1-derived IV for each numbered block. The block
+number is a big-endian uint32; a source too large for that space is rejected.
+Partial reads decrypt complete encryption blocks and expose only declared bytes.
+
+This format does not authenticate its data or key records. A damaged wrapped
+key can be indistinguishable from a wrong password; metadata range/profile
+errors remain corruption/unsupported errors. Existing partition and filesystem
+checks still run after decryption. Successful opening is not whole-image
+integrity verification.
+
+Header admission bounds the table to 64 records, each at most 4096 bytes, and
+ten million aggregate password iterations. Records must lie between the table
+and payload without overlapping. Data blocks are powers of two from 512 bytes
+to 64 KiB, and physical storage must contain the complete final padded block.
+Version 1 and certificate/keybag-only images are unsupported. A password entry
+may coexist with other known credential types, which are not used for unlocking.
+
+The image owns its key schedule and UDIF cache. Closing invalidates partition
+reads above that cache, clears cached bytes and raw IV-key material, releases
+expanded keys and closes only owned files. Already returned file/attribute data
+belongs to its caller; filesystem values must finish before image closure. Go's
+cipher API does not expose expanded-key erasure. No decrypted temporary image
+is written to disk.
 
 ## Forensics and writes
 

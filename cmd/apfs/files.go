@@ -21,6 +21,7 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 	volume := flags.String("volume", "", "APFS UUID or HFS volume ID (required if ambiguous)")
 	jsonOutput := flags.Bool("json", false, "list as one JSON record per entry")
 	passwordFile := flags.String("password-file", "", "APFS password bytes in FILE; - reads stdin to EOF; no newline removal")
+	imagePasswordFile := flags.String("image-password-file", "", "DMG envelope password bytes in FILE; - reads stdin to EOF")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -30,7 +31,10 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 	if *jsonOutput && args[0] == "cat" {
 		return fmt.Errorf("cat emits file bytes; --json applies to list")
 	}
-	img, err := diskimage.Open(flags.Arg(0))
+	if *passwordFile == "-" && *imagePasswordFile == "-" {
+		return fmt.Errorf("image and volume passwords cannot both consume stdin; use a file for one")
+	}
+	img, err := openImage(ctx, flags.Arg(0), *imagePasswordFile, input)
 	if err != nil {
 		return err
 	}
@@ -96,6 +100,21 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 		_, err := fmt.Fprintln(out, e.Name)
 		return err
 	})
+}
+
+func openImage(ctx context.Context, path, passwordFile string, input io.Reader) (*diskimage.Image, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if passwordFile == "" {
+		return diskimage.Open(path)
+	}
+	password, err := readPassword(passwordFile, input)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(password)
+	return diskimage.OpenWithPassword(ctx, path, password)
 }
 
 // Credentials are exact bytes, including spaces and line endings. The explicit

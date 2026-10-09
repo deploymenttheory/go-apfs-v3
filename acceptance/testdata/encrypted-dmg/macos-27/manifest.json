@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "scenario": "disk-image-encryption",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "7dfd38c4ac4847adcaf38f53321cd030f34642e350b6e198a615ac5988ae6e1a",
+    "sources": [
+      {
+        "source": "disk_image_encryption.py",
+        "sha256": "8e94535421adfb08a22715724a2a35c1640a6b18dec766178c46ee2b032352ea"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "disk-image-encryption/apfs-aes128",
+      "image": "apfs-aes128.dmg",
+      "sha256": "57fdfadd6a52646acc3f20739ab083fcd6f9361cae1ff68f96863cdad7b0bd78",
+      "observation": "apfs-aes128-diskutil.plist",
+      "observationSHA256": "5545532712dbba72bff2763932d5c308fa5a806df01de9710835b1573dae9d76",
+      "files": "apfs-aes128-files.json",
+      "filesSHA256": "5fec4b4f380d8c8c71b9c75a68dd4fe5d621ba4a624a076705ceeeb143105521",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-aes128",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "9D097DBC-A6AB-4EB3-B132-AC8F3B4151A7"
+      }
+    },
+    {
+      "id": "disk-image-encryption/apfs-case-sensitive-aes256",
+      "image": "apfs-case-sensitive-aes256.dmg",
+      "sha256": "81604abdd6567af5e74f59dd57d9b3ad0546d8054ab4b28451956ccfc1752b46",
+      "observation": "apfs-case-sensitive-aes256-diskutil.plist",
+      "observationSHA256": "d8a78ad55fa4b7ac998b22e564c1c6464c8ff4d7634bb3d4e192a4933cb14a00",
+      "files": "apfs-case-sensitive-aes256-files.json",
+      "filesSHA256": "eca86540826e83579893b5eebd49eb6d581f04e6538445dfafefc5f814e45eab",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive-aes256",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "D4A818D9-49FE-4D96-BB42-2DF074CCC0AA"
+      }
+    },
+    {
+      "id": "disk-image-encryption/hfsplus-aes128",
+      "image": "hfsplus-aes128.dmg",
+      "sha256": "c8d327531a06a9b9beb12258c727d6e9d3d2cac8070781f518e9373b7427f098",
+      "observation": "hfsplus-aes128-diskutil.plist",
+      "observationSHA256": "e40a531765f943b5f8ad97e6f55cba0d93faf3c190a462058d1ad1d2cfea1622",
+      "files": "hfsplus-aes128-files.json",
+      "filesSHA256": "44b5e622973c967cf4937f1895fcd93887e011076de3665311da642e1b394d70",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus-aes128",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      }
+    },
+    {
+      "id": "disk-image-encryption/hfsx-aes256",
+      "image": "hfsx-aes256.dmg",
+      "sha256": "7987c09998c9360ecb3d6a911fa7d8047f9825eeb336fb32d337e39192efa727",
+      "observation": "hfsx-aes256-diskutil.plist",
+      "observationSHA256": "67eeb1b2fb1a5fab76e24300a107d4df090b7afd30deea14170639f299aeaeca",
+      "files": "hfsx-aes256-files.json",
+      "filesSHA256": "fa43a81acdb3380366b53fc6dcd65076b0ac5d2860e3292962e8d7713a69a95e",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx-aes256",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      }
+    },
+    {
+      "id": "disk-image-encryption/hfsplus-raw-aes256",
+      "image": "hfsplus-raw-aes256.dmg",
+      "sha256": "ffea83f023ac49fd29ea9b0f84d458c6dcb73ed3c06913d2fb6eb54830cbc7f4",
+      "observation": "hfsplus-raw-aes256-diskutil.plist",
+      "observationSHA256": "db71bd885926e521ceb8a1b725b0b9e554fb913cbcaa7c9d0a4d2bdf14e8f8ce",
+      "files": "hfsplus-raw-aes256-files.json",
+      "filesSHA256": "329947083f5546e978f7e78789f77aab458d547f80bee562cf2bfbcd610d97c9",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus-raw-aes256",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 8347648
+      }
+    },
+    {
+      "id": "disk-image-encryption/apfs-nested-aes256",
+      "image": "apfs-nested-aes256.dmg",
+      "sha256": "a8db67d003a58aeed31146e4441cada86f310705fe6efd1247646f9cb6252866",
+      "observation": "apfs-nested-aes256-diskutil.plist",
+      "observationSHA256": "f935d61ec02b86048fed55b2d4b7ca12122780b0ef85eaac6a90dd1286e72fc1",
+      "files": "apfs-nested-aes256-files.json",
+      "filesSHA256": "782f4b794cbf724f9b8a157f2f19194b6e3ea048f46b44cf49559e6b94dd7cf3",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-nested-aes256",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "ABA50FB9-1476-494B-95F6-F87C1DED9D94"
+      }
+    }
+  ]
+}

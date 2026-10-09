@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS reads implemented; broader key profiles and historical views pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; broader key profiles and historical views pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -56,8 +56,14 @@ ordinary, Unicode, long and changed passwords, case-sensitive/insensitive names,
 wrong/empty/old-password rejection and 108 observed objects per image. Native
 clones, compression, links, sparse data, metadata and forks are read after a
 read-only unlock. CommonCrypto supplies separate PBKDF2, key-wrap and XTS vectors.
-Retained macOS 27.0.1 evidence passes locally; the PR requires fresh macOS
-15/26/27 captures and all three replay hosts before qualification is complete.
+The APFS encryption increment passed [PR #11's native compatibility matrix](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37978358162).
+
+The encrypted-DMG increment adds six Apple-created images covering AES-128/256,
+APFS, case-sensitive APFS, HFS+ and HFSX, raw/compressed storage, Unicode and
+changed passwords, and independent APFS encryption inside a DMG. Each compares
+107 native objects and checks credential rejection, read-only preservation and
+image-view lifetime. Retained macOS 27.0.1 evidence passes locally; fresh
+macOS 15/26/27 capture and all three replay hosts remain required for the PR.
 
 Every reader change continues to require that full matrix. Short parser fuzz campaigns,
 unit tests, race detection, vet, lint and cross-builds supplement native evidence.

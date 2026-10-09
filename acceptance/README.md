@@ -150,8 +150,9 @@ so the kernel does not replace stored UID/GID values with the mounting user's ID
 
 The native volume profile uses AES-256 key wrapping and AES-128-XTS sectors.
 CommonCrypto AES-256-XTS vectors qualify the primitive, not a native volume
-profile. Hardware/per-file keys, legacy key records, encrypted DMG envelopes,
-encryption creation/modification by Go and recovery keys remain unqualified.
+profile. Hardware/per-file keys, legacy APFS key records, encryption creation
+and modification by Go, and recovery keys remain unqualified. Encrypted DMG
+reading has its own family below.
 Unit tests additionally check damaged authenticated metadata, key-record HMAC,
 DER bounds, iteration limits, cancellation, unaligned/concurrent reads, and key
 lifetime across independent unlocks, inline attributes and decoded caches.
@@ -161,6 +162,35 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-encrypt
 APFS_NATIVE_ENCRYPTION=../artifacts/encryption go test -v -run TestNativeEncryptedReading ./acceptance
 ```
 
+## Encrypted DMG reading
+
+| Scenario | Independent macOS evidence | What the comparison proves |
+| --- | --- | --- |
+| AES-128/256 envelopes around APFS and HFS+/HFSX | `hdiutil` creates encrypted images and reports the cipher | Both cipher sizes feed the existing filesystem readers correctly |
+| UDZO and raw UDRW images | Native image format and read-only mount | Decryption composes with UDIF decoding and also exposes raw logical disks |
+| Unicode, wrong, empty and changed passwords | Native `imageinfo` credential acceptance/rejection | The current password unlocks; rejected and old credentials do not |
+| Independently encrypted APFS inside a DMG | APFS stays locked after image unlock and rejects the image password | Image and volume credentials and lifetimes remain separate |
+| 107 objects per image | Final native reads, xattrs, resource forks, compression, links and metadata | Complete logical results match across hosts; source hashes remain unchanged |
+
+`native/disk_image_encryption.py` records native imageinfo and diskutil plists,
+file observations and the command transcript. The raw HFS+ case is an 8 MiB
+image to keep retained evidence bounded; the other cases are compressed DMGs.
+Opening and closing a borrowed Go view is also checked to preserve its source
+and invalidate cached partition reads. Structural units cover header/record
+bounds, overlapping credentials, aggregate derivation limits and block/EOF
+behavior. A separate fuzz target exercises envelope admission without spending
+unbounded time trying passwords.
+
+This family qualifies version 2 password-based reading. Image creation by Go,
+version 1, certificate/keybag-only unlocking and arbitrary damaged-image recovery
+remain outside it. The native format's CBC and key-cookie checks are not data
+authentication; source preservation and observed contents are separate assertions.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario disk-image-encryption --output artifacts/encrypted-dmg/macos-27
+APFS_NATIVE_ENCRYPTED_DMG=../artifacts/encrypted-dmg go test -v -run TestNativeEncryptedDiskImages ./acceptance
+```
+
 ## CI tiers
 
 The **macOS filesystem compatibility** workflow has two visible stages:
@@ -168,7 +198,8 @@ The **macOS filesystem compatibility** workflow has two visible stages:
 1. **Record Apple filesystem reference data (macOS 15/26/27)** creates disk
    images with Apple tools and records how macOS reads them. Separate steps show
    volume identity; file contents, metadata and forks; names, links and
-   fragmentation; compression; and encrypted APFS files and passwords. Its artifacts contain the images, observations
+   fragmentation; compression; encrypted APFS files and passwords; and encrypted
+   DMG files. Its artifacts contain the images, observations
    and provenance needed to repeat a comparison.
 2. **Compare Go with macOS reference data (Linux/Windows/macOS)** reads every
    reference image through Go and checks the results against all three macOS

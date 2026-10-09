@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"path/filepath"
@@ -68,8 +69,8 @@ func compareNativeCrypto(t *testing.T, dir, name, digest string) {
 		}
 	}
 	for _, v := range native.PasswordKeys {
-		got, err := storagecrypto.PasswordKey(context.Background(), decode(v.Password), decode(v.Salt), v.Iterations)
-		if err != nil || !bytes.Equal(got[:], decode(v.Key)) {
+		got, err := storagecrypto.PBKDF2(context.Background(), sha256.New, decode(v.Password), decode(v.Salt), v.Iterations, 32)
+		if err != nil || !bytes.Equal(got, decode(v.Key)) {
 			t.Fatal("PBKDF2 differs from CommonCrypto", err)
 		}
 	}
