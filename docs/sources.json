@@ -10,9 +10,11 @@
         "apfs/container.go",
         "apfs/objectmap.go",
         "apfs/records.go",
-        "apfs/reader.go"
+        "apfs/reader.go",
+        "apfs/keybag.go",
+        "apfs/encryption.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete."
     },
     {
       "id": "apple-tn1150",
@@ -294,6 +296,142 @@
       ],
       "evidence": "acceptance/testdata/compression/macos-27/manifest.json",
       "basis": "Native ditto supplies LZVN filesystem storage. Apple public compression codecs supply other encoded payloads; final read-only kernel reads and public-codec decoding of stored bytes are independently compared. Types 1,3,4,7-16, stored markers, zlib optional checksum and resource descriptor gaps are exercised. Only 0xff is admitted as an LZFSE stored marker: a native malformed zero-marker file reports logical size but returns premature EOF; Go rejects it rather than synthesizing contents. macOS 15/26 may reject LZ4 types 15/16 at the filesystem layer even when their public codec decodes the stored bytes; CI records both outcomes explicitly."
+    },
+    {
+      "id": "apfs-encryption-format-study",
+      "kind": "source-study",
+      "url": "https://github.com/sgan81/apfs-fuse",
+      "revision": "66b86bd525e8cb90f9012543be89b1f092b75cf3",
+      "components": [
+        "apfs/keybag.go",
+        "apfs/encryption.go"
+      ],
+      "files": [
+        {
+          "path": "ApfsLib/KeyMgmt.cpp",
+          "sha256": "7b154537205b3b4f50be6020a8234a4b72de8bc4c2acb60c1e7573e965235e50"
+        },
+        {
+          "path": "ApfsLib/KeyMgmt.h",
+          "sha256": "e25f4f9423517a075ea938bd0d5df2d4b97447ecf2a81c0acc0f40ad5ba5d4f6"
+        },
+        {
+          "path": "ApfsLib/ApfsVolume.cpp",
+          "sha256": "31ad91fd7e0662aa9ff724188217143ab88b7a865c08160f8ee1168412cf06fd"
+        }
+      ],
+      "basis": "GPL source studied for format facts: UUID-derived XTS outer bags, HMAC cookie, KEK/VEK DER layout and extent tweaks. No code copied or translated. Original bounded Go parsing and standard cryptographic constructions are independently checked against native Apple-created images. Legacy flag-2 key records remain explicitly unsupported."
+    },
+    {
+      "id": "libfsapfs-encryption-format",
+      "kind": "format-documentation",
+      "url": "https://github.com/libyal/libfsapfs",
+      "revision": "f63c83b462275214fc5e4b0919540d892f50b467",
+      "components": [
+        "apfs/keybag.go"
+      ],
+      "files": [
+        {
+          "path": "documentation/Apple File System (APFS).asciidoc",
+          "sha256": "7198742c521c7ded89655defa32899f03f6e1120554b89e6197d2feb6854a36f"
+        }
+      ],
+      "basis": "Keybag entry alignment and key-record field study. DER lengths are big-endian. Structural and HMAC validation precede bounded password derivation; undocumented profiles do not fall through to authentication failure."
+    },
+    {
+      "id": "apple-commoncrypto-api",
+      "kind": "native-api-study",
+      "url": "https://github.com/apple-oss-distributions/CommonCrypto",
+      "revision": "a0ac082c490b65585ade764511acfdbf1d97bc5e",
+      "components": [
+        "acceptance/native/file_encryption.py",
+        "internal/crypto"
+      ],
+      "files": [
+        {
+          "path": "include/Private/CommonCryptorSPI.h",
+          "sha256": "d2cdbc3b2681a7b032f3696cfd30f46d5c10925edf2e8bfd3a61b12806f0774e"
+        },
+        {
+          "path": "include/CommonCryptor.h",
+          "sha256": "2574c3a96ad3619f723823a24056678d2a7785cd30c7992481cbca0d134066a9"
+        },
+        {
+          "path": "include/CommonKeyDerivation.h",
+          "sha256": "afdbf388d45b4c8306dc8d21f79890370ee4cbd0161d2380d2e73798e196cfe8"
+        }
+      ],
+      "basis": "Header/API study only; no CommonCrypto C implementation copied or linked into Go. Native CCCryptor XTS, CCKeyDerivationPBKDF and CCSymmetricKeyWrap/Unwrap supply independent public vectors. AES-256-XTS vectors do not qualify a native APFS volume cipher profile."
+    },
+    {
+      "id": "rfc3394-key-wrap",
+      "kind": "specification",
+      "url": "https://www.rfc-editor.org/rfc/rfc3394",
+      "revision": "September 2002",
+      "components": [
+        "internal/crypto/keywrap.go"
+      ],
+      "basis": "Original bounded RFC 3394 unwrap with mandatory constant-time IV integrity verification, built on Go standard AES."
+    },
+    {
+      "id": "rfc8018-password-derivation",
+      "kind": "specification",
+      "url": "https://www.rfc-editor.org/rfc/rfc8018",
+      "revision": "January 2017",
+      "components": [
+        "internal/crypto/pbkdf2.go"
+      ],
+      "basis": "Original single-block PBKDF2-HMAC-SHA256 implementation with cancellation during derivation. Apple CommonCrypto independently supplies expected bytes."
+    },
+    {
+      "id": "v2-encryption-study",
+      "kind": "prior-implementation-study",
+      "url": "https://github.com/deploymenttheory/go-apfs-v2/tree/2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036/pkg/apfs",
+      "revision": "2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036",
+      "components": [
+        "apfs/keybag.go",
+        "apfs/encryption.go",
+        "internal/crypto"
+      ],
+      "files": [
+        {
+          "path": "pkg/apfs/encryption_context.go",
+          "sha256": "7e2133963dc2a5f84b107e0255885b268f7b04012aebc9ff4e352c45dd71daaa"
+        },
+        {
+          "path": "pkg/apfs/volume_encryption.go",
+          "sha256": "cd6856aabebd7e162a780df8aec358f4a599c86ac5df31aa581a5e1e9fbec41c"
+        },
+        {
+          "path": "pkg/apfs/key_encryption_key.go",
+          "sha256": "b59d54f56d51f59e7b042dd0e384e684f7effe2faef9d995892f30725db0d006"
+        },
+        {
+          "path": "pkg/apfs/container_keybag.go",
+          "sha256": "d98d0d0188dc667934e0d5276d68b03c3b79825b735b445f282711736e933788"
+        },
+        {
+          "path": "pkg/apfs/volume_keybag.go",
+          "sha256": "11f3fb61a63a988013b1ff097be744ba37adffa445c3a386618278e3d904da2b"
+        },
+        {
+          "path": "pkg/apfs/keybag.go",
+          "sha256": "43ca62e7637a6bbec8b2542445767088f3977d7f31ddbd3b417d68d8b846f888"
+        }
+      ],
+      "basis": "Production-only lessons; no test/harness material imported. v3 separates failed credentials, damaged key records and unsupported profiles, bounds aggregate derivation, validates HMAC and RFC3394 integrity, and uses per-extent tweaks. No v2 orchestration or cryptographic code copied."
+    },
+    {
+      "id": "native-encrypted-reading-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/keybag.go",
+        "apfs/encryption.go",
+        "apfs/reader.go",
+        "acceptance/native/file_encryption.py"
+      ],
+      "evidence": "acceptance/testdata/encryption/macos-27/manifest.json",
+      "basis": "Four Apple-created software-encrypted APFS volumes, 108 objects each, ordinary/Unicode/long/changed passwords and native rejection controls. Fresh read-only mounts with ownership enabled provide file and metadata hashes, including compressed files and modified clones. Native key records use flags 0, 40-byte wrapped keys, keybag version 2 and extent flag 1. Primitive reference bytes are independently generated with CommonCrypto. Broader key profiles require additional native evidence."
     }
   ]
 }

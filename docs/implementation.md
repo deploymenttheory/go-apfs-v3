@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks and attributes implemented; unlocking and historical views pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS reads implemented; broader key profiles and historical views pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -51,14 +51,22 @@ logical/raw storage separation, native public-codec readback, stored blocks,
 resource descriptor gaps, inactive attributes and a malformed active-file control.
 The compression implementation passed fresh macOS 15/26/27 reference capture and
 Linux/Windows/macOS replay in [PR #10's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/37974021258).
+The encrypted-reading increment adds four independently created APFS images:
+ordinary, Unicode, long and changed passwords, case-sensitive/insensitive names,
+wrong/empty/old-password rejection and 108 observed objects per image. Native
+clones, compression, links, sparse data, metadata and forks are read after a
+read-only unlock. CommonCrypto supplies separate PBKDF2, key-wrap and XTS vectors.
+Retained macOS 27.0.1 evidence passes locally; the PR requires fresh macOS
+15/26/27 captures and all three replay hosts before qualification is complete.
+
 Every reader change continues to require that full matrix. Short parser fuzz campaigns,
 unit tests, race detection, vet, lint and cross-builds supplement native evidence.
 
 Retained manifests identify the captured OS build. Fresh captures require the
-expected major version and fail on a mislabeled runner. This scenario does not
-qualify write, mount, unlock, or recovery capabilities.
+expected major version and fail on a mislabeled runner. These scenarios do not
+qualify write, mount or recovery capabilities.
 
-Remaining reader work includes encryption, snapshots/sealed views,
+Remaining reader work includes broader encryption profiles, snapshots/sealed views,
 historical name profiles and broader damaged-image handling. HFS+ directory
 hard links, generation-store and dataless file contents fail explicitly. Fragmented
 metadata and attribute-continuation fixtures remain unqualified. A small set of

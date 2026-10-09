@@ -43,6 +43,8 @@ type Reader interface {
 	OpenData(context.Context, uint64) (Value, error)
 	// OpenRawData returns the stored data fork, even when compression is active.
 	// OpenAttribute always retains raw decmpfs and resource-fork storage.
+	// Both expose plaintext on an unlocked volume; ciphertext belongs to the
+	// underlying image source, not the filesystem's fork interface.
 	OpenRawData(context.Context, uint64) (Value, error)
 	ListAttributes(context.Context, uint64, func(string) error) error
 	OpenAttribute(context.Context, uint64, string) (Value, error)

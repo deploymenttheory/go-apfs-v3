@@ -6,18 +6,21 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
 
-func readFiles(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
 	partition := flags.Int("partition", -1, "on-disk partition index (required if ambiguous)")
 	volume := flags.String("volume", "", "APFS UUID or HFS volume ID (required if ambiguous)")
 	jsonOutput := flags.Bool("json", false, "list as one JSON record per entry")
+	passwordFile := flags.String("password-file", "", "APFS password bytes in FILE; - reads stdin to EOF; no newline removal")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -43,6 +46,27 @@ func readFiles(ctx context.Context, args []string, out, diagnostics io.Writer) (
 	reader, err := selectReader(report, *partition, *volume)
 	if err != nil {
 		return err
+	}
+	if *passwordFile != "" {
+		v, ok := reader.(*apfs.Volume)
+		if !ok || !v.Encrypted {
+			return fmt.Errorf("--password-file requires an encrypted APFS volume")
+		}
+		password, err := readPassword(*passwordFile, input)
+		if err != nil {
+			return err
+		}
+		unlocked, err := v.Unlock(ctx, password)
+		clear(password)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if e := unlocked.Close(); err == nil {
+				err = e
+			}
+		}()
+		reader = unlocked
 	}
 	id, err := filesystem.Lookup(ctx, reader, flags.Arg(1))
 	if err != nil {
@@ -72,6 +96,39 @@ func readFiles(ctx context.Context, args []string, out, diagnostics io.Writer) (
 		_, err := fmt.Fprintln(out, e.Name)
 		return err
 	})
+}
+
+// Credentials are exact bytes, including spaces and line endings. The explicit
+// file/stdin option avoids exposing passwords in process arguments or logs.
+func readPassword(path string, input io.Reader) ([]byte, error) {
+	if path != "-" {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = f.Close() }()
+		info, err := f.Stat()
+		if err != nil {
+			return nil, err
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("password file must be regular")
+		}
+		input = f
+	}
+	if input == nil {
+		return nil, fmt.Errorf("password input is unavailable")
+	}
+	b, err := io.ReadAll(io.LimitReader(input, 4097))
+	if err != nil {
+		clear(b)
+		return nil, err
+	}
+	if len(b) > 4096 {
+		clear(b)
+		return nil, filesystem.ErrLimit
+	}
+	return b, nil
 }
 
 func selectReader(report *inspect.Report, partition int, volume string) (filesystem.Reader, error) {

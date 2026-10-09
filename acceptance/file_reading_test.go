@@ -21,6 +21,7 @@ import (
 )
 
 type fileObservation struct {
+	Encryption            *nativeEncryption            `json:"encryption,omitempty"`
 	CompressionRejections []nativeCompressionRejection `json:"compressionRejections,omitempty"`
 	Compression           []nativeCompression          `json:"compression,omitempty"`
 	Schema                int                          `json:"schema"`
@@ -81,15 +82,22 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 				t.Fatal("invalid or duplicate file corpus provenance")
 			}
 			profiles[major] = true
+			if scenario == "file-encryption" {
+				compareNativeCrypto(t, filepath.Dir(manifest), c.Cryptography, c.CryptographySHA256)
+			}
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
-			if scenario == "file-compression" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != "file_compression.py") {
-				t.Fatal("missing compression producer source")
+			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py"}[scenario]
+			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
+				t.Fatal("missing native capture source", helper)
 			}
 			for _, source := range c.Producer.Sources {
 				verifyDigest(t, dir, source.Source, source.SHA256)
 			}
 			wantIDs := map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/hfsplus": false, scenario + "/hfsx": false}
+			if scenario == "file-encryption" {
+				wantIDs = map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/apfs-long-password": false, scenario + "/apfs-changed-password": false}
+			}
 			if len(c.Cases) != len(wantIDs) {
 				t.Fatal("incomplete file-reading inventory")
 			}
@@ -138,6 +146,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 					if count != 1 {
 						t.Fatal("expected one native filesystem")
+					}
+					if scenario == "file-encryption" {
+						reader = unlockForReplay(t, reader, want.Encryption, test.Expected, dir)
 					}
 					compareFiles(t, reader, want)
 					if extra != nil {

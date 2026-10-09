@@ -49,15 +49,17 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-semantics --output artifacts/native/semantics/macos-${{ matrix.major }}
       - name: Record compressed contents and raw compression storage
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-compression --output artifacts/native/compression/macos-${{ matrix.major }}
+      - name: Record locked and unlocked APFS files and password behavior
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-encryption --output artifacts/native/encryption/macos-${{ matrix.major }}
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Apple filesystem reference data
           Apple tools created APFS, case-sensitive APFS, HFS+ and HFSX disk images.
           Native macOS filesystem APIs recorded the expected names, identities,
-          contents, metadata, resource forks and compression results.
+          contents, metadata, resource forks, compression and APFS password unlocks.
 
-          The four steps above isolate what is being checked. The uploaded images,
+          The five steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -77,6 +79,7 @@ jobs:
             artifacts/native/files/macos-${{ matrix.major }}/
             artifacts/native/semantics/macos-${{ matrix.major }}/
             artifacts/native/compression/macos-${{ matrix.major }}/
+            artifacts/native/encryption/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -112,6 +115,7 @@ jobs:
           APFS_NATIVE_FILES: ../artifacts/native/files
           APFS_NATIVE_SEMANTICS: ../artifacts/native/semantics
           APFS_NATIVE_COMPRESSION: ../artifacts/native/compression
+          APFS_NATIVE_ENCRYPTION: ../artifacts/native/encryption
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
       - name: Explain the compatibility result
         shell: bash
@@ -122,7 +126,9 @@ jobs:
           15, 26 and 27 for APFS, case-sensitive APFS, HFS+ and HFSX.
 
           Comparisons cover volume identity, file contents and metadata, forks,
-          filename lookup, hard links, fragmented forks and transparent compression.
+          filename lookup, hard links, fragmented forks, transparent compression,
+          and read-only APFS unlocking with correct, wrong and changed passwords.
+          Apple CommonCrypto independently checks the encryption primitives.
           Every required reference set must be present. A mismatch fails this job.
           Image hashes are checked before and after reading to verify preservation.
 

@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
 	"github.com/deploymenttheory/go-apfs-v3/internal/fork"
@@ -199,7 +200,7 @@ func (v *Volume) OpenData(ctx context.Context, id uint64) (filesystem.Value, err
 			_ = value.Close()
 			return nil, corrupt("compressed logical size", 0)
 		}
-		return value, err
+		return v.borrow(value, err)
 	}
 	return v.stream(ctx, i.stream, i.streamSize)
 }
@@ -229,20 +230,38 @@ func (v *Volume) stream(ctx context.Context, id, size uint64) (filesystem.Value,
 		}
 		logical, flags, physical := le.Uint64(r.key[8:]), le.Uint64(r.value), le.Uint64(r.value[8:])
 		length := flags & 0x00ffffffffffffff
-		if flags>>56 != 0 {
-			return fmt.Errorf("file extent flags: %w", filesystem.ErrUnsupported)
+		// Native single-key encrypted extents use flag 1 for crypto_id as a
+		// tweak. The 2020 reference predates this flag; qualify it through
+		// encrypted native file/clone reads, keeping other encodings explicit.
+		if flags>>56 != 0 && (flags>>56 != 1 || !v.Encrypted || v.Flags&8 == 0) {
+			return fmt.Errorf("file extent flags %#x: %w", flags>>56, filesystem.ErrUnsupported)
 		}
 		bs := uint64(v.container.BlockSize)
 		if logical > math.MaxInt64 || length == 0 || length%bs != 0 || logical%bs != 0 || physical >= v.container.BlockCount || (physical != 0 && length/bs > v.container.BlockCount-physical) {
 			return corrupt("file extent range", 0)
 		}
-		extents = append(extents, fork.Extent{Logical: int64(logical), Physical: int64(physical * bs), Length: int64(length), Sparse: physical == 0})
+		var data block.Source
+		if physical != 0 {
+			section, err := block.NewSection(v.container.source, int64(physical*bs), int64(length))
+			if err != nil {
+				return err
+			}
+			data = section
+			cryptoID := le.Uint64(r.value[16:])
+			if v.Encrypted && cryptoID != 0 {
+				if cryptoID > math.MaxUint64/(bs/512) || length/512-1 > math.MaxUint64-cryptoID*(bs/512) {
+					return corrupt("extent encryption tweak", 0)
+				}
+				data = &encryptedSource{source: section, keys: v.keys, sector: cryptoID * (bs / 512), ctx: ctx}
+			}
+		}
+		extents = append(extents, fork.Extent{Logical: int64(logical), Length: int64(length), Data: data})
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return fork.New(ctx, v.container.source, int64(size), extents)
+	return v.borrow(fork.New(ctx, int64(size), extents))
 }
 
 func (v *Volume) attributes(ctx context.Context, id uint64, yield func(string, record) error) error {
@@ -296,7 +315,7 @@ func (v *Volume) OpenAttribute(ctx context.Context, id uint64, name string) (fil
 		if length != len(data)-4 {
 			return nil, corrupt("embedded attribute length", 0)
 		}
-		return fork.Bytes(ctx, data[4:])
+		return v.borrow(fork.Bytes(ctx, data[4:]))
 	case 1:
 		if len(data) != 52 {
 			return nil, corrupt("attribute data stream", 0)
