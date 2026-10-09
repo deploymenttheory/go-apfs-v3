@@ -13,19 +13,27 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
+	"github.com/deploymenttheory/go-apfs-v3/workspace"
 )
 
 func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
 	options := readerFlags(flags)
-	jsonOutput := flags.Bool("json", false, "list as one JSON record per entry")
+	jsonOutput := flags.Bool("json", false, "list entries or extraction report as JSON")
 	snapshotName := flags.String("snapshot-name", "", "exact retained APFS snapshot name")
 	snapshotXID := flags.Uint64("snapshot-xid", 0, "retained APFS snapshot transaction identifier")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
-	if flags.NArg() != 2 {
+	arguments := 2
+	if args[0] == "extract" {
+		arguments = 3
+	}
+	if flags.NArg() != arguments {
+		if args[0] == "extract" {
+			return fmt.Errorf("usage: apfs extract [options] IMAGE PATH NEW_WORKSPACE")
+		}
 		return fmt.Errorf("usage: apfs %s [--partition INDEX] [--volume ID] IMAGE PATH", args[0])
 	}
 	if *jsonOutput && args[0] == "cat" {
@@ -64,6 +72,13 @@ func readFiles(ctx context.Context, args []string, input io.Reader, out, diagnos
 	id, err := filesystem.Lookup(ctx, reader, flags.Arg(1))
 	if err != nil {
 		return err
+	}
+	if args[0] == "extract" {
+		report, err := workspace.Extract(ctx, reader, id, flags.Arg(2), workspace.Limits{})
+		if err != nil {
+			return err
+		}
+		return printWorkspaceReport(out, report, *jsonOutput)
 	}
 	if args[0] == "cat" {
 		data, err := reader.OpenData(ctx, id)

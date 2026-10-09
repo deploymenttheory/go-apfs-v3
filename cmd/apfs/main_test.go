@@ -192,3 +192,34 @@ func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
 		t.Fatal("HFS snapshot inventory", err)
 	}
 }
+
+func TestExtractAndVerifyPreservationReport(t *testing.T) {
+	image := filepath.Join("..", "..", "acceptance", "testdata", "preservation", "macos-27", "apfs.dmg")
+	destination := filepath.Join(t.TempDir(), "extracted")
+	var out, diagnostics bytes.Buffer
+	if err := run(context.Background(), []string{"extract", "--json", image, "Fixture/example.txt", destination}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	original := append([]byte(nil), out.Bytes()...)
+	var report struct {
+		Schema, Objects, Entries int
+		Metadata                 string
+	}
+	if err := json.Unmarshal(original, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Schema != 1 || report.Objects != 1 || report.Entries != 1 || !strings.Contains(report.Metadata, "not applied") || diagnostics.Len() != 0 {
+		t.Fatal("missing preservation outcome", out.String())
+	}
+	out.Reset()
+	if err := run(context.Background(), []string{"workspace", "verify", "--json", destination}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), original) {
+		t.Fatal("reopened report differs")
+	}
+	out.Reset()
+	if err := run(context.Background(), []string{"extract", image, "Fixture/example.txt", destination}, nil, &out, &diagnostics); !errors.Is(err, fs.ErrExist) || out.Len() != 0 {
+		t.Fatal("overwrote destination", err)
+	}
+}

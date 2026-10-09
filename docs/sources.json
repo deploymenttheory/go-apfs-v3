@@ -94,10 +94,25 @@
     },
     {
       "id": "apple-copyfile-source",
-      "kind": "planned-port",
+      "kind": "source-port",
       "url": "https://github.com/apple-oss-distributions/copyfile",
-      "components": [],
-      "basis": "Port applicable preservation algorithms, not kernel dispatch wrappers. No code ported yet."
+      "components": [
+        "appledouble/appledouble.go"
+      ],
+      "basis": "Go adaptation of AppleDouble/ATTR wire layouts and packing sequence. Sources remain borrowed, records and output sizes are checked, and values stream in bounded chunks. Native copyfile leaves empty attribute offsets zero; this distinction is retained. Native metadata discovery, ACL/quarantine serialization, account lookup and host application policy are not ported. Independent COPYFILE_PACK/UNPACK controls qualify ordinary attributes, FinderInfo and resource forks.",
+      "revision": "9f91eb6ced021952278816cdc76ad68da8631ccb",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "files": [
+        {
+          "path": "copyfile.c",
+          "sha256": "19f3ad0910f05bb2a6ae982ebdabcc4dc9c911b65ec2d99e75b7c4c52272805c"
+        },
+        {
+          "path": "copyfile.h",
+          "sha256": "56f4a00b83f21ac98c818876eb1b3a3eb246d0a7a31e95fddbd1fd21f7c79ff9"
+        }
+      ]
     },
     {
       "id": "apple-lzfse-source",
@@ -544,6 +559,18 @@
       ],
       "evidence": "acceptance/testdata/snapshots/macos-27/manifest.json",
       "basis": "Apple-created replication snapshots, UUID/XID inventory, native timestamps and final read-only historical mounts independently qualify two historical states alongside live state in ordinary, case-sensitive and nested encrypted APFS. The first saved superblock has no extended metadata OID; the live OID resolves the snapshot UUID at its XID. Unicode snapshot names and non-leaf snapshot metadata trees remain unqualified."
+    },
+    {
+      "id": "native-preservation-27",
+      "kind": "native-observation",
+      "components": [
+        "workspace",
+        "appledouble",
+        "acceptance/native/preservation.py",
+        "acceptance/native/verify_preservation.py"
+      ],
+      "evidence": "acceptance/testdata/preservation/macos-27/manifest.json",
+      "basis": "Four native APFS/HFS+/HFSX images, 125\u2013126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
     }
   ]
 }

@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction/workspace reader and streaming AppleDouble implemented; replacement/import generations pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -155,7 +155,40 @@ encryption, compression and filename profile.
 Sealed-system integrity verification, arbitrary checkpoint recovery, dataless
 snapshots and snapshot mutation are outside this increment. HFS+ retains its
 existing reader and regression coverage. Preservation-aware extraction and
-workspaces remain the next larger phase after the reader readiness review.
+workspaces start phase 3 below.
+
+## Preservation-aware extraction increment
+
+The first phase-3 increment adds an explicit portable extraction workspace and
+a streaming AppleDouble codec. A workspace holds a usable host projection plus
+immutable, hashed logical/raw data and attributes, original byte names, metadata,
+symlink targets, hard-link identities and the selected source view. Opening it
+through `filesystem.Reader` retains the source's filename comparison rules.
+Native permissions, ACL enforcement and host timestamp changes are separate
+from retained source metadata. Extraction never discovers metadata by matching
+`._` neighbors, follows source symlinks, or overwrites an existing destination.
+
+Names unsafe or ambiguous on a portable host receive reversible manifest
+mappings. Symlinks are recorded without creating host traversal paths; hard-link
+relationships remain recorded even when the host requires independent files.
+Malformed trees, missing attributes, cancellation, resource limits and partial
+I/O fail explicitly. A completion manifest is published only after every value
+has been stored. Existing workspace data is immutable for this increment;
+replacement/import APIs and coherent edit generations follow in phase 3.
+
+AppleDouble operates on serialized metadata values using the pinned Apple
+`copyfile` layouts. Native `COPYFILE_PACK` output is decoded and re-encoded on
+every host, then Apple's unpack operation independently checks the resulting
+metadata on macOS 15, 26 and 27. The codec does not emulate process quarantine,
+account lookup, ACL authorization or native omission policy. Raw workspace
+attributes remain authoritative when AppleDouble cannot represent a value.
+
+The extraction family checks native file observations against the reopened
+workspace, original/raw fork hashes, byte names, mapped collisions, ordinary
+`._` content, links and explicit preservation outcomes. Fresh native captures
+and Linux/Windows/macOS outputs are required. Native readback verifies those
+outputs independently; missing artifacts or a mismatch fail the gate. Existing
+reader/snapshot/encryption families remain required.
 
 ## Required phase gates
 

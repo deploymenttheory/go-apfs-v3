@@ -28,12 +28,21 @@ type DirEntry struct {
 	Object uint64 `json:"object"`
 }
 
+// NameRules identifies the engine's frozen filename comparison, independent of
+// the host filesystem. Extracted workspaces retain it with the original names.
+type NameRules struct {
+	Format                   string `json:"format"`
+	CaseSensitive            bool   `json:"caseSensitive"`
+	NormalizationInsensitive bool   `json:"normalizationInsensitive"`
+}
+
 // Reader borrows its image for its lifetime. Operations never follow symlinks
 // implicitly. Enumeration is incremental and stops when yield returns an error.
 // Opened values have independent lifetimes but still borrow the image.
 // Extended attributes include the resource fork under its native name.
 type Reader interface {
 	Root() uint64
+	NameRules() NameRules
 	Stat(context.Context, uint64) (Node, error)
 	ReadDir(context.Context, uint64, func(DirEntry) error) error
 	// Lookup compares one component using this volume's native name rules and

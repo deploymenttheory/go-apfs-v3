@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 )
 
 type fileObservation struct {
+	Preservation          *nativePreservation          `json:"preservation,omitempty"`
 	Snapshots             *nativeSnapshots             `json:"snapshots,omitempty"`
 	SnapshotPasswords     *nativeSnapshotPasswords     `json:"snapshotPasswords,omitempty"`
 	DiskImage             *nativeDiskImage             `json:"diskImage,omitempty"`
@@ -90,7 +92,7 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			}
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
-			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py", "snapshot-reading": "snapshot_reading.py"}[scenario]
+			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py", "snapshot-reading": "snapshot_reading.py", "preservation": "preservation.py"}[scenario]
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
@@ -174,6 +176,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					if scenario == "snapshot-reading" {
 						compareSnapshots(t, reader, want, dir)
 					}
+					if scenario == "preservation" {
+						comparePreservation(t, reader, want, dir, test.ID, major)
+					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)
 					}
@@ -215,7 +220,7 @@ func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
 	ctx := context.Background()
 	paths := map[string]bool{}
 	for _, expected := range want.Entries {
-		if paths[expected.Path] || (expected.Path != want.Root && !strings.HasPrefix(expected.Path, want.Root+"/")) {
+		if paths[expected.Path] || !fs.ValidPath(expected.Path) || (want.Root != "." && expected.Path != want.Root && !strings.HasPrefix(expected.Path, want.Root+"/")) {
 			t.Fatal("invalid or duplicate observed path", expected.Path)
 		}
 		paths[expected.Path] = true

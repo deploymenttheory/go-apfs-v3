@@ -87,11 +87,40 @@ Each requested block validates its ranges and decoded length; opening alone is
 not a whole-file integrity scan. Malformed compressed data returns corruption,
 including native premature EOF for a nonempty declared file.
 
-The workspace will bind original names, link groups, metadata, and immutable
-blobs in an explicitly identified metadata directory. Reversible name mappings
-handle host limitations. Journal API-mediated changes and publish coherent
-generations; external edits require explicit import. Preserving source ACL
-bytes and enforcing host ACLs are separate capabilities.
+The implemented `workspace` package binds original names, identity/view, metadata,
+logical/raw data and attributes in `metadata/manifest.json` and hashed blobs.
+`files` is the selected root's portable host projection. Names use one conservative
+mapping on every host: unsafe/non-ASCII/long/reserved names and case collisions
+become `~` followed by the original name's SHA-256; original bytes stay in the
+manifest. Host paths cannot escape the rooted destination. An ordinary `._` file
+remains ordinary content. Symlinks become target-text files, never traversal
+paths. Regular hard links are attempted and otherwise copied, with the outcome
+reported; original identities remain authoritative after archive transport.
+
+Workspace creation requires a new directory. All streamed values must succeed
+before the completion manifest is renamed into place. Failure leaves diagnostic
+partial output, never a valid workspace. This is not a crash-durable transaction
+or an edit API. Opening verifies schema, traversal, reference bounds, every blob
+hash and the complete projection before returning `filesystem.Reader`. Source
+filename rules and byte spelling survive independently of host lookup. External
+mutation must be excluded during capture and use; edits detected at open are
+conflicts, not imports. Preserved metadata does not enforce host ownership,
+permissions, timestamps or ACLs. API-mediated changes, explicit external import
+and coherent generations remain the next phase-3 increment.
+
+Traversal defaults are 100,000 objects, 200,000 entries, depth 128, 4,096 attributes
+per object, 64 MiB of manifest and 1 TiB per value and total streamed values.
+Callers may lower the configurable limits. Logical/raw/attribute reads count
+against the transfer budget even when storage deduplicates them. Data copies use
+64 KiB buffers. A report separates retained metadata from host materialization.
+
+`appledouble` is a separate serialized metadata codec adapted from pinned Apple
+copyfile source. It borrows values, bounds header/record parsing, and streams data.
+Ordered duplicate records, empty values, flags and fixed FinderInfo/resource slots
+are retained. A zero-length resource slot cannot distinguish absence from emptiness.
+It does not associate sidecars with host files or turn raw security attributes
+into native policy encodings. Native pack/unpack controls supply interoperability
+evidence; untouched raw values remain preserved in the workspace.
 
 ## Historical APFS reads
 
