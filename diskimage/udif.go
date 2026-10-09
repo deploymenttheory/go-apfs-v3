@@ -195,6 +195,13 @@ func blockLists(data []byte) ([][]byte, error) {
 }
 
 func (u *udif) Size() int64 { return u.size }
+func (u *udif) clearCache() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	clear(u.data)
+	u.data = nil
+	u.cached = -1
+}
 func (u *udif) ReadAt(p []byte, off int64) (int, error) {
 	if off < 0 {
 		return 0, os.ErrInvalid

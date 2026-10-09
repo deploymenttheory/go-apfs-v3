@@ -65,6 +65,54 @@ func TestEncryptedCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) 
 	}
 }
 
+func TestEncryptedImageAndVolumeCredentialsAreIndependent(t *testing.T) {
+	root := filepath.Join("..", "..", "acceptance", "testdata", "encrypted-dmg", "macos-27")
+	const imagePassword = "public-dmg-password"
+	var out, diagnostics bytes.Buffer
+	image := filepath.Join(root, "hfsplus-aes128.dmg")
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
+		t.Fatal("encrypted image cat output")
+	}
+	out.Reset()
+	if err := run(context.Background(), []string{"inspect", "--json", "--image-password-file", "-", image}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	var report inspect.Report
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Encryption == nil || report.Encryption.KeyBits != 128 {
+		t.Fatal("missing image encryption report")
+	}
+	image = filepath.Join(root, "apfs-nested-aes256.dmg")
+	out.Reset()
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 {
+		t.Fatal("image password unlocked APFS", err)
+	}
+	volumeFile := filepath.Join(t.TempDir(), "volume-password")
+	if err := os.WriteFile(volumeFile, []byte("apfs-v3-public-fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", volumeFile, image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
+		t.Fatal("nested encrypted cat output")
+	}
+	out.Reset()
+	secret := "incorrect-private-image-password"
+	err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(secret), &out, &diagnostics)
+	if !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 || diagnostics.Len() != 0 || strings.Contains(err.Error(), secret) {
+		t.Fatal("bad image credential handling", err)
+	}
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(""), &out, &diagnostics); err == nil || !strings.Contains(err.Error(), "both consume stdin") {
+		t.Fatal("ambiguous credential input", err)
+	}
+}
+
 func TestCatIsByteExactAndDoesNotFollowSymlinks(t *testing.T) {
 	for _, name := range []string{"apfs", "hfsplus"} {
 		t.Run(name, func(t *testing.T) {

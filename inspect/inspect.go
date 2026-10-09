@@ -15,11 +15,12 @@ import (
 )
 
 type Report struct {
-	Schema       int         `json:"schema"`
-	Format       string      `json:"format"`
-	Size         int64       `json:"size"`
-	PartitionMap string      `json:"partitionMap"`
-	Partitions   []Partition `json:"partitions"`
+	Schema       int                   `json:"schema"`
+	Format       string                `json:"format"`
+	Size         int64                 `json:"size"`
+	PartitionMap string                `json:"partitionMap"`
+	Partitions   []Partition           `json:"partitions"`
+	Encryption   *diskimage.Encryption `json:"encryption,omitempty"`
 }
 
 type Partition struct {
@@ -32,7 +33,7 @@ type Partition struct {
 // Image inspects every recognized partition without selecting one by preference.
 // An unrecognized partition is reported; a corrupt recognized filesystem fails.
 func Image(ctx context.Context, img *diskimage.Image) (*Report, error) {
-	r := &Report{Schema: 1, Format: img.Format, Size: img.Size(), PartitionMap: img.PartitionMap, Partitions: make([]Partition, 0, len(img.Partitions))}
+	r := &Report{Schema: 1, Format: img.Format, Size: img.Size(), PartitionMap: img.PartitionMap, Partitions: make([]Partition, 0, len(img.Partitions)), Encryption: img.Encryption}
 	for _, p := range img.Partitions {
 		if err := ctx.Err(); err != nil {
 			return nil, err

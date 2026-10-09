@@ -12,6 +12,7 @@ acceptance/testdata/files/** -text
 acceptance/testdata/semantics/** -text
 acceptance/testdata/compression/** -text
 acceptance/testdata/encryption/** -text
+acceptance/testdata/encrypted-dmg/** -text
 
 # Review the pinned inputs and generator for these reproducible tables.
 internal/names/*_tables.go linguist-generated=true

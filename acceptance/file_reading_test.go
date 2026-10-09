@@ -15,12 +15,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
 
 type fileObservation struct {
+	DiskImage             *nativeDiskImage             `json:"diskImage,omitempty"`
 	Encryption            *nativeEncryption            `json:"encryption,omitempty"`
 	CompressionRejections []nativeCompressionRejection `json:"compressionRejections,omitempty"`
 	Compression           []nativeCompression          `json:"compression,omitempty"`
@@ -87,7 +87,7 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			}
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
-			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py"}[scenario]
+			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py"}[scenario]
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
@@ -97,6 +97,12 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			wantIDs := map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/hfsplus": false, scenario + "/hfsx": false}
 			if scenario == "file-encryption" {
 				wantIDs = map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/apfs-long-password": false, scenario + "/apfs-changed-password": false}
+			}
+			if scenario == "disk-image-encryption" {
+				wantIDs = map[string]bool{}
+				for _, id := range []string{"apfs-aes128", "apfs-case-sensitive-aes256", "hfsplus-aes128", "hfsx-aes256", "hfsplus-raw-aes256", "apfs-nested-aes256"} {
+					wantIDs[scenario+"/"+id] = false
+				}
 			}
 			if len(c.Cases) != len(wantIDs) {
 				t.Fatal("incomplete file-reading inventory")
@@ -121,10 +127,10 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 							t.Fatal("macOS 27 kernel did not read a required compressed file")
 						}
 					}
-					img, err := diskimage.Open(filepath.Join(dir, test.Image))
-					if err != nil {
-						t.Fatal(err)
+					if scenario == "disk-image-encryption" && want.DiskImage == nil {
+						t.Fatal("missing encrypted-image evidence")
 					}
+					img := openReferenceImage(t, filepath.Join(dir, test.Image), want.DiskImage, dir)
 					defer img.Close()
 					r, err := inspect.Image(context.Background(), img)
 					if err != nil {
@@ -147,7 +153,7 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					if count != 1 {
 						t.Fatal("expected one native filesystem")
 					}
-					if scenario == "file-encryption" {
+					if scenario == "file-encryption" || want.Encryption != nil {
 						reader = unlockForReplay(t, reader, want.Encryption, test.Expected, dir)
 					}
 					compareFiles(t, reader, want)

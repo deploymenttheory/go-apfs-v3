@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
@@ -39,7 +38,7 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--password-file FILE] IMAGE PATH\n\nRead-only inspection and ordinary, compressed or password-unlocked APFS file reading. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
 	}
 	if args[0] == "list" || args[0] == "cat" {
@@ -51,13 +50,14 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
 	jsonOutput := flags.Bool("json", false, "emit a versioned JSON structural report")
+	imagePasswordFile := flags.String("image-password-file", "", "DMG envelope password bytes in FILE; - reads stdin to EOF")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
 	if flags.NArg() != 1 {
 		return fmt.Errorf("usage: apfs %s [--json] IMAGE", args[0])
 	}
-	img, err := diskimage.Open(flags.Arg(0))
+	img, err := openImage(ctx, flags.Arg(0), *imagePasswordFile, input)
 	if err != nil {
 		return err
 	}
@@ -79,6 +79,11 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 	}
 	if _, err = fmt.Fprintf(out, "%s image, %d bytes, %s partition map\n", r.Format, r.Size, r.PartitionMap); err != nil {
 		return err
+	}
+	if r.Encryption != nil {
+		if _, err = fmt.Fprintf(out, "Image encryption: %s, %d-bit key, %d-byte blocks\n", r.Encryption.Cipher, r.Encryption.KeyBits, r.Encryption.BlockSize); err != nil {
+			return err
+		}
 	}
 	for _, p := range r.Partitions {
 		if _, err = fmt.Fprintf(out, "Partition %d: %s (%d bytes)\n", p.Index, p.Filesystem, p.Size); err != nil {

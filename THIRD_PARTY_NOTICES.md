@@ -53,3 +53,11 @@ and existing implementations were studied as recorded in the source inventory;
 no apfs-fuse GPL code or CommonCrypto implementation was copied or translated.
 The native acceptance collector calls installed Apple CommonCrypto APIs to
 produce independent reference vectors; production Go has no native dependency.
+
+Encrypted DMG reading is an original Go interpretation using standard AES,
+3DES, HMAC and SHA-1 for Apple's existing format. Format facts were studied from
+Willem Hengeveld's MIT-licensed `encrypteddmg` documentation and the MIT-licensed
+`vfdecrypt.c` by Ralf-Philipp Weinmann, Jacob Appelbaum and Christian Fromme.
+No Python or C implementation was copied or translated. Apple CSSM identifiers
+and native image observations supply additional evidence. Exact revisions and
+file hashes are recorded in the source inventory.

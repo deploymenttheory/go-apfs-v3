@@ -2,6 +2,7 @@ package apfs
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -145,12 +146,12 @@ func (v *Volume) Unlock(ctx context.Context, password []byte) (*Volume, error) {
 }
 
 func unlockKey(ctx context.Context, password []byte, kek, vek keyRecord) ([]byte, error) {
-	derived, err := storagecrypto.PasswordKey(ctx, password, kek.salt, kek.iterations)
-	defer clear(derived[:])
+	derived, err := storagecrypto.PBKDF2(ctx, sha256.New, password, kek.salt, kek.iterations, 32)
+	defer clear(derived)
 	if err != nil {
 		return nil, err
 	}
-	key, err := storagecrypto.Unwrap(derived[:], kek.wrapped)
+	key, err := storagecrypto.Unwrap(derived, kek.wrapped)
 	if errors.Is(err, storagecrypto.ErrIntegrity) {
 		return nil, filesystem.ErrAuthentication
 	}

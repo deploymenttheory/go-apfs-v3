@@ -381,7 +381,7 @@
       "components": [
         "internal/crypto/pbkdf2.go"
       ],
-      "basis": "Original single-block PBKDF2-HMAC-SHA256 implementation with cancellation during derivation. Apple CommonCrypto independently supplies expected bytes."
+      "basis": "Original bounded multi-block PBKDF2 implementation with cancellation. APFS uses HMAC-SHA256 and encrypted DMG password records use HMAC-SHA1. Native CommonCrypto vectors and Apple-created images independently qualify the derived keys."
     },
     {
       "id": "v2-encryption-study",
@@ -432,6 +432,82 @@
       ],
       "evidence": "acceptance/testdata/encryption/macos-27/manifest.json",
       "basis": "Four Apple-created software-encrypted APFS volumes, 108 objects each, ordinary/Unicode/long/changed passwords and native rejection controls. Fresh read-only mounts with ownership enabled provide file and metadata hashes, including compressed files and modified clones. Native key records use flags 0, 40-byte wrapped keys, keybag version 2 and extent flag 1. Primitive reference bytes are independently generated with CommonCrypto. Broader key profiles require additional native evidence."
+    },
+    {
+      "id": "apple-cssm-encryption-identifiers",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/Security",
+      "revision": "db15acbe6a7f257a859ad9a3bb86097bfe0679d9",
+      "components": [
+        "diskimage/encryption.go"
+      ],
+      "files": [
+        {
+          "path": "OSX/libsecurity_cssm/lib/cssmtype.h",
+          "sha256": "647032d694ed3fd7aa394106ae1054f9ab384beb634f1f69efa2e4e094be4f56"
+        },
+        {
+          "path": "cssm/cssmapple.h",
+          "sha256": "bfc789ab517801d43659f2b65fbd36fe69c7d935566994b83ba65173c4f2103c"
+        }
+      ],
+      "basis": "Published CSSM constants identify AES, 3DES, SHA1HMAC, PKCS5_PBKDF2, CBC_IV8, CBCPadIV8 and PKCS7 in native encrypted-image headers. Format identifiers studied; no Apple implementation copied."
+    },
+    {
+      "id": "encrypted-dmg-format-study",
+      "kind": "source-study",
+      "url": "https://github.com/nlitsme/encrypteddmg",
+      "revision": "626dac30710140ac488ea199cd14b5c450f2760b",
+      "license": "MIT",
+      "components": [
+        "diskimage/encryption.go"
+      ],
+      "files": [
+        {
+          "path": "readencrcdsa.py",
+          "sha256": "31022787f088d64567d538f2f828e7cd2a86c3a97c7c70cbb2c4ca9bfb9518f0"
+        },
+        {
+          "path": "README.md",
+          "sha256": "7a0d9317b191d8319973e4dee34e5308e84e9ee6ec1122f6af0cbdaf407958ef"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "b88be6404bfcbb0522f9cbbbc21484a73d0dc2898236794b51f4446aac15cd60"
+        }
+      ],
+      "basis": "Version 2 header, key-table and password-record layouts, PBKDF2-HMAC-SHA1, key-cookie and per-block IV derivation studied. Original bounded Go interpretation; no Python code copied or translated. Native macOS evidence independently qualifies AES wrapping and both payload key sizes."
+    },
+    {
+      "id": "vfdecrypt-format-study",
+      "kind": "source-study",
+      "url": "https://github.com/Lekensteyn/dmg2img",
+      "revision": "a3e413489ccdd05431401357bf21690536425012",
+      "license": "MIT (vfdecrypt.c notice)",
+      "components": [
+        "diskimage/encryption.go"
+      ],
+      "files": [
+        {
+          "path": "vfdecrypt.c",
+          "sha256": "808d3e8f55d3a0c17b6fb923d658a81cfabf514ae7e65a02181b9d9052ab4a8c"
+        },
+        {
+          "path": "vfdecrypt.h",
+          "sha256": "a3bf8ab56a3b37d6a4b3fe359eb60824ea0ca9c02d2d4735a13d9623436f7eb8"
+        }
+      ],
+      "basis": "Older encrypted-image layout and 3DES password-wrapping facts cross-checked against vfdecrypt. No C implementation copied or translated; fixed-offset and AES-128-only assumptions are not inherited."
+    },
+    {
+      "id": "native-encrypted-dmg-27",
+      "kind": "native-observation",
+      "components": [
+        "diskimage/encryption.go",
+        "acceptance/native/disk_image_encryption.py"
+      ],
+      "evidence": "acceptance/testdata/encrypted-dmg/macos-27/manifest.json",
+      "basis": "Six Apple-created AES-128/256 encrcdsa v2 images cover APFS, case-sensitive APFS, HFS+, HFSX, UDZO and raw UDRW, Unicode/changed/rejected passwords and an independently encrypted APFS volume. Each has 107 observed objects from a final read-only mount. Current native password records wrap with AES-192-CBC, declare an 8-byte IV and use a zero-extended 16-byte AES IV. Retained capture and file/source hashes are immutable; older wrapping profiles require their own native CI evidence."
     }
   ]
 }

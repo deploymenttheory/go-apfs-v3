@@ -6,8 +6,8 @@ contracts while retaining separate filesystem engines.
 
 **Status: initial read-only implementation.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
-software-encrypted APFS volumes for reading. Writes, recovery and mounting are
-not implemented yet. See [implementation status](docs/implementation.md)
+software-encrypted APFS volumes and AES-128/256 DMG images for reading. Writes,
+recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -21,7 +21,8 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs inspect --json image.dmg
 ./bin/apfs list image.dmg /Applications
 ./bin/apfs cat image.dmg /Applications/Example.app/Contents/Info.plist
-./bin/apfs cat --password-file ./password.bin encrypted.dmg /Fixture/example.txt
+./bin/apfs cat --password-file ./volume-password.bin apfs-encrypted.dmg /Fixture/example.txt
+./bin/apfs cat --image-password-file ./image-password.bin encrypted.dmg /Fixture/example.txt
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
@@ -33,6 +34,8 @@ Currently implemented:
 
 - Sized read-only block sources and bounded partition views.
 - Raw images; UDIF images with raw, zero, zlib, and bzip2 chunks.
+- Password-protected `encrcdsa` v2 DMGs with AES-128/256-CBC, including encrypted
+  images containing separately encrypted APFS volumes.
 - GPT header/table CRC validation and enumeration with 512/4096-byte sectors;
   Apple Partition Map enumeration with 512-byte map blocks.
 - APFS container geometry, checkpoint selection, object-map lookup, volume names,
@@ -50,14 +53,17 @@ Currently implemented:
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
 Password files contain exact bytes: no newline or whitespace is removed. Use
-`--password-file -` to read stdin through EOF. Passwords are never accepted as a
-literal command-line option. Inspection needs no password and reports locked
-volumes; `list` and `cat` require one to access their files.
+`-` as either password filename to read stdin through EOF. `--image-password-file`
+unlocks a DMG envelope; `--password-file` unlocks the selected APFS volume. Both
+can be supplied, with at most one reading stdin. Passwords are never accepted as
+literal command-line options. Inspecting an encrypted DMG needs its image
+password; APFS volume inspection can report locked volumes without their password.
 
 The qualified encryption profile uses APFS software single-key encryption with
 AES-256 key wrapping and AES-128-XTS sectors. Hardware/per-file keys, legacy key
-records and encrypted DMG envelopes remain unsupported. AES-256-XTS primitive
-vectors are tested independently; a native volume profile is not yet qualified.
+records remain unsupported. Encrypted DMG support currently covers version 2
+password records; version 1, certificate-only and keybag-only envelopes remain
+unsupported. AES-256-XTS primitive vectors are tested independently; a native volume profile is not yet qualified.
 Invalid recognized structures fail explicitly. Inspection never replays a journal
 or repairs a source.
 
@@ -76,6 +82,13 @@ Import `github.com/deploymenttheory/go-apfs-v3/diskimage` and
 `github.com/deploymenttheory/go-apfs-v3/inspect`. `diskimage.New` borrows a
 `block.Source`. Image decoding exposes the complete disk; callers select
 partitions explicitly. Filesystem engines borrow their source.
+
+`diskimage.OpenWithPassword(ctx, path, imagePassword)` owns a read-only file and
+its decrypted image view. `NewWithPassword` borrows a `block.Source`; closing
+that image releases keys and cached image bytes without closing the caller's
+source. Opening requires an encrypted envelope. An ordinary `Open`/`New` returns
+`ErrAuthentication` for one. Image encryption is reported separately from APFS
+volume encryption. Finish filesystem values before closing their image.
 
 `lockedVolume.Unlock(ctx, passwordBytes)` returns a separate `*apfs.Volume`.
 The original volume stays locked. Close the unlocked view after its values;
