@@ -1,7 +1,7 @@
 """Apple snapshot history on disposable APFS images; no Go-produced expectations.
 
-Only create/delete and native attribute enumeration need the small privileged
-entry point below. The collector supplies mounts returned by hdiutil. No system
+Apple-signed tools create and delete snapshots. Native attribute enumeration
+uses the public API through the small entry point below. The collector supplies mounts returned by hdiutil. No system
 volume is selected, and production Go never calls these native APIs.
 """
 
@@ -23,12 +23,6 @@ def snapshot_api(operation, mount, name=None):
     lib = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
     fd = os.open(mount, os.O_RDONLY | os.O_DIRECTORY)
     try:
-        if operation in ("create", "delete"):
-            fn = getattr(lib, "fs_snapshot_" + operation)
-            fn.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
-            if fn(fd, os.fsencode(name), 0):
-                raise OSError(ctypes.get_errno(), "fs_snapshot_" + operation)
-            return
         if operation != "attributes":
             raise ValueError("unknown snapshot operation")
 
@@ -85,6 +79,11 @@ def capture(work, corpus, command, create_files, observe_files, sha256):
     helper = Path(__file__).resolve()
 
     def api(operation, mount, name=None):
+        if operation == "create":
+            return command("sudo", "-n", "/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs_systemsnapshot",
+                           "-s", name, "-v", mount)
+        if operation == "delete":
+            return command("sudo", "-n", "diskutil", "apfs", "deleteSnapshot", mount, "-name", name, "-wait")
         return command("sudo", "-n", sys.executable, helper, operation, mount,
                        *([] if name is None else [name]))
 
