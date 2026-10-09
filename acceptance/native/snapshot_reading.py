@@ -7,6 +7,7 @@ No system volume is selected, and production Go never calls native APIs.
 """
 
 import ctypes
+import errno
 import json
 import os
 from pathlib import Path
@@ -144,7 +145,17 @@ def capture(work, corpus, command, create_files, observe_files, sha256):
             # ASR remounts its disposable target and can leave mounted APFS
             # children. Unmount the whole target before detaching its image.
             command("diskutil", "unmountDisk", "force", device)
-            command("hdiutil", "detach", device)
+            # DiskImages can still report EBUSY after that unmount succeeds.
+            # Retry only this scratch-target cleanup; retain every attempt in
+            # the transcript and fail on other errors or persistent EBUSY.
+            for attempt in range(6):
+                try:
+                    command("hdiutil", "detach", device)
+                    break
+                except subprocess.CalledProcessError as error:
+                    if error.returncode != errno.EBUSY or attempt == 5:
+                        raise
+                    time.sleep(1)
 
 
     def info(device):

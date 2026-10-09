@@ -81,7 +81,11 @@ def main():
             record.update(status=result.returncode, stdout=result.stdout.decode(errors="replace"),
                           stderr=result.stderr.decode(errors="replace"))
             save()
-            if (result.returncode == 0) != expected_success:
+            if result.returncode != 0 and expected_success:
+                print(result.stderr.decode(errors="replace"), file=sys.stderr, end="")
+                raise subprocess.CalledProcessError(result.returncode, argv,
+                                                    output=result.stdout, stderr=result.stderr)
+            if result.returncode == 0 and not expected_success:
                 raise RuntimeError(f"command failed: {argv}: {result.stderr.decode(errors='replace')}")
             return result.stdout
 

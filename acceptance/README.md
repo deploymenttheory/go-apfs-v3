@@ -242,6 +242,9 @@ ASR cleanup; capture verifies it still exists after unmounting. The temporary
 target is discarded. A 16 MiB allocated, compressible file outside `Fixture`
 gives the observer time to mount; it supplies no expected filesystem results.
 All subprocesses have deadlines and a missed snapshot fails capture.
+After unmounting the disposable target, its image detach can transiently report
+`EBUSY`. Only that cleanup command retries, at most six attempts one second
+apart; every result stays in the native transcript. Other errors fail immediately.
 
 This workflow needs no custom entitlement or host security changes. It uses
 Apple's actual snapshot names rather than invented recipe names. Snapshot UUIDs
