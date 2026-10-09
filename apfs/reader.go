@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
 	"github.com/deploymenttheory/go-apfs-v3/internal/fork"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -116,8 +117,16 @@ func (v *Volume) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 	if err != nil {
 		return filesystem.Node{}, err
 	}
+	i.node.Compression.State = filesystem.Absent
 	if i.node.Metadata.BSDFlags.Value&0x20 != 0 {
-		return filesystem.Node{}, fmt.Errorf("compressed logical metadata: %w", filesystem.ErrUnsupported)
+		h, err := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, id, name) })
+		if err != nil {
+			return filesystem.Node{}, err
+		}
+		if h.Size != i.node.Size {
+			return filesystem.Node{}, corrupt("compressed logical size", 0)
+		}
+		i.node.Compression = filesystem.Observed(filesystem.Compression{Type: h.Type})
 	}
 	if i.node.Metadata.Mode.Value&0170000 == 0120000 {
 		target, err := v.Readlink(ctx, id)
@@ -185,7 +194,23 @@ func (v *Volume) OpenData(ctx context.Context, id uint64) (filesystem.Value, err
 		return nil, fmt.Errorf("regular file required: %w", fs.ErrInvalid)
 	}
 	if i.node.Metadata.BSDFlags.Value&0x20 != 0 {
-		return nil, fmt.Errorf("transparent compression: %w", filesystem.ErrUnsupported)
+		value, err := decmpfs.Open(ctx, func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, id, name) })
+		if err == nil && uint64(value.Size()) != i.node.Size {
+			_ = value.Close()
+			return nil, corrupt("compressed logical size", 0)
+		}
+		return value, err
+	}
+	return v.stream(ctx, i.stream, i.streamSize)
+}
+
+func (v *Volume) OpenRawData(ctx context.Context, id uint64) (filesystem.Value, error) {
+	i, err := v.inode(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if i.node.Metadata.Mode.Value&0170000 != 0100000 {
+		return nil, fs.ErrInvalid
 	}
 	return v.stream(ctx, i.stream, i.streamSize)
 }

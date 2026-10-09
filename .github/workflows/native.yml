@@ -46,6 +46,7 @@ jobs:
           python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
           python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-reading --output artifacts/native/files/macos-${{ matrix.major }}
           python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-semantics --output artifacts/native/semantics/macos-${{ matrix.major }}
+          python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-compression --output artifacts/native/compression/macos-${{ matrix.major }}
       - name: Retain diagnostics even on failure
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
@@ -61,6 +62,7 @@ jobs:
             artifacts/native/volumes/macos-${{ matrix.major }}/
             artifacts/native/files/macos-${{ matrix.major }}/
             artifacts/native/semantics/macos-${{ matrix.major }}/
+            artifacts/native/compression/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -89,6 +91,7 @@ jobs:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
           APFS_NATIVE_SEMANTICS: ../artifacts/native/semantics
+          APFS_NATIVE_COMPRESSION: ../artifacts/native/compression
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
 
   complete:

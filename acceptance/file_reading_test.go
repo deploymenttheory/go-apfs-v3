@@ -21,11 +21,13 @@ import (
 )
 
 type fileObservation struct {
-	Schema          int                    `json:"schema"`
-	Root            string                 `json:"root"`
-	Entries         []nativeFile           `json:"entries"`
-	Lookups         []nativeLookup         `json:"lookups,omitempty"`
-	FragmentedForks []nativeFragmentedFork `json:"fragmentedForks,omitempty"`
+	CompressionRejections []nativeCompressionRejection `json:"compressionRejections,omitempty"`
+	Compression           []nativeCompression          `json:"compression,omitempty"`
+	Schema                int                          `json:"schema"`
+	Root                  string                       `json:"root"`
+	Entries               []nativeFile                 `json:"entries"`
+	Lookups               []nativeLookup               `json:"lookups,omitempty"`
+	FragmentedForks       []nativeFragmentedFork       `json:"fragmentedForks,omitempty"`
 }
 type nativeFile struct {
 	Path                  string `json:"path"`
@@ -81,6 +83,12 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			profiles[major] = true
 			dir := filepath.Dir(manifest)
 			verifyDigest(t, dir, c.Producer.Source, c.Producer.SourceSHA256)
+			if scenario == "file-compression" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != "file_compression.py") {
+				t.Fatal("missing compression producer source")
+			}
+			for _, source := range c.Producer.Sources {
+				verifyDigest(t, dir, source.Source, source.SHA256)
+			}
 			wantIDs := map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/hfsplus": false, scenario + "/hfsx": false}
 			if len(c.Cases) != len(wantIDs) {
 				t.Fatal("incomplete file-reading inventory")
@@ -99,6 +107,11 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					decodeEvidence(t, filepath.Join(dir, test.Files), &want)
 					if want.Schema != 1 || want.Root != "Fixture" || len(want.Entries) < minimum {
 						t.Fatal("invalid or incomplete file observation")
+					}
+					for _, compression := range want.Compression {
+						if major == "27" && compression.NativeReadError != 0 {
+							t.Fatal("macOS 27 kernel did not read a required compressed file")
+						}
 					}
 					img, err := diskimage.Open(filepath.Join(dir, test.Image))
 					if err != nil {

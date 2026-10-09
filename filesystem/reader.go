@@ -10,10 +10,17 @@ import (
 // Node describes a native object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
-	Identity Identity            `json:"identity"`
-	Metadata Metadata            `json:"metadata"`
-	Size     uint64              `json:"size"`
-	Links    Observation[uint32] `json:"links"`
+	Identity    Identity                 `json:"identity"`
+	Metadata    Metadata                 `json:"metadata"`
+	Size        uint64                   `json:"size"`
+	Compression Observation[Compression] `json:"compression"`
+	Links       Observation[uint32]      `json:"links"`
+}
+
+// Compression records the native decmpfs type, which identifies its codec and
+// attribute or resource-fork storage. Unknown types remain inspectable.
+type Compression struct {
+	Type uint32 `json:"type"`
 }
 
 type DirEntry struct {
@@ -32,12 +39,17 @@ type Reader interface {
 	// Lookup compares one component using this volume's native name rules and
 	// returns the stored spelling and object identity. It never follows symlinks.
 	Lookup(context.Context, uint64, string) (DirEntry, error)
+	// OpenData returns logical contents, transparently decoding active compression.
 	OpenData(context.Context, uint64) (Value, error)
+	// OpenRawData returns the stored data fork, even when compression is active.
+	// OpenAttribute always retains raw decmpfs and resource-fork storage.
+	OpenRawData(context.Context, uint64) (Value, error)
 	ListAttributes(context.Context, uint64, func(string) error) error
 	OpenAttribute(context.Context, uint64, string) (Value, error)
 	Readlink(context.Context, uint64) (string, error)
 }
 
+const Decmpfs = "com.apple.decmpfs"
 const ResourceFork = "com.apple.ResourceFork"
 const FinderInfo = "com.apple.FinderInfo"
 

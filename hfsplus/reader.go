@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
 	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -126,8 +127,14 @@ func (v *Volume) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 			}
 		}
 	}
+	n.Compression.State = filesystem.Absent
 	if m.BSDFlags.Value&0x20 != 0 {
-		return filesystem.Node{}, fmt.Errorf("HFS+ compressed logical size: %w", filesystem.ErrUnsupported)
+		h, err := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, id, name) })
+		if err != nil {
+			return filesystem.Node{}, err
+		}
+		n.Size = h.Size
+		n.Compression = filesystem.Observed(filesystem.Compression{Type: h.Type})
 	}
 	return n, nil
 }
@@ -198,7 +205,18 @@ func (v *Volume) OpenData(ctx context.Context, id uint64) (filesystem.Value, err
 		return nil, fs.ErrInvalid
 	}
 	if b[41]&0x20 != 0 {
-		return nil, fmt.Errorf("transparent compression: %w", filesystem.ErrUnsupported)
+		return decmpfs.Open(ctx, func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, id, name) })
+	}
+	return v.openFork(ctx, be.Uint32(b[8:]), 0, b[88:168])
+}
+
+func (v *Volume) OpenRawData(ctx context.Context, id uint64) (filesystem.Value, error) {
+	b, err := v.catalogRecord(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
+		return nil, fs.ErrInvalid
 	}
 	return v.openFork(ctx, be.Uint32(b[8:]), 0, b[88:168])
 }

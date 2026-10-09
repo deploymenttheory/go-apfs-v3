@@ -69,6 +69,23 @@ unrelated metadata while updating compression coherently. Directory-entry
 replacement is a separate operation. An independent resource fork must survive
 content replacement; stale compression storage must never become authoritative.
 
+Both engines delegate active decmpfs contents to `internal/decmpfs`, which uses
+the decoder-only packages under `internal/codec`. `UF_COMPRESSED` selects this
+path; inactive attributes remain opaque, even when malformed. `Stat` reports
+logical size and native compression type without decoding the file. Unknown
+types remain inspectable but cannot be opened as logical data. Generation-store
+and dataless representations do not become zero-filled files.
+
+`OpenData` decodes logical data. `OpenRawData` reads the stored data fork;
+`OpenAttribute` always reads raw stored attributes, including decmpfs and any
+compression-owned resource fork. Inline compression can coexist with an
+independent resource fork. Values serialize access to a single decoded 64 KiB
+block and check their retained context between blocks. Resource indexes are read
+on demand: opening a large logical file does not allocate its index or contents.
+Each requested block validates its ranges and decoded length; opening alone is
+not a whole-file integrity scan. Malformed compressed data returns corruption,
+including native premature EOF for a nonempty declared file.
+
 The workspace will bind original names, link groups, metadata, and immutable
 blobs in an explicitly identified metadata directory. Reversible name mappings
 handle host limitations. Journal API-mediated changes and publish coherent
@@ -100,10 +117,14 @@ UDIF logical disk; 4096 GPT/APM entries; 32 tree levels; 65536 checkpoint
 descriptor blocks; one million visited nodes/extents per file operation. These
 are not total process-memory guarantees. The UDIF cache
 retains one decoded chunk under a mutex. Configurable shared budgets are pending.
+decmpfs bounds are 3802 stored attribute bytes, 64 KiB logical inline contents,
+64 KiB per resource block and 1 MiB encoded bytes per block. Exceeding an encoded
+or logical decoding budget returns `ErrLimit`; unknown types return
+`ErrUnsupported`. Codec scratch space is bounded independently of file size.
 
 Dirty-journal logical views, repair, sealed-volume file access, and encryption
-unlocking are not qualified. HFS+ directory hard links and transparent compression
-return unsupported errors. Overflow resolution is shared by catalog, attributes,
+unlocking are not qualified. HFS+ directory hard links return unsupported errors.
+Overflow resolution is shared by catalog, attributes,
 data and resource forks; the native fragmentation scenario directly qualifies
 data/resource forks. Fragmented metadata and attribute-continuation fixtures
 remain to be added. APFS readers admit the observed 0x11 attribute-stream
