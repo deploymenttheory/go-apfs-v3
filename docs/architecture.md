@@ -48,10 +48,21 @@ They borrow the image; closing a value never closes other values or the image.
 Unrepresented extent ranges fail rather than becoming zero-filled data; APFS
 sparse extents carry an explicit sparse marker. Readers reject overlapping extents.
 
-`LookupExact` uses enumerated spelling and never follows symlinks. It is not yet
-native normalized/case-folded lookup. HFS+ maps its stored slash to POSIX colon.
+`Lookup` applies native name comparison and `LookupExact` uses enumerated spelling.
+Neither follows symlinks. Lookup currently scans only the selected directory,
+with B-tree traversal pruned by parent ID. Comparison tables are generated from
+pinned Apple sources; Go's or the host's evolving Unicode tables are not used.
+HFS+ maps stored slash to POSIX colon and NUL to U+2400.
 Filesystem-owned APFS attributes remain inspectable; HFS+ FinderInfo returns the
 native public view, whose reserved catalog fields stay untouched on disk.
+
+HFS+ resolves regular-file link records through the private metadata directory.
+All aliases return the underlying file CNID, forks, attributes and metadata.
+Finder type/creator and creation date together identify link records. Fork
+resolution joins inline extents with records keyed by CNID, fork type and logical
+start block; missing, overlapping and surplus ranges are corruption. Attribute
+continuations use their separate attribute B-tree. The extents file itself must
+be described completely in the volume header, as specified by TN1150.
 
 Planned staged `ReplaceData` preserves inode identity, hard-link aliases, and
 unrelated metadata while updating compression coherently. Directory-entry
@@ -90,10 +101,19 @@ descriptor blocks; one million visited nodes/extents per file operation. These
 are not total process-memory guarantees. The UDIF cache
 retains one decoded chunk under a mutex. Configurable shared budgets are pending.
 
-HFS+ forks currently require inline extents. Overflow catalogs/forks,
-dirty-journal logical views, repair, sealed-volume file access, and encryption
-unlocking are not qualified. HFS+ indirect hard links and transparent compression
-return unsupported errors. APFS readers admit the observed 0x11 attribute-stream
+Dirty-journal logical views, repair, sealed-volume file access, and encryption
+unlocking are not qualified. HFS+ directory hard links and transparent compression
+return unsupported errors. Overflow resolution is shared by catalog, attributes,
+data and resource forks; the native fragmentation scenario directly qualifies
+data/resource forks. Fragmented metadata and attribute-continuation fixtures
+remain to be added. APFS readers admit the observed 0x11 attribute-stream
 encoding, with its provenance and unknown write semantics recorded in
 `sources.json`. Other unknown storage flags fail. Feature flags remain visible
 in structural reports.
+
+APFS lookup currently targets the Unicode 16 comparison mappings in the pinned
+Apple XNU source, including original combining classes when case folding changes
+a scalar. Native cases exercise Unicode 11/14/16 boundaries. Unknown scalars
+retain their spelling; this is not emulation of every native filename-admission
+error. Historical APFS Unicode profiles and directory-key hash acceleration
+remain outside the qualified lookup contract.

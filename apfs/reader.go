@@ -13,6 +13,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/fork"
+	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
 var _ filesystem.Reader = (*Volume)(nil)
@@ -24,6 +25,12 @@ type inode struct {
 }
 
 func (v *Volume) Root() uint64 { return 2 }
+
+func (v *Volume) Lookup(ctx context.Context, parent uint64, name string) (filesystem.DirEntry, error) {
+	return names.Lookup(ctx, v, parent, name, func(s string) string {
+		return names.APFS(s, v.CaseSensitive, v.IncompatibleFeatures&9 != 0)
+	})
+}
 
 func (v *Volume) inode(ctx context.Context, id uint64) (inode, error) {
 	var result inode

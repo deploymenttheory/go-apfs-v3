@@ -14,25 +14,29 @@ import (
 var be = binary.BigEndian
 
 type Volume struct {
-	Format        string `json:"format"`
-	Name          string `json:"name"`
-	VolumeID      string `json:"volumeId"`
-	BlockSize     uint32 `json:"blockSize"`
-	BlockCount    uint32 `json:"blockCount"`
-	FreeBlocks    uint32 `json:"freeBlocks"`
-	Attributes    uint32 `json:"attributes"`
-	CaseSensitive bool   `json:"caseSensitive"`
-	Journaled     bool   `json:"journaled"`
-	Clean         bool   `json:"clean"`
-	Files         uint32 `json:"files"`
-	Directories   uint32 `json:"directories"`
-	source        block.Source
-	catalog       *tree
-	attributeFork []byte
+	Format         string `json:"format"`
+	Name           string `json:"name"`
+	VolumeID       string `json:"volumeId"`
+	BlockSize      uint32 `json:"blockSize"`
+	BlockCount     uint32 `json:"blockCount"`
+	FreeBlocks     uint32 `json:"freeBlocks"`
+	Attributes     uint32 `json:"attributes"`
+	CaseSensitive  bool   `json:"caseSensitive"`
+	Journaled      bool   `json:"journaled"`
+	Clean          bool   `json:"clean"`
+	Files          uint32 `json:"files"`
+	Directories    uint32 `json:"directories"`
+	source         block.Source
+	catalog        *tree
+	overflow       *tree
+	attributeFork  []byte
+	rootCreated    uint32
+	privateID      uint32
+	privateCreated uint32
 }
 
 // Open borrows source and reads its header and catalog root thread.
-// Extents-overflow resolution and journal replay are not implemented yet.
+// Journal replay is not performed.
 func Open(source block.Source) (*Volume, error) {
 	if source == nil || source.Size() < 1536 {
 		return nil, bad("volume header")
@@ -61,7 +65,19 @@ func Open(source block.Source) (*Volume, error) {
 	}
 	a := be.Uint32(h[4:])
 	v := &Volume{Format: format, BlockSize: bs, BlockCount: count, FreeBlocks: free, Attributes: a, Journaled: a&0x2000 != 0, Clean: a&0x100 != 0 && a&0x4000 == 0, Files: be.Uint32(h[32:]), Directories: be.Uint32(h[36:]), VolumeID: fmt.Sprintf("%X", h[104:112])}
-	f, err := openInlineFork(source, bs, count, h[272:352])
+	v.source = source
+	// TN1150 requires the extents file to describe itself in the volume header.
+	ef, err := openInlineFork(source, bs, count, h[192:272])
+	if err != nil {
+		return nil, err
+	}
+	if ef.size != 0 {
+		v.overflow, err = openTree(ef, 4)
+		if err != nil {
+			return nil, err
+		}
+	}
+	f, err := v.fileFork(context.Background(), 4, 0, h[272:352])
 	if err != nil {
 		return nil, err
 	}
@@ -87,9 +103,11 @@ func Open(source block.Source) (*Volume, error) {
 		return nil, err
 	}
 	v.Name = name
-	v.source = source
 	v.catalog = &tree{fork: f, root: root, total: total, nodeSize: nodeSize, idOffset: 2}
 	v.attributeFork = append([]byte(nil), h[352:432]...)
+	if err := v.findPrivateDirectory(); err != nil {
+		return nil, err
+	}
 	return v, nil
 }
 
@@ -101,38 +119,7 @@ type fork struct {
 }
 
 func openInlineFork(source block.Source, bs, count uint32, b []byte) (*fork, error) {
-	if len(b) != 80 || bs == 0 {
-		return nil, bad("fork descriptor")
-	}
-	f := &fork{source: source, size: be.Uint64(b)}
-	var logical uint64
-	ended := false
-	for n := 0; n < 8; n++ {
-		start, length := be.Uint32(b[16+n*8:]), be.Uint32(b[20+n*8:])
-		if length == 0 {
-			if start != 0 {
-				return nil, bad("empty fork extent")
-			}
-			ended = true
-			continue
-		}
-		if ended {
-			return nil, bad("fork extents after terminator")
-		}
-		if start > count || length > count-start {
-			return nil, bad("fork extent")
-		}
-		size := uint64(length) * uint64(bs)
-		f.extents = append(f.extents, extent{logical: logical, physical: uint64(start) * uint64(bs), size: size})
-		logical += size
-	}
-	if logical/uint64(bs) > uint64(be.Uint32(b[12:])) {
-		return nil, bad("fork allocated block count")
-	}
-	if f.size > logical {
-		return nil, fmt.Errorf("fork needs extents overflow: %w", filesystem.ErrUnsupported)
-	}
-	return f, nil
+	return resolveFork(context.Background(), source, bs, count, b, nil)
 }
 
 func (f *fork) read(p []byte, off uint64) error {

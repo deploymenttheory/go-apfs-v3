@@ -22,7 +22,7 @@ func readFiles(ctx context.Context, args []string, out, diagnostics io.Writer) (
 		return err
 	}
 	if flags.NArg() != 2 {
-		return fmt.Errorf("usage: apfs %s [--partition INDEX] [--volume ID] IMAGE EXACT_PATH", args[0])
+		return fmt.Errorf("usage: apfs %s [--partition INDEX] [--volume ID] IMAGE PATH", args[0])
 	}
 	if *jsonOutput && args[0] == "cat" {
 		return fmt.Errorf("cat emits file bytes; --json applies to list")
@@ -44,7 +44,7 @@ func readFiles(ctx context.Context, args []string, out, diagnostics io.Writer) (
 	if err != nil {
 		return err
 	}
-	id, err := filesystem.LookupExact(ctx, reader, flags.Arg(1))
+	id, err := filesystem.Lookup(ctx, reader, flags.Arg(1))
 	if err != nil {
 		return err
 	}

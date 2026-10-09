@@ -24,7 +24,7 @@ go build -o ./bin/apfs ./cmd/apfs
 
 `info` is an alias for structural inspection. Flags precede the image argument.
 Output goes to stdout; errors go to stderr.
-File paths use exact names from enumeration. Symlinks are not followed.
+File paths use the selected volume's native comparison rules. Symlinks are not followed.
 When several filesystems match, select `--partition INDEX` and/or `--volume ID`.
 
 Currently implemented:
@@ -39,6 +39,8 @@ Currently implemented:
 - Directory enumeration, file identity, native metadata, symlink targets,
   uncompressed data, sparse APFS extents, resource forks and extended attributes.
 - Concurrent, bounded fork readers with independent close and cancellation.
+- Native filename lookup, regular-file hard-link identity, and HFS+ overflow
+  extents for fragmented data and resource forks.
 - Versioned JSON reports and typed corruption/unsupported errors.
 
 Encrypted APFS state is reported but not unlocked. Invalid recognized structures
@@ -63,8 +65,9 @@ partitions explicitly. Filesystem engines borrow their source.
 `apfs.Volume` and `hfsplus.Volume` implement `filesystem.Reader`. `ReadDir`
 enumerates names and object IDs; `Stat` returns logical metadata;
 `OpenData`/`OpenAttribute` return sized `ReadAt` values. Values and volume readers
-must finish before closing the image. `filesystem.LookupExact` is an explicit
-exact-spelling traversal; native case folding is still pending.
+must finish before closing the image. `filesystem.Lookup` uses native comparison;
+`filesystem.LookupExact` preserves exact-spelling traversal for forensic callers.
+`Reader.Lookup` resolves one component and returns its stored spelling.
 
 ## Verification
 
@@ -81,6 +84,8 @@ Acceptance replays genuine retained macOS images against independent
 Unicode names, binary/empty/large attributes and resource forks. Each corpus
 records native source, observations, image hashes and the actual OS version/build.
 Images are hashed before and after portable reading.
+The file-semantics family adds native positive/negative filename lookups,
+three aliases of one file, and independently verified fragmented HFS+ forks.
 
 [Acceptance instructions](acceptance/README.md) cover capture and cross-platform
 replay. Passing a macOS 27 fixture does not qualify macOS 15 or 26. Runtime
@@ -95,5 +100,5 @@ qualification is distinct from cross-compilation.
 Metadata, forks, links, compression, and identity belong to file operations.
 Codesigning remains a consumer; signature construction is outside this library.
 
-Original code is MIT licensed. The Apple-derived FinderInfo adapter retains
-APSL-2.0; see [third-party notices](THIRD_PARTY_NOTICES.md) and the source inventory.
+Original code is MIT licensed. Apple-derived FinderInfo and comparison data retain
+their upstream notices; see [third-party notices](THIRD_PARTY_NOTICES.md) and the source inventory.

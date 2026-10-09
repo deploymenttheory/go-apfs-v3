@@ -62,8 +62,40 @@ APFS_NATIVE_FILES=../artifacts/files go test -v -run TestNativeFileReading ./acc
 ```
 
 Environment paths above are relative to the acceptance package's working directory.
-Use absolute paths for a corpus elsewhere. Default `go test ./...` replays both
-small retained families without native tools. A missing family fails the suite.
+Use absolute paths for a corpus elsewhere. Default `go test ./...` replays all
+three retained families without native tools. A missing family fails the suite.
+
+## File semantics
+
+Purpose: resolve the same application paths and file relationships as macOS,
+including files whose content is fragmented beyond HFS+'s eight inline extents.
+
+| Cases in each filesystem variant | Independent native expectation | Portable assertions |
+| --- | --- | --- |
+| 15 named comparison cases: case, canonical decomposition, combining order, Hangul, ligatures, ignorables and Unicode 11/14/16 boundaries | `lstat` of original and alternate spellings on the final read-only mount | Matching inode or `fs.ErrNotExist` for every query; enumeration retains original spelling |
+| Three aliases, a removed fourth link, modification through an alias | `lstat`, native reads, xattrs and resource fork | Shared inode ID and link count, all data/fork bytes and metadata agree |
+| HFS+/HFSX data and resource forks in deliberately fragmented free space | Darwin `F_LOG2PHYS_EXT`, full native reads and boundary samples | More than eight native extents required; full hash and reverse-order reads crossing every boundary match |
+
+The fragmentation recipe fills only its temporary 64 MiB fixture volume and
+releases alternating allocations. Capture fails unless Darwin proves the
+resulting forks require overflow records. The retained macOS 27 forks have
+20 and 21 extents. Neither a guessed allocation layout nor Go's own interpretation
+is accepted as proof. A fresh capture never replaces the retained observations.
+
+The same file comparison used by file-reading checks content, identity, metadata,
+forks and attributes. Additional assertions are confined to this scenario, so
+the purpose and native preconditions remain visible. The family does not qualify
+directory hard links, historical APFS comparison profiles, fragmented metadata,
+attribute continuations, compression or encryption.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario file-semantics --output artifacts/semantics/macos-27
+APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
+```
+
+CI captures all three families on macOS 15/26/27. Each Linux, Windows and macOS
+consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
+missing corpus from passing as a skipped profile.
 
 ## CI tiers
 
