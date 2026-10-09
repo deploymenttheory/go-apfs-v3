@@ -7,7 +7,7 @@ and harness were not imported.
 | Phase | Deliverable | Current status |
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented and locally qualified, full snapshot matrix pending; broader key profiles remain pending |
+| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
@@ -124,9 +124,13 @@ collector uses the replication workflow instead. It neither changes host securit
 settings nor creates snapshot structures with Go. A missed snapshot, timeout,
 failed copy or failed filesystem verification fails capture.
 
-Local macOS 27 capture passed all three profiles, and Go replay matched the
-111–112 objects in each live/historical state in approximately six seconds. Fresh
-macOS 15/26/27 capture and the complete portable matrix remain the PR gate.
+Native snapshot capture has passed on macOS 15, 26 and 27. The retained macOS 27
+corpus matches Go for 111–112 objects in each live/historical state in approximately
+six seconds; the complete retained acceptance suite takes approximately eleven
+seconds locally. Fresh capture and replay of every producer on Linux, Windows
+and macOS are required by [PR #13's compatibility checks](https://github.com/deploymenttheory/go-apfs-v3/pull/13/checks).
+Qualification results are recorded in that PR; native capture alone does not
+establish portable compatibility.
 
 Add one `snapshot-reading` acceptance family with three initial profiles:
 ordinary APFS, case-sensitive APFS, and software-encrypted APFS inside an
