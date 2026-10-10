@@ -5,7 +5,7 @@ workspace. The input stays immutable. Paths refer to original macOS names relati
 to the workspace root; later operations see earlier ones. Input paths never follow
 symlinks. A new destination must be outside the input workspace.
 
-| `workspace.Operation` / JSON `op` | Inputs | Behavior |
+| `workspace.Operation` | Inputs | Behavior |
 | --- | --- | --- |
 | `CreateFile` / `create` | `path`, metadata, data, optional attributes | Create a new regular file; an existing native-equivalent name is a conflict |
 | `CreateDirectory` / `mkdir` | `path`, metadata, optional attributes | Create one directory under an existing parent |
@@ -57,50 +57,17 @@ produce identical manifests on the same host projection. There is no random
 creation ID or host-clock default. Cross-host hard-link materialization outcomes
 can still differ, as with extraction.
 
-## CLI plan
+## CLI
 
-```sh
-apfs workspace edit --json ORIGINAL CHANGES.json NEW_WORKSPACE
-```
-
-The plan has schema 1 and an ordered `changes` array. Each operation uses the
-fields above; file inputs use `contents` paths, resolved relative to the plan
-file. Initial `attributes` are explicit `{ "name": ..., "contents": ... }`
-records. Unknown fields, duplicate attribute names and trailing JSON are rejected.
-The plan is limited to 16 MiB; the existing object/entry/value budgets also apply.
-The CLI does not discover AppleDouble files or infer changes from the projection.
-
-This example creates an ordinary resource file under an existing directory. The
-metadata values are illustrative explicit inputs, not defaults:
-
-```json
-{
-  "schema": 1,
-  "changes": [
-    {
-      "op": "create",
-      "path": "Contents/Resources/new-resource",
-      "contents": "new-resource.bin",
-      "metadata": {
-        "mode": {"state": 2, "value": 33188},
-        "uid": {"state": 2, "value": 501},
-        "gid": {"state": 2, "value": 20},
-        "bsdFlags": {"state": 2, "value": 0},
-        "birthTime": {"state": 2, "value": "2026-10-10T00:00:00Z"},
-        "modifyTime": {"state": 2, "value": "2026-10-10T00:00:00Z"},
-        "changeTime": {"state": 2, "value": "2026-10-10T00:00:00Z"},
-        "accessTime": {"state": 2, "value": "2026-10-10T00:00:00Z"}
-      }
-    },
-    {"op": "rename", "path": "Contents/Resources/old-name", "to": "Contents/Resources/new-name"}
-  ]
-}
-```
+Use [named sessions and file commands](sessions.md). The CLI accepts normal command
+operands and flags; the JSON edit-plan interface and `workspace replace` command
+have been removed. `Workspace.Edit` and `ReplaceData` remain library APIs with
+explicit inputs and preserved source timestamps.
 
 Preflight failure creates no output. Failed streaming may leave an incomplete
 directory without a completion manifest, which `workspace.Open` rejects. No
 baseline file or blob is written. Inputs and the destination must be protected
-from external mutation for the call. General host import, native authorization,
+from external mutation for the call. Native authorization,
 compression encoding, filesystem-image writes and crash-durable transactions
 retain their separate implementation gates.
 
@@ -166,20 +133,11 @@ a later operation in the same batch can then supply an independent fork.
 preserved but cannot be edited through this generic interface. ACL interpretation
 and changes to compression storage need their own contracts.
 
-```json
-{
-  "schema": 1,
-  "changes": [
-    {"op": "metadata", "path": "Contents/MacOS/Example",
-     "metadata": {"mode": {"state": 2, "value": 33261}}},
-    {"op": "setxattr", "path": "Contents/Resources/data",
-     "attribute": "org.example.build", "attributeMode": "create",
-     "contents": "build-metadata.bin"},
-    {"op": "resource-fork", "path": "Contents/Resources/data",
-     "contents": "complete-resource-fork.bin"},
-    {"op": "removexattr", "path": "Contents/Resources/legacy",
-     "attribute": "com.apple.FinderInfo"}
-  ]
+```go
+changes := []workspace.Change{
+    {Op: workspace.SetMetadata, Path: "Contents/MacOS/Example", Metadata: &patch},
+    {Op: workspace.SetAttribute, Path: "Contents/Resources/data", Attribute: "org.example.build", Data: attributeBytes},
+    {Op: workspace.ReplaceResourceFork, Path: "Contents/Resources/data", Data: forkBytes},
 }
 ```
 

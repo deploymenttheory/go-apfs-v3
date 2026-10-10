@@ -5,6 +5,7 @@ on:
     paths:
       - '**/*.go'
       - go.mod
+      - go.sum
       - 'acceptance/**'
       - '.github/workflows/native.yml'
   push:
@@ -63,6 +64,8 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario tree-edits --output artifacts/native/tree-edits/macos-${{ matrix.major }}
       - name: Record native permissions, timestamps, extended attributes and resource-fork edits
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario metadata-edits --output artifacts/native/metadata-edits/macos-${{ matrix.major }}
+      - name: Record native cp, chmod, chown, timestamps, attributes and session command references
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-commands --output artifacts/native/file-commands/macos-${{ matrix.major }}
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -77,7 +80,9 @@ jobs:
 
           Metadata edits record permissions, ownership, timestamps, FinderInfo and forks.
 
-          The eleven steps above isolate what is being checked. The uploaded images,
+          File commands record an app-copy/edit journey and independent libc mode vectors.
+
+          The twelve steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -104,6 +109,7 @@ jobs:
             artifacts/native/replacement/macos-${{ matrix.major }}/
             artifacts/native/tree-edits/macos-${{ matrix.major }}/
             artifacts/native/metadata-edits/macos-${{ matrix.major }}/
+            artifacts/native/file-commands/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -151,6 +157,8 @@ jobs:
           APFS_TREE_EDIT_OUTPUT: ../artifacts/tree-edits
           APFS_NATIVE_METADATA_EDITS: ../artifacts/native/metadata-edits
           APFS_METADATA_EDIT_OUTPUT: ../artifacts/metadata-edits
+          APFS_NATIVE_COMMANDS: ../artifacts/native/file-commands
+          APFS_COMMAND_OUTPUT: ../artifacts/file-commands
       - name: Archive complete workspaces including empty directories
         shell: bash
         run: |
@@ -159,7 +167,7 @@ jobs:
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          for family in preservation replacement tree-edits metadata-edits; do
+          for family in preservation replacement tree-edits metadata-edits file-commands; do
             tar -czf "artifacts/workspace-outputs/${family}-${{ matrix.platform }}.tar.gz" "${archive_options[@]}" -C "artifacts/${family}" .
           done
       - name: Retain archived workspaces and AppleDouble output
@@ -236,6 +244,8 @@ jobs:
         run: python3 acceptance/native/verify_tree_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/tree-edits --outputs artifacts/outputs
       - name: Verify metadata, extended attributes and resource-fork edits against native operations
         run: python3 acceptance/native/verify_metadata_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/metadata-edits --outputs artifacts/outputs
+      - name: Verify exported command sessions against Apple command observations
+        run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
       - name: Explain the native output verification
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -253,6 +263,8 @@ jobs:
           including creation attributes, native names and surviving link relationships.
           Metadata editing verifies 36 further pairs against 1044 native operations,
           including actual UID/GID changes, FinderInfo rules and complete fork replacement.
+          File commands verify 36 session exports against 828 native commands,
+          including directory import, mode parsing, aliases and native timestamp effects.
           No Go verifier supplies these results.
           EOF
 

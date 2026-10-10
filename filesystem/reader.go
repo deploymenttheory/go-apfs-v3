@@ -10,6 +10,10 @@ import (
 // Node describes a logical object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
+	// AttributesUnavailable records a host import whose xattrs could not be enumerated.
+	AttributesUnavailable bool `json:"attributesUnavailable,omitempty"`
+	// MetadataDefaulted names values supplied because the source host could not report them.
+	MetadataDefaulted []string `json:"metadataDefaulted,omitempty"`
 	// MetadataModified and AttributesModified name explicitly edited fields and
 	// attributes, including removed values and FinderInfo/flag side effects.
 	// Sorted, cumulative names distinguish supplied values from native evidence.

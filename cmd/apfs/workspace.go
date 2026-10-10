@@ -8,59 +8,27 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/deploymenttheory/go-apfs-v3/block"
-	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/workspace"
 )
 
 func workspaceCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
-	if len(args) == 0 || (args[0] != "verify" && args[0] != "replace" && args[0] != "edit") {
-		return fmt.Errorf("usage: apfs workspace verify [--json] WORKSPACE; apfs workspace replace [--json] WORKSPACE PATH CONTENTS NEW_WORKSPACE; apfs workspace edit [--json] WORKSPACE CHANGES.json NEW_WORKSPACE")
+	if len(args) == 0 || args[0] != "verify" {
+		return fmt.Errorf("use filesystem commands with --session; usage: apfs workspace verify [--json] WORKSPACE")
 	}
-	flags := flag.NewFlagSet("workspace "+args[0], flag.ContinueOnError)
+	flags := flag.NewFlagSet("workspace verify", flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
-	jsonOutput := flags.Bool("json", false, "emit the preservation report as JSON")
+	jsonOutput := flags.Bool("json", false, "emit preservation report")
 	if err = flags.Parse(args[1:]); err != nil {
 		return err
 	}
-	arguments := 1
-	if args[0] == "replace" {
-		arguments = 4
-	}
-	if args[0] == "edit" {
-		arguments = 3
-	}
-	if flags.NArg() != arguments {
-		return fmt.Errorf("usage: apfs workspace verify [--json] WORKSPACE; apfs workspace replace [--json] WORKSPACE PATH CONTENTS NEW_WORKSPACE; apfs workspace edit [--json] WORKSPACE CHANGES.json NEW_WORKSPACE")
+	if flags.NArg() != 1 {
+		return fmt.Errorf("usage: apfs workspace verify [--json] WORKSPACE")
 	}
 	w, err := workspace.Open(ctx, flags.Arg(0))
 	if err != nil {
 		return err
 	}
 	defer func() { err = errors.Join(err, w.Close()) }()
-	if args[0] == "edit" {
-		report, err := editWorkspace(ctx, w, flags.Arg(1), flags.Arg(2))
-		if err != nil {
-			return err
-		}
-		return printWorkspaceReport(out, report, *jsonOutput)
-	}
-	if args[0] == "replace" {
-		id, err := filesystem.Lookup(ctx, w, flags.Arg(1))
-		if err != nil {
-			return err
-		}
-		data, err := block.Open(flags.Arg(2))
-		if err != nil {
-			return err
-		}
-		defer func() { err = errors.Join(err, data.Close()) }()
-		report, err := w.ReplaceData(ctx, []workspace.DataReplacement{{Object: id, Data: data}}, flags.Arg(3), workspace.Limits{})
-		if err != nil {
-			return err
-		}
-		return printWorkspaceReport(out, report, *jsonOutput)
-	}
 	return printWorkspaceReport(out, w.Report(), *jsonOutput)
 }
 

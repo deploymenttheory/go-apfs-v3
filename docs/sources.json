@@ -614,6 +614,52 @@
       ],
       "evidence": "acceptance/testdata/metadata-edits/macos-27/manifest.json",
       "basis": "Four native before/after APFS/HFS+/HFSX profiles, 29 operations and seven rejections each. Final native read-only observations independently establish metadata precision, exact attributes, FinderInfo behavior, complete resource-fork truncation and identity through rename/hard links. Unspecified timestamps retain their source values by explicit portable policy. The retained local corpus uses same-owner assignment; fresh required CI captures must change UID/GID to 60001/60002 with native sudo on disposable image files. Native observation of resource forks precedes explicit timestamp assignment to avoid changing HFS+ atime during capture."
+    },
+    {
+      "id": "apple-libc-mode-parser",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/Libc",
+      "revision": "71bbe350ab79eef58113991d817ccc6165061a64",
+      "components": [
+        "internal/mode/mode.go"
+      ],
+      "license": "BSD-3-Clause",
+      "licenseFile": "LICENSES/BSD-setmode.txt",
+      "files": [
+        {
+          "path": "gen/FreeBSD/setmode.c",
+          "sha256": "a5f566b7f6aa7e07a33b6ac61d68b087e12844f74ddf59797e0c0220bae59966"
+        }
+      ],
+      "basis": "Go translation of setmode/getmode numeric and symbolic mode instructions. Explicit logical umask replaces process umask reads and signal masking; slices replace C allocation and instruction compaction. Native libc independently supplies 390 expression/mode/mask vectors per filesystem profile."
+    },
+    {
+      "id": "apple-file-command-study",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds",
+      "revision": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+      "components": [
+        "session",
+        "cmd/apfs/file_commands.go"
+      ],
+      "files": [
+        {
+          "path": "cp/cp.c",
+          "sha256": "dc48972b5245cdb8a8632a5946821bb13e2f55667aee9832d7ac2c66943544fa"
+        }
+      ],
+      "basis": "Command and traversal policy study; no cp implementation translated. Apple -a means -RpP and splits hard links; --preserve-links is an explicit portable extension. Bounded logical Go graph edits replace host syscall mutation. Independent native commands qualify the packaging journey; process authorization, account-name lookup and kernel caches are outside the logical session contract."
+    },
+    {
+      "id": "native-file-commands-27",
+      "kind": "native-observation",
+      "components": [
+        "session",
+        "acceptance/file_commands_test.go",
+        "acceptance/native/verify_file_commands.py"
+      ],
+      "evidence": "acceptance/testdata/file-commands/macos-27/manifest.json",
+      "basis": "Four native before/after filesystem profiles, 23 Apple commands and five rejection controls each. noatime mounts avoid lazy read-cache effects. Automatic clock times normalize to a supplied fixed instant; explicit assignments retain native precision and birth-time coupling. Copied provenance remains exact; native process-injected provenance on new objects remains recorded but is outside portable process-authorization behavior. Local ownership uses same-owner assignment; required CI must change owners with sudo."
     }
   ]
 }

@@ -4,7 +4,7 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: readers and preservation-aware extraction.** The executable inspects images,
+**Status: readers, preservation-aware extraction and file-command sessions.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
@@ -16,7 +16,8 @@ from v2.
 
 ## Build and use
 
-Go 1.27 or later. The current core has no external Go dependencies or cgo.
+Go 1.27 or later. No cgo is required. Session locks and host metadata use the
+pinned `golang.org/x/sys` dependency.
 
 ```sh
 go build -o ./bin/apfs ./cmd/apfs
@@ -30,13 +31,18 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cat --image-password-file ./image-password.bin encrypted.dmg /Fixture/example.txt
 ./bin/apfs extract --json image.dmg /Applications/Example.app ./example-workspace
 ./bin/apfs workspace verify --json ./example-workspace
-./bin/apfs workspace replace --json ./example-workspace Contents/Info.plist ./updated.plist ./updated-workspace
-./bin/apfs workspace edit --json ./example-workspace ./changes.json ./edited-workspace
+./bin/apfs session open --image image.dmg --path /Applications build
+./bin/apfs cp --session build --from-host -a ./Example.app /
+./bin/apfs chmod --session build 0755 /Example.app/Contents/MacOS/Example
+./bin/apfs session export build ./edited-workspace
+./bin/apfs session remove build
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
 Output goes to stdout; errors go to stderr.
-File paths use the selected volume's native comparison rules. Symlinks are not followed.
+Image-reading paths use the selected volume's native comparison rules without
+following symlinks. [Session commands](docs/sessions.md) use the same name rules
+and the documented command-specific symlink options.
 When several filesystems match, select `--partition INDEX` and/or `--volume ID`.
 
 Currently implemented:
@@ -66,6 +72,8 @@ Currently implemented:
 - Ordered workspace creation, rename, removal, link and data replacement batches.
 - Explicit metadata patches, extended-attribute set/remove and complete independent
   resource-fork replacement within the same ordered batches.
+- Persistent named sessions with managed scratch, host directory import and
+  `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
@@ -145,8 +153,7 @@ not applied. The projection is therefore not yet a runnable macOS app bundle.
 implements `filesystem.Reader` with the original names and filename comparison
 rules. Keep it open while using values; keep the directory immutable. Missing,
 modified or incomplete content fails explicitly. This increment supports capture
-and readback, staged content replacement and ordered tree edits. General external
-import remains later work. The CLI refuses existing destinations. Failed capture can leave an incomplete
+and readback, staged content replacement and ordered tree edits. Host import is available through the separate session command API. The CLI refuses existing destinations. Failed capture can leave an incomplete
 workspace for diagnosis. Large values stream; object, entry, depth and byte
 budgets are configurable up to documented defaults in `workspace.DefaultLimits`.
 
@@ -180,8 +187,7 @@ Created nodes carry `Created` and a `workspace:` creation digest in their identi
 these are graph object numbers, not invented native inode IDs. Link count changes
 carry `LinksModified`, with counts adjusted for aliases outside the captured tree.
 These markers use schema 3 and persist through subsequent captures. Schemas 1 and
-2 remain readable. See [the edit plan format](docs/workspace-edits.md) for the CLI
-and library contract, native qualification, and creation metadata policy.
+2 remain readable. See [preservation batch semantics](docs/workspace-edits.md) for the library contract, native qualification, and creation metadata policy.
 
 `SetMetadata`, `SetAttribute`, `RemoveAttribute` and `ReplaceResourceFork` also
 participate in `w.Edit`. Partial metadata patches preserve unspecified fields.
@@ -190,7 +196,7 @@ truncates old bytes. FinderInfo follows each format's public value and hidden-fl
 rules. Active compression-owned storage and security ACL edits are protected.
 Schema-4 output records cumulative changed field/attribute names and keeps schemas
 1–3 readable. See [metadata edit semantics](docs/workspace-edits.md#metadata-attributes-and-resource-forks)
-for timestamp precision, flag admission, empty-fork behavior and CLI examples.
+for timestamp precision, flag admission, empty-fork behavior and library examples.
 
 `appledouble.Decode(ctx, source)` borrows serialized metadata; `Write(ctx, out,
 file)` streams it. These APIs operate on explicit inputs, never infer companion
@@ -199,6 +205,14 @@ records are opaque serialized values, distinct from raw filesystem attributes.
 The codec admits Apple's two-entry FinderInfo/resource layout and ATTR extension;
 unknown layouts fail explicitly. AppleDouble's 32-bit ranges limit encoded output
 to 4 GiB minus one byte. Workspace storage retains larger values independently.
+
+`session.Create` starts an empty logical filesystem and `session.Capture` imports
+an existing reader once. `session.Open` resumes it under an exclusive process lock.
+Commands publish one metadata revision and reuse immutable payloads. Metadata-only
+commands do not reread file content. `Verify` hashes every reachable value;
+`Export` produces the preservation format described above. Session commands derive
+native modification/change times; the older workspace APIs retain their explicit
+preservation policy. See [session usage and limits](docs/sessions.md).
 
 ## Verification
 

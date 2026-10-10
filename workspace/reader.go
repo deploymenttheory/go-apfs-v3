@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 
@@ -113,7 +114,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 	}()
 	m := w.document
-	if m.Schema < 1 || m.Schema > 4 {
+	if m.Schema < 1 || m.Schema > 5 {
 		return fmt.Errorf("workspace schema %d: %w", m.Schema, filesystem.ErrUnsupported)
 	}
 	if m.ParentManifestSHA256 != "" && (m.Schema < 2 || !validBlob(blob{SHA256: m.ParentManifestSHA256})) {
@@ -134,6 +135,9 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		id := o.Node.Identity.Object
 		at = fmt.Sprintf("object %d", id)
 		if !validNode(o.Node) || w.objects[id].Node.Identity.Object != 0 || len(o.Attributes) > maxAttributes {
+			return filesystem.ErrCorrupt
+		}
+		if (o.Node.AttributesUnavailable || len(o.Node.MetadataDefaulted) > 0 || slices.Contains(o.Node.MetadataModified, "changeTime")) && m.Schema < 5 {
 			return filesystem.ErrCorrupt
 		}
 		if o.Node.Created {

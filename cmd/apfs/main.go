@@ -38,8 +38,18 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs workspace replace [--json] WORKSPACE PATH CONTENTS NEW_WORKSPACE\n       apfs workspace edit [--json] WORKSPACE CHANGES.json NEW_WORKSPACE\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs session create --filesystem apfs|hfsplus|hfsx [options] NAME\n       apfs session open --image IMAGE [reader options] NAME\n       apfs session status|verify|remove NAME\n       apfs session export NAME NEW_DESTINATION\n       apfs cp --session NAME [--from-host] [-RpanX] SOURCE... DESTINATION\n       apfs chmod|chown|chflags --session NAME [-R] VALUE PATH...\n       apfs mkdir|touch|mv|rm|ln|xattr --session NAME [options] PATH...\n       apfs list|cat|stat --session NAME PATH\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
+	}
+	if args[0] == "session" {
+		return sessions(ctx, args[1:], input, out, diagnostics)
+	}
+	switch args[0] {
+	case "cp", "chmod", "chown", "chflags", "touch", "mkdir", "mv", "rm", "ln", "xattr", "stat":
+		return fileCommand(ctx, args, out, diagnostics)
+	}
+	if (args[0] == "list" || args[0] == "cat") && hasSession(args[1:]) {
+		return fileCommand(ctx, args, out, diagnostics)
 	}
 	if args[0] == "snapshot" {
 		return snapshots(ctx, args[1:], input, out, diagnostics)

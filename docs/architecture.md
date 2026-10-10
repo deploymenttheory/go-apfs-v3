@@ -335,3 +335,27 @@ a scalar. Native cases exercise Unicode 11/14/16 boundaries. Unknown scalars
 retain their spelling; this is not emulation of every native filename-admission
 error. Historical APFS Unicode profiles and directory-key hash acceleration
 remain outside the qualified lookup contract.
+
+## Persistent file-command sessions
+
+`session` owns a logical reader, an exclusive OS lock and a private content store.
+`internal/edit` is the shared graph/metadata engine used by both sessions and
+immutable workspace batches. `internal/mode` translates Apple's pinned libc mode
+grammar. The CLI supplies paths and flags to these libraries without interpreting
+an edit manifest.
+
+A command starts from `current`, stages changed content in `pending`, and builds a
+new canonical metadata revision. Unchanged values retain blob references, so
+permissions, names and ownership do not reread payloads. Successful staging and
+flush precede one replacement of `current`. Restart uses the committed revision
+and removes abandoned staging/unreachable blobs. Locks use flock on Linux/macOS
+and LockFileEx on Windows; publication uses rename or MoveFileEx respectively.
+Process interruption is qualified separately from future power-loss durability.
+
+Host import uses Darwin, Linux and Windows metadata adapters. They retain known
+observations and report unavailable fields instead of mapping host permissions or
+streams into invented macOS values. Logical symlink traversal and native name
+comparison stay above these adapters. A fixed session clock is independent of
+scratch placement; reporting its location does not insert that path into canonical
+state. Export uses the existing preservation engine and schema 5 provenance.
+See [session semantics](sessions.md) for command flags and policy boundaries.

@@ -71,3 +71,13 @@ and bounded writes. It does not port native ACL/quarantine or process policy.
 Its source is supplied at [appledouble/appledouble.go](appledouble/appledouble.go)
 and https://github.com/deploymenttheory/go-apfs-v3. Exact upstream revision,
 source hashes, changes and independent native controls are in the source inventory.
+
+`internal/mode/mode.go` translates Apple's BSD `setmode`/`getmode` implementation,
+copyright 1989, 1993, 1994 The Regents of the University of California, contributed
+by Dave Borman at Cray Research. Its [BSD notice](LICENSES/BSD-setmode.txt) is retained.
+The Go parser uses explicit umask input and bounded instruction slices. Pinned
+source hashes and native libc qualification are recorded in the source inventory.
+
+`golang.org/x/sys` v0.49.0 provides operating-system locks and metadata calls under
+its [BSD license](LICENSES/BSD-x-sys.txt).
+It introduces no cgo dependency.
