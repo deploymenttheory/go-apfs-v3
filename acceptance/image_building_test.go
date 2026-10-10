@@ -24,6 +24,7 @@ import (
 // persistent session, and builds both UDIF encodings twice. CI returns every
 // host's actual images to every Mac for fsck, mounted readback and codesign.
 func TestNativeImageBuilding(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "image-building", "APFS_NATIVE_IMAGE_BUILDING", "testdata/image-building", 420, nil)
 }
 

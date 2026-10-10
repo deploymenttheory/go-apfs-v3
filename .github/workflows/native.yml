@@ -152,7 +152,7 @@ jobs:
           path: artifacts/native
           merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
-        run: go test -v -count=1 -timeout 6m ./acceptance
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files

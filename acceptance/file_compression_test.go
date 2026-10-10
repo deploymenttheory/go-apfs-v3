@@ -36,6 +36,7 @@ type nativeCompressionRejection struct {
 // TestNativeFileCompression compares logical data and raw stored evidence from
 // both filesystems. The separate inventory prevents losing a codec silently.
 func TestNativeFileCompression(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "file-compression", "APFS_NATIVE_COMPRESSION", "testdata/compression", 27, compareCompression)
 }
 

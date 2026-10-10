@@ -38,6 +38,7 @@ type containerObservation struct {
 // TestNativeContainerBuilding extends the image-building family with shared
 // allocation, mixed case policies and native System/Data group identities.
 func TestNativeContainerBuilding(t *testing.T) {
+	t.Parallel()
 	root := os.Getenv("APFS_NATIVE_IMAGE_BUILDING")
 	if root == "" {
 		root = "testdata/image-building"

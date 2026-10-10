@@ -32,6 +32,7 @@ type nativeReplacement struct {
 // preservation API retains source timestamps and marks edited data explicitly;
 // native wall-clock write times are retained as evidence, not portable defaults.
 func TestNativeContentReplacement(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "content-replacement", "APFS_NATIVE_REPLACEMENT", "testdata/replacement", 14, nil)
 }
 

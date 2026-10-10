@@ -617,3 +617,12 @@ The same pure-Go acceptance tests run locally against retained Apple fixtures;
 only hosted disposable VMs run the native output verifiers. Unit tests isolate
 streaming boundaries, randomness, malformed headers, encrypted inner checksums
 and signatures, credential policies, publication cleanup and interrupted output.
+
+The portable acceptance families read immutable references and own separate
+scratch/output paths. They can run concurrently; CI uses `-parallel 2` to bound
+active families and memory. Race CI also uses `-p 1`, giving each package the
+runner CPU budget instead of competing with other instrumented packages.
+Each family retains its sequential scenario checks,
+required inventories and before/after hashes. This scheduling applies only to
+Go replay; native attachment and filesystem mutations remain sequential within
+each disposable macOS job. The race timeout stays at five minutes.

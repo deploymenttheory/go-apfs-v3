@@ -64,6 +64,7 @@ type nativeValue struct {
 // names, identity, bytes, forks and logical metadata survive portable decoding.
 // Native capture is a separate program and never uses this implementation.
 func TestNativeFileReading(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "file-reading", "APFS_NATIVE_FILES", "testdata/files", 100, nil)
 }
 

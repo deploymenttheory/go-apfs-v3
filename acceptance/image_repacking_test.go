@@ -20,6 +20,7 @@ import (
 // directly from Apple's attached device. Actual outputs return to every Mac for
 // native checksum checks, disk hashes, volume/snapshot readback and signatures.
 func TestNativeImageRepacking(t *testing.T) {
+	t.Parallel()
 	root := os.Getenv("APFS_NATIVE_REPACKING")
 	if root == "" {
 		root = "testdata/image-repacking"

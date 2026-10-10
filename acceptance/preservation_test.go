@@ -32,6 +32,7 @@ type nativePreservation struct {
 // losing the native tree, metadata or bytes. CI retains each host's actual output
 // for independent Python verification and Apple copyfile unpack on all three Macs.
 func TestNativePreservation(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "preservation", "APFS_NATIVE_PRESERVATION", "testdata/preservation", 120, nil)
 }
 
