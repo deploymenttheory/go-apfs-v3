@@ -34,7 +34,7 @@ func Extract(ctx context.Context, reader filesystem.Reader, rootID uint64, desti
 }
 
 func extract(ctx context.Context, reader filesystem.Reader, rootID uint64, destination string, limits Limits, parent string) (report Report, err error) {
-	limits, err = limits.normalize()
+	limits, err = limits.Normalize()
 	if err != nil {
 		return report, err
 	}
@@ -160,13 +160,16 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 			x.manifest.Schema = max(x.manifest.Schema, 3)
 		}
 		if len(n.MetadataModified) != 0 || len(n.AttributesModified) != 0 {
-			x.manifest.Schema = 4
+			x.manifest.Schema = max(x.manifest.Schema, 4)
 		}
 		if len(n.MetadataModified) != 0 {
 			x.manifest.Report.MetadataObjects++
 		}
 		if len(n.AttributesModified) != 0 {
 			x.manifest.Report.AttributeObjects++
+		}
+		if n.AttributesUnavailable || len(n.MetadataDefaulted) > 0 || slices.Contains(n.MetadataModified, "changeTime") {
+			x.manifest.Schema = max(x.manifest.Schema, 5)
 		}
 		if n.Created {
 			x.manifest.Report.CreatedObjects++

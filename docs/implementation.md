@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; general import pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -196,7 +196,7 @@ reader/snapshot/encryption families remain required.
 Replace complete contents of existing regular files while preserving their source
 identity, hard-link aliases, unrelated metadata and independent resource forks.
 The library accepts a batch of explicit object IDs and borrowed sized inputs;
-`workspace replace` resolves one original path for CLI callers. Both create a
+The replacement library resolves explicit object identities. Both APIs create a
 new self-contained workspace and leave the baseline untouched. Existing, nested
 or symlink-aliased destinations cannot replace or modify the source workspace.
 
@@ -292,6 +292,39 @@ Unit controls cover unspecified metadata, explicit zero, invalid patches, unsafe
 compression/security changes, source lifetime and failures, cancellation, ordered
 attribute overlays, deterministic output and provenance through later extraction.
 General directory import and deterministic image construction follow this work.
+
+## File-command sessions increment
+
+Named sessions expose `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`,
+`rm`, `ln` and `xattr` with ordinary operands and flags. Scratch storage is managed;
+users do not supply JSON edits or a portable metadata layout. Session create/open,
+status, verify, export and remove are explicit lifecycle operations. Host import
+records unavailable fields and supplied defaults. Export remains the existing
+preservation format; image construction is the next separate gate.
+
+The existing tree engine is shared with preservation batches. Sessions capture
+sources once, lock across processes, stream immutable content-addressed blobs and
+publish one metadata revision per successful command. Failed commands keep the
+previous revision. Restart discards staging and reclaims unreachable blobs. This
+qualifies process interruption, not power-loss durability or APFS transactions.
+
+Apple libc's pinned `setmode`/`getmode` grammar is translated to Go with an explicit
+logical umask. Native libc supplies 390 comparison vectors. A single `file-commands`
+acceptance family runs 23 Apple commands and five rejection controls on four
+filesystem profiles. Separate CLI processes replay the journey, including an app
+copy, host inputs, aliases, metadata, forks and removal; independent Python checks
+all exported values. Native mounts use `noatime`, matching session read behavior.
+Command clocks normalize to one supplied instant, retaining each format's precision.
+Copied security provenance remains exact; runner-injected provenance on newly
+created objects is recorded separately from portable command semantics.
+
+Retained macOS 27 local evidence and macOS 15 CI evidence pass local replay and
+independent output readback. The latter records actual ownership reassignment,
+including recursive chown of physical symlinks. Fresh macOS 15/26/27 capture,
+Linux/Windows/macOS replay and independent verification remain mandatory PR gates. Usage, supported flags, default provenance
+and deferred behavior are in [the session contract](sessions.md).
+The command increment passed the complete native capture, portable replay and
+independent output matrix in [PR #19's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38040323305).
 
 ## Required phase gates
 

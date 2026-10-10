@@ -22,6 +22,7 @@ import (
 )
 
 type fileObservation struct {
+	FileCommands          *nativeFileCommands          `json:"fileCommands,omitempty"`
 	MetadataEdits         *nativeMetadataEdits         `json:"metadataEdits,omitempty"`
 	TreeEdits             *nativeTreeEdits             `json:"treeEdits,omitempty"`
 	Replacement           *nativeReplacement           `json:"replacement,omitempty"`
@@ -101,13 +102,16 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
-			if scenario == "content-replacement" || scenario == "tree-edits" || scenario == "metadata-edits" {
+			if scenario == "content-replacement" || scenario == "tree-edits" || scenario == "metadata-edits" || scenario == "file-commands" {
 				required := []string{"content_replacement.py", "file_compression.py", "preservation.py"}
 				if scenario == "tree-edits" {
 					required = append(required, "tree_edits.py")
 				}
 				if scenario == "metadata-edits" {
 					required = append(required, "metadata_edits.py")
+				}
+				if scenario == "file-commands" {
+					required = append(required, "metadata_edits.py", "file_commands.py")
 				}
 				if len(c.Producer.Sources) != len(required) {
 					t.Fatal("missing replacement source provenance")
@@ -209,6 +213,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 					if scenario == "metadata-edits" {
 						compareMetadataEdits(t, reader, want, dir, test.ID, major)
+					}
+					if scenario == "file-commands" {
+						compareFileCommands(t, reader, want, dir, test.ID, major)
 					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)

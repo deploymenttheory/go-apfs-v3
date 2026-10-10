@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
 	"io"
 	"io/fs"
 	"math"
@@ -198,16 +199,13 @@ func TestMetadataRefusesActiveOrUnknownForkOwnership(t *testing.T) {
 	w, id, _ := replacementBaseline(t)
 	ctx := context.Background()
 	for _, state := range []filesystem.State{filesystem.Uncaptured, filesystem.Present} {
-		r, err := w.editReader(ctx, DefaultLimits())
+		base := compressionStateReader{Reader: w, id: id, state: state}
+		r, err := edit.New(ctx, base, DefaultLimits())
 		if err != nil {
 			t.Fatal(err)
 		}
-		r.nodes[id].node.Compression.State = state
-		if state == filesystem.Present {
-			r.nodes[id].node.Metadata.BSDFlags.Value |= 32
-		}
 		for _, change := range []Change{{Op: ReplaceResourceFork, Path: "alias", Data: bytes.NewReader(nil)}, {Op: RemoveAttribute, Path: "alias", Attribute: filesystem.ResourceFork}} {
-			if err := r.apply(ctx, change); !errors.Is(err, filesystem.ErrUnsupported) {
+			if err := r.Apply(ctx, change); !errors.Is(err, filesystem.ErrUnsupported) {
 				t.Fatal("guessed fork ownership", err)
 			}
 		}
@@ -242,4 +240,21 @@ func TestMetadataRefusesActiveOrUnknownForkOwnership(t *testing.T) {
 	if _, err := value.ReadAt(b, 0); err != nil || string(b) != "new" {
 		t.Fatal("initial attribute resurrected", err)
 	}
+}
+
+type compressionStateReader struct {
+	filesystem.Reader
+	id    uint64
+	state filesystem.State
+}
+
+func (r compressionStateReader) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
+	n, err := r.Reader.Stat(ctx, id)
+	if id == r.id {
+		n.Compression.State = r.state
+		if r.state == filesystem.Present {
+			n.Metadata.BSDFlags.Value |= 32
+		}
+	}
+	return n, err
 }

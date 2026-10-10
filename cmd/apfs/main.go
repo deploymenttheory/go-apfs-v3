@@ -31,15 +31,25 @@ func main() {
 
 func run(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: apfs inspect|info|list|cat|extract|workspace|snapshot [options] IMAGE [PATH]")
+		return fmt.Errorf("usage: apfs COMMAND [options] [operands]; use apfs help for commands")
 	}
 	if args[0] == "licenses" {
-		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nSee hfsplus/finderinfo.go, appledouble/appledouble.go, LICENSES/APSL-2.0.txt and THIRD_PARTY_NOTICES.md.")
+		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nApple/Berkeley-derived mode parser: BSD-3-Clause. golang.org/x/sys: BSD-3-Clause.\nSee internal/finderinfo/hfs.go, appledouble/appledouble.go, internal/mode/mode.go, LICENSES and THIRD_PARTY_NOTICES.md.")
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs workspace replace [--json] WORKSPACE PATH CONTENTS NEW_WORKSPACE\n       apfs workspace edit [--json] WORKSPACE CHANGES.json NEW_WORKSPACE\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs session create --filesystem apfs|hfsplus|hfsx [options] NAME\n       apfs session open --image IMAGE [reader options] NAME\n       apfs session status|verify|remove NAME\n       apfs session export NAME NEW_DESTINATION\n       apfs cp --session NAME [--from-host] [-RpanX] SOURCE... DESTINATION\n       apfs chmod|chown|chflags --session NAME [-R] VALUE PATH...\n       apfs mkdir|touch|mv|rm|ln|xattr --session NAME [options] PATH...\n       apfs list|cat|stat --session NAME PATH\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Image-reading paths use native filename comparison without following symlinks. Session commands follow their documented link options. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
+	}
+	if args[0] == "session" {
+		return sessions(ctx, args[1:], input, out, diagnostics)
+	}
+	switch args[0] {
+	case "cp", "chmod", "chown", "chflags", "touch", "mkdir", "mv", "rm", "ln", "xattr", "stat":
+		return fileCommand(ctx, args, out, diagnostics)
+	}
+	if (args[0] == "list" || args[0] == "cat") && hasSession(args[1:]) {
+		return fileCommand(ctx, args, out, diagnostics)
 	}
 	if args[0] == "snapshot" {
 		return snapshots(ctx, args[1:], input, out, diagnostics)

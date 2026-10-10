@@ -5,60 +5,20 @@ package workspace
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"io/fs"
-	"slices"
 	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
-	"github.com/deploymenttheory/go-apfs-v3/internal/names"
+	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
 )
 
 const maxManifest = 64 << 20
 const maxAttributes = 4096
 const metadataPolicy = "recorded; host permissions, ownership, flags and timestamps not applied"
 
-// Limits bound traversal and streamed storage. Zero fields use Defaults.
-type Limits struct {
-	Objects    int
-	Entries    int
-	Depth      int
-	ValueBytes int64
-	TotalBytes int64
-}
+// Limits bound both capture and logical editing.
+type Limits = edit.Limits
 
-func DefaultLimits() Limits { return Limits{100000, 200000, 128, 1 << 40, 1 << 40} }
-
-func (l Limits) normalize() (Limits, error) {
-	d := DefaultLimits()
-	for _, pair := range []struct {
-		value    *int
-		fallback int
-	}{{&l.Objects, d.Objects}, {&l.Entries, d.Entries}, {&l.Depth, d.Depth}} {
-		if *pair.value < 0 {
-			return l, fs.ErrInvalid
-		}
-		if *pair.value == 0 {
-			*pair.value = pair.fallback
-		}
-		if *pair.value > pair.fallback {
-			return l, filesystem.ErrLimit
-		}
-	}
-	if l.ValueBytes < 0 || l.TotalBytes < 0 {
-		return l, fs.ErrInvalid
-	}
-	if l.ValueBytes == 0 {
-		l.ValueBytes = d.ValueBytes
-	}
-	if l.TotalBytes == 0 {
-		l.TotalBytes = d.TotalBytes
-	}
-	if l.ValueBytes > d.ValueBytes || l.TotalBytes > d.TotalBytes {
-		return l, filesystem.ErrLimit
-	}
-	return l, nil
-}
+func DefaultLimits() Limits { return edit.DefaultLimits() }
 
 type blob struct {
 	SHA256 string `json:"sha256"`
@@ -113,17 +73,7 @@ type Report struct {
 	Metadata         string `json:"metadata"`
 }
 
-func nameKey(rules filesystem.NameRules) (func(string) string, error) {
-	switch rules.Format {
-	case "APFS":
-		return func(s string) string { return names.APFS(s, rules.CaseSensitive, rules.NormalizationInsensitive) }, nil
-	case "HFS+":
-		if rules.NormalizationInsensitive {
-			return func(s string) string { return names.HFS(s, rules.CaseSensitive) }, nil
-		}
-	}
-	return nil, fmt.Errorf("workspace filename rules: %w", filesystem.ErrUnsupported)
-}
+func nameKey(r filesystem.NameRules) (func(string) string, error) { return edit.NameKey(r) }
 
 func validComponent(s string) bool {
 	return s != "" && s != "." && s != ".." && !strings.ContainsAny(s, "/\x00") && len(s) <= 1024
@@ -175,56 +125,7 @@ func allBlobs(o object) []blob {
 func kind(o object) uint32 { return o.Node.Metadata.Mode.Value & 0170000 }
 
 // Unknown observation states cannot silently acquire meaning when reopened.
-func validNode(n filesystem.Node) bool {
-	m := n.Metadata
-	if len(n.MetadataModified) > len(metadataFields) || len(n.AttributesModified) > maxAttributes {
-		return false
-	}
-	for i, name := range n.MetadataModified {
-		if !slices.Contains(metadataFields, name) || (i > 0 && n.MetadataModified[i-1] >= name) {
-			return false
-		}
-		states := map[string]filesystem.State{"mode": m.Mode.State, "uid": m.UID.State, "gid": m.GID.State, "bsdFlags": m.BSDFlags.State, "birthTime": m.BirthTime.State, "modifyTime": m.ModifyTime.State, "accessTime": m.AccessTime.State}
-		if states[name] != filesystem.Present {
-			return false
-		}
-	}
-	for i, name := range n.AttributesModified {
-		if !validAttributeName(name) || (i > 0 && n.AttributesModified[i-1] >= name) {
-			return false
-		}
-	}
-	for _, state := range []filesystem.State{m.Mode.State, m.UID.State, m.GID.State,
-		m.BSDFlags.State, m.BirthTime.State, m.ModifyTime.State, m.ChangeTime.State,
-		m.AccessTime.State, n.Links.State, n.Compression.State} {
-		if state > filesystem.Present {
-			return false
-		}
-	}
-	mode := m.Mode.Value & 0170000
-	if n.LinksModified && (mode == 0040000 || n.Links.State != filesystem.Present || n.Links.Value == 0) {
-		return false
-	}
-	if n.Created {
-		for _, state := range []filesystem.State{m.Mode.State, m.UID.State, m.GID.State, m.BSDFlags.State, m.BirthTime.State, m.ModifyTime.State, m.ChangeTime.State, m.AccessTime.State} {
-			if state != filesystem.Present {
-				return false
-			}
-		}
-		if n.Identity.View != 0 || n.Compression.State != filesystem.Absent || m.BSDFlags.Value&32 != 0 {
-			return false
-		}
-		if mode == 0100000 && !n.DataModified {
-			return false
-		}
-		if mode != 0040000 && (n.Links.State != filesystem.Present || n.Links.Value == 0) {
-			return false
-		}
-	} else if strings.HasPrefix(n.Identity.Volume, "workspace:") {
-		return false
-	}
-	return n.Identity.Object != 0 && m.Mode.State == filesystem.Present && (!n.DataModified || m.Mode.Value&0170000 == 0100000)
-}
+func validNode(n filesystem.Node) bool { return edit.ValidNode(n) }
 
 // Created object numbers are keys in the workspace graph, not native inode IDs.
 func createdIdentity(id filesystem.Identity) bool {

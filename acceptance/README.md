@@ -464,3 +464,44 @@ link identities, all unchanged metadata, source identity and changed-field recor
 It invokes no Go code. Outputs use the same complete-tree archive transport as the
 other editing families. Parser, cancellation, failed source, unsupported ownership,
 source-preservation and provenance controls remain focused unit tests.
+
+## File-command sessions
+
+`file-commands` qualifies the ordinary command interface over persistent scratch.
+Each APFS, case-sensitive APFS, HFS+ and HFSX case captures 17 original entries,
+23 Apple operations, five rejection controls and 31 final entries. The journey
+copies an application bundle, imports host payloads, applies symbolic/recursive
+permissions, links, ownership, BSD flags, timestamps, attributes and resource
+forks, and removes a directory tree. Apple libc supplies 390 independent
+`setmode/getmode` vectors per profile.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario file-commands --output artifacts/native/file-commands/macos-27
+APFS_NATIVE_COMMANDS=../artifacts/native/file-commands APFS_COMMAND_OUTPUT=../artifacts/file-commands go test -v ./acceptance -run '^TestNativeFileCommands$'
+```
+
+The replay starts a session from the before image and invokes each operation in a
+separate CLI process. Rejected commands must leave its revision byte-identical.
+Exports before/after return to all three Macs; `verify_file_commands.py` checks
+names, metadata, data, raw attributes/forks, hard-link groups, logical identities
+and portable projections independently of Go. The existing workflow requires all
+three native producers and all Linux/Windows/macOS consumers.
+
+Native command mounts explicitly use `noatime`; observation uses lstat against a
+fixed path inventory, avoiding observer-created access-time effects. Recorded
+runtime clock intervals map to the fixed session clock at the target filesystem's
+precision. Historical explicit assignments remain exact. Native compression
+storage on a new copy may differ from the session's logical uncompressed copy.
+Runner-injected `com.apple.provenance` on newly created objects remains in native
+evidence and is excluded only where no copied source supplied it. Copied security
+metadata is still checked byte-for-byte. See [the contract](../docs/sessions.md).
+
+Required captures change UID/GID to 60001/60002 with sudo on disposable volumes.
+The retained macOS 15 CI corpus supplies actual ownership changes, including
+physical symlinks during recursive chown. The retained local macOS 27 reference
+records same-owner assignment because this
+account lacks passwordless sudo. Independent local readback accepts
+`--allow-same-owner` only with one local producer and macOS consumer; that option
+cannot bypass the required release matrix. Process-interruption, hash corruption,
+lock conflicts, bounds, symlink traversal and metadata-only content reuse have
+separate focused unit controls.

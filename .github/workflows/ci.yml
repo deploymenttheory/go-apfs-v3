@@ -65,7 +65,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Formatting
-        run: test -z "$(gofmt -l block filesystem diskimage apfs hfsplus inspect internal cmd acceptance workspace appledouble)"
+        run: test -z "$(gofmt -l block filesystem diskimage apfs hfsplus inspect internal cmd acceptance workspace appledouble session)"
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0

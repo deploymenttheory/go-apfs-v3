@@ -225,143 +225,115 @@ func TestExtractAndVerifyPreservationReport(t *testing.T) {
 	}
 }
 
-func TestWorkspaceReplaceProducesSeparateVerifiedOutput(t *testing.T) {
+func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
 	ctx := context.Background()
-	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
 	parent := t.TempDir()
-	baseline := filepath.Join(parent, "before")
-	destination := filepath.Join(parent, "after")
-	contents := filepath.Join(parent, "contents")
+	scratch := filepath.Join(parent, "scratch")
+	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
 	payload := []byte("CLI supplied content\x00\xff")
+	contents := filepath.Join(parent, "contents")
 	if err := os.WriteFile(contents, payload, 0600); err != nil {
 		t.Fatal(err)
 	}
-	var out, diagnostics bytes.Buffer
-	if err := run(ctx, []string{"extract", image, "Fixture", baseline}, nil, &out, &diagnostics); err != nil {
-		t.Fatal(err)
+	invoke := func(args ...string) []byte {
+		t.Helper()
+		var out, diagnostics bytes.Buffer
+		args = append(args, "--scratch-dir", scratch)
+		if err := run(ctx, args, nil, &out, &diagnostics); err != nil {
+			t.Fatalf("%v: %v (%s)", args, err, diagnostics.String())
+		}
+		return out.Bytes()
 	}
-	out.Reset()
-	if err := run(ctx, []string{"workspace", "replace", "--json", baseline, "alias", contents, destination}, nil, &out, &diagnostics); err != nil {
-		t.Fatal(err)
-	}
-	var report struct{ Schema, ModifiedFiles int }
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
-		t.Fatal(err)
-	}
-	if report.Schema != 1 || report.ModifiedFiles != 1 || diagnostics.Len() != 0 {
-		t.Fatal("replacement report", out.String())
-	}
-	for _, name := range []string{"alias", "ordinary", filepath.Join("links", "second")} {
-		data, err := os.ReadFile(filepath.Join(destination, "files", name))
-		if err != nil || !bytes.Equal(data, payload) {
-			t.Fatal("CLI alias replacement", name, err)
+	invoke("session", "open", "--image", image, "--path", "Fixture", "--time", "2026-10-10T00:00:00Z", "build")
+	invoke("mkdir", "--session", "build", "-p", "/_CodeSignature")
+	invoke("cp", "--session", "build", "--from-host", contents, "/_CodeSignature/CodeResources")
+	invoke("ln", "--session", "build", "/_CodeSignature/CodeResources", "/seal-alias")
+	invoke("cp", "--session", "build", "--from-host", contents, "/alias")
+	invoke("rm", "--session", "build", "/empty")
+	invoke("chmod", "--session", "build", "0700", "/seal-alias")
+	invoke("xattr", "--session", "build", "-w", "--value-file", contents, "org.test", "/seal-alias")
+	invoke("cp", "--session", "build", "--from-host", "--resource-fork", contents, "/seal-alias")
+	invoke("xattr", "--session", "build", "-d", "org.go-apfs.keep", "/alias")
+	for _, name := range []string{"alias", "ordinary", "links/second"} {
+		if got := invoke("cat", "--session", "build", "/"+name); !bytes.Equal(got, payload) {
+			t.Fatal(name, string(got))
 		}
 	}
-	out.Reset()
-	if err := run(ctx, []string{"workspace", "verify", baseline}, nil, &out, &diagnostics); err != nil {
-		t.Fatal("source workspace changed", err)
+	destination := filepath.Join(parent, "export")
+	invoke("session", "export", "build", destination)
+	w, err := workspace.Open(ctx, destination)
+	if err != nil {
+		t.Fatal(err)
 	}
-	out.Reset()
-	if err := run(ctx, []string{"workspace", "replace", baseline, "link", contents, filepath.Join(parent, "bad")}, nil, &out, &diagnostics); !errors.Is(err, fs.ErrInvalid) || out.Len() != 0 {
-		t.Fatal("replacement followed symlink", err)
+	defer w.Close()
+	created, err := filesystem.Lookup(ctx, w, "seal-alias")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := filesystem.Lookup(ctx, w, "_CodeSignature/CodeResources")
+	if err != nil || created != other {
+		t.Fatal("lost alias", err)
+	}
+	node, err := w.Stat(ctx, created)
+	if err != nil || node.Metadata.Mode.Value != 0100700 {
+		t.Fatal(node, err)
+	}
+	if got := invoke("xattr", "--session", "build", "-p", "org.test", "/seal-alias"); !bytes.Equal(got, payload) {
+		t.Fatal("attribute bytes", got)
+	}
+	var out, diagnostics bytes.Buffer
+	if err := run(ctx, []string{"workspace", "edit", "changes.json"}, nil, &out, &diagnostics); err == nil || out.Len() != 0 {
+		t.Fatal("legacy JSON plan accepted", err)
 	}
 }
 
-func TestWorkspaceEditPlanCreatesAndReplacesInOneOutput(t *testing.T) {
+func TestSessionCommandFlagsAndDefaults(t *testing.T) {
 	ctx := context.Background()
-	parent := t.TempDir()
-	baseline := filepath.Join(parent, "before")
-	destination := filepath.Join(parent, "after")
-	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
+	scratch := t.TempDir()
 	var out, diagnostics bytes.Buffer
-	if err := run(ctx, []string{"extract", image, "Fixture", baseline}, nil, &out, &diagnostics); err != nil {
-		t.Fatal(err)
+	commands := [][]string{
+		{"session", "create", "--filesystem", "apfs", "--time", "2026-01-01T00:00:00Z", "build"},
+		{"mkdir", "--session", "build", "-pm755", "/a/b"},
+		{"touch", "--session", "build", "/a/b/file"},
+		{"chmod", "--session", "build", "--", "-w", "/a/b/file"},
 	}
-	w, err := workspace.Open(ctx, baseline)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, err := filesystem.Lookup(ctx, w, "alias")
-	if err != nil {
-		t.Fatal(err)
-	}
-	n, err := w.Stat(ctx, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w.Close()
-	directory := n.Metadata
-	directory.Mode = filesystem.Observed(uint32(0040755))
-	directory.BSDFlags = filesystem.Observed(uint32(0))
-	payload := []byte("explicit edit input")
-	if err := os.WriteFile(filepath.Join(parent, "payload"), payload, 0600); err != nil {
-		t.Fatal(err)
-	}
-	plan := map[string]any{"schema": 1, "changes": []map[string]any{
-		{"op": "mkdir", "path": "_CodeSignature", "metadata": directory},
-		{"op": "create", "path": "_CodeSignature/CodeResources", "contents": "payload", "metadata": n.Metadata, "attributes": []map[string]string{{"name": "org.test", "contents": "payload"}}},
-		{"op": "link", "path": "_CodeSignature/CodeResources", "to": "seal-alias"},
-		{"op": "replace", "path": "alias", "contents": "payload"},
-		{"op": "remove", "path": "empty"},
-		{"op": "metadata", "path": "seal-alias", "metadata": filesystem.Metadata{Mode: filesystem.Observed(uint32(0100700))}},
-		{"op": "setxattr", "path": "seal-alias", "attribute": "org.test", "attributeMode": "replace", "contents": "payload"},
-		{"op": "resource-fork", "path": "seal-alias", "contents": "payload"},
-		{"op": "removexattr", "path": "alias", "attribute": "org.go-apfs.keep"},
-	}}
-	encoded, err := json.Marshal(plan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	planFile := filepath.Join(parent, "changes.json")
-	if err := os.WriteFile(planFile, encoded, 0600); err != nil {
-		t.Fatal(err)
+	for _, args := range commands {
+		// Put common options before --, where all remaining words are operands.
+		args = append(args[:1], append([]string{"--scratch-dir", scratch}, args[1:]...)...)
+		if args[0] == "session" {
+			args = []string{"session", "create", "--scratch-dir", scratch, "--filesystem", "apfs", "--time", "2026-01-01T00:00:00Z", "build"}
+		}
+		out.Reset()
+		if err := run(ctx, args, nil, &out, &diagnostics); err != nil {
+			t.Fatal(args, err)
+		}
 	}
 	out.Reset()
-	if err := run(ctx, []string{"workspace", "edit", "--json", baseline, planFile, destination}, nil, &out, &diagnostics); err != nil {
+	if err := run(ctx, []string{"stat", "--session", "build", "--scratch-dir", scratch, "--json", "/a/b/file"}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
 	}
-	var report struct{ Schema, CreatedObjects, ModifiedFiles, MetadataObjects, AttributeObjects int }
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+	var node filesystem.Node
+	if err := json.Unmarshal(out.Bytes(), &node); err != nil {
 		t.Fatal(err)
 	}
-	if report.Schema != 1 || report.CreatedObjects != 2 || report.ModifiedFiles != 2 || report.MetadataObjects != 1 || report.AttributeObjects != 2 {
-		t.Fatal("edit report", out.String())
+	if node.Metadata.Mode.Value != 0100444 || node.Metadata.UID.Value != 0 {
+		t.Fatal(node)
 	}
-	result, err := workspace.Open(ctx, destination)
+}
+
+func TestPortableSessionNames(t *testing.T) {
+	for _, name := range []string{"../build", "build.", "CON", "aux.data", "LPT1", "COM9.txt"} {
+		if _, err := sessionDirectory(t.TempDir(), name); err == nil {
+			t.Fatal("accepted nonportable session name", name)
+		}
+	}
+	root := t.TempDir()
+	a, err := sessionDirectory(root, "Build")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer result.Close()
-	created, err := filesystem.Lookup(ctx, result, "_CodeSignature/CodeResources")
-	if err != nil {
-		t.Fatal(err)
-	}
-	alias, err := filesystem.Lookup(ctx, result, "seal-alias")
-	if err != nil || created != alias {
-		t.Fatal("plan link", err)
-	}
-	if _, err := result.OpenAttribute(ctx, id, "org.go-apfs.keep"); !errors.Is(err, fs.ErrNotExist) {
-		t.Fatal("plan attribute removal", err)
-	}
-	node, err := result.Stat(ctx, created)
-	if err != nil || node.Metadata.Mode.Value != 0100700 {
-		t.Fatal("plan metadata", err)
-	}
-	value, err := result.OpenAttribute(ctx, created, "org.test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	b := make([]byte, len(payload))
-	_, err = value.ReadAt(b, 0)
-	value.Close()
-	if err != nil || !bytes.Equal(b, payload) {
-		t.Fatal("plan attribute input", err)
-	}
-	if err := os.WriteFile(planFile, []byte(`{"schema":1,"changes":[],"unexpected":true}`), 0600); err != nil {
-		t.Fatal(err)
-	}
-	out.Reset()
-	if err := run(ctx, []string{"workspace", "edit", baseline, planFile, filepath.Join(parent, "invalid")}, nil, &out, &diagnostics); err == nil || out.Len() != 0 {
-		t.Fatal("unknown plan field accepted", err)
+	b, err := sessionDirectory(root, "build")
+	if err != nil || a != b {
+		t.Fatal("host case policy changes session selection", a, b, err)
 	}
 }
