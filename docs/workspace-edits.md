@@ -43,7 +43,9 @@ report, err := baseline.Edit(ctx, changes, newDirectory, workspace.Limits{})
 `directoryMetadata` and `fileMetadata` are explicit `filesystem.Metadata` values
 supplied by the caller. All untouched source metadata and timestamps remain
 recorded. Link counts change by the operation's delta, so aliases outside an
-extracted subtree are retained. Newly created objects have `Created` set and a
+extracted subtree are retained. Uncaptured counts remain uncaptured during unrelated edits; link-count
+changes require an observed value and otherwise return `ErrUnsupported`.
+Newly created objects have `Created` set and a
 `workspace:` creation digest as their identity's Volume, with View zero. These
 object numbers are workspace graph keys, not native APFS/HFS+ inode numbers.
 `LinksModified` records adjusted link counts. The creation identity remains stable

@@ -199,3 +199,51 @@ func TestEditPreflightAndStreamingFailuresNeverPublish(t *testing.T) {
 		t.Fatal("closed workspace edited", err)
 	}
 }
+
+// An uncaptured field is not corruption. Unrelated operations must preserve it;
+// adding/removing an alias requires the missing count and must fail explicitly.
+func TestEditPreservesUncapturedLinksUntilNeeded(t *testing.T) {
+	w, id, _ := replacementBaseline(t)
+	ctx := context.Background()
+	source := uncapturedLinks{Reader: w, id: id}
+	baseline := filepath.Join(t.TempDir(), "uncaptured")
+	if _, err := Extract(ctx, source, source.Root(), baseline, Limits{}); err != nil {
+		t.Fatal(err)
+	}
+	unknown, err := Open(ctx, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unknown.Close()
+	destination := filepath.Join(t.TempDir(), "renamed")
+	if _, err := unknown.Edit(ctx, []Change{{Op: RenameEntry, Path: "alias", To: "renamed"}}, destination, Limits{}); err != nil {
+		t.Fatal("unrelated rename rejected", err)
+	}
+	renamed, err := Open(ctx, destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer renamed.Close()
+	n, err := renamed.Stat(ctx, id)
+	if err != nil || n.Links.State != filesystem.Uncaptured {
+		t.Fatal("invented missing link count", err)
+	}
+	for _, change := range []Change{{Op: RemoveEntry, Path: "renamed"}, {Op: CreateHardLink, Path: "renamed", To: "new-link"}} {
+		if _, err := renamed.Edit(ctx, []Change{change}, filepath.Join(t.TempDir(), "failed"), Limits{}); !errors.Is(err, filesystem.ErrUnsupported) {
+			t.Fatal("guessed missing link count", err)
+		}
+	}
+}
+
+type uncapturedLinks struct {
+	filesystem.Reader
+	id uint64
+}
+
+func (r uncapturedLinks) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
+	n, err := r.Reader.Stat(ctx, id)
+	if id == r.id {
+		n.Links = filesystem.Observation[uint32]{}
+	}
+	return n, err
+}

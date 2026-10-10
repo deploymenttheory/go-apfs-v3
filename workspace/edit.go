@@ -135,7 +135,7 @@ func (w *Workspace) editReader(ctx context.Context, limits Limits) (*editReader,
 		}
 	}
 	for _, o := range r.nodes {
-		if o.node.Metadata.Mode.Value&0170000 == 0100000 && (o.node.Links.State != filesystem.Present || uint64(o.node.Links.Value) < uint64(o.refs)) {
+		if o.node.Metadata.Mode.Value&0170000 == 0100000 && (o.node.Links.State == filesystem.Present && uint64(o.node.Links.Value) < uint64(o.refs)) {
 			return nil, filesystem.ErrCorrupt
 		}
 	}
@@ -520,7 +520,10 @@ func (r *editReader) create(parent uint64, name string, c Change) error {
 }
 func (r *editReader) linkCount(o *editedObject, delta int) error {
 	n := &o.node
-	if n.Links.State != filesystem.Present || n.Links.Value == 0 {
+	if n.Links.State != filesystem.Present {
+		return filesystem.ErrUnsupported
+	}
+	if n.Links.Value == 0 {
 		return filesystem.ErrCorrupt
 	}
 	if delta > 0 && n.Links.Value == math.MaxUint32 {
