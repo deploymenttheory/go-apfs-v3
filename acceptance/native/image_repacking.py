@@ -32,10 +32,10 @@ class Commands:
         self.path = diagnostics
         self.records = []
 
-    def __call__(self, *argv, fixture_input=None):
+    def __call__(self, *argv, fixture_input=None, expected_success=True):
         display = [str(a) if len(str(a)) <= 256 else f'<{len(str(a))} characters>' for a in argv]
         print('native:', *display, flush=True)
-        record = {'argv': list(map(str, argv)), 'status': 'started'}
+        record = {'argv': list(map(str, argv)), 'status': 'started', 'expectedSuccess': expected_success}
         self.records.append(record)
         self.save()
         try:
@@ -44,7 +44,7 @@ class Commands:
             record.update(status='failed', error=str(error)); self.save(); raise
         record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace'))
         self.save()
-        if r.returncode:
+        if (r.returncode == 0) != expected_success:
             raise RuntimeError(f'command failed: {argv}: {record["stdout"]} {record["stderr"]}')
         return r.stdout
 

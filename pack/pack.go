@@ -5,6 +5,7 @@ package pack
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -18,8 +19,9 @@ import (
 )
 
 type Options struct {
-	Volume VolumeOptions
-	Format string
+	Volume     VolumeOptions
+	Format     string
+	Encryption *diskimage.EncryptionOptions
 }
 
 // VolumeOptions supplies fresh construction choices. The reader's native format
@@ -39,10 +41,11 @@ type layout interface {
 	Write(context.Context, io.Writer) error
 }
 type Report struct {
-	Format      string `json:"format"`
-	Filesystem  string `json:"filesystem"`
-	VolumeBytes int64  `json:"volumeBytes"`
-	ImageBytes  int64  `json:"imageBytes"`
+	Format      string                `json:"format"`
+	Filesystem  string                `json:"filesystem"`
+	VolumeBytes int64                 `json:"volumeBytes"`
+	ImageBytes  int64                 `json:"imageBytes"`
+	Encryption  *diskimage.Encryption `json:"encryption,omitempty"`
 }
 
 // Write streams a fresh volume through the DMG encoder. The caller owns the
@@ -51,6 +54,11 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	var report Report
 	if out == nil || r == nil {
 		return report, fs.ErrInvalid
+	}
+	if o.Encryption != nil {
+		if err := o.Encryption.Validate(); err != nil {
+			return report, err
+		}
 	}
 	if o.Format == "" {
 		o.Format = "UDZO"
@@ -80,11 +88,11 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if err != nil {
 		return report, err
 	}
-	imageBytes, err := encodeLayout(ctx, out, plan, o.Format, hint)
+	imageBytes, err := encodeLayout(ctx, out, plan, o.Format, hint, o.Encryption)
 	if err != nil {
 		return report, err
 	}
-	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes}
+	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes, Encryption: encryptionInfo(o.Encryption)}
 	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
@@ -93,15 +101,17 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 
 // ContainerOptions packages a fresh APFS container with one or more volumes.
 type ContainerOptions struct {
-	APFS   apfs.ContainerBuildOptions
-	Format string
+	APFS       apfs.ContainerBuildOptions
+	Format     string
+	Encryption *diskimage.EncryptionOptions
 }
 
 type ContainerReport struct {
-	Format         string `json:"format"`
-	VolumeCount    int    `json:"volumeCount"`
-	ContainerBytes int64  `json:"containerBytes"`
-	ImageBytes     int64  `json:"imageBytes"`
+	Format         string                `json:"format"`
+	VolumeCount    int                   `json:"volumeCount"`
+	ContainerBytes int64                 `json:"containerBytes"`
+	ImageBytes     int64                 `json:"imageBytes"`
+	Encryption     *diskimage.Encryption `json:"encryption,omitempty"`
 }
 
 // WriteContainer streams one fresh APFS container through the DMG encoder.
@@ -110,6 +120,11 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 	var report ContainerReport
 	if out == nil {
 		return report, fs.ErrInvalid
+	}
+	if o.Encryption != nil {
+		if err := o.Encryption.Validate(); err != nil {
+			return report, err
+		}
 	}
 	if o.Format == "" {
 		o.Format = "UDZO"
@@ -121,11 +136,11 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 	if err != nil {
 		return report, err
 	}
-	n, err := encodeLayout(ctx, out, plan, o.Format, "Apple_APFS")
+	n, err := encodeLayout(ctx, out, plan, o.Format, "Apple_APFS", o.Encryption)
 	if err != nil {
 		return report, err
 	}
-	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n}, nil
+	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption)}, nil
 }
 
 // CreateContainer uses the same no-overwrite publication contract as Create.
@@ -134,7 +149,17 @@ func CreateContainer(ctx context.Context, path string, volumes []apfs.VolumeSpec
 	return report, err
 }
 
-func encodeLayout(ctx context.Context, out io.Writer, plan layout, format, hint string) (int64, error) {
+func encodeLayout(ctx context.Context, out io.Writer, plan layout, format, hint string, encryption *diskimage.EncryptionOptions) (int64, error) {
+	if encryption != nil {
+		seeker, ok := out.(io.WriteSeeker)
+		if !ok {
+			return 0, fmt.Errorf("encrypted output requires a seekable destination: %w", fs.ErrInvalid)
+		}
+		return diskimage.Encrypt(ctx, seeker, *encryption, func(w io.Writer) error {
+			_, err := encodeLayout(ctx, w, plan, format, hint, nil)
+			return err
+		})
+	}
 	input, producer := io.Pipe()
 	done := make(chan error, 1)
 	go func() { err := plan.Write(ctx, producer); _ = producer.CloseWithError(err); done <- err }()
@@ -208,4 +233,11 @@ func publish(ctx context.Context, path string, write func(io.Writer) error) (err
 	err = os.Link(temporary, path)
 	published = err == nil
 	return err
+}
+
+func encryptionInfo(o *diskimage.EncryptionOptions) *diskimage.Encryption {
+	if o == nil {
+		return nil
+	}
+	return &diskimage.Encryption{Version: 2, Cipher: "AES-CBC", KeyBits: o.KeyBits, BlockSize: 512}
 }

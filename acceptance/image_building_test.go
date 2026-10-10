@@ -91,6 +91,12 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 			if _, err = pack.Create(ctx, repeat, s, options); err != nil {
 				t.Fatal(err)
 			}
+			buildEncryptedOutput(t, destination, encryptedBuildBits(strings.TrimPrefix(caseID, "image-building/"), format), func(path string, encryption *diskimage.EncryptionOptions) error {
+				encryptedOptions := options
+				encryptedOptions.Encryption = encryption
+				_, err := pack.Create(ctx, path, s, encryptedOptions)
+				return err
+			})
 			sum := fileDigest(t, destination)
 			if sum != fileDigest(t, repeat) {
 				t.Fatal("identical build inputs produced different bytes")

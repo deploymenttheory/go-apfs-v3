@@ -42,7 +42,7 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return err
 	}
 	if args[0] == "pack" {
-		return packCommand(ctx, args[1:], out, diagnostics)
+		return packCommand(ctx, args[1:], input, out, diagnostics)
 	}
 	if args[0] == "session" {
 		return sessions(ctx, args[1:], input, out, diagnostics)

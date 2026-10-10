@@ -221,6 +221,12 @@ func buildNativeContainer(t *testing.T, image string, want containerObservation,
 			if _, err = pack.CreateContainer(ctx, repeat, inputs, options); err != nil {
 				t.Fatal(err)
 			}
+			buildEncryptedOutput(t, destination, encryptedBuildBits(caseID, encoding), func(path string, encryption *diskimage.EncryptionOptions) error {
+				encryptedOptions := options
+				encryptedOptions.Encryption = encryption
+				_, err := pack.CreateContainer(ctx, path, inputs, encryptedOptions)
+				return err
+			})
 			digest := fileDigest(t, destination)
 			if digest != fileDigest(t, repeat) {
 				t.Fatal("nondeterministic container output")

@@ -20,9 +20,9 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
-func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+func packCommand(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if packHasVolumes(args) {
-		return packVolumesCommand(ctx, args, out, diagnostics)
+		return packVolumesCommand(ctx, args, input, out, diagnostics)
 	}
 	f := flag.NewFlagSet("pack", flag.ContinueOnError)
 	f.SetOutput(diagnostics)
@@ -30,6 +30,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		_, _ = fmt.Fprintln(diagnostics, "Usage: apfs pack [options] SOURCE NEW_DMG\n       apfs pack --session NAME [options] NEW_DMG\n       apfs pack --volume NAME [--session NAME | --directory PATH] [volume options] [--volume ...] NEW_DMG\nUse pack --volume NAME --help for APFS container options.")
 		f.PrintDefaults()
 	}
+	encryption := addPackEncryptionFlags(f, true)
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	filesystemName := f.String("filesystem", "", "directory target: apfs, hfsplus or hfsx; sessions retain their format")
@@ -72,7 +73,13 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
 			}
-			report, e := pack.Repack(ctx, operands[0], operands[1], *format)
+			crypt, e := encryption.options(input, true)
+			if e != nil {
+				return e
+			}
+			defer clearPackPasswords(crypt)
+			crypt.Format = *format
+			report, e := pack.RepackWithOptions(ctx, operands[0], operands[1], crypt)
 			if e != nil {
 				return e
 			}
@@ -86,6 +93,11 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return e
 		}
 	}
+	crypt, err := encryption.options(input, false)
+	if err != nil {
+		return err
+	}
+	defer clearPackPasswords(crypt)
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {
 		clock, err = time.Parse(time.RFC3339, *fixed)
@@ -93,7 +105,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return err
 		}
 	}
-	options := pack.Options{Format: *format, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
+	options := pack.Options{Format: *format, Encryption: crypt.Encryption, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
