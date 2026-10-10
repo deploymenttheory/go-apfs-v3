@@ -113,10 +113,10 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 	}()
 	m := w.document
-	if m.Schema != 1 && m.Schema != 2 {
+	if m.Schema != 1 && m.Schema != 2 && m.Schema != 3 {
 		return fmt.Errorf("workspace schema %d: %w", m.Schema, filesystem.ErrUnsupported)
 	}
-	if m.ParentManifestSHA256 != "" && (m.Schema != 2 || !validBlob(blob{SHA256: m.ParentManifestSHA256})) {
+	if m.ParentManifestSHA256 != "" && (m.Schema < 2 || !validBlob(blob{SHA256: m.ParentManifestSHA256})) {
 		return filesystem.ErrCorrupt
 	}
 	w.key, err = nameKey(m.Names)
@@ -126,7 +126,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 	if len(m.Objects) == 0 || len(m.Entries) == 0 || len(m.Objects) > DefaultLimits().Objects || len(m.Entries) > DefaultLimits().Entries {
 		return filesystem.ErrLimit
 	}
-	modified := 0
+	modified, created := 0, 0
 	for _, o := range m.Objects {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -136,9 +136,18 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		if !validNode(o.Node) || w.objects[id].Node.Identity.Object != 0 || len(o.Attributes) > maxAttributes {
 			return filesystem.ErrCorrupt
 		}
+		if o.Node.Created {
+			created++
+			if m.Schema < 3 || !createdIdentity(o.Node.Identity) {
+				return filesystem.ErrCorrupt
+			}
+		}
+		if o.Node.LinksModified && m.Schema < 3 {
+			return filesystem.ErrCorrupt
+		}
 		if o.Node.DataModified {
 			modified++
-			if m.Schema != 2 || kind(o) != 0100000 || o.Data == nil || o.RawData == nil || *o.Data != *o.RawData || o.Node.Compression.State != filesystem.Absent || o.Node.Metadata.BSDFlags.State != filesystem.Present || o.Node.Metadata.BSDFlags.Value&32 != 0 {
+			if m.Schema < 2 || kind(o) != 0100000 || o.Data == nil || o.RawData == nil || *o.Data != *o.RawData || o.Node.Compression.State != filesystem.Absent || o.Node.Metadata.BSDFlags.State != filesystem.Present || o.Node.Metadata.BSDFlags.Value&32 != 0 {
 				return filesystem.ErrCorrupt
 			}
 		}
@@ -172,21 +181,28 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 		w.objects[id] = o
 	}
-	origin, ok := w.objects[m.Root]
-	if !ok {
+	if _, ok := w.objects[m.Root]; !ok {
 		return filesystem.ErrCorrupt
 	}
+	var origin filesystem.Identity
+	haveOrigin := false
 	for _, o := range m.Objects {
-		if o.Node.Identity.Volume != origin.Node.Identity.Volume || o.Node.Identity.View != origin.Node.Identity.View {
+		if o.Node.Created {
+			continue
+		}
+		if haveOrigin && (o.Node.Identity.Volume != origin.Volume || o.Node.Identity.View != origin.View) {
 			return filesystem.ErrCorrupt
 		}
+		origin = o.Node.Identity
+		haveOrigin = true
 	}
+
 	directories := map[uint64]string{}
 	used := map[uint64]bool{}
 	host := map[string]bool{}
 	native := map[uint64]map[string]bool{}
 	depth := map[uint64]int{}
-	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy, ModifiedFiles: modified}
+	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy, ModifiedFiles: modified, CreatedObjects: created}
 	for i, e := range m.Entries {
 		if err := ctx.Err(); err != nil {
 			return err

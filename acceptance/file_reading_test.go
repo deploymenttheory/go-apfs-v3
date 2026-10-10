@@ -22,6 +22,7 @@ import (
 )
 
 type fileObservation struct {
+	TreeEdits             *nativeTreeEdits             `json:"treeEdits,omitempty"`
 	Replacement           *nativeReplacement           `json:"replacement,omitempty"`
 	RawAttributes         []nativeRawAttributes        `json:"rawAttributes,omitempty"`
 	Preservation          *nativePreservation          `json:"preservation,omitempty"`
@@ -98,8 +99,11 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
-			if scenario == "content-replacement" {
+			if scenario == "content-replacement" || scenario == "tree-edits" {
 				required := []string{"content_replacement.py", "file_compression.py", "preservation.py"}
+				if scenario == "tree-edits" {
+					required = append(required, "tree_edits.py")
+				}
 				if len(c.Producer.Sources) != len(required) {
 					t.Fatal("missing replacement source provenance")
 				}
@@ -194,6 +198,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 					if scenario == "content-replacement" {
 						compareReplacement(t, reader, want, dir, test.ID, major)
+					}
+					if scenario == "tree-edits" {
+						compareTreeEdits(t, reader, want, dir, test.ID, major)
 					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)

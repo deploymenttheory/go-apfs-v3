@@ -135,3 +135,30 @@ func Lookup(ctx context.Context, r filesystem.Reader, parent uint64, name string
 	}
 	return result, err
 }
+
+// Stored returns a new POSIX-visible filename using Apple's frozen HFS+
+// decomposition. Both formats limit names to 255 UTF-16 units; HFS+ applies
+// that limit after decomposition. APFS retains the supplied Unicode spelling.
+func Stored(s, format string) (string, error) {
+	if s == "" || s == "." || s == ".." || !utf8.ValidString(s) || strings.ContainsAny(s, "/\x00") {
+		return "", fs.ErrInvalid
+	}
+	if len(s) > 1024 {
+		return "", filesystem.ErrLimit
+	}
+	switch format {
+	case "APFS":
+	case "HFS+":
+		s = string(normalize([]rune(s), hfsDecomposition, hfsClass))
+	default:
+		return "", filesystem.ErrUnsupported
+	}
+	units := 0
+	for _, r := range s {
+		units += utf16.RuneLen(r)
+	}
+	if units > 255 {
+		return "", filesystem.ErrLimit
+	}
+	return s, nil
+}

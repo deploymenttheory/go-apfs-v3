@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; general import and structural editing pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered creation/rename/removal/link batches implemented; general import pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -174,8 +174,8 @@ relationships remain recorded even when the host requires independent files.
 Malformed trees, missing attributes, cancellation, resource limits and partial
 I/O fail explicitly. A completion manifest is published only after every value
 has been stored. Existing workspace data remains immutable. The next content-replacement
-increment below writes a separate workspace; general import and structural
-editing remain later phase-3 work.
+increment below writes a separate workspace; ordered tree edits follow it, with
+general external import remaining later work.
 
 AppleDouble operates on serialized metadata values using the pinned Apple
 `copyfile` layouts. Native `COPYFILE_PACK` output is decoded and re-encoded on
@@ -224,8 +224,42 @@ unchanged objects and source provenance. The focused retained family takes about
 two seconds locally. Existing preservation and reader gates remain required.
 Unit controls cover partial/failed reads, cancellation, changing input, duplicate
 identities, limits, unknown ownership and output containment. Durable transactions,
-namespace edits, compression encoding and filesystem writes retain their later
-phase gates.
+compression encoding and filesystem writes retain their later phase gates.
+Namespace edits are qualified by the following increment.
+
+## Ordered workspace tree editing increment
+
+A batch can create directories/files/symlinks, create regular-file hard links,
+rename or move entries, remove files/empty directories and replace contents.
+Later operations resolve against earlier edits; the final workspace is captured
+once. Native filename spelling/comparison, rename replacement, same-inode rename,
+cycle rejection, external aliases and source metadata retention are explicit.
+New objects require supplied metadata and initial attribute/fork values. Native
+process-added provenance is captured as an explicit input, never synthesized by Go.
+
+The `tree-edits` acceptance family uses 18 initial entries and 21 final entries
+per filesystem. Eighteen native operations cover an application-style update,
+linked source and created files, overwritten targets with surviving aliases,
+case-only renames, moving a populated directory, empty-directory replacement,
+symlink creation and compressed-file replacement after a move. Eight native
+rejections and six ASCII/BMP/supplementary-character name probes establish error
+and filename boundary behavior. HFS+ spelling is observed after decomposition.
+
+Native before/after images and supplied creation metadata/attributes are recorded
+on macOS 15/26/27. Each portable host returns actual baseline/edited workspaces.
+Independent Python verification on each required Mac compares 36 workspace pairs,
+756 final entries and 648 native operations, preserving source and supplied
+creation timestamps by documented policy. Existing preservation/AppleDouble and
+all other native families remain required. The retained comparison takes about
+three seconds locally; cases share the existing capture and verification paths.
+
+Focused controls cover later-batch failure, short reads, failed attributes,
+cancellation, closed owners, duplicate replacement aliases, symlink traversal,
+subtree link counts and byte-identical output for identical inputs. New identities
+are workspace creation digests, visibly separate from captured native identities.
+Schema 3 retains creation/link-change markers through subsequent editing and
+subtree extraction. General host import and filesystem-image creation remain
+separate work. This completes the scoped logical tree-editing increment.
 
 ## Required phase gates
 

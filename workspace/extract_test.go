@@ -229,6 +229,8 @@ func TestWorkspaceRejectsInvalidManifest(t *testing.T) {
 	}{
 		{"projection escape", func(m *manifest) { m.Entries[0].HostPath = "../outside" }},
 		{"missing object", func(m *manifest) { m.Entries[0].Object++ }},
+		{"created flag in old schema", func(m *manifest) { m.Objects[0].Node.Created = true }},
+		{"changed links in old schema", func(m *manifest) { m.Objects[0].Node.LinksModified = true }},
 		{"unknown observation state", func(m *manifest) { m.Objects[0].Node.Metadata.UID.State = 3 }},
 		{"invalid blob size", func(m *manifest) { m.Objects[0].Data.Size = -1 }},
 		{"unavailable raw data", func(m *manifest) { m.Objects[0].RawData = nil }},

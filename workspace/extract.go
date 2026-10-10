@@ -109,6 +109,8 @@ type capture struct {
 	transferred   int64
 	metadataBytes int
 	key           func(string) string
+	source        filesystem.Identity
+	haveSource    bool
 }
 
 func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) error {
@@ -133,16 +135,26 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 		if n.Identity.Object != id || !validNode(n) {
 			return fmt.Errorf("workspace object identity or mode: %w", filesystem.ErrCorrupt)
 		}
-		if len(x.manifest.Objects) > 0 {
-			origin := x.manifest.Objects[0].Node.Identity
-			if n.Identity.Volume != origin.Volume || n.Identity.View != origin.View {
+		if !n.Created {
+			if x.haveSource && (n.Identity.Volume != x.source.Volume || n.Identity.View != x.source.View) {
 				return fmt.Errorf("mixed source views: %w", filesystem.ErrCorrupt)
 			}
+			x.source = n.Identity
+			x.haveSource = true
+		} else if n.Identity.View != 0 || (n.Identity.Volume != "" && !createdIdentity(n.Identity)) {
+			return filesystem.ErrCorrupt
 		}
+
 		o := object{Node: n, Attributes: []attribute{}}
 		if n.DataModified {
-			x.manifest.Schema = 2
+			x.manifest.Schema = max(x.manifest.Schema, 2)
 			x.manifest.Report.ModifiedFiles++
+		}
+		if n.Created || n.LinksModified {
+			x.manifest.Schema = 3
+		}
+		if n.Created {
+			x.manifest.Report.CreatedObjects++
 		}
 		switch kind(o) {
 		case 0040000:
@@ -216,6 +228,19 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 				return err
 			}
 			o.Attributes = append(o.Attributes, attribute{[]byte(name), b})
+		}
+		if n.Created && n.Identity.Volume == "" {
+			// Derive a stable creation namespace from this parent and captured object.
+			// The data/fork hashes are already available; no extra payload pass is needed.
+			encoded, err := json.Marshal(struct {
+				Parent string
+				Object object
+			}{x.manifest.ParentManifestSHA256, o})
+			if err != nil {
+				return err
+			}
+			sum := sha256.Sum256(encoded)
+			o.Node.Identity.Volume = "workspace:" + hex.EncodeToString(sum[:])
 		}
 		index = len(x.manifest.Objects)
 		x.objects[id] = index

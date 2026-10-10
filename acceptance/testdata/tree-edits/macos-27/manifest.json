@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "scenario": "tree-edits",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "fc391a828bf2d85f8b7edb4508ed2900a7e026cc56ac1c85d673c7f4de60c4e0",
+    "sources": [
+      {
+        "source": "content_replacement.py",
+        "sha256": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3"
+      },
+      {
+        "source": "file_compression.py",
+        "sha256": "863d278e09de6388a3eab01e6068a7ba1ef09a8ae015d72d3da542aeab1420a4"
+      },
+      {
+        "source": "preservation.py",
+        "sha256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+      },
+      {
+        "source": "tree_edits.py",
+        "sha256": "4d87531849871b0b3ef30f1125dd122080385b47cb3d5063363a2c41062ec0c0"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "tree-edits/apfs",
+      "image": "apfs.dmg",
+      "sha256": "d21e2e80e0325c67f13467f38c57456807dac04c98ffb3b95e36c386a99b3a89",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "659627d737240edba6ce814d152d39a83c84e02b36e7db460c9cd6901f43ab1c",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "01B9D58C-FDF0-45EB-8508-3ABBD925D539"
+      },
+      "files": "apfs-files.json",
+      "filesSHA256": "e4d5eb77ba5b9b172d05d357b0a3fa529165ef6c1651ec7c088257003767656f"
+    },
+    {
+      "id": "tree-edits/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "18210c0ebbca56da60b3998d4f84d30bc21d611f43d44f28284a35101cdd8842",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "e2015c83d67c82676d26acc76c0c0e0bdc64254e018e7558c39dbece98ea6316",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "1974F1EE-EDFD-49A5-831F-3EA4585AFD83"
+      },
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "00479edb01e3c02b037a2d0f1a79b89c977510c3d20282d6aa879de1682d32be"
+    },
+    {
+      "id": "tree-edits/hfsplus",
+      "image": "hfsplus.dmg",
+      "sha256": "cdb072b7cd62fce551efe73096552c7d09952a112a5a0b0682b889988dce9be5",
+      "observation": "hfsplus-diskutil.plist",
+      "observationSHA256": "725b0879d26f4bf1a820796acef57328ff49e81fb51ce8a2a0baffbbc7849f99",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsplus-files.json",
+      "filesSHA256": "f9889dd2325a2ffc3d4e1a978e5068ad40942ef6e6b949d750fa26a5ed06d0f4"
+    },
+    {
+      "id": "tree-edits/hfsx",
+      "image": "hfsx.dmg",
+      "sha256": "22ed69714f52f204901efa4224f313c1cbffa704f8b1d8d04c922d214b30d597",
+      "observation": "hfsx-diskutil.plist",
+      "observationSHA256": "7b6156f3619996096b7ff235374f95dc0e81be5a640f11c98f386f74373b484a",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsx-files.json",
+      "filesSHA256": "b3086f40a3fcae504a993050dd7a85afbe9bdf28331b46cbba7a2124e4b171cc"
+    }
+  ]
+}

@@ -1,0 +1,1097 @@
+{
+  "schema": 1,
+  "root": "Fixture",
+  "entries": [
+    {
+      "path": "Fixture",
+      "object": 20,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089905153,
+      "changeNS": 1791607907089905153,
+      "accessNS": 1791607907088159773,
+      "size": 544,
+      "links": 17,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/CaseName",
+      "object": 30,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088624983,
+      "changeNS": 1791607907088624983,
+      "accessNS": 1791607907088597733,
+      "size": 18,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "86b76462ab07a47b02323afe8292874c43746301ceb35f88d914d679bc2e4a5c"
+    },
+    {
+      "path": "Fixture/Contents",
+      "object": 21,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088236023,
+      "changeNS": 1791607907088236023,
+      "accessNS": 1791607907088198981,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/Contents/Resources",
+      "object": 22,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088235565,
+      "changeNS": 1791607907088246690,
+      "accessNS": 1791607907088235565,
+      "size": 64,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/alias",
+      "object": 27,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089320651,
+      "changeNS": 1791607907089403860,
+      "accessNS": 1791607907088403399,
+      "size": 18,
+      "links": 2,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 73746,
+          "sha256": "13fc780e9d39d07bb3efa052b8191bcf8b1260221eab27a1b02fec235db959ba"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 24,
+          "sha256": "9811d9b40826dfe92bc866aa74b1e1784d0c1537f558f571ac40e8004ad53102"
+        }
+      },
+      "sha256": "af77296878324d2c5382298b0d481cf0ece7c3733510694abebcbf64c8ecaf55"
+    },
+    {
+      "path": "Fixture/compressed",
+      "object": 39,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089713819,
+      "changeNS": 1791607907089904902,
+      "accessNS": 1791607907089632443,
+      "size": 1200,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "1a1968365d703144877efcbf57137f6833336775dc031d0da0654d6411a62f07"
+    },
+    {
+      "path": "Fixture/compressed-alias",
+      "object": 39,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089713819,
+      "changeNS": 1791607907089904902,
+      "accessNS": 1791607907089632443,
+      "size": 1200,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "1a1968365d703144877efcbf57137f6833336775dc031d0da0654d6411a62f07"
+    },
+    {
+      "path": "Fixture/destination",
+      "object": 29,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088569608,
+      "changeNS": 1791607907089161026,
+      "accessNS": 1791607907088533316,
+      "size": 21,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "7d354236e1f90fafebf1fe11180a8d5079aa56267aede123a063b1c816c08a77"
+    },
+    {
+      "path": "Fixture/destination-alias",
+      "object": 29,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088569608,
+      "changeNS": 1791607907089161026,
+      "accessNS": 1791607907088533316,
+      "size": 21,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "7d354236e1f90fafebf1fe11180a8d5079aa56267aede123a063b1c816c08a77"
+    },
+    {
+      "path": "Fixture/directory-link",
+      "object": 38,
+      "mode": 41453,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089443110,
+      "changeNS": 1791607907089458568,
+      "accessNS": 1791607907089443110,
+      "size": 8,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "target": "Contents"
+    },
+    {
+      "path": "Fixture/empty-dir",
+      "object": 24,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088301273,
+      "changeNS": 1791607907088311773,
+      "accessNS": 1791607907088301273,
+      "size": 64,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/empty-target",
+      "object": 25,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088336774,
+      "changeNS": 1791607907088346024,
+      "accessNS": 1791607907088336774,
+      "size": 64,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/move-dir",
+      "object": 23,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088704441,
+      "changeNS": 1791607907088704441,
+      "accessNS": 1791607907088269273,
+      "size": 96,
+      "links": 3,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/move-dir/child",
+      "object": 32,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088728191,
+      "changeNS": 1791607907088728191,
+      "accessNS": 1791607907088703691,
+      "size": 24,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "fa7d3be3841814d062e8705b2951db68948fc605d90b61caf55d5286c5614c86"
+    },
+    {
+      "path": "Fixture/obsolete",
+      "object": 28,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088505691,
+      "changeNS": 1791607907088505691,
+      "accessNS": 1791607907088474274,
+      "size": 18,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "e2d9fc56829a8891cb5f92c47081d0013f468813e5839482680edcce999fcdd1"
+    },
+    {
+      "path": "Fixture/ordinary",
+      "object": 27,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907089320651,
+      "changeNS": 1791607907089403860,
+      "accessNS": 1791607907088403399,
+      "size": 18,
+      "links": 2,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 73746,
+          "sha256": "13fc780e9d39d07bb3efa052b8191bcf8b1260221eab27a1b02fec235db959ba"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 24,
+          "sha256": "9811d9b40826dfe92bc866aa74b1e1784d0c1537f558f571ac40e8004ad53102"
+        }
+      },
+      "sha256": "af77296878324d2c5382298b0d481cf0ece7c3733510694abebcbf64c8ecaf55"
+    },
+    {
+      "path": "Fixture/remove-dir",
+      "object": 26,
+      "mode": 16877,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088366857,
+      "changeNS": 1791607907088376399,
+      "accessNS": 1791607907088366857,
+      "size": 64,
+      "links": 2,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "path": "Fixture/untouched",
+      "object": 31,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791607907,
+      "modifyNS": 1791607907088678524,
+      "changeNS": 1791607907088678524,
+      "accessNS": 1791607907088650816,
+      "size": 19,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "4c2a17c78ae06365c385586baca67d141a85b87413baec9abb6ca17a9625126a"
+    }
+  ],
+  "rawAttributes": [
+    {
+      "object": 20,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 30,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 21,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 22,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 27,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 73746,
+          "sha256": "13fc780e9d39d07bb3efa052b8191bcf8b1260221eab27a1b02fec235db959ba"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 24,
+          "sha256": "9811d9b40826dfe92bc866aa74b1e1784d0c1537f558f571ac40e8004ad53102"
+        }
+      }
+    },
+    {
+      "object": 39,
+      "attributes": {
+        "com.apple.decmpfs": {
+          "size": 342,
+          "sha256": "437146f538ef983579099f8915a8069f2ab02054f0e0092736abee60b3cebe56"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 39,
+      "attributes": {
+        "com.apple.decmpfs": {
+          "size": 342,
+          "sha256": "437146f538ef983579099f8915a8069f2ab02054f0e0092736abee60b3cebe56"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 29,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 29,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 38,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 24,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 25,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 23,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 32,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 28,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 27,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 73746,
+          "sha256": "13fc780e9d39d07bb3efa052b8191bcf8b1260221eab27a1b02fec235db959ba"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 24,
+          "sha256": "9811d9b40826dfe92bc866aa74b1e1784d0c1537f558f571ac40e8004ad53102"
+        }
+      }
+    },
+    {
+      "object": 26,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 31,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    }
+  ],
+  "treeEdits": {
+    "operations": [
+      {
+        "op": "mkdir",
+        "path": "Contents/_CodeSignature",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 16873
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.171766771Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.171868521Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.171766771Z"
+          }
+        },
+        "nativeObject": 43,
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-create-0-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ]
+      },
+      {
+        "op": "create",
+        "path": "Contents/_CodeSignature/CodeResources",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172572022Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172603689Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172443980Z"
+          }
+        },
+        "nativeObject": 44,
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-create-1-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ]
+      },
+      {
+        "op": "create",
+        "path": "Contents/Resources/caf\u00e9",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172881481Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172912939Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.172836397Z"
+          }
+        },
+        "nativeObject": 45,
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-create-2-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ]
+      },
+      {
+        "op": "create",
+        "path": "CON",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173353273Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173395898Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173191898Z"
+          }
+        },
+        "nativeObject": 46,
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-create-3-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ]
+      },
+      {
+        "op": "symlink",
+        "path": "Contents/Resources/current",
+        "target": "caf\u00e9",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 41453
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173668648Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173689440Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.173668648Z"
+          }
+        },
+        "nativeObject": 47,
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-create-4-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ]
+      },
+      {
+        "op": "link",
+        "from": "ordinary",
+        "path": "Contents/Resources/shared"
+      },
+      {
+        "op": "link",
+        "from": "ordinary",
+        "path": "ordinary-new"
+      },
+      {
+        "op": "link",
+        "from": "Contents/_CodeSignature/CodeResources",
+        "path": "Contents/Resources/seal-alias"
+      },
+      {
+        "op": "remove",
+        "path": "alias"
+      },
+      {
+        "op": "rename",
+        "path": "CaseName",
+        "to": "casename"
+      },
+      {
+        "op": "rename",
+        "path": "move-dir",
+        "to": "Contents/Moved"
+      },
+      {
+        "op": "rename",
+        "path": "ordinary",
+        "to": "destination"
+      },
+      {
+        "op": "rename",
+        "path": "destination",
+        "to": "ordinary-new"
+      },
+      {
+        "op": "rename",
+        "path": "empty-dir",
+        "to": "empty-target"
+      },
+      {
+        "op": "remove",
+        "path": "remove-dir"
+      },
+      {
+        "op": "remove",
+        "path": "obsolete"
+      },
+      {
+        "op": "rename",
+        "path": "compressed",
+        "to": "Contents/Resources/compressed"
+      },
+      {
+        "op": "replace",
+        "path": "compressed-alias",
+        "data": "apfs-contents.bin"
+      }
+    ],
+    "rejections": [
+      {
+        "op": "create",
+        "path": "destination",
+        "data": "apfs-contents.bin",
+        "errno": 17
+      },
+      {
+        "op": "create",
+        "path": "Contents/Resources/cafe\u0301",
+        "data": "apfs-contents.bin",
+        "errno": 17
+      },
+      {
+        "op": "remove",
+        "path": "Contents",
+        "errno": 66
+      },
+      {
+        "op": "rename",
+        "path": "Contents",
+        "to": "Contents/Resources/cycle",
+        "errno": 22
+      },
+      {
+        "op": "rename",
+        "path": "Contents",
+        "to": "destination",
+        "errno": 20
+      },
+      {
+        "op": "rename",
+        "path": "destination",
+        "to": "Contents",
+        "errno": 21
+      },
+      {
+        "op": "rename",
+        "path": "missing",
+        "to": "new-name",
+        "errno": 2
+      },
+      {
+        "op": "link",
+        "from": "Contents",
+        "path": "directory-hardlink",
+        "errno": 1
+      }
+    ],
+    "nameProbes": [
+      {
+        "op": "create",
+        "path": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176193442Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176223151Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176126151Z"
+          }
+        },
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-name-0-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ],
+        "stored": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "op": "create",
+        "path": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data": "apfs-contents.bin",
+        "errno": 63
+      },
+      {
+        "op": "create",
+        "path": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176662318Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176687276Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.176614943Z"
+          }
+        },
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-name-2-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ],
+        "stored": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+      },
+      {
+        "op": "create",
+        "path": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9",
+        "data": "apfs-contents.bin",
+        "metadata": {
+          "mode": {
+            "state": 2,
+            "value": 33184
+          },
+          "uid": {
+            "state": 2,
+            "value": 501
+          },
+          "gid": {
+            "state": 2,
+            "value": 20
+          },
+          "bsdFlags": {
+            "state": 2,
+            "value": 0
+          },
+          "birthTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.000000000Z"
+          },
+          "modifyTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.177079360Z"
+          },
+          "changeTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.177112610Z"
+          },
+          "accessTime": {
+            "state": 2,
+            "value": "2026-10-10T04:51:56.177023235Z"
+          }
+        },
+        "attributes": [
+          {
+            "name": "com.apple.provenance",
+            "data": "apfs-name-3-attribute-0.bin",
+            "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+          }
+        ],
+        "stored": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+      },
+      {
+        "op": "create",
+        "path": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+        "data": "apfs-contents.bin",
+        "errno": 63
+      },
+      {
+        "op": "create",
+        "path": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+        "data": "apfs-contents.bin",
+        "errno": 63
+      }
+    ],
+    "after": "apfs-after-files.json",
+    "afterSHA256": "758a427844dbc3af0fe8ccd54ebd8d60a70ec3372df9f23424e954e8db2bad15",
+    "image": "apfs-after.dmg",
+    "imageSHA256": "f2a0e98af50c28e5426c29913842ae9bdaa4548712e4ac1021c437e91c63d488",
+    "payload": "apfs-contents.bin",
+    "payloadSHA256": "bb9eca7b20f7e57ef8c39e1ae589261ddf51d6abe8e73c745a384f4c8300ec3f"
+  }
+}

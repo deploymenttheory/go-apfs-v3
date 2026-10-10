@@ -42,7 +42,9 @@ type Value interface {
 }
 
 // Identity is meaningful only within its volume and historical view. It is not
-// derived from a pathname; hard-link aliases have the same identity.
+// derived from a pathname; hard-link aliases have the same identity. Created
+// workspace nodes use a workspace creation digest as Volume, a graph-local Object
+// and View zero; their Created marker distinguishes them from native identities.
 type Identity struct {
 	Volume string `json:"volume"`
 	Object uint64 `json:"object"`

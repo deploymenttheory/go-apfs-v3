@@ -98,6 +98,7 @@ type manifest struct {
 // Report describes preservation separately from the host projection. Source
 // permissions, flags, IDs and timestamps are recorded, never enforced on the host.
 type Report struct {
+	CreatedObjects   int    `json:"createdObjects,omitempty"`
 	ModifiedFiles    int    `json:"modifiedFiles,omitempty"`
 	Objects          int    `json:"objects"`
 	Entries          int    `json:"entries"`
@@ -180,5 +181,32 @@ func validNode(n filesystem.Node) bool {
 			return false
 		}
 	}
+	mode := m.Mode.Value & 0170000
+	if n.LinksModified && (mode == 0040000 || n.Links.State != filesystem.Present || n.Links.Value == 0) {
+		return false
+	}
+	if n.Created {
+		for _, state := range []filesystem.State{m.Mode.State, m.UID.State, m.GID.State, m.BSDFlags.State, m.BirthTime.State, m.ModifyTime.State, m.ChangeTime.State, m.AccessTime.State} {
+			if state != filesystem.Present {
+				return false
+			}
+		}
+		if n.Identity.View != 0 || n.Compression.State != filesystem.Absent || m.BSDFlags.Value&32 != 0 {
+			return false
+		}
+		if mode == 0100000 && !n.DataModified {
+			return false
+		}
+		if mode != 0040000 && (n.Links.State != filesystem.Present || n.Links.Value == 0) {
+			return false
+		}
+	} else if strings.HasPrefix(n.Identity.Volume, "workspace:") {
+		return false
+	}
 	return n.Identity.Object != 0 && m.Mode.State == filesystem.Present && (!n.DataModified || m.Mode.Value&0170000 == 0100000)
+}
+
+// Created object numbers are keys in the workspace graph, not native inode IDs.
+func createdIdentity(id filesystem.Identity) bool {
+	return id.View == 0 && strings.HasPrefix(id.Volume, "workspace:") && validBlob(blob{SHA256: strings.TrimPrefix(id.Volume, "workspace:")})
 }

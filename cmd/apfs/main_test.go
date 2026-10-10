@@ -13,6 +13,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
+	"github.com/deploymenttheory/go-apfs-v3/workspace"
 )
 
 func TestInspectJSONHasNoDiagnosticNoise(t *testing.T) {
@@ -263,5 +264,93 @@ func TestWorkspaceReplaceProducesSeparateVerifiedOutput(t *testing.T) {
 	out.Reset()
 	if err := run(ctx, []string{"workspace", "replace", baseline, "link", contents, filepath.Join(parent, "bad")}, nil, &out, &diagnostics); !errors.Is(err, fs.ErrInvalid) || out.Len() != 0 {
 		t.Fatal("replacement followed symlink", err)
+	}
+}
+
+func TestWorkspaceEditPlanCreatesAndReplacesInOneOutput(t *testing.T) {
+	ctx := context.Background()
+	parent := t.TempDir()
+	baseline := filepath.Join(parent, "before")
+	destination := filepath.Join(parent, "after")
+	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
+	var out, diagnostics bytes.Buffer
+	if err := run(ctx, []string{"extract", image, "Fixture", baseline}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	w, err := workspace.Open(ctx, baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := filesystem.Lookup(ctx, w, "alias")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := w.Stat(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Close()
+	directory := n.Metadata
+	directory.Mode = filesystem.Observed(uint32(0040755))
+	directory.BSDFlags = filesystem.Observed(uint32(0))
+	payload := []byte("explicit edit input")
+	if err := os.WriteFile(filepath.Join(parent, "payload"), payload, 0600); err != nil {
+		t.Fatal(err)
+	}
+	plan := map[string]any{"schema": 1, "changes": []map[string]any{
+		{"op": "mkdir", "path": "_CodeSignature", "metadata": directory},
+		{"op": "create", "path": "_CodeSignature/CodeResources", "contents": "payload", "metadata": n.Metadata, "attributes": []map[string]string{{"name": "org.test", "contents": "payload"}}},
+		{"op": "link", "path": "_CodeSignature/CodeResources", "to": "seal-alias"},
+		{"op": "replace", "path": "alias", "contents": "payload"},
+		{"op": "remove", "path": "empty"},
+	}}
+	encoded, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planFile := filepath.Join(parent, "changes.json")
+	if err := os.WriteFile(planFile, encoded, 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := run(ctx, []string{"workspace", "edit", "--json", baseline, planFile, destination}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	var report struct{ Schema, CreatedObjects, ModifiedFiles int }
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Schema != 1 || report.CreatedObjects != 2 || report.ModifiedFiles != 2 {
+		t.Fatal("edit report", out.String())
+	}
+	result, err := workspace.Open(ctx, destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer result.Close()
+	created, err := filesystem.Lookup(ctx, result, "_CodeSignature/CodeResources")
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias, err := filesystem.Lookup(ctx, result, "seal-alias")
+	if err != nil || created != alias {
+		t.Fatal("plan link", err)
+	}
+	value, err := result.OpenAttribute(ctx, created, "org.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := make([]byte, len(payload))
+	_, err = value.ReadAt(b, 0)
+	value.Close()
+	if err != nil || !bytes.Equal(b, payload) {
+		t.Fatal("plan attribute input", err)
+	}
+	if err := os.WriteFile(planFile, []byte(`{"schema":1,"changes":[],"unexpected":true}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := run(ctx, []string{"workspace", "edit", baseline, planFile, filepath.Join(parent, "invalid")}, nil, &out, &diagnostics); err == nil || out.Len() != 0 {
+		t.Fatal("unknown plan field accepted", err)
 	}
 }
