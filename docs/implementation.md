@@ -323,6 +323,8 @@ independent output readback. The latter records actual ownership reassignment,
 including recursive chown of physical symlinks. Fresh macOS 15/26/27 capture,
 Linux/Windows/macOS replay and independent verification remain mandatory PR gates. Usage, supported flags, default provenance
 and deferred behavior are in [the session contract](sessions.md).
+The command increment passed the complete native capture, portable replay and
+independent output matrix in [PR #19's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38040323305).
 
 ## Required phase gates
 

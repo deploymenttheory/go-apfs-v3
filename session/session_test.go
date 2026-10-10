@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -444,4 +445,57 @@ func TestRecursiveChownChangesPhysicalLinks(t *testing.T) {
 	if err != nil || n.Metadata.UID.Value != 0 {
 		t.Fatal("followed physical link", n, err)
 	}
+}
+
+func TestParallelValueReads(t *testing.T) {
+	ctx := context.Background()
+	s, dir := newSession(t)
+	payload := bytes.Repeat([]byte("parallel immutable source\n"), 4096)
+	host := filepath.Join(t.TempDir(), "payload")
+	if err := os.WriteFile(host, payload, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Copy(ctx, []string{host}, "/file", CopyOptions{FromHost: true, NoAttributes: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	id, err := s.LookupPath(ctx, "/file", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.OpenData(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	b, err := s.OpenData(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	var workers sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		workers.Go(func() {
+			value := a
+			if i%2 == 0 {
+				value = b
+			}
+			offset := i * 97
+			data := make([]byte, 97)
+			for j := 0; j < 8; j++ {
+				if _, err := value.ReadAt(data, int64(offset)); err != nil || !bytes.Equal(data, payload[offset:offset+len(data)]) {
+					t.Errorf("parallel read: %v", err)
+					return
+				}
+			}
+		})
+	}
+	workers.Wait()
 }

@@ -65,7 +65,7 @@ targets and `..`. Resolution never escapes into the host filesystem.
 | `ln SOURCE DESTINATION` | Regular-file hard link; `-s` stores a literal symlink target, `-f` replaces an existing non-directory entry |
 | `xattr PATH` | List names; `-p NAME PATH` reads, `-w NAME VALUE PATH...` writes, `-d NAME PATH...` removes; `-x` uses hex bytes, `-s` selects the link itself |
 | `cp --from-host --resource-fork HOST_FILE DESTINATION` | Replace the complete independent resource fork, including truncation to zero |
-| `stat PATH`, `list PATH`, `cat PATH` | Inspect the current logical state; `cat --resource-fork` reads its independent fork |
+| `stat PATH`, `list PATH`, `cat PATH` | Inspect the current logical state; `cat --resource-fork` reads the raw resource-fork attribute |
 
 `xattr -w --value-file HOST_FILE NAME PATH...` imports binary attribute bytes.
 Generic writes to compression-owned, security or `com.apple.fs.*` attributes are
@@ -130,7 +130,8 @@ on portable hosts. Source and copied provenance attributes remain byte-exact.
 ## Publication, limits and library use
 
 A session handle holds an exclusive cross-process lock. Concurrent opening fails
-with a conflict. Values borrow the current revision: close them before mutating
+with a conflict. Returned values support parallel `ReadAt` calls. Session operations and mutations
+are serialized by the caller. Values borrow the current revision: close them before mutating
 or closing the session. Source-image readers are needed only during capture.
 
 Every mutating command publishes all of its changes together. If any operand,

@@ -19,6 +19,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -101,6 +102,7 @@ type Session struct {
 	key       func(string) string
 	closed    bool
 	verified  map[string]bool
+	verifyMu  sync.RWMutex
 	// beforePublish is an internal fault-injection seam, after all flushes.
 	beforePublish func() error
 }
@@ -290,7 +292,9 @@ func (s *Session) clean(ctx context.Context) (err error) {
 				if err := s.root.Remove("blobs/" + name); err != nil {
 					return err
 				}
+				s.verifyMu.Lock()
 				delete(s.verified, name)
+				s.verifyMu.Unlock()
 			}
 		}
 		if e == io.EOF {
@@ -628,7 +632,7 @@ func (s *Session) store(ctx context.Context, v filesystem.Value, total *int64) (
 	}
 	err = s.root.Rename("pending/value", name)
 	if err == nil {
-		s.verified[result.SHA256] = true
+		s.cacheVerified(result.SHA256)
 	}
 	return result, err
 }
@@ -829,6 +833,7 @@ func (s *Session) value(ctx context.Context, b *blob) (filesystem.Value, error) 
 }
 
 type blobValue struct {
+	mu     sync.Mutex
 	owner  *Session
 	ctx    context.Context
 	ref    blob
@@ -838,6 +843,11 @@ type blobValue struct {
 
 func (v *blobValue) Size() int64 { return v.ref.Size }
 func (v *blobValue) Close() error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.closed {
+		return nil
+	}
 	v.closed = true
 	if v.file != nil {
 		return v.file.Close()
@@ -845,6 +855,8 @@ func (v *blobValue) Close() error {
 	return nil
 }
 func (v *blobValue) ReadAt(p []byte, off int64) (int, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	if v.closed || v.owner.closed {
 		return 0, fs.ErrClosed
 	}
@@ -867,7 +879,7 @@ func (v *blobValue) ReadAt(p []byte, off int64) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if !v.owner.verified[v.ref.SHA256] {
+		if !v.owner.isVerified(v.ref.SHA256) {
 			h := sha256.New()
 			err = copyValue(v.ctx, h, f, v.ref.Size)
 			if err == nil && hex.EncodeToString(h.Sum(nil)) != v.ref.SHA256 {
@@ -876,7 +888,7 @@ func (v *blobValue) ReadAt(p []byte, off int64) (int, error) {
 			if err != nil {
 				return 0, errors.Join(err, f.Close())
 			}
-			v.owner.verified[v.ref.SHA256] = true
+			v.owner.cacheVerified(v.ref.SHA256)
 		}
 		v.file = f
 	}
@@ -886,10 +898,12 @@ func (s *Session) Verify(ctx context.Context) error {
 	if s.closed {
 		return fs.ErrClosed
 	}
+	s.verifyMu.Lock()
 	s.verified = map[string]bool{}
+	s.verifyMu.Unlock()
 	for _, o := range s.document.Objects {
 		for _, b := range values(o) {
-			if s.verified[b.SHA256] {
+			if s.isVerified(b.SHA256) {
 				continue
 			}
 			v := &blobValue{owner: s, ctx: ctx, ref: b}
@@ -984,4 +998,15 @@ func Remove(ctx context.Context, directory string) error {
 		return err
 	}
 	return os.RemoveAll(directory)
+}
+
+func (s *Session) isVerified(digest string) bool {
+	s.verifyMu.RLock()
+	defer s.verifyMu.RUnlock()
+	return s.verified[digest]
+}
+func (s *Session) cacheVerified(digest string) {
+	s.verifyMu.Lock()
+	defer s.verifyMu.Unlock()
+	s.verified[digest] = true
 }
