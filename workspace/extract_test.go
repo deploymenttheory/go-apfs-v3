@@ -229,6 +229,11 @@ func TestWorkspaceRejectsInvalidManifest(t *testing.T) {
 	}{
 		{"projection escape", func(m *manifest) { m.Entries[0].HostPath = "../outside" }},
 		{"missing object", func(m *manifest) { m.Entries[0].Object++ }},
+		{"metadata marker in old schema", func(m *manifest) { m.Objects[0].Node.MetadataModified = []string{"mode"} }},
+		{"attribute marker in old schema", func(m *manifest) { m.Objects[0].Node.AttributesModified = []string{"org.test"} }},
+		{"unknown metadata field", func(m *manifest) { m.Schema = 4; m.Objects[0].Node.MetadataModified = []string{"changeTime"} }},
+		{"duplicate metadata field", func(m *manifest) { m.Schema = 4; m.Objects[0].Node.MetadataModified = []string{"mode", "mode"} }},
+		{"invalid attribute marker", func(m *manifest) { m.Schema = 4; m.Objects[0].Node.AttributesModified = []string{""} }},
 		{"created flag in old schema", func(m *manifest) { m.Objects[0].Node.Created = true }},
 		{"changed links in old schema", func(m *manifest) { m.Objects[0].Node.LinksModified = true }},
 		{"unknown observation state", func(m *manifest) { m.Objects[0].Node.Metadata.UID.State = 3 }},

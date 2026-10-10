@@ -303,6 +303,10 @@ func TestWorkspaceEditPlanCreatesAndReplacesInOneOutput(t *testing.T) {
 		{"op": "link", "path": "_CodeSignature/CodeResources", "to": "seal-alias"},
 		{"op": "replace", "path": "alias", "contents": "payload"},
 		{"op": "remove", "path": "empty"},
+		{"op": "metadata", "path": "seal-alias", "metadata": filesystem.Metadata{Mode: filesystem.Observed(uint32(0100700))}},
+		{"op": "setxattr", "path": "seal-alias", "attribute": "org.test", "attributeMode": "replace", "contents": "payload"},
+		{"op": "resource-fork", "path": "seal-alias", "contents": "payload"},
+		{"op": "removexattr", "path": "alias", "attribute": "org.go-apfs.keep"},
 	}}
 	encoded, err := json.Marshal(plan)
 	if err != nil {
@@ -316,11 +320,11 @@ func TestWorkspaceEditPlanCreatesAndReplacesInOneOutput(t *testing.T) {
 	if err := run(ctx, []string{"workspace", "edit", "--json", baseline, planFile, destination}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
 	}
-	var report struct{ Schema, CreatedObjects, ModifiedFiles int }
+	var report struct{ Schema, CreatedObjects, ModifiedFiles, MetadataObjects, AttributeObjects int }
 	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Schema != 1 || report.CreatedObjects != 2 || report.ModifiedFiles != 2 {
+	if report.Schema != 1 || report.CreatedObjects != 2 || report.ModifiedFiles != 2 || report.MetadataObjects != 1 || report.AttributeObjects != 2 {
 		t.Fatal("edit report", out.String())
 	}
 	result, err := workspace.Open(ctx, destination)
@@ -335,6 +339,13 @@ func TestWorkspaceEditPlanCreatesAndReplacesInOneOutput(t *testing.T) {
 	alias, err := filesystem.Lookup(ctx, result, "seal-alias")
 	if err != nil || created != alias {
 		t.Fatal("plan link", err)
+	}
+	if _, err := result.OpenAttribute(ctx, id, "org.go-apfs.keep"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("plan attribute removal", err)
+	}
+	node, err := result.Stat(ctx, created)
+	if err != nil || node.Metadata.Mode.Value != 0100700 {
+		t.Fatal("plan metadata", err)
 	}
 	value, err := result.OpenAttribute(ctx, created, "org.test")
 	if err != nil {

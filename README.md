@@ -9,7 +9,7 @@ lists directories, reads ordinary and transparently compressed files, and unlock
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
-remove and link entries. Filesystem writes, recovery and mounting
+remove and link entries, and edit metadata, extended attributes and resource forks. Filesystem writes, recovery and mounting
 are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
@@ -64,6 +64,8 @@ Currently implemented:
 - Portable extraction with original names, logical/raw data, metadata, attributes,
   resource forks, symlink targets and hard-link identities; verified workspace readers.
 - Ordered workspace creation, rename, removal, link and data replacement batches.
+- Explicit metadata patches, extended-attribute set/remove and complete independent
+  resource-fork replacement within the same ordered batches.
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
@@ -180,6 +182,15 @@ carry `LinksModified`, with counts adjusted for aliases outside the captured tre
 These markers use schema 3 and persist through subsequent captures. Schemas 1 and
 2 remain readable. See [the edit plan format](docs/workspace-edits.md) for the CLI
 and library contract, native qualification, and creation metadata policy.
+
+`SetMetadata`, `SetAttribute`, `RemoveAttribute` and `ReplaceResourceFork` also
+participate in `w.Edit`. Partial metadata patches preserve unspecified fields.
+Attribute create/replace conditions follow Apple names; complete fork replacement
+truncates old bytes. FinderInfo follows each format's public value and hidden-flag
+rules. Active compression-owned storage and security ACL edits are protected.
+Schema-4 output records cumulative changed field/attribute names and keeps schemas
+1–3 readable. See [metadata edit semantics](docs/workspace-edits.md#metadata-attributes-and-resource-forks)
+for timestamp precision, flag admission, empty-fork behavior and CLI examples.
 
 `appledouble.Decode(ctx, source)` borrows serialized metadata; `Write(ctx, out,
 file)` streams it. These APIs operate on explicit inputs, never infer companion

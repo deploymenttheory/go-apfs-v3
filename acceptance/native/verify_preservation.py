@@ -49,7 +49,10 @@ def timestamp_ns(value):
 
 def verify_workspace(root, expected, sensitive, volume_format, *, source_times=None, modified_objects=frozenset(),
                      minimum_mapped=8, minimum_symlinks=3, aliases=2, schema=None,
-                     created_objects=frozenset(), links_modified_objects=frozenset()):
+                     created_objects=frozenset(), links_modified_objects=frozenset(),
+                     metadata_changes=None, attribute_changes=None):
+    metadata_changes = metadata_changes or {}
+    attribute_changes = attribute_changes or {}
     manifest = read_json(root / "metadata/manifest.json")
     require(manifest["schema"] == (schema if schema is not None else (2 if modified_objects else 1)), "workspace schema")
     require(manifest["names"] == {"format": volume_format, "caseSensitive": sensitive,
@@ -89,6 +92,8 @@ def verify_workspace(root, expected, sensitive, volume_format, *, source_times=N
         node = obj["node"]
         require(node["identity"]["object"] == want["object"], "native identity changed")
         require(node.get("dataModified", False) == (want["object"] in modified_objects), "edited data provenance")
+        require(node.get("metadataModified", []) == metadata_changes.get(want["object"], []), "metadata field provenance")
+        require(node.get("attributesModified", []) == attribute_changes.get(want["object"], []), "attribute provenance")
         created = want["object"] in created_objects
         require(node.get("created", False) == created, "created object provenance")
         require(node.get("linksModified", False) == (want["object"] in links_modified_objects), "link count provenance")
@@ -109,6 +114,8 @@ def verify_workspace(root, expected, sensitive, volume_format, *, source_times=N
             ns = timestamp_ns(value["value"])
             require(value["state"] == 2 and (ns // 10**9 if field == "birthTime" else ns) == times[key],
                     f"{logical}: {field}")
+        if "birthNS" in times:
+            require(timestamp_ns(node["metadata"]["birthTime"]["value"]) == times["birthNS"], f"{logical}: birth nanoseconds")
         host = entry["hostPath"]
         require(host == "files" or host.startswith("files/"), "projection root")
         require(all(part not in ("", ".", "..") and "\\" not in part for part in host.split("/")), "unsafe projection")
@@ -145,6 +152,8 @@ def verify_workspace(root, expected, sensitive, volume_format, *, source_times=N
     require(report.get("createdObjects", 0) == len(created_objects), "created object count")
     require(report["mappedNames"] >= minimum_mapped and report["symlinksRecorded"] >= minimum_symlinks and
             report["hardLinks"] + report["hardLinksCopied"] == aliases, "missing preservation outcomes")
+    require(report.get("metadataObjects", 0) == len(metadata_changes), "metadata object count")
+    require(report.get("attributeObjects", 0) == len(attribute_changes), "attribute object count")
     require(report["storedBytes"] == sum(v["size"] for v in verified.values()), "stored byte accounting")
     return len(entries)
 

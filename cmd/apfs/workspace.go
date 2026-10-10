@@ -71,6 +71,6 @@ func printWorkspaceReport(out io.Writer, report workspace.Report, jsonOutput boo
 			workspace.Report
 		}{1, report})
 	}
-	_, err := fmt.Fprintf(out, "Preserved %d objects in %d entries; %d unique blob bytes.\nModified files: %d; created objects: %d.\nMapped names: %d; symlink records: %d; hard links: %d; hard-link copies: %d.\nMetadata: %s.\n", report.Objects, report.Entries, report.StoredBytes, report.ModifiedFiles, report.CreatedObjects, report.MappedNames, report.SymlinksRecorded, report.HardLinks, report.HardLinksCopied, report.Metadata)
+	_, err := fmt.Fprintf(out, "Preserved %d objects in %d entries; %d unique blob bytes.\nModified files: %d; created objects: %d; metadata edits: %d; attribute edits: %d.\nMapped names: %d; symlink records: %d; hard links: %d; hard-link copies: %d.\nMetadata: %s.\n", report.Objects, report.Entries, report.StoredBytes, report.ModifiedFiles, report.CreatedObjects, report.MetadataObjects, report.AttributeObjects, report.MappedNames, report.SymlinksRecorded, report.HardLinks, report.HardLinksCopied, report.Metadata)
 	return err
 }

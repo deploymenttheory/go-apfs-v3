@@ -7,6 +7,7 @@ No system volume is selected, and production Go never calls native APIs.
 """
 
 import ctypes
+import errno
 import json
 import os
 from pathlib import Path
@@ -91,6 +92,7 @@ def retain_snapshot(mount, target, pin):
     """
     fd = os.open(mount, os.O_RDONLY | os.O_DIRECTORY)
     process, pinned = None, False
+    inventory_retries = 0
     try:
         argv = ["/usr/sbin/asr", "restore", "--source", mount, "--target", target,
                 "--erase", "--noprompt"]
@@ -98,7 +100,18 @@ def retain_snapshot(mount, target, pin):
         name = "com.apple.asr." + str(process.pid)
         deadline = time.monotonic() + 30
         while process.poll() is None and time.monotonic() < deadline:
-            if any(s["name"] == name for s in snapshot_attributes(mount, fd)):
+            try:
+                snapshots = snapshot_attributes(mount, fd)
+            except OSError as error:
+                # ASR changes this inventory while we enumerate it. ENOENT was
+                # observed during that transition on macOS 15. Retry only here,
+                # under the existing deadline; final inventories remain strict.
+                if error.errno != errno.ENOENT:
+                    raise
+                inventory_retries += 1
+                time.sleep(0.001)
+                continue
+            if any(s["name"] == name for s in snapshots):
                 process.send_signal(signal.SIGSTOP)
                 break
             time.sleep(0.001)
@@ -114,6 +127,7 @@ def retain_snapshot(mount, target, pin):
         if not any(s["name"] == name for s in snapshot_attributes(mount, fd)):
             raise RuntimeError("ASR snapshot disappeared while mounted")
         return {"name": name, "argv": argv, "status": process.returncode,
+                "inventoryRetries": inventory_retries,
                 "stdout": stdout.decode(), "stderr": stderr.decode()}
     finally:
         if process is not None and process.poll() is None:
@@ -127,8 +141,18 @@ def capture(work, corpus, command, create_files, observe_files, sha256):
     helper = Path(__file__).resolve()
 
     def create_snapshot(mount, sequence):
-        target = work / ("asr-target-" + str(sequence) + ".dmg")
-        command("hdiutil", "create", "-size", "128m", "-fs", "APFS", "-type", "UDIF", target)
+        for attempt in range(3):
+            target = work / ("asr-target-" + str(sequence) + "-" + str(attempt) + ".dmg")
+            try:
+                command("hdiutil", "create", "-size", "128m", "-fs", "APFS", "-type", "UDIF", target)
+                break
+            except subprocess.CalledProcessError as error:
+                # DiskImages can still be releasing the previous ASR target.
+                # A fresh disposable path avoids reusing any partial failed image;
+                # command() retains every failed attempt in the transcript.
+                if attempt == 2 or b"hdiutil: create failed - Resource busy" not in (error.stderr or b""):
+                    raise
+                time.sleep(1)
         raw = command("hdiutil", "attach", "-plist", "-owners", "on", target)
         entities = plistlib.loads(raw)["system-entities"]
         device = next(e["dev-entry"] for e in entities if "dev-entry" in e)

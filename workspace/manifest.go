@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -98,6 +99,8 @@ type manifest struct {
 // Report describes preservation separately from the host projection. Source
 // permissions, flags, IDs and timestamps are recorded, never enforced on the host.
 type Report struct {
+	MetadataObjects  int    `json:"metadataObjects,omitempty"`
+	AttributeObjects int    `json:"attributeObjects,omitempty"`
 	CreatedObjects   int    `json:"createdObjects,omitempty"`
 	ModifiedFiles    int    `json:"modifiedFiles,omitempty"`
 	Objects          int    `json:"objects"`
@@ -174,6 +177,23 @@ func kind(o object) uint32 { return o.Node.Metadata.Mode.Value & 0170000 }
 // Unknown observation states cannot silently acquire meaning when reopened.
 func validNode(n filesystem.Node) bool {
 	m := n.Metadata
+	if len(n.MetadataModified) > len(metadataFields) || len(n.AttributesModified) > maxAttributes {
+		return false
+	}
+	for i, name := range n.MetadataModified {
+		if !slices.Contains(metadataFields, name) || (i > 0 && n.MetadataModified[i-1] >= name) {
+			return false
+		}
+		states := map[string]filesystem.State{"mode": m.Mode.State, "uid": m.UID.State, "gid": m.GID.State, "bsdFlags": m.BSDFlags.State, "birthTime": m.BirthTime.State, "modifyTime": m.ModifyTime.State, "accessTime": m.AccessTime.State}
+		if states[name] != filesystem.Present {
+			return false
+		}
+	}
+	for i, name := range n.AttributesModified {
+		if !validAttributeName(name) || (i > 0 && n.AttributesModified[i-1] >= name) {
+			return false
+		}
+	}
 	for _, state := range []filesystem.State{m.Mode.State, m.UID.State, m.GID.State,
 		m.BSDFlags.State, m.BirthTime.State, m.ModifyTime.State, m.ChangeTime.State,
 		m.AccessTime.State, n.Links.State, n.Compression.State} {

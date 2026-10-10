@@ -96,7 +96,7 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all ten families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all eleven families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
@@ -196,7 +196,7 @@ APFS_NATIVE_ENCRYPTED_DMG=../artifacts/encrypted-dmg go test -v -run TestNativeE
 
 ## CI tiers
 
-The **macOS filesystem compatibility** workflow has two visible stages:
+The **macOS filesystem compatibility** workflow has three visible stages:
 
 1. **Record Apple filesystem reference data (macOS 15/26/27)** creates disk
    images with Apple tools and records how macOS reads them. Separate steps show
@@ -207,6 +207,9 @@ The **macOS filesystem compatibility** workflow has two visible stages:
 2. **Compare Go with macOS reference data (Linux/Windows/macOS)** reads every
    reference image through Go and checks the results against all three macOS
    versions. Missing evidence or mismatched results fail the workflow.
+3. **Verify Linux, Windows and macOS outputs with Apple tools (macOS 15/26/27)**
+   independently compares returned workspaces against native observations and
+   exercises AppleDouble unpacking. This stage invokes no Go verifier.
 
 This proves the covered Go operations agree with Apple's observed behavior on
 portable hosts. Each job's summary explains its evidence and the comparison's
@@ -270,6 +273,13 @@ requires fresh macOS 15/26/27 reference captures and each Linux/Windows/macOS
 consumer to replay all three. Snapshot creation/deletion/revert by Go, sealed
 system verification, dataless snapshots and arbitrary checkpoint recovery remain
 outside this family.
+
+The snapshot collector retries `ENOENT` only while polling for ASR's new
+snapshot, under its existing 30-second deadline. Its result records the retry
+count. Busy creation of an ASR target gets at most three attempts, each at a new
+disposable path, with every command retained in diagnostics. Final snapshot
+inventories, successful native copy completion and retained-content checks stay
+strict. These bounds address transient native failures observed during PR #18.
 
 ## Preservation-aware extraction
 
@@ -354,8 +364,8 @@ Use a fresh destination for each run. Retained local comparison takes about two
 seconds. Focused failure controls cover borrowed source ownership, short reads,
 source errors, mid-copy cancellation, inconsistent data between reads, limits,
 duplicate identities, unknown compression profiles and destinations inside the
-baseline, including symlink aliases. General external import, namespace edits,
-native authorization and crash-durable transactions are subsequent work.
+baseline, including symlink aliases. General external import,
+native authorization and crash-durable transactions retain separate scope.
 
 
 ## Ordered tree edits
@@ -401,10 +411,56 @@ Workspace outputs are transported as tar archives inside CI artifacts. Directory
 uploads alone omit empty directories, which would lose part of the captured tree.
 Each Mac unpacks the complete original/edited trees before independent verification;
 missing empty directories fail exactly like missing nonempty directories. This
-transport applies to preservation, replacement and tree-edit outputs alike.
+transport applies to preservation, replacement, tree-edit and metadata-edit outputs alike.
 
 On macOS, archive creation disables native metadata packing with
 `--no-mac-metadata --no-xattrs --no-acls`. Extraction also passes
 `--options '!mac-ext'`: libarchive otherwise interprets genuine `._` files as
 AppleDouble companions even when metadata application is disabled. Their bytes
 remain ordinary content; metadata stays in the workspace manifest and blobs.
+
+## Metadata, attributes and resource-fork edits
+
+Purpose: prepare application metadata on Linux/Windows while retaining source
+provenance and all unspecified values. One family checks 29 native operations and
+seven rejection controls per filesystem, from 16 initial to 17 final entries.
+
+| Native case | What the comparison proves |
+| --- | --- |
+| File, directory and symlink mode changes; root metadata | Correct native values and no symlink traversal |
+| UID/GID reassignment on CI | Supplied ownership is recorded independently of the portable host account |
+| Explicit birth/modification/access timestamps | Exact APFS nanoseconds and HFS+ seconds; precise native birth observation uses `getattrlist` |
+| Create-only, replace-only, empty, binary and 127-byte-name attributes | Correct presence, bytes and conditions; absent replace/remove and oversized names reject |
+| FinderInfo on files, directories and symlinks; zeroing and removal | Format-specific masking, disappearance and hidden-flag relationships |
+| Large fork replaced by shorter data, then empty/remove controls | Complete replacement cannot leave an old tail; empty public forks are absent |
+| Metadata through aliases and after rename | Object identity is shared and changes compose in order |
+| Replace compressed contents, then supply a fork; metadata on another compressed file | Compression-owned storage remains protected while unrelated edits retain raw bytes |
+
+Inputs, native operation identities/effects and before/after observations are
+retained separately. The final read-only native mount supplies expected values.
+Unspecified timestamps use the native before observation under the workspace
+preservation policy. Actual native ctimes remain recorded and are never treated
+as a portable host-clock default. Writable resource-fork observations can update
+HFS+ atime, so explicit timestamps are assigned after those observations.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario metadata-edits --output artifacts/native/metadata-edits/macos-27
+APFS_NATIVE_METADATA_EDITS=../artifacts/native/metadata-edits APFS_METADATA_EDIT_OUTPUT=../artifacts/outputs/metadata-edits-macOS go test -v -run TestNativeMetadataEdits ./acceptance
+python3 acceptance/native/verify_metadata_edits.py --expected-major 27 --corpus artifacts/native/metadata-edits --outputs artifacts/outputs --producers 27 --consumers macOS
+```
+
+Use new output directories. Capture uses passwordless sudo when available to set
+UID/GID 60001/60002 on one disposable image file per profile. Without it, the
+collector explicitly records `same-owner-local`. The retained macOS 27 corpus
+uses that narrower local case. For its independent local verification, append
+`--allow-same-owner`. The required CI matrix rejects same-owner evidence and
+requires actual reassignment on every macOS version; this option is never passed
+there. The portable API records values without emulating native authorization.
+
+The focused retained replay takes approximately two seconds. Each native verifier
+checks 36 returned workspace pairs, 612 final entries and 1044 successful native
+operations, complete attribute inventories including removals, raw/logical hashes,
+link identities, all unchanged metadata, source identity and changed-field records.
+It invokes no Go code. Outputs use the same complete-tree archive transport as the
+other editing families. Parser, cancellation, failed source, unsupported ownership,
+source-preservation and provenance controls remain focused unit tests.

@@ -1,0 +1,745 @@
+{
+  "schema": 1,
+  "root": "Fixture",
+  "entries": [
+    {
+      "path": "Fixture",
+      "object": 22,
+      "mode": 16872,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612563000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 612,
+      "links": 18,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/CON",
+      "object": 32,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 13,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      },
+      "sha256": "c5a82b9316ecc4556b362ea54c352b53bc7b6f0b203d6f473186006df785f94c",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/alias",
+      "object": 24,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1700000000,
+      "modifyNS": 1700000001000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1700000002000000000,
+      "size": 18,
+      "links": 3,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      },
+      "sha256": "af77296878324d2c5382298b0d481cf0ece7c3733510694abebcbf64c8ecaf55",
+      "birthNS": 1700000000000000000
+    },
+    {
+      "path": "Fixture/compressed-alias",
+      "object": 37,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612563000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612563000000000,
+      "size": 7,
+      "links": 2,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 65792,
+          "sha256": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/compressed-inline",
+      "object": 36,
+      "mode": 33261,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32800,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 1200,
+      "links": 1,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "79a257d3b1260eae2c407b55a33c28e19777c185b5254ab051442d2353b35464"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.compressed": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      },
+      "sha256": "1a1968365d703144877efcbf57137f6833336775dc031d0da0654d6411a62f07",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/compressed-resource",
+      "object": 37,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612563000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612563000000000,
+      "size": 7,
+      "links": 2,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 65792,
+          "sha256": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/directory",
+      "object": 23,
+      "mode": 16872,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32768,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 68,
+      "links": 2,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "297f50eaab08e0b76c3fa60f48ef38a49d94d513c0569b71bad9cad133324270"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.directory": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      },
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/empty-fork",
+      "object": 26,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612563000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612563000000000,
+      "size": 20,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "ca4bd9d47ba9a719048a1c37380c8848b54fb5614db45ff63d2f1e140f4cd44e",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/finder-remove",
+      "object": 29,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 23,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "cde2b11c5f7002a4efa9d4def7f4e34054ccb7c9c4465d97d9af42d45cf487c2",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/finder-zero",
+      "object": 28,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 21,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "599c2e4673d5f3da7e221053ad9191809ec7239d9b7d0aded55d7a242f6cd8ce",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/flags",
+      "object": 30,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32769,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 15,
+      "links": 1,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "79a257d3b1260eae2c407b55a33c28e19777c185b5254ab051442d2353b35464"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "a362fe125748f4433c9142353f844d08dabfdfb361770c4d1876395cba315dbc",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/link",
+      "object": 35,
+      "mode": 41417,
+      "uid": 501,
+      "gid": 20,
+      "flags": 32768,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 8,
+      "links": 1,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "8e5c64f66c150392f50e28cf0a1b2c1816614c691ee5171087779fcd17b70951"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.link": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      },
+      "target": "ordinary",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/new-alias",
+      "object": 24,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1700000000,
+      "modifyNS": 1700000001000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1700000002000000000,
+      "size": 18,
+      "links": 3,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      },
+      "sha256": "af77296878324d2c5382298b0d481cf0ece7c3733510694abebcbf64c8ecaf55",
+      "birthNS": 1700000000000000000
+    },
+    {
+      "path": "Fixture/owner",
+      "object": 31,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612550000000000,
+      "size": 15,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "c997d419d9322873d06ab5d9c676fe2c60c97ea329a374ad36a763b5af6e50e9",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/remove-fork",
+      "object": 27,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612563000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1791612563000000000,
+      "size": 21,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      },
+      "sha256": "d7bad5887d620db1bc7ef7318f283379889507536a69b948996fcab8401919b7",
+      "birthNS": 1791612550000000000
+    },
+    {
+      "path": "Fixture/renamed",
+      "object": 24,
+      "mode": 33257,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1700000000,
+      "modifyNS": 1700000001000000000,
+      "changeNS": 1791612563000000000,
+      "accessNS": 1700000002000000000,
+      "size": 18,
+      "links": 3,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      },
+      "sha256": "af77296878324d2c5382298b0d481cf0ece7c3733510694abebcbf64c8ecaf55",
+      "birthNS": 1700000000000000000
+    },
+    {
+      "path": "Fixture/untouched",
+      "object": 25,
+      "mode": 33188,
+      "uid": 501,
+      "gid": 20,
+      "flags": 0,
+      "birthSeconds": 1791612550,
+      "modifyNS": 1791612550000000000,
+      "changeNS": 1791612550000000000,
+      "accessNS": 1791612550000000000,
+      "size": 19,
+      "links": 1,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      },
+      "sha256": "4c2a17c78ae06365c385586baca67d141a85b87413baec9abb6ca17a9625126a",
+      "birthNS": 1791612550000000000
+    }
+  ],
+  "rawAttributes": [
+    {
+      "object": 22,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 32,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      }
+    },
+    {
+      "object": 24,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      }
+    },
+    {
+      "object": 37,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 65792,
+          "sha256": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 36,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "79a257d3b1260eae2c407b55a33c28e19777c185b5254ab051442d2353b35464"
+        },
+        "com.apple.decmpfs": {
+          "size": 342,
+          "sha256": "437146f538ef983579099f8915a8069f2ab02054f0e0092736abee60b3cebe56"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.compressed": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      }
+    },
+    {
+      "object": 37,
+      "attributes": {
+        "com.apple.ResourceFork": {
+          "size": 65792,
+          "sha256": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 23,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "297f50eaab08e0b76c3fa60f48ef38a49d94d513c0569b71bad9cad133324270"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.directory": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      }
+    },
+    {
+      "object": 26,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 29,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 28,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 30,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "79a257d3b1260eae2c407b55a33c28e19777c185b5254ab051442d2353b35464"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 35,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "8e5c64f66c150392f50e28cf0a1b2c1816614c691ee5171087779fcd17b70951"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.link": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        }
+      }
+    },
+    {
+      "object": 24,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      }
+    },
+    {
+      "object": 31,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 27,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        }
+      }
+    },
+    {
+      "object": 24,
+      "attributes": {
+        "com.apple.FinderInfo": {
+          "size": 32,
+          "sha256": "a6b9e6b15f980aa3ad0d0c5089ed03d6d01dcaf0d4bd5bd9b25ad09be97b7d68"
+        },
+        "com.apple.ResourceFork": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.edit": {
+          "size": 7,
+          "sha256": "65f5b7d56cc4866afba4ea4d75745696ca497817035933bee5f816559fc582e5"
+        },
+        "org.go-apfs.empty": {
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      }
+    },
+    {
+      "object": 25,
+      "attributes": {
+        "com.apple.provenance": {
+          "size": 11,
+          "sha256": "0c7f0b38b61ddad9a37b80969491f1b2df27b808556a7233b1fef79c3987c47b"
+        },
+        "org.go-apfs.keep": {
+          "size": 20,
+          "sha256": "6dbdb85b1e1a2a6e6527fc15218ce79515ec55d40117c2197f95a1b6526dba33"
+        }
+      }
+    }
+  ]
+}

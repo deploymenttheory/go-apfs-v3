@@ -13,17 +13,21 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
-// Operation selects one ordered directory or content operation.
+// Operation selects one ordered tree, content, metadata or attribute edit.
 type Operation string
 
 const (
-	CreateFile      Operation = "create"
-	CreateDirectory Operation = "mkdir"
-	CreateSymlink   Operation = "symlink"
-	CreateHardLink  Operation = "link"
-	RenameEntry     Operation = "rename"
-	RemoveEntry     Operation = "remove"
-	ReplaceFileData Operation = "replace"
+	CreateFile          Operation = "create"
+	CreateDirectory     Operation = "mkdir"
+	CreateSymlink       Operation = "symlink"
+	CreateHardLink      Operation = "link"
+	RenameEntry         Operation = "rename"
+	RemoveEntry         Operation = "remove"
+	ReplaceFileData     Operation = "replace"
+	SetMetadata         Operation = "metadata"
+	SetAttribute        Operation = "setxattr"
+	RemoveAttribute     Operation = "removexattr"
+	ReplaceResourceFork Operation = "resource-fork"
 )
 
 // Change uses original filesystem paths, relative to the workspace root. Link
@@ -31,6 +35,7 @@ const (
 // Path as its new name and Target as literal target bytes. Intermediate symlinks
 // are never followed. Data is borrowed and must remain immutable until Edit ends.
 // Creation requires explicit, fully observed metadata including the object type.
+// SetMetadata uses Present fields as assignments and Uncaptured fields as omissions.
 // Fields unrelated to the operation must be zero; directory removal is empty-only.
 type Change struct {
 	Op       Operation            `json:"op"`
@@ -41,12 +46,16 @@ type Change struct {
 	Data     block.Source         `json:"-"`
 	// Attributes are explicit initial values for a new object, including forks.
 	Attributes map[string]block.Source `json:"-"`
+	// Attribute names a setxattr/removexattr value. Resource forks use the
+	// resource-fork operation for complete replacement, including truncation.
+	Attribute     string        `json:"attribute,omitempty"`
+	AttributeMode AttributeMode `json:"attributeMode,omitempty"`
 }
 
 // Edit applies an ordered batch and captures its final tree once, in a NEW
 // workspace outside the baseline. Later paths see earlier edits. Rename follows
 // native replacement semantics, including the same-inode no-op. Existing source
-// metadata/timestamps stay recorded; link counts change by the number of aliases
+// metadata/timestamps stay recorded unless explicitly edited; link counts change by the number of aliases
 // added/removed, including when the source has aliases outside this workspace.
 // New objects have explicit workspace identities; they are not native inode IDs.
 // A completion manifest is published only after the batch and all streamed values
@@ -156,7 +165,7 @@ func (r *editReader) Stat(ctx context.Context, id uint64) (filesystem.Node, erro
 	if err != nil {
 		return filesystem.Node{}, err
 	}
-	return o.node, nil
+	return copyNode(o.node), nil
 }
 func (r *editReader) ReadDir(ctx context.Context, id uint64, yield func(filesystem.DirEntry) error) error {
 	if yield == nil {
@@ -230,36 +239,35 @@ func (r *editReader) ListAttributes(ctx context.Context, id uint64, yield func(s
 	if err != nil {
 		return err
 	}
-	if o.fresh {
-		for name := range o.attributes {
-			if err := ctx.Err(); err != nil {
-				return err
+	if !o.fresh {
+		if err := r.Workspace.ListAttributes(ctx, id, func(name string) error {
+			if o.removed[name] || o.attributes[name] != nil {
+				return nil
 			}
-			if err := yield(name); err != nil {
-				return err
-			}
+			return yield(name)
+		}); err != nil {
+			return err
 		}
-		return nil
 	}
-	return r.Workspace.ListAttributes(ctx, id, func(name string) error {
-		if o.removed[name] {
-			return nil
+	for name := range o.attributes {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		return yield(name)
-	})
+		if err := yield(name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func (r *editReader) OpenAttribute(ctx context.Context, id uint64, name string) (filesystem.Value, error) {
 	o, err := r.getNode(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if o.fresh {
-		if value, ok := o.attributes[name]; ok {
-			return &replacementValue{value, ctx}, nil
-		}
-		return nil, fs.ErrNotExist
+	if value, ok := o.attributes[name]; ok {
+		return &replacementValue{value, ctx}, nil
 	}
-	if o.removed[name] {
+	if o.fresh || o.removed[name] {
 		return nil, fs.ErrNotExist
 	}
 	return r.Workspace.OpenAttribute(ctx, id, name)
@@ -328,6 +336,9 @@ func (r *editReader) apply(ctx context.Context, c Change) error {
 	if err := c.valid(); err != nil {
 		return err
 	}
+	if c.Op == SetMetadata || c.Op == SetAttribute || c.Op == RemoveAttribute || c.Op == ReplaceResourceFork {
+		return r.editMetadata(ctx, c)
+	}
 	parent, name, err := r.parent(ctx, c.Path)
 	if err != nil {
 		return err
@@ -364,7 +375,10 @@ func (r *editReader) apply(ctx context.Context, c Change) error {
 		if err != nil {
 			return err
 		}
-		o.node, o.removed, o.data = n, removed, c.Data
+		o.node, o.data = n, c.Data
+		for name := range removed {
+			o.removeAttribute(name)
+		}
 		r.replaced[entry.Object] = true
 		return nil
 	case CreateHardLink, RenameEntry:
@@ -434,10 +448,32 @@ func (r *editReader) apply(ctx context.Context, c Change) error {
 	}
 }
 func (c Change) valid() error {
+	if c.Op != SetAttribute && c.Op != RemoveAttribute && (c.Attribute != "" || c.AttributeMode != "") {
+		return fs.ErrInvalid
+	}
 	if c.Op != CreateFile && c.Op != CreateDirectory && c.Op != CreateSymlink && c.Attributes != nil {
 		return fs.ErrInvalid
 	}
 	switch c.Op {
+	case SetMetadata:
+		if c.Metadata == nil || c.Data != nil || c.To != "" || c.Target != "" {
+			return fs.ErrInvalid
+		}
+	case SetAttribute:
+		if c.Attribute == "" || c.Data == nil || c.Metadata != nil || c.To != "" || c.Target != "" {
+			return fs.ErrInvalid
+		}
+		if c.AttributeMode != AttributeUpsert && c.AttributeMode != AttributeCreate && c.AttributeMode != AttributeReplace {
+			return fs.ErrInvalid
+		}
+	case RemoveAttribute:
+		if c.Attribute == "" || c.AttributeMode != "" || c.Data != nil || c.Metadata != nil || c.To != "" || c.Target != "" {
+			return fs.ErrInvalid
+		}
+	case ReplaceResourceFork:
+		if c.Data == nil || c.Metadata != nil || c.To != "" || c.Target != "" {
+			return fs.ErrInvalid
+		}
 	case CreateFile:
 		if c.Data == nil || c.Metadata == nil || c.To != "" || c.Target != "" {
 			return fs.ErrInvalid
