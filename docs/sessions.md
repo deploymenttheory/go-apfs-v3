@@ -77,6 +77,7 @@ permission enforcement remain outside this phase.
 Apple `cp -a` copies regular-file hard-link aliases independently.
 `--preserve-links` explicitly retains those relationships within one copy command.
 A trailing slash on a source directory copies its contents into the destination.
+Host input also accepts the Windows trailing backslash on Windows.
 `-H` follows command-line source links, `-L` follows all source links and `-P`
 copies the links themselves during recursive copy. Nonrecursive copy follows its
 source link. Recursive metadata commands default to physical traversal; `-h`

@@ -34,7 +34,7 @@ func TestPackDirectoryAndSession(t *testing.T) {
 	for _, image := range []string{"directory.dmg", "session.dmg"} {
 		var out, diag bytes.Buffer
 		if err := run(ctx, []string{"cat", filepath.Join(root, image), "/file"}, nil, &out, &diag); err != nil || out.String() != "contents" {
-			t.Fatal(err, out.String())
+			t.Fatalf("%s: %v %s", image, err, out.String())
 		}
 	}
 }
