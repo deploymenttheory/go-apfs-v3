@@ -238,6 +238,12 @@ func TestCopyPoliciesAndHostDefaults(t *testing.T) {
 	if runtime.GOOS != "darwin" && !slices.Contains(n.MetadataDefaulted, "bsdFlags") {
 		t.Fatal("missing BSD flag default")
 	}
+	check(s.Copy(ctx, []string{"/ordinary/executable"}, "/copied-again", CopyOptions{Preserve: true}))
+	again, _ := s.LookupPath(ctx, "/copied-again", false)
+	copied, _ := s.Stat(ctx, again)
+	if !slices.Equal(n.MetadataDefaulted, copied.MetadataDefaulted) || n.AttributesUnavailable != copied.AttributesUnavailable {
+		t.Fatal("copy promoted host defaults into observations", n, copied)
+	}
 	check(s.Chmod(ctx, []string{"/ordinary/executable"}, "0700", WalkOptions{}))
 	n, _ = s.Stat(ctx, a)
 	if slices.Contains(n.MetadataDefaulted, "mode") {

@@ -320,3 +320,20 @@ func TestSessionCommandFlagsAndDefaults(t *testing.T) {
 		t.Fatal(node)
 	}
 }
+
+func TestPortableSessionNames(t *testing.T) {
+	for _, name := range []string{"../build", "build.", "CON", "aux.data", "LPT1", "COM9.txt"} {
+		if _, err := sessionDirectory(t.TempDir(), name); err == nil {
+			t.Fatal("accepted nonportable session name", name)
+		}
+	}
+	root := t.TempDir()
+	a, err := sessionDirectory(root, "Build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := sessionDirectory(root, "build")
+	if err != nil || a != b {
+		t.Fatal("host case policy changes session selection", a, b, err)
+	}
+}

@@ -40,7 +40,8 @@ Scratch defaults to the host user-cache directory under `go-apfs-v3/sessions`.
 `APFS_SCRATCH_DIR` or `--scratch-dir DIRECTORY` selects another storage root.
 Use the same root when resuming a named session. Names contain ASCII letters,
 digits, dots, underscores and hyphens, start with a letter/digit, and are at most
-128 characters. Cleanup is explicit: closing a command leaves the session intact.
+128 characters. Session names are case-insensitive on every host; Windows device
+names and trailing dots are rejected. Cleanup is explicit: closing a command leaves the session intact.
 `--json` requests reports; commands have no JSON input format.
 
 ## Supported commands

@@ -110,7 +110,7 @@ func (r *Tree) AttributeAvailability(ctx context.Context, id uint64, unavailable
 	if err != nil {
 		return err
 	}
-	o.node.AttributesUnavailable = unavailable
+	o.node.AttributesUnavailable = o.node.AttributesUnavailable || unavailable
 	return nil
 }
 

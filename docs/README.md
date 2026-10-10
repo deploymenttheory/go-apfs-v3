@@ -2,6 +2,7 @@
 
 - [Architecture](architecture.md): preservation, ownership, errors, and boundaries.
 - [Implementation](implementation.md): agreed phases and current capability status.
+- [Sessions](sessions.md): file commands, managed scratch and host metadata policy.
 - [Sources](sources.json): authoritative references and implementation provenance.
 - [Acceptance](../acceptance/README.md): why scenarios exist and how to reproduce them.
 

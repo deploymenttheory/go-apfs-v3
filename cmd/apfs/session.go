@@ -101,8 +101,14 @@ func addSessionFlags(f *flag.FlagSet) *sessionFlags {
 var sessionName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 func sessionDirectory(root, name string) (string, error) {
-	if !sessionName.MatchString(name) {
+	if !sessionName.MatchString(name) || strings.HasSuffix(name, ".") {
 		return "", fmt.Errorf("invalid session name: %w", fs.ErrInvalid)
+	}
+	name = strings.ToLower(name)
+	stem, _, _ := strings.Cut(name, ".")
+	reserved := stem == "con" || stem == "prn" || stem == "aux" || stem == "nul" || (len(stem) == 4 && (strings.HasPrefix(stem, "com") || strings.HasPrefix(stem, "lpt")) && stem[3] >= '1' && stem[3] <= '9')
+	if reserved {
+		return "", fmt.Errorf("reserved session name: %w", fs.ErrInvalid)
 	}
 	if root == "" {
 		cache, err := os.UserCacheDir()

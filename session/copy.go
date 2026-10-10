@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -293,6 +294,9 @@ func (c *copier) metadata(e copyEntry) (filesystem.Metadata, []string, error) {
 	}
 	if src.Mode.State == filesystem.Present {
 		bits = src.Mode.Value & 07777
+		if slices.Contains(e.node.MetadataDefaulted, "mode") {
+			defaults = append(defaults, "mode")
+		}
 		if !c.options.Preserve && kind == 0100000 {
 			bits &^= s.document.Config.Umask
 			bits &^= 06000
@@ -309,6 +313,9 @@ func (c *copier) metadata(e copyEntry) (filesystem.Metadata, []string, error) {
 		}{{"uid", src.UID, &m.UID}, {"gid", src.GID, &m.GID}, {"bsdFlags", src.BSDFlags, &m.BSDFlags}} {
 			if field.src.State == filesystem.Present {
 				*field.dst = field.src
+				if slices.Contains(e.node.MetadataDefaulted, field.name) {
+					defaults = append(defaults, field.name)
+				}
 			} else {
 				defaults = append(defaults, field.name)
 			}
@@ -324,6 +331,9 @@ func (c *copier) metadata(e copyEntry) (filesystem.Metadata, []string, error) {
 					return m, nil, err
 				}
 				*field.dst = filesystem.Observed(v)
+				if slices.Contains(e.node.MetadataDefaulted, field.name) {
+					defaults = append(defaults, field.name)
+				}
 			} else {
 				defaults = append(defaults, field.name)
 			}
