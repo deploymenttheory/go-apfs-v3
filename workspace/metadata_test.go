@@ -138,6 +138,7 @@ func TestMetadataFailuresNeverPublishOrCloseBorrowedInputs(t *testing.T) {
 	failure := errors.New("attribute input failure")
 	broken := &failedReplacement{size: 2, read: func([]byte, int64) (int, error) { return 0, failure }}
 	short := &failedReplacement{size: 32, read: func([]byte, int64) (int, error) { return 0, io.EOF }}
+	oversized := &failedReplacement{size: math.MaxInt32 + 1, read: func([]byte, int64) (int, error) { t.Fatal("read oversized attribute input"); return 0, failure }}
 	cases := []struct {
 		name    string
 		changes []Change
@@ -161,6 +162,7 @@ func TestMetadataFailuresNeverPublishOrCloseBorrowedInputs(t *testing.T) {
 		{"late batch", []Change{{Op: SetAttribute, Path: "alias", Attribute: "org.first", Data: bytes.NewReader(nil)}, {Op: RemoveAttribute, Path: "alias", Attribute: "org.absent"}}, fs.ErrNotExist},
 		{"short FinderInfo", []Change{{Op: SetAttribute, Path: "alias", Attribute: filesystem.FinderInfo, Data: short}}, io.ErrUnexpectedEOF},
 		{"failed streaming", []Change{{Op: SetAttribute, Path: "alias", Attribute: "org.failed", Data: broken}}, failure},
+		{"native attribute size", []Change{{Op: SetAttribute, Path: "alias", Attribute: "org.large", Data: oversized}}, filesystem.ErrLimit},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

@@ -143,6 +143,11 @@ func (r *editReader) editMetadata(ctx context.Context, c Change) error {
 			}
 		}
 	} else {
+		// HFS_XATTR_MAXSIZE is INT32_MAX. Use that portable admission bound
+		// for ordinary attributes; independent resource forks use Limits instead.
+		if c.Op == SetAttribute && c.Data.Size() > math.MaxInt32 {
+			return filesystem.ErrLimit
+		}
 		if err := r.supply(c.Data); err != nil {
 			return err
 		}

@@ -143,7 +143,10 @@ unspecified mode bits rather than emulating credential-dependent set-ID clearing
 
 `attributeMode` is omitted for create-or-replace, `create` for `XATTR_CREATE`, or
 `replace` for `XATTR_REPLACE`. Names are exact UTF-8 strings, at most 127 bytes,
-without NUL. Empty ordinary values remain present. Inputs borrow sized sources
+without NUL. Ordinary attribute edits are limited to 2 GiB minus one byte, the
+HFS+ value bound, and any smaller caller budget. This admission limit also applies
+to APFS workspace edits; retained source values are unaffected. Empty ordinary
+values remain present. Inputs borrow sized sources
 and stream through the capture engine. FinderInfo reads exactly 32 bytes for native
 validation and normalization. All-zero public FinderInfo becomes absent. HFS+
 masks kernel-owned fields and symlink type/creator fields, and rejects the reserved

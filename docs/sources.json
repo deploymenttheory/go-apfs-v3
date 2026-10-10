@@ -51,7 +51,7 @@
         "internal/names/generate.py",
         "internal/finderinfo/hfs.go"
       ],
-      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts. Regular-file indirection follows cat_lookup/cat_resolvelink, including creation-date qualification and native inode identity. HFS+ comparison data translates gLatinCaseFold/gLowerCaseTable; the generator records the frozen UTF-16 comparison rules. The FinderInfo masking adaptation is shared by HFS+ reading and workspace edits. The hfs_vnop_setxattr/removexattr and hfs_set_bsd_flags behavior was also studied for native FinderInfo admission and hidden-bit coupling; workspace operations are original Go interpretations qualified against native final observations.",
+      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts. Regular-file indirection follows cat_lookup/cat_resolvelink, including creation-date qualification and native inode identity. HFS+ comparison data translates gLatinCaseFold/gLowerCaseTable; the generator records the frozen UTF-16 comparison rules. The FinderInfo masking adaptation is shared by HFS+ reading and workspace edits. The hfs_vnop_setxattr/removexattr and hfs_set_bsd_flags behavior was also studied for native FinderInfo admission and hidden-bit coupling; workspace operations are original Go interpretations qualified against native final observations. HFS_XATTR_MAXSIZE in core/hfs.h supplies the common ordinary-attribute edit admission bound; resource forks retain their separate streaming limits.",
       "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
       "license": "APSL-2.0",
       "licenseFile": "LICENSES/APSL-2.0.txt",
@@ -87,6 +87,10 @@
         {
           "path": "core/hfs_catalog.c",
           "sha256": "a459793a5f38d05ad3b5a8e6f9761aefb3d9dfeb077962a7a190b6812bd37dd6"
+        },
+        {
+          "path": "core/hfs.h",
+          "sha256": "931731027ac0a9dfb1254a36aea47dfb4c2af843d7c4093c7806b56454a7d1f1"
         }
       ],
       "licenseBasis": "The translated file header specifies APSL 2.0. The upstream root APPLE_LICENSE contains the older APSL 1.2 and is inventoried for provenance, not used as the license text for this translation.",
