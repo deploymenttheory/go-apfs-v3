@@ -113,7 +113,9 @@ def capture_after(scratch, corpus, case_id, attach, command, observe_files, nati
         ['cp', '-a', '/Source.app', '/Applications/'],
         ['chmod', 'u+x,g=u-w,o=', '/Applications/Source.app/Contents/MacOS/Example'],
         ['chmod', '-R', 'u=rwX,go=rX', '/Applications/Source.app'],
-        ['mkdir', '-pm750', '/Applications/Source.app/Contents/New/deep'],
+        # Keep other-read/traverse permission after the final sudo ownership change,
+        # so independent unprivileged readback can observe every directory.
+        ['mkdir', '-pm775', '/Applications/Source.app/Contents/New/deep'],
         ['cp', '--from-host', '-X', '@' + payload.name, '/Applications/Source.app/Contents/New/build.bin'],
         ['chmod', '0644', '/Applications/Source.app/Contents/New/build.bin'],
         ['ln', '/Applications/Source.app/Contents/New/build.bin', '/build-alias'],
