@@ -293,9 +293,11 @@ jobs:
           including actual UID/GID changes, FinderInfo rules and complete fork replacement.
           File commands verify 36 session exports against 828 native commands,
           including directory import, mode parsing, aliases and native timestamp effects.
-          Image building checks 36 DMGs with Apple checksum verification, fsck_hfs,
-          exact mounted readback and codesign. Every host must produce identical bytes
-          from the same captured source and build options.
+          Image building checks 81 DMGs with Apple checksum verification, fsck_apfs
+          or fsck_hfs, exact mounted readback and codesign for application images.
+          All 45 APFS images also undergo native writes, allocation reuse and another
+          filesystem check through disposable shadows. Every host must produce
+          identical bytes from the same captured source and build options.
           Image repacking checks 90 DMGs against complete native disk hashes,
           partition and volume inventories, encrypted-volume unlocks, retained
           snapshot histories, signed apps and recorded unused-sector bytes.
