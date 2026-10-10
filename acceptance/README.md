@@ -274,6 +274,13 @@ consumer to replay all three. Snapshot creation/deletion/revert by Go, sealed
 system verification, dataless snapshots and arbitrary checkpoint recovery remain
 outside this family.
 
+The snapshot collector retries `ENOENT` only while polling for ASR's new
+snapshot, under its existing 30-second deadline. Its result records the retry
+count. Busy creation of an ASR target gets at most three attempts, each at a new
+disposable path, with every command retained in diagnostics. Final snapshot
+inventories, successful native copy completion and retained-content checks stay
+strict. These bounds address transient native failures observed during PR #18.
+
 ## Preservation-aware extraction
 
 Purpose: retain a macOS tree on Linux or Windows without making host filenames,
