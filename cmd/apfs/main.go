@@ -31,20 +31,23 @@ func main() {
 
 func run(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: apfs inspect|info|list|cat|snapshot [options] IMAGE [PATH]")
+		return fmt.Errorf("usage: apfs inspect|info|list|cat|extract|workspace|snapshot [options] IMAGE [PATH]")
 	}
 	if args[0] == "licenses" {
-		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived FinderInfo adapter: Copyright (c) 2000-2023 Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nSee hfsplus/finderinfo.go, LICENSES/APSL-2.0.txt and THIRD_PARTY_NOTICES.md.")
+		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nSee hfsplus/finderinfo.go, appledouble/appledouble.go, LICENSES/APSL-2.0.txt and THIRD_PARTY_NOTICES.md.")
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n\nlist/cat accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
 	}
 	if args[0] == "snapshot" {
 		return snapshots(ctx, args[1:], input, out, diagnostics)
 	}
-	if args[0] == "list" || args[0] == "cat" {
+	if args[0] == "workspace" {
+		return verifyWorkspace(ctx, args[1:], out, diagnostics)
+	}
+	if args[0] == "list" || args[0] == "cat" || args[0] == "extract" {
 		return readFiles(ctx, args, input, out, diagnostics)
 	}
 	if args[0] != "inspect" && args[0] != "info" {

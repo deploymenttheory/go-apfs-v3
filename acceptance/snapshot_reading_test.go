@@ -147,6 +147,7 @@ func compareSnapshots(t *testing.T, reader filesystem.Reader, live fileObservati
 			t.Fatal("name and XID selected different views", err, left, right)
 		}
 		compareFiles(t, r, observation)
+		compareHistoricalExtraction(t, r, observation, uint64(expected.XID))
 		for _, query := range observation.Lookups {
 			id, err := filesystem.Lookup(ctx, r, query.Path)
 			if query.Object == 0 {

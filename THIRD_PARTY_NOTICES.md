@@ -61,3 +61,12 @@ Willem Hengeveld's MIT-licensed `encrypteddmg` documentation and the MIT-license
 No Python or C implementation was copied or translated. Apple CSSM identifiers
 and native image observations supply additional evidence. Exact revisions and
 file hashes are recorded in the source inventory.
+
+`appledouble/appledouble.go` adapts the AppleDouble/ATTR layouts and packing
+sequence from Apple's `copyfile.c`, copyright 2004–2024 Apple Inc., under
+[APSL-2.0](LICENSES/APSL-2.0.txt). The Go adaptation retains source notices and
+replaces descriptors and whole-value allocations with checked borrowed sections
+and bounded writes. It does not port native ACL/quarantine or process policy.
+Its source is supplied at [appledouble/appledouble.go](appledouble/appledouble.go)
+and https://github.com/deploymenttheory/go-apfs-v3. Exact upstream revision,
+source hashes, changes and independent native controls are in the source inventory.

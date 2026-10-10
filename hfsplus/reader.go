@@ -23,6 +23,10 @@ func (v *Volume) Root() uint64 { return 2 }
 func (v *Volume) Lookup(ctx context.Context, parent uint64, name string) (filesystem.DirEntry, error) {
 	return names.Lookup(ctx, v, parent, name, func(s string) string { return names.HFS(s, v.CaseSensitive) })
 }
+
+func (v *Volume) NameRules() filesystem.NameRules {
+	return filesystem.NameRules{Format: "HFS+", CaseSensitive: v.CaseSensitive, NormalizationInsensitive: true}
+}
 func (v *Volume) readable(ctx context.Context, id uint64) error {
 	if err := ctx.Err(); err != nil {
 		return err

@@ -34,6 +34,10 @@ func (v *Volume) Lookup(ctx context.Context, parent uint64, name string) (filesy
 	})
 }
 
+func (v *Volume) NameRules() filesystem.NameRules {
+	return filesystem.NameRules{Format: "APFS", CaseSensitive: v.CaseSensitive, NormalizationInsensitive: v.IncompatibleFeatures&9 != 0}
+}
+
 func (v *Volume) inode(ctx context.Context, id uint64) (inode, error) {
 	var result inode
 	found := false

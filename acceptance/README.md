@@ -96,7 +96,7 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all seven families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all eight families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
@@ -270,3 +270,45 @@ requires fresh macOS 15/26/27 reference captures and each Linux/Windows/macOS
 consumer to replay all three. Snapshot creation/deletion/revert by Go, sealed
 system verification, dataless snapshots and arbitrary checkpoint recovery remain
 outside this family.
+
+## Preservation-aware extraction
+
+Purpose: retain a macOS tree on Linux or Windows without making host filenames,
+permissions, symlinks or extended-attribute support a source of silent loss.
+
+| Scenario | Independent native reference | Portable and native return checks |
+| --- | --- | --- |
+| 125–126 entries in APFS, case-sensitive APFS, HFS+, HFSX | Final read-only enumeration, `lstat`, reads and raw `XATTR_SHOWCOMPRESSION` values | Reopened workspace matches names, identities, metadata, logical bytes and raw attributes |
+| Windows device names, colon/backslash, newline, long/Unicode names and case pairs | Original names and distinct file hashes | Portable mapping has no collisions; original spelling survives reopening |
+| Ordinary `._` content, relative/absolute/dangling links, two hard-link aliases | Native file bytes, link targets, inode and link counts | Ordinary data stays ordinary; target records cannot redirect extraction; aliases retain logical identity |
+| Native `ditto --hfsCompression --noclone` storage | Native logical reads and compression-owned xattrs | Logical and raw forks remain separate; compressed metadata is retained |
+| AppleDouble ordinary attributes, empty/binary/large values, FinderInfo and resource fork | Apple's `COPYFILE_PACK`, plus native `COPYFILE_UNPACK` control results | Every host decodes/encodes; Apple unpacks the resulting files and compares all resulting attributes |
+
+The collector never invokes Go. It hashes its own sources and all observations.
+Default portable tests replay retained macOS 27 evidence. CI captures all three
+macOS versions and extracts each corpus on Linux, Windows and macOS. Each Mac
+then verifies all 36 actual workspace outputs using Python against native
+observations, and performs 108 native AppleDouble unpack comparisons. The return
+verifier never calls Go. Hidden ordinary files must be included in artifacts.
+Host links/permissions can be lost in archive transport: the checked manifest
+preserves logical relationships and metadata independently.
+
+A small composition check also extracts a historical generation file from each
+snapshot profile, including nested encryption, and verifies its native metadata,
+content and view. This avoids multiplying the large extraction fixture by every
+reader profile. Focused unit tests cover source traversal/errors, incomplete
+publication, limits/cancellation, damaged blobs, external edits and symlink
+substitution. AppleDouble parser tests and fuzzing check malformed ranges,
+overlap, empty/duplicate records, output limits and I/O failures.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario preservation --output artifacts/native/preservation/macos-27
+APFS_NATIVE_PRESERVATION=../artifacts/native/preservation APFS_WORKSPACE_OUTPUT=../artifacts/outputs/preservation-macOS go test -v -run TestNativePreservation ./acceptance
+python3 acceptance/native/verify_preservation.py --expected-major 27 --corpus artifacts/native/preservation --outputs artifacts/outputs --producers 27 --consumers macOS
+```
+
+Outputs require a new directory; use a fresh output path for another run. The
+retained local extraction comparison takes about nine seconds; native readback
+of its four workspaces and 12 AppleDouble controls takes less than one second.
+This qualifies capture/readback and serialized metadata, not host metadata
+application, app-bundle execution, workspace editing or filesystem rebuilding.

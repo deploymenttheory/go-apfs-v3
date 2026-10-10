@@ -4,10 +4,10 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: initial read-only implementation.** The executable inspects images,
+**Status: readers and preservation-aware extraction.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
-opens retained APFS snapshots as historical filesystem views. Writes,
+opens retained APFS snapshots and extracts portable workspaces. Filesystem writes,
 recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
@@ -26,6 +26,8 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cat image.dmg /Applications/Example.app/Contents/Info.plist
 ./bin/apfs cat --password-file ./volume-password.bin apfs-encrypted.dmg /Fixture/example.txt
 ./bin/apfs cat --image-password-file ./image-password.bin encrypted.dmg /Fixture/example.txt
+./bin/apfs extract --json image.dmg /Applications/Example.app ./example-workspace
+./bin/apfs workspace verify --json ./example-workspace
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
@@ -55,6 +57,9 @@ Currently implemented:
   unlocked views with explicit key lifetimes.
 - APFS snapshot inventories and independent historical readers selected by exact
   snapshot name or XID; live and historical reads share the same file APIs.
+- Portable extraction with original names, logical/raw data, metadata, attributes,
+  resource forks, symlink targets and hard-link identities; verified workspace readers.
+- Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
 Password files contain exact bytes: no newline or whitespace is removed. Use
@@ -105,7 +110,7 @@ keys are cleared; Go's AES API does not provide expanded-key zeroization.
 flags and observed UUIDs. `OpenSnapshot(ctx, xid)` and
 `OpenSnapshotName(ctx, name)` return a borrowed `filesystem.Reader` fixed to that
 snapshot. Keep the source and owning APFS unlock open; the historical reader
-has no separate `Close`. CLI `list` and `cat` accept either `--snapshot-name` or
+has no separate `Close`. CLI `list`, `cat` and `extract` accept either `--snapshot-name` or
 `--snapshot-xid`. Missing or damaged selections fail without returning live files.
 Sealed-system verification, dataless snapshots and snapshot mutation remain outside
 this reader increment.
@@ -120,6 +125,31 @@ must finish before closing the image. `filesystem.Lookup` uses native comparison
 `Stat` reports the logical size and native compression type. `OpenRawData`
 retains the stored data fork, while `OpenAttribute` retains byte-exact decmpfs
 and resource-fork storage, including compression-owned resource forks.
+
+`workspace.Extract(ctx, reader, rootID, newDirectory, limits)` creates a portable
+workspace. `files/` contains a host projection; `metadata/manifest.json` records
+original byte names and native metadata, with SHA-256 blobs for logical/raw data
+and attributes. Unsafe names and case collisions are mapped. Symlinks appear as
+regular target-text records; hard-link identities survive hosts or archives that
+copy their contents. Original ownership, modes, flags and times are recorded,
+not applied. The projection is therefore not yet a runnable macOS app bundle.
+
+`workspace.Open(ctx, directory)` verifies the complete projection and blobs, then
+implements `filesystem.Reader` with the original names and filename comparison
+rules. Keep it open while using values; keep the directory immutable. Missing,
+modified or incomplete content fails explicitly. This increment supports capture
+and readback; explicit replacement/import generations follow in phase 3. The
+CLI refuses existing destinations. Failed capture can leave an incomplete
+workspace for diagnosis. Large values stream; object, entry, depth and byte
+budgets are configurable up to documented defaults in `workspace.DefaultLimits`.
+
+`appledouble.Decode(ctx, source)` borrows serialized metadata; `Write(ctx, out,
+file)` streams it. These APIs operate on explicit inputs, never infer companion
+files from `._` names, and do not apply host metadata policy. ACL/quarantine
+records are opaque serialized values, distinct from raw filesystem attributes.
+The codec admits Apple's two-entry FinderInfo/resource layout and ATTR extension;
+unknown layouts fail explicitly. AppleDouble's 32-bit ranges limit encoded output
+to 4 GiB minus one byte. Workspace storage retains larger values independently.
 
 ## Verification
 
