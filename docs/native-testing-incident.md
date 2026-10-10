@@ -1,6 +1,6 @@
 # Native APFS test incident — 2026-10-10
 
-Multi-volume construction is not qualified for release. Native testing of the
+Before multi-volume construction was qualified, native testing of the
 experimental builder triggered APFS kernel panics on the development Mac. The
 reported panic is `System ObjId overflow` at `jobj.c:1146`, in `fseventsd`, on
 macOS 27.0.1 build 26A434. The panic backtrace includes Apple's APFS driver.
@@ -33,9 +33,12 @@ the observed native values. An acceptance assertion now compares the generated
 System inode namespace against the captured native objects independently of the
 normal inode-identity bijection.
 
-This is a concrete format mismatch and a strong explanation for the panic;
-the correction has not been verified by mounting it. Native qualification remains
-outstanding and must not be replaced with a successful Go round trip or fsck.
+This is a concrete format mismatch and a strong explanation for the panic.
+At initial diagnosis the correction had only been checked offline. A successful
+Go round trip or fsck does not replace mounted native allocation and remount
+checks. Qualification results for the corrected implementation are recorded in
+[PR #23's compatibility checks](https://github.com/deploymenttheory/go-apfs-v3/pull/23/checks);
+the change must remain draft until that complete matrix passes.
 
 ## Resuming native qualification
 
