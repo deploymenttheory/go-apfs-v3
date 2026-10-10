@@ -67,17 +67,32 @@ def attach(image, command, readonly=True):
     data = plistlib.loads(command('hdiutil', 'attach', '-nomount', '-plist',
                                 *(['-readonly'] if readonly else []), image))
     entries = [e for e in data['system-entities'] if 'dev-entry' in e]
-    whole = [e for e in entries if e.get('content-hint') in ('GUID_partition_scheme', 'Apple_partition_scheme')]
-    if not whole:
-        whole = [e for e in entries if e.get('content-hint') in ('Apple_HFS', 'Apple_HFSX', 'Apple_APFS')]
-    if not whole and len(entries) == 1 and entries[0].get('volume-kind'):
-        whole = entries
-    if len(whole) != 1:
+    try:
+        whole = [e for e in entries if e.get('content-hint') in ('GUID_partition_scheme', 'Apple_partition_scheme')]
+        if not whole:
+            whole = [e for e in entries if e.get('content-hint') in ('Apple_HFS', 'Apple_HFSX', 'Apple_APFS')]
+        if not whole:
+            # A bare APFS image can omit the physical device's content hint.
+            # Follow Apple's volume-to-store relationship, never the synthesized
+            # container or whichever device happened to appear first.
+            volumes = [e for e in entries if e.get('volume-kind') == 'apfs']
+            if volumes:
+                stores = info(volumes[0]['dev-entry'], command)['APFSPhysicalStores']
+                if len(stores) != 1:
+                    raise RuntimeError('one APFS physical store required')
+                device = '/dev/' + stores[0]['APFSPhysicalStore']
+                whole = [e for e in entries if e['dev-entry'] == device]
+                if len(whole) != 1 or not info(device, command)['WholeDisk']:
+                    raise RuntimeError('APFS store is not a complete attached disk')
+        if not whole and len(entries) == 1 and entries[0].get('volume-kind'):
+            whole = entries
+        if len(whole) != 1:
+            raise RuntimeError(f'ambiguous image disk: {entries}')
+        return whole[0]['dev-entry'], entries
+    except BaseException:
         if entries:
             command('hdiutil', 'detach', entries[0]['dev-entry'])
-        # Do not choose a synthesized APFS device or the first returned partition.
-        raise RuntimeError(f'ambiguous image disk: {entries}')
-    return whole[0]['dev-entry'], entries
+        raise
 
 
 def info(device, command):

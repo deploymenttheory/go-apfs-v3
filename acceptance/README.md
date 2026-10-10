@@ -626,3 +626,12 @@ Each family retains its sequential scenario checks,
 required inventories and before/after hashes. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
 each disposable macOS job. The race timeout stays at five minutes.
+
+For a native-verifier-only correction, dispatch the existing compatibility
+workflow with `readback_run` set to a prior run whose three captures and three
+portable replays succeeded. Each Mac validates that evidence and compares source
+commits before downloading the archived references and outputs. Changes outside
+native helpers, documentation and the two CI workflows require fresh capture and
+replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
+this admission. Every native readback still runs on all three macOS versions.
+Ordinary PR runs continue to capture and replay fresh data.
