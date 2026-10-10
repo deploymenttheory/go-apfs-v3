@@ -505,3 +505,21 @@ account lacks passwordless sudo. Independent local readback accepts
 cannot bypass the required release matrix. Process-interruption, hash corruption,
 lock conflicts, bounds, symlink traversal and metadata-only content reuse have
 separate focused unit controls.
+
+## Image building
+
+Purpose: prove Linux/Windows can produce DMGs that macOS accepts without losing
+application contents, metadata, forks, aliases or existing signatures.
+
+| Native inputs | Portable operation | Independent native verdict |
+| --- | --- | --- |
+| HFS+/HFSX, deep catalog, ordinary/compressed data, attributes/forks, hard links, signed universal app | Capture session; build UDRO and UDZO twice with fixed clock | `hdiutil verify`, `fsck_hfs -fn`, exact mounted readback, link bijection and `codesign --verify --deep --strict` |
+
+`go test -run TestNativeImageBuilding -v ./acceptance` replays the retained macOS
+27 corpus. Capture with `--scenario image-building`; `APFS_NATIVE_IMAGE_BUILDING`
+selects another corpus and `APFS_IMAGE_BUILDING_OUTPUT` retains constructed DMGs.
+`verify_image_building.py` accepts the corpus/output roots and expected verifier
+macOS major, following the other independent verification scripts. CI requires
+both filesystem profiles and encodings from every producer/consumer combination,
+compares output hashes across hosts and retains failure diagnostics. Native source
+images and observations are immutable; a writer mismatch is fixed in Go.

@@ -14,6 +14,12 @@ The source of this adaptation is supplied in this repository at
 https://github.com/deploymenttheory/go-apfs-v3. The exact upstream revision and
 source hashes are recorded in [the source inventory](docs/sources.json).
 
+`hfsplus/build.go` and `hfsplus/build_tree.go` adapt Apple’s `newfs_hfs/makehfs.c`,
+copyright 1999–2023 Apple Inc., under [APSL-2.0](LICENSES/APSL-2.0.txt). The Go
+source is supplied here with the original notice, modification date and pinned
+source inventory. They build new volumes from logical readers without kernel or
+journal code.
+
 `hfsplus/links.go` adapts Apple's `cat_lookup`/`cat_resolvelink` indirection under
 APSL-2.0, preserving regular-file hard-link identity and metadata while using
 bounded Go tree readers instead of kernel structures.

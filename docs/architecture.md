@@ -359,3 +359,14 @@ comparison stay above these adapters. A fixed session clock is independent of
 scratch placement; reporting its location does not insert that path into canonical
 state. Export uses the existing preservation engine and schema 5 provenance.
 See [session semantics](sessions.md) for command flags and policy boundaries.
+
+## Fresh image construction
+
+`pack` coordinates `hfsplus.Plan` and `diskimage.Encode`; the CLI only imports or
+opens a session and supplies options. The HFS engine owns native catalog IDs,
+keys, private link records, B-trees, fork placement and allocation accounting.
+UDIF knows only a sized sequential stream and never interprets filesystem metadata.
+Both layers borrow input and leave destination publication to the caller.
+A bounded pipe connects them without writing an intermediate raw disk. The
+file-output helper flushes a sibling temporary file and uses no-overwrite hard-link
+publication. Existing images and their transaction algorithms are untouched.

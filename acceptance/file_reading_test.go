@@ -122,6 +122,17 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 				}
 			}
+			if scenario == "image-building" {
+				required := []string{"image_building.py", "file_compression.py", "preservation.py"}
+				if len(c.Producer.Sources) != len(required) {
+					t.Fatal("incomplete image-building source provenance")
+				}
+				for i, name := range required {
+					if c.Producer.Sources[i].Source != name {
+						t.Fatal("unexpected image-building source")
+					}
+				}
+			}
 			for _, source := range c.Producer.Sources {
 				verifyDigest(t, dir, source.Source, source.SHA256)
 			}
@@ -134,6 +145,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 				for _, id := range []string{"apfs-aes128", "apfs-case-sensitive-aes256", "hfsplus-aes128", "hfsx-aes256", "hfsplus-raw-aes256", "apfs-nested-aes256"} {
 					wantIDs[scenario+"/"+id] = false
 				}
+			}
+			if scenario == "image-building" {
+				wantIDs = map[string]bool{scenario + "/hfsplus": false, scenario + "/hfsx": false}
 			}
 			if scenario == "snapshot-reading" {
 				wantIDs = map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/apfs-encrypted-dmg": false}
@@ -216,6 +230,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 					if scenario == "file-commands" {
 						compareFileCommands(t, reader, want, dir, test.ID, major)
+					}
+					if scenario == "image-building" {
+						compareImageBuilding(t, reader, want, test.ID, major)
 					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)

@@ -138,7 +138,7 @@ func TestCatIsByteExactAndDoesNotFollowSymlinks(t *testing.T) {
 
 func TestUnimplementedCommandDoesNotSucceed(t *testing.T) {
 	var out, diagnostics bytes.Buffer
-	if err := run(context.Background(), []string{"pack", "source", "output.dmg"}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrUnsupported) {
+	if err := run(context.Background(), []string{"create", "output.dmg"}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrUnsupported) {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
