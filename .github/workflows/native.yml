@@ -42,6 +42,8 @@ jobs:
             major: 27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM for native filesystem tests
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Record APFS snapshot inventories and historical files
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
       - name: Record volume layout and identity
@@ -87,7 +89,7 @@ jobs:
           File commands record an app-copy/edit journey and independent libc mode vectors.
 
           Image building records APFS/HFS+/HFSX trees, exact timestamps, native name lookups,
-          empty construction roots and an independently signed universal application.
+          empty roots, signed applications, shared APFS reserves/quotas and System/Data groups.
 
           Image repacking records complete native disk hashes, partition maps, snapshots, encrypted volumes and unused-sector controls.
 
@@ -150,7 +152,7 @@ jobs:
           path: artifacts/native
           merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
-        run: go test -v -count=1 -timeout 5m ./acceptance
+        run: go test -v -count=1 -timeout 6m ./acceptance
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -234,6 +236,8 @@ jobs:
             major: 27
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM for native filesystem tests
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - uses: actions/download-artifact@v7
         with:
           pattern: native-corpus-*
@@ -293,11 +297,12 @@ jobs:
           including actual UID/GID changes, FinderInfo rules and complete fork replacement.
           File commands verify 36 session exports against 828 native commands,
           including directory import, mode parsing, aliases and native timestamp effects.
-          Image building checks 81 DMGs with Apple checksum verification, fsck_apfs
-          or fsck_hfs, exact mounted readback and codesign for application images.
-          All 45 APFS images also undergo native writes, allocation reuse and another
-          filesystem check through disposable shadows. Every host must produce
-          identical bytes from the same captured source and build options.
+          Image building requires 117 host DMGs to agree in triples, then checks
+          all 39 distinct images with Apple checksums, fsck, mounted readback and
+          codesign. All 27 APFS images also undergo native writes and remount checks;
+          multi-volume controls exercise reserves, quotas and System/Data groups.
+          Native tests run in disposable GitHub-hosted VMs. Identical bytes from
+          the three portable hosts are verified once per macOS version.
           Image repacking checks 90 DMGs against complete native disk hashes,
           partition and volume inventories, encrypted-volume unlocks, retained
           snapshot histories, signed apps and recorded unused-sector bytes.

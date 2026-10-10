@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Containers</key>
+	<array>
+		<dict>
+			<key>APFSContainerUUID</key>
+			<string>8798390D-B48E-4486-A303-103C821A96B4</string>
+			<key>ContainerReference</key>
+			<string>disk5</string>
+			<key>VolumeGroups</key>
+			<array/>
+		</dict>
+	</array>
+</dict>
+</plist>

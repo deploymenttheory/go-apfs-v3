@@ -94,7 +94,7 @@ func buildInode(o *buildObject, documentID uint32) buildRecord {
 
 var buildNameCRC = crc32.MakeTable(crc32.Castagnoli)
 
-func (p *Layout) directoryRecord(a buildAlias, id uint64, kind uint16) buildRecord {
+func (p *volumeLayout) directoryRecord(a buildAlias, id uint64, kind uint16) buildRecord {
 	key := buildKey(a.parent, 9, 4+len(a.name)+1)
 	h := uint32(0xffffffff)
 	for _, r := range names.APFS(a.name, p.options.CaseSensitive, true) {
@@ -108,7 +108,7 @@ func (p *Layout) directoryRecord(a buildAlias, id uint64, kind uint16) buildReco
 	copy(key[12:], a.name)
 	b := make([]byte, 18)
 	le.PutUint64(b, id)
-	ns, _ := buildTime(p.options.Time)
+	ns, _ := buildTime(p.time)
 	le.PutUint64(b[8:], ns)
 	le.PutUint16(b[16:], kind)
 	if a.id != 0 {
@@ -127,7 +127,7 @@ func buildXattr(id uint64, name string, value []byte, flags uint16) buildRecord 
 	return buildRecord{key, b}
 }
 
-func (p *Layout) records() ([]buildRecord, []buildRecord, uint32) {
+func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 	root := p.objects[0]
 	priv := &buildObject{id: 3, node: root.node, aliases: []buildAlias{{parent: 1, name: "private-dir"}}}
 	priv.node.Metadata.Mode = filesystem.Observed(uint32(0040700))
@@ -191,7 +191,7 @@ func (p *Layout) records() ([]buildRecord, []buildRecord, uint32) {
 	sort.Slice(records, func(i, j int) bool { return p.recordLess(records[i].key, records[j].key) })
 	return records, extents, documentID
 }
-func (p *Layout) recordLess(a, b []byte) bool {
+func (p *volumeLayout) recordLess(a, b []byte) bool {
 	x, y := le.Uint64(a), le.Uint64(b)
 	if x&0x0fffffffffffffff != y&0x0fffffffffffffff {
 		return x&0x0fffffffffffffff < y&0x0fffffffffffffff

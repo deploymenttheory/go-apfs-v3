@@ -394,8 +394,11 @@ cannot accidentally rename, resize or reinterpret an existing image.
 
 ## Fresh APFS construction
 
-`apfs.Plan` independently plans a single-volume container from an immutable APFS
-logical reader. Directory entries remain separate from inodes; sibling records
+`apfs.PlanContainer` plans ordered volumes from immutable APFS logical readers;
+`apfs.Plan` delegates single-volume construction to the same engine. One shared
+capacity/allocation plan owns the checkpoint, container object map and space
+manager. Each volume owns its superblock, object map, filesystem tree, extent
+tree and empty snapshot tree. Directory entries remain separate from inodes; sibling records
 preserve hard-link groups, while document IDs, inode IDs and virtual tree OIDs are
 newly assigned. Native Unicode comparison supplies CRC-32C directory-key hashes.
 One bounded tree builder packs variable filesystem/extent records and fixed object
@@ -415,3 +418,13 @@ buffers. Construction preserves qualified compression bytes and validates active
 storage before writing. `pack` supplies common options, selects the engine from
 native name rules and reuses the existing encoder/publication path. Format-specific
 identifiers stay explicit; no cross-filesystem metadata conversion is inferred.
+
+Reserves and quotas are accounted before payload hashing. Automatic sizing
+includes unused reservations, metadata overhead and Apple's volume-slot rule.
+The metadata budget is shared across all volumes. Groups pair explicit System
+and Data indexes with matching case policies and unique member/UUID assignments.
+Grouped System user objects and the next-object allocator use the observed
+`SYSTEM_OBJ_ID_MARK` namespace; reserved root/private IDs stay unshifted.
+Native continued allocation is an essential gate: fsck alone did not catch an
+incorrect allocator namespace that panicked the kernel. Native qualification
+runs only in disposable macOS VMs; ordinary Go replay never mounts an image.

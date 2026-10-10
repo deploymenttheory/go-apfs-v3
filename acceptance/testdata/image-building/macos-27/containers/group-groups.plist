@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Containers</key>
+	<array>
+		<dict>
+			<key>APFSContainerUUID</key>
+			<string>6CAF006F-D4EA-45E6-90F1-E0F5AC14C0B1</string>
+			<key>ContainerReference</key>
+			<string>disk5</string>
+			<key>VolumeGroups</key>
+			<array>
+				<dict>
+					<key>APFSVolumeGroupUUID</key>
+					<string>0FD4DA51-F8AB-4879-8BDA-14974CC7624B</string>
+					<key>Volumes</key>
+					<array>
+						<dict>
+							<key>DeviceIdentifier</key>
+							<string>disk5s1</string>
+							<key>DiskUUID</key>
+							<string>0FD4DA51-F8AB-4879-8BDA-14974CC7624B</string>
+							<key>NoBrowseRole</key>
+							<false/>
+							<key>Role</key>
+							<string>Data</string>
+						</dict>
+						<dict>
+							<key>DeviceIdentifier</key>
+							<string>disk5s2</string>
+							<key>DiskUUID</key>
+							<string>65F483A0-4AA7-4EA1-B807-5CBF97FE5D33</string>
+							<key>NoBrowseRole</key>
+							<false/>
+							<key>Role</key>
+							<string>System</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

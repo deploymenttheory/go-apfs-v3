@@ -19,6 +19,7 @@ from capture import observe_files, native_xattrs, sha256
 from preservation import digest_values
 from verify_preservation import require
 from metadata_edits import birth_ns
+import container_building as containers
 
 
 def built_devices(attached, apfs, command):
@@ -37,6 +38,7 @@ def built_devices(attached, apfs, command):
 
 
 def verify(image, expected, sensitive, command, apfs=False, empty=False):
+    containers.require_disposable_host()
     before = sha256(image)
     image_info = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', image))
     require(image_info['Format'] == image.stem, 'requested DMG encoding')
@@ -59,38 +61,7 @@ def verify(image, expected, sensitive, command, apfs=False, empty=False):
         require(('case-sensitive' in info['FilesystemName'].lower()) == sensitive, 'case policy')
         require(info['FilesystemType'] == ('apfs' if apfs else 'hfs'), 'filesystem kind')
         require(not info['WritableVolume'] and os.statvfs(mount).f_flag & os.ST_RDONLY, 'read-only native mount')
-        # Capture the root under the same logical spelling as the input tree.
-        actual = observe_files(mount)
-        for entry in actual['entries']:
-            entry['path'] = 'Fixture' + entry['path'][len(mount.name):]
-        want = {e['path']: e for e in expected['entries']}
-        got = {e['path']: e for e in actual['entries']}
-        require(set(got) == set(want), f'exact directory tree: missing={set(want)-set(got)}, extra={set(got)-set(want)}')
-        raw = {e['object']: e['attributes'] for e in expected['rawAttributes']}
-        forward, reverse = {}, {}
-        for path, entry in want.items():
-            result = got[path]
-            for key in ('mode', 'uid', 'gid', 'flags', 'birthSeconds', 'modifyNS', 'changeNS', 'accessNS', 'attributes'):
-                require(result[key] == entry[key], f'{image.name}: {path}: {key}: {result[key]} != {entry[key]}')
-            if not stat.S_ISDIR(entry['mode']):
-                for key in ('size', 'links', 'sha256', 'target'):
-                    require(result.get(key) == entry.get(key), f'{path}: {key}')
-            old, new = entry['object'], result['object']
-            require(forward.setdefault(old, new) == new and reverse.setdefault(new, old) == old, f'{path}: link identity')
-            source = mount if path == 'Fixture' else mount / path.removeprefix('Fixture/')
-            require(birth_ns(source) == entry['birthNS'], f'{path}: exact birth nanoseconds')
-            require(digest_values(native_xattrs(source, 0x21)) == raw[old], f'{path}: raw attributes/forks')
-        if apfs and not empty:
-            require(len(expected.get('lookups', [])) == 53, 'native name lookup inventory')
-            for query in expected['lookups']:
-                source = mount / query['path'].removeprefix('Fixture/')
-                try:
-                    actual_id = source.lstat().st_ino
-                except FileNotFoundError:
-                    actual_id = 0
-                require(actual_id == (forward[query['object']] if query['object'] else 0), f'native lookup: {query["path"]}')
-        if not empty:
-            command('codesign', '--verify', '--deep', '--strict', mount / 'Example.app')
+        entries = verify_mounted(mount, expected, command, empty, 53 if apfs and not empty else 0)
     finally:
         try:
             command('hdiutil', 'detach', device)
@@ -100,11 +71,48 @@ def verify(image, expected, sensitive, command, apfs=False, empty=False):
     if apfs:
         verify_native_allocation(image, command, empty)
         require(sha256(image) == before, 'native allocation changed the original image')
-    return before, len(want)
+    return before, entries
+
+
+def verify_mounted(mount, expected, command, empty=False, lookup_count=0):
+    # Capture the root under the same logical spelling as the input tree.
+    actual = observe_files(mount)
+    for entry in actual['entries']:
+        entry['path'] = 'Fixture' + entry['path'][len(mount.name):]
+    want = {e['path']: e for e in expected['entries']}
+    got = {e['path']: e for e in actual['entries']}
+    require(set(got) == set(want), f'exact directory tree: missing={set(want)-set(got)}, extra={set(got)-set(want)}')
+    raw = {e['object']: e['attributes'] for e in expected['rawAttributes']}
+    forward, reverse = {}, {}
+    for path, entry in want.items():
+        result = got[path]
+        for key in ('mode', 'uid', 'gid', 'flags', 'birthSeconds', 'modifyNS', 'changeNS', 'accessNS', 'attributes'):
+            require(result[key] == entry[key], f'{mount}: {path}: {key}: {result[key]} != {entry[key]}')
+        if not stat.S_ISDIR(entry['mode']):
+            for key in ('size', 'links', 'sha256', 'target'):
+                require(result.get(key) == entry.get(key), f'{path}: {key}')
+        old, new = entry['object'], result['object']
+        require(forward.setdefault(old, new) == new and reverse.setdefault(new, old) == old, f'{path}: link identity')
+        source = mount if path == 'Fixture' else mount / path.removeprefix('Fixture/')
+        require(birth_ns(source) == entry['birthNS'], f'{path}: exact birth nanoseconds')
+        require(digest_values(native_xattrs(source, 0x21)) == raw[old], f'{path}: raw attributes/forks')
+    if lookup_count:
+        require(len(expected.get('lookups', [])) == lookup_count, 'native name lookup inventory')
+        for query in expected['lookups']:
+            source = mount / query['path'].removeprefix('Fixture/')
+            try:
+                actual_id = source.lstat().st_ino
+            except FileNotFoundError:
+                actual_id = 0
+            require(actual_id == (forward[query['object']] if query['object'] else 0), f'native lookup: {query["path"]}')
+    if not empty:
+        command('codesign', '--verify', '--deep', '--strict', mount / 'Example.app')
+    return len(want)
 
 
 def verify_native_allocation(image, command, empty=False):
     """Apple writes only a disposable shadow, then checks and remounts that state."""
+    containers.require_disposable_host()
     with tempfile.TemporaryDirectory(prefix='apfs-build-allocation-') as work:
         work = Path(work)
         mount = work / 'mount'; mount.mkdir()
@@ -157,6 +165,84 @@ def verify_native_allocation(image, command, empty=False):
             command('hdiutil', 'detach', device)
 
 
+def verify_container(image, expected, case_id, command):
+    containers.require_disposable_host()
+    before = sha256(image)
+    require(plistlib.loads(command('hdiutil', 'imageinfo', '-plist', image))['Format'] == image.stem,
+            'requested container encoding')
+    command('hdiutil', 'verify', image)
+    total = 0
+    with tempfile.TemporaryDirectory(prefix='apfs-container-readback-') as temporary:
+        device, physical, inventory = containers.attached(image, command, readonly=True)
+        try:
+            containers.check_filesystem(physical, command)
+            require(inventory['CapacityCeiling'] == expected['size'], 'shared container capacity')
+            require(inventory['APFSContainerUUID'] == expected['containerUUID'], 'container UUID')
+            require(len(inventory['Volumes']) == len(expected['volumes']), 'exact volume count')
+            groups = plistlib.loads(command('diskutil', 'apfs', 'listVolumeGroups', '-plist',
+                                           inventory['ContainerReference']))['Containers'][0].get('VolumeGroups', [])
+            require(len(groups) == (1 if case_id == 'group' else 0), 'exact group count')
+            for wanted in expected['volumes']:
+                matches = [v for v in inventory['Volumes'] if v['APFSVolumeUUID'] == wanted['uuid']]
+                require(len(matches) == 1, 'unique volume identity')
+                volume = matches[0]
+                for field, key in (('Name', 'name'), ('Roles', 'roles'), ('CapacityReserve', 'reserve'), ('CapacityQuota', 'quota')):
+                    require(volume[field] == wanted[key], f'{wanted["name"]}: {key}')
+                group = next((g['APFSVolumeGroupUUID'] for g in groups
+                              if any(v['DeviceIdentifier'] == volume['DeviceIdentifier'] for v in g['Volumes'])), '')
+                require(group == wanted['group'], 'native group membership')
+                directory = Path(temporary) / wanted['name']
+                containers.mount(volume, directory, command, readonly=True)
+                info = plistlib.loads(command('diskutil', 'info', '-plist', volume['DeviceIdentifier']))
+                require(('case-sensitive' in info['FilesystemName'].lower()) == wanted['sensitive'], 'per-volume case policy')
+                require(not info['WritableVolume'] and os.statvfs(directory).f_flag & os.ST_RDONLY, 'read-only container mount')
+                total += verify_mounted(directory, wanted['files'], command, wanted['empty'], 3)
+        finally:
+            command('hdiutil', 'detach', device)
+    allocation = containers.native_allocation(image, case_id, command)
+    require(allocation['independentWritesAndReuse'] == expected['allocation']['independentWritesAndReuse'] is True,
+            'native independent writes and reuse')
+    if case_id == 'shared':
+        for control, maximum in (('quota', 16*containers.MIB), ('reserve', 64*containers.MIB)):
+            # Physical allocation depends on metadata history. Both the native
+            # reference and the fresh build must enforce the bounded policy.
+            for result in (allocation, expected['allocation']):
+                require(0 < result[control]['writtenBytes'] < maximum, 'native bounded space enforcement')
+                require(result[control]['errno'] in (containers.errno.EDQUOT, containers.errno.ENOSPC), 'native space error')
+    require(sha256(image) == before, 'container verification changed source image')
+    return before, total
+
+
+def verify_identical_outputs(images, verify_one):
+    # The host outputs must be byte-identical before native verification. One
+    # Apple check then qualifies those exact bytes for every portable producer.
+    digests = [sha256(image) for image in images]
+    require(images and len(set(digests)) == 1, 'hosts produced different image bytes')
+    digest, entries = verify_one(images[0])
+    require(digest == digests[0], 'image changed between host comparison and native check')
+    print(f'Qualified {len(images)} identical host outputs via {images[0]}', flush=True)
+    return entries
+
+
+def verify_containers(corpus, outputs, major, consumers, command):
+    corpus = corpus / 'containers'
+    manifest = json.loads((corpus / 'manifest.json').read_text())
+    require(manifest['schema'] == 1 and manifest['scenario'] == 'image-building/containers', 'container corpus schema')
+    require(manifest['producer']['version'].split('.')[0] == major, 'container producer version')
+    require(len(manifest['cases']) == 2 and {c['id'] for c in manifest['cases']} == {'shared', 'group'}, 'container cases')
+    total = 0
+    for case in manifest['cases']:
+        for name, digest in (('image', 'sha256'), ('observation', 'observationSHA256'),
+                             ('groups', 'groupsSHA256'), ('inventory', 'inventorySHA256')):
+            require(sha256(corpus / case[name]) == case[digest], 'container reference digest')
+        expected = json.loads((corpus / case['observation']).read_text())
+        for encoding in ('UDRO', 'UDZO'):
+            images = [outputs / f'image-building-{consumer}' / f'macos-{major}' / 'containers' / case['id'] / (encoding + '.dmg')
+                      for consumer in consumers]
+            total += verify_identical_outputs(images, lambda image: verify_container(image, expected, case['id'], command))
+    return total
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--expected-major', type=int, choices=[15, 26, 27], required=True)
@@ -165,6 +251,7 @@ def main():
     parser.add_argument('--producers', default='15,26,27')
     parser.add_argument('--consumers', default='Linux,Windows,macOS')
     args = parser.parse_args()
+    containers.require_disposable_host()
     require(platform.system() == 'Darwin', 'Apple verification requires macOS')
     require(int(subprocess.check_output(['sw_vers', '-productVersion'], text=True).split('.')[0]) == args.expected_major, 'wrong macOS verifier')
     transcript = []
@@ -196,22 +283,17 @@ def main():
             expected = json.loads((corpus / case['files']).read_text())
             case_id = case['id'].split('/')[1]
             for encoding in ('UDRO', 'UDZO'):
-                digests = []
-                for consumer in args.consumers.split(','):
-                    image = args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / (encoding + '.dmg')
-                    digest, entries = verify(image, expected, case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS')
-                    digests.append(digest); total += entries
-                require(len(set(digests)) == 1, f'{case_id}/{encoding}: hosts produced different image bytes')
+                images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / (encoding + '.dmg')
+                          for consumer in args.consumers.split(',')]
+                total += verify_identical_outputs(images, lambda image: verify(image, expected, case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS'))
             if case_id == 'apfs':
                 entry = next(e for e in expected['entries'] if e['path'] == 'Fixture/empty-build-root')
                 empty = {'entries': [dict(entry, path='Fixture')],
                          'rawAttributes': [a for a in expected['rawAttributes'] if a['object'] == entry['object']]}
-                digests = []
-                for consumer in args.consumers.split(','):
-                    image = args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / 'empty/UDZO.dmg'
-                    digest, entries = verify(image, empty, False, command, True, True)
-                    digests.append(digest); total += entries
-                require(len(set(digests)) == 1, 'empty APFS: hosts produced different image bytes')
+                images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / 'empty/UDZO.dmg'
+                          for consumer in args.consumers.split(',')]
+                total += verify_identical_outputs(images, lambda image: verify(image, empty, False, command, True, True))
+        total += verify_containers(corpus, args.outputs, major, args.consumers.split(','), command)
     print(f'Apple image checks, filesystem checks, exact mounted readback and signature verification passed: {total} entries.')
 
 

@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "scenario": "image-building/containers",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "architecture": "arm64",
+    "build": "26A434"
+  },
+  "sources": [
+    {
+      "source": "container_building.py",
+      "sha256": "1191961d12dec34639971cb3c95888bb0d60b2f1d72ed670dc4273c1dc9671c6"
+    },
+    {
+      "source": "capture.py",
+      "sha256": "f0f659d29f31820c6145ce7b982bacd4bf654e6e6db8fab46584deae1f8cd7f4"
+    },
+    {
+      "source": "image_building.py",
+      "sha256": "c9b488332ddc7f3330242c2830a2f78bf86b49eb459f5e4fa49e2fd2d6ebc8d5"
+    },
+    {
+      "source": "file_compression.py",
+      "sha256": "863d278e09de6388a3eab01e6068a7ba1ef09a8ae015d72d3da542aeab1420a4"
+    },
+    {
+      "source": "preservation.py",
+      "sha256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+    },
+    {
+      "source": "metadata_edits.py",
+      "sha256": "7e8543ac291445facdf7b9529f367e5ed83b400794c81ed1e3ecd74326499137"
+    },
+    {
+      "source": "content_replacement.py",
+      "sha256": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3"
+    }
+  ],
+  "cases": [
+    {
+      "id": "shared",
+      "image": "shared.dmg",
+      "sha256": "35692cff8c94886a5b562934ab9998423e6f38facaa0061c3da3d01c9d240677",
+      "observation": "shared.json",
+      "observationSHA256": "cefed4299f8fbe34cb9603168a68822935018221bc5d5507c4169669aa99ff8b",
+      "groups": "shared-groups.plist",
+      "groupsSHA256": "519e0f38e1ab05383dc674b6e951da0956608a552f9f4566b8e6fde1920ac9d4",
+      "inventory": "shared-volumes.plist",
+      "inventorySHA256": "8e61c788e1b80b2d39a2b69c130f37ba6ded70ee2b0cd06694d68f7f5ec76bec"
+    },
+    {
+      "id": "group",
+      "image": "group.dmg",
+      "sha256": "96cae3ae66a7228ece3fc1992fa522bf7adff86a2f7ecf04afe810a7db95d859",
+      "observation": "group.json",
+      "observationSHA256": "0375b58096b5254a50a2421533d8744e995dce4339bcff80611d27e765c6d4f9",
+      "groups": "group-groups.plist",
+      "groupsSHA256": "43d6e4c55928a19e8b9b2af5b377bf000910cb33c6c4ec7a6441f87d7e10c512",
+      "inventory": "group-volumes.plist",
+      "inventorySHA256": "214f8e9d9dba9fadf76c41b36951fb7e83ff154a7ea96e85f2e9a6abd71a7fe2"
+    }
+  ]
+}

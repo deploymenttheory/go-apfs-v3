@@ -80,21 +80,68 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if err != nil {
 		return report, err
 	}
-	input, producer := io.Pipe()
-	done := make(chan error, 1)
-	go func() { err := plan.Write(ctx, producer); _ = producer.CloseWithError(err); done <- err }()
-	counter := &countWriter{out: out}
-	err = diskimage.EncodeVolume(ctx, counter, input, plan.Size(), o.Format, hint)
-	_ = input.CloseWithError(err)
-	err = errors.Join(err, <-done)
+	imageBytes, err := encodeLayout(ctx, out, plan, o.Format, hint)
 	if err != nil {
 		return report, err
 	}
-	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: counter.count}
+	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes}
 	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
 	return report, nil
+}
+
+// ContainerOptions packages a fresh APFS container with one or more volumes.
+type ContainerOptions struct {
+	APFS   apfs.ContainerBuildOptions
+	Format string
+}
+
+type ContainerReport struct {
+	Format         string `json:"format"`
+	VolumeCount    int    `json:"volumeCount"`
+	ContainerBytes int64  `json:"containerBytes"`
+	ImageBytes     int64  `json:"imageBytes"`
+}
+
+// WriteContainer streams one fresh APFS container through the DMG encoder.
+// It borrows every immutable reader through completion. Discard output on error.
+func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpec, o ContainerOptions) (ContainerReport, error) {
+	var report ContainerReport
+	if out == nil {
+		return report, fs.ErrInvalid
+	}
+	if o.Format == "" {
+		o.Format = "UDZO"
+	}
+	if o.Format != "UDRO" && o.Format != "UDZO" {
+		return report, filesystem.ErrUnsupported
+	}
+	plan, err := apfs.PlanContainer(ctx, volumes, o.APFS)
+	if err != nil {
+		return report, err
+	}
+	n, err := encodeLayout(ctx, out, plan, o.Format, "Apple_APFS")
+	if err != nil {
+		return report, err
+	}
+	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n}, nil
+}
+
+// CreateContainer uses the same no-overwrite publication contract as Create.
+func CreateContainer(ctx context.Context, path string, volumes []apfs.VolumeSpec, o ContainerOptions) (report ContainerReport, err error) {
+	err = publish(ctx, path, func(out io.Writer) error { report, err = WriteContainer(ctx, out, volumes, o); return err })
+	return report, err
+}
+
+func encodeLayout(ctx context.Context, out io.Writer, plan layout, format, hint string) (int64, error) {
+	input, producer := io.Pipe()
+	done := make(chan error, 1)
+	go func() { err := plan.Write(ctx, producer); _ = producer.CloseWithError(err); done <- err }()
+	counter := &countWriter{out: out}
+	err := diskimage.EncodeVolume(ctx, counter, input, plan.Size(), format, hint)
+	_ = input.CloseWithError(err)
+	return counter.count, errors.Join(err, <-done)
 }
 
 type countWriter struct {
