@@ -66,7 +66,7 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario metadata-edits --output artifacts/native/metadata-edits/macos-${{ matrix.major }}
       - name: Record native cp, chmod, chown, timestamps, attributes and session command references
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-commands --output artifacts/native/file-commands/macos-${{ matrix.major }}
-      - name: Record HFS packaging inputs and signed application references
+      - name: Record APFS and HFS packaging inputs and signed application references
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario image-building --output artifacts/native/image-building/macos-${{ matrix.major }}
       - name: Record complete disks, snapshots, encrypted volumes and unused sectors for repacking
         run: python3 acceptance/native/image_repacking.py --expected-major "${{ matrix.major }}" --references artifacts/native --output artifacts/native/image-repacking/macos-${{ matrix.major }}
@@ -86,7 +86,8 @@ jobs:
 
           File commands record an app-copy/edit journey and independent libc mode vectors.
 
-          Image building records HFS+/HFSX trees and an independently signed universal application.
+          Image building records APFS/HFS+/HFSX trees, exact timestamps, native name lookups,
+          empty construction roots and an independently signed universal application.
 
           Image repacking records complete native disk hashes, partition maps, snapshots, encrypted volumes and unused-sector controls.
 
@@ -220,7 +221,7 @@ jobs:
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -260,7 +261,7 @@ jobs:
         run: python3 acceptance/native/verify_metadata_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/metadata-edits --outputs artifacts/outputs
       - name: Verify exported command sessions against Apple command observations
         run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
-      - name: Check built DMGs, mounted metadata, signatures and reproducibility with Apple tools
+      - name: Check built filesystems, native APFS writes, metadata and signatures with Apple tools
         run: python3 acceptance/native/verify_image_building.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-building --outputs artifacts/outputs
       - name: Check repacked disk sectors, volumes, snapshots and signatures with Apple tools
         run: python3 acceptance/native/verify_image_repacking.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-repacking --outputs artifacts/outputs

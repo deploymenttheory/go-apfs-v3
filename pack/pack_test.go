@@ -12,15 +12,15 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
-	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
-func input(t *testing.T) (*session.Session, pack.Options) {
+func input(t *testing.T) (*session.Session, pack.Options) { return inputFormat(t, "HFS+") }
+func inputFormat(t *testing.T, format string) (*session.Session, pack.Options) {
 	t.Helper()
 	clock := time.Date(2025, 6, 7, 8, 9, 10, 0, time.UTC)
-	s, err := session.Create(context.Background(), filepath.Join(t.TempDir(), "session"), session.Options{Names: filesystem.NameRules{Format: "HFS+", NormalizationInsensitive: true}, Time: &clock})
+	s, err := session.Create(context.Background(), filepath.Join(t.TempDir(), "session"), session.Options{Names: filesystem.NameRules{Format: format, NormalizationInsensitive: true}, Time: &clock})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,10 +32,15 @@ func input(t *testing.T) (*session.Session, pack.Options) {
 	if _, err = s.Copy(context.Background(), []string{host}, "/file", session.CopyOptions{FromHost: true}); err != nil {
 		t.Fatal(err)
 	}
-	return s, pack.Options{Format: "UDZO", Volume: hfsplus.BuildOptions{Name: "Test", Time: clock}}
+	return s, pack.Options{Format: "UDZO", Volume: pack.VolumeOptions{Name: "Test", Time: clock}}
 }
 func TestPublishAndFailures(t *testing.T) {
-	s, o := input(t)
+	for _, format := range []string{"APFS", "HFS+"} {
+		t.Run(format, func(t *testing.T) { testPublishAndFailures(t, format) })
+	}
+}
+func testPublishAndFailures(t *testing.T, format string) {
+	s, o := inputFormat(t, format)
 	ctx := context.Background()
 	dir := t.TempDir()
 	destination := filepath.Join(dir, "out.dmg")
@@ -86,7 +91,12 @@ type shortWriter struct{}
 
 func (shortWriter) Write(b []byte) (int, error) { return len(b) / 2, nil }
 func TestStreamingFailureTerminatesProducer(t *testing.T) {
-	s, o := input(t)
+	for _, format := range []string{"APFS", "HFS+"} {
+		t.Run(format, func(t *testing.T) { testStreamingFailure(t, format) })
+	}
+}
+func testStreamingFailure(t *testing.T, format string) {
+	s, o := inputFormat(t, format)
 	sentinel := errors.New("disk full")
 	for _, tc := range []struct {
 		writer io.Writer

@@ -164,6 +164,8 @@ def main():
                         ("hfsplus", "HFS+", "HFS+", False),
                         ("hfsx", "Case-sensitive HFS+", "HFSX", True)]
             for case_id, native_format, expected_format, sensitive in profiles:
+                if args.scenario == "image-building" and expected_format == "APFS":
+                    continue
                 scratch = work / (case_id + "-writable.dmg")
                 name = "v3-" + case_id
                 command("hdiutil", "create", "-size", "64m", "-layout", "GPTSPUD",
@@ -185,7 +187,7 @@ def main():
                     if args.scenario in ("content-replacement", "tree-edits", "metadata-edits", "file-commands"):
                         edits.create(mount / "Fixture", command)
                     if args.scenario == "image-building":
-                        image_building.create(mount / "Fixture", command, sensitive, create_files, expected_format == "APFS")
+                        image_building.create(mount / "Fixture", command, sensitive, create_files)
                     if args.scenario == "preservation":
                         preservation.create(mount / "Fixture", command, sensitive, create_files)
                 finally:
@@ -290,7 +292,7 @@ def main():
                 manifest["producer"]["sources"].append({"source": name, "sha256": sha256(helper)})
         if args.scenario == "image-building":
             manifest["producer"]["sources"] = []
-            for name in ("image_building.py", "file_compression.py", "preservation.py", "metadata_edits.py", "content_replacement.py"):
+            for name in ("image_building.py", "file_compression.py", "preservation.py"):
                 helper = corpus / name
                 shutil.copyfile(Path(__file__).with_name(name), helper)
                 manifest["producer"]["sources"].append({"source": name, "sha256": sha256(helper)})

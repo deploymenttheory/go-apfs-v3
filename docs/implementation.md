@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; native build/repack qualification required. APFS creation and volume-group construction remain pending |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh single-volume APFS and HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; native build/repack qualification required. Multiple-volume and volume-group construction remain pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -383,6 +383,44 @@ capture, Linux/Windows/macOS replay and every native readback are required.
 
 Filesystem rebuilding, APFS construction, encrypted DMG writing, container signing,
 new filesystem compression and existing-image mutation retain separate gates.
+PR #21 passed the complete [native compatibility matrix](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38067713304).
+
+## Fresh APFS image-building increment
+
+`pack --filesystem apfs DIRECTORY NEW_DMG` and packing an APFS session now build
+one unencrypted APFS volume in a fresh container. Case-sensitive APFS, empty
+inputs, explicit capacity/clock and derived or supplied container/volume UUIDs use
+the same command and managed scratch policy. APFS construction owns its checkpoint,
+object maps, bulk-loaded filesystem/extent-reference trees, sibling/document IDs,
+space manager, allocation bitmaps and free queues. `pack.VolumeOptions` selects
+neither filesystem conversion nor a second editor: the source reader selects the
+engine. The shared encoder records Apple's APFS content hint in UDRO/UDZO output.
+
+Planning bounds names, metadata, trees and capacity before hashing streamed data.
+Write checks each payload hash again. Metadata, nanosecond times, symlinks, hard
+links, attributes, forks and qualified existing compression survive; native IDs
+and allocation are newly assigned. Snapshot histories, clone extent sharing,
+multiple volumes/groups, encrypted construction and existing-filesystem edits
+remain separate increments. Sparse data retains its logical bytes with fresh
+contiguous allocation. The full profile is in [packing semantics](packing.md).
+
+The existing `image-building` family expands to four native filesystem profiles,
+using its original capture/replay/readback paths. APFS adds exact birth nanoseconds,
+tracked documents, 53 native filename lookup results and an empty-directory root.
+Every portable host builds both populated encodings twice and one empty APFS UDZO
+twice. Every Mac independently checks all 81 images, compares same-input host
+hashes, checks filesystem health without repair, observes exact files/metadata and
+verifies application signatures. Every APFS output additionally undergoes native
+growth, hard linking, rename, deletion, tree growth and allocation reuse on a
+disposable shadow, then fsck and remount/readback. Original image hashes remain
+unchanged. This proves native continued use, not Go mutation or crash durability.
+
+The retained macOS 27 capture and local native output checks pass. The earlier
+HFS-only capture remains immutable under `acceptance/testdata/image-building/history`.
+Fresh macOS 15/26/27 capture, Linux/Windows/macOS replay and native verification
+are required before merging this increment. The readback job has a 15-minute
+ceiling to accommodate actual native allocation checks; no new scenario family
+or workflow is introduced.
 
 ## Required phase gates
 

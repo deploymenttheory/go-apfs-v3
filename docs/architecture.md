@@ -391,3 +391,27 @@ Both repacking and fresh-volume construction use one private-sibling, flush/clos
 no-overwrite publication helper. CLI file operands select repacking; directory
 and session operands retain the existing build path. Construction-only flags
 cannot accidentally rename, resize or reinterpret an existing image.
+
+## Fresh APFS construction
+
+`apfs.Plan` independently plans a single-volume container from an immutable APFS
+logical reader. Directory entries remain separate from inodes; sibling records
+preserve hard-link groups, while document IDs, inode IDs and virtual tree OIDs are
+newly assigned. Native Unicode comparison supplies CRC-32C directory-key hashes.
+One bounded tree builder packs variable filesystem/extent records and fixed object
+maps, assigning child addresses only after their complete shapes are known.
+
+Construction writes one initial checkpoint. The device allocation bitmap reserves
+all metadata, the internal pool and streamed data. The internal-pool bitmap marks
+its allocated device bitmaps and chunk-info blocks separately. Native free-queue
+limits and full container/volume allocation counts are verified by Apple fsck and
+subsequent native allocation on output shadows. This static formatter does not
+implement Go copy-on-write transactions against existing containers.
+
+Planning rejects capacity/metadata limits before reading payload contents. It
+hashes immutable stored values to derive separate container/volume identifiers;
+streaming output verifies those hashes and zero-fills free space with bounded
+buffers. Construction preserves qualified compression bytes and validates active
+storage before writing. `pack` supplies common options, selects the engine from
+native name rules and reuses the existing encoder/publication path. Format-specific
+identifiers stay explicit; no cross-filesystem metadata conversion is inferred.

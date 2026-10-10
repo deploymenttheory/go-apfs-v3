@@ -2,62 +2,85 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Bootable</key>
+	<key>APFSContainerFree</key>
+	<integer>63758336</integer>
+	<key>APFSContainerReference</key>
+	<string>disk5</string>
+	<key>APFSContainerSize</key>
+	<integer>67067904</integer>
+	<key>APFSPhysicalStores</key>
+	<array>
+		<dict>
+			<key>APFSPhysicalStore</key>
+			<string>disk4s1</string>
+		</dict>
+	</array>
+	<key>APFSSnapshot</key>
 	<false/>
+	<key>Bootable</key>
+	<true/>
 	<key>BusProtocol</key>
 	<string>Disk Image</string>
 	<key>CanBeMadeBootable</key>
 	<false/>
 	<key>CanBeMadeBootableRequiresDestroy</key>
 	<false/>
+	<key>CapacityInUse</key>
+	<integer>2514944</integer>
 	<key>Content</key>
-	<string>Apple_HFS</string>
+	<string>41504653-0000-11AA-AA11-00306543ECAC</string>
 	<key>DeviceBlockSize</key>
-	<integer>512</integer>
+	<integer>4096</integer>
 	<key>DeviceIdentifier</key>
-	<string>disk4s1</string>
+	<string>disk5s1</string>
 	<key>DeviceNode</key>
-	<string>/dev/disk4s1</string>
+	<string>/dev/disk5s1</string>
 	<key>DeviceTreePath</key>
 	<string>IODeviceTree:/</string>
 	<key>DiskUUID</key>
-	<string>AFAB9BC2-7B3C-4389-AB66-32D26C041D41</string>
+	<string>2265E491-28C8-4CDC-9C55-18380972C826</string>
 	<key>Ejectable</key>
 	<true/>
 	<key>EjectableMediaAutomaticUnderSoftwareControl</key>
 	<true/>
 	<key>EjectableOnly</key>
 	<true/>
+	<key>Encryption</key>
+	<false/>
+	<key>EncryptionThisVolumeProper</key>
+	<false/>
+	<key>FileVault</key>
+	<false/>
 	<key>FilesystemName</key>
-	<string>Case-sensitive HFS+</string>
+	<string>Case-sensitive APFS</string>
 	<key>FilesystemType</key>
-	<string>hfs</string>
+	<string>apfs</string>
 	<key>FilesystemUserVisibleName</key>
-	<string>Mac OS Extended (Case-sensitive)</string>
+	<string>APFS (Case-sensitive)</string>
 	<key>FreeSpace</key>
-	<integer>61370368</integer>
+	<integer>0</integer>
 	<key>GlobalPermissionsEnabled</key>
 	<true/>
 	<key>IOKitSize</key>
 	<integer>67067904</integer>
 	<key>IORegistryEntryName</key>
-	<string>disk image</string>
+	<string>v3-apfs-case-sensitive</string>
 	<key>Internal</key>
+	<false/>
+	<key>Locked</key>
 	<false/>
 	<key>MediaName</key>
 	<string></string>
 	<key>MediaType</key>
 	<string>Generic</string>
 	<key>MountPoint</key>
-	<string>/Volumes/v3-hfsx</string>
+	<string>/Volumes/v3-apfs-case-sensitive</string>
 	<key>OSInternalMedia</key>
 	<false/>
 	<key>ParentWholeDisk</key>
-	<string>disk4</string>
+	<string>disk5</string>
 	<key>PartitionMapPartition</key>
-	<true/>
-	<key>PartitionMapPartitionOffset</key>
-	<integer>20480</integer>
+	<false/>
 	<key>RAIDMaster</key>
 	<false/>
 	<key>RAIDSlice</key>
@@ -72,6 +95,8 @@
 	<dict/>
 	<key>SMARTStatus</key>
 	<string>Not Supported</string>
+	<key>Sealed</key>
+	<string>No</string>
 	<key>Size</key>
 	<integer>67067904</integer>
 	<key>SupportsGlobalPermissionsDisable</key>
@@ -83,11 +108,11 @@
 	<key>VolumeAllocationBlockSize</key>
 	<integer>4096</integer>
 	<key>VolumeName</key>
-	<string>v3-hfsx</string>
+	<string>v3-apfs-case-sensitive</string>
 	<key>VolumeSize</key>
-	<integer>67067904</integer>
+	<integer>0</integer>
 	<key>VolumeUUID</key>
-	<string>C43CEA85-74F5-3F9A-AB64-24969406973C</string>
+	<string>2265E491-28C8-4CDC-9C55-18380972C826</string>
 	<key>WholeDisk</key>
 	<false/>
 	<key>Writable</key>
