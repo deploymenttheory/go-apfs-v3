@@ -1,0 +1,834 @@
+[
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "APFS",
+      "-volname",
+      "v3-apfs",
+      "-type",
+      "UDIF",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "ditto",
+      "--hfsCompression",
+      "--noclone",
+      "/Volumes/v3-apfs/replacement-compression-input",
+      "/Volumes/v3-apfs/Fixture/native-ditto"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $271FF159: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $17CBA981: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $A0FA7115: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $17CBA981: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $A8B9DEF8: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.892s\nFile size: 24436 bytes, Checksum: CRC32 $E3B83741\nSectors processed: 131072, 2619 compressed\nSpeed: 336.4KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-apfs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>65835008</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk5</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk4s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>438272</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>90557F25-4941-4ACE-B300-48553546B8C6</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>90557F25-4941-4ACE-B300-48553546B8C6</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $271FF159\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $17CBA981\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified CRC32 $A0FA7115\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $17CBA981\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $A8B9DEF8\nverified CRC32 $E3B83741\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $271FF159: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $17CBA981: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $1A745E87: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $17CBA981: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $A8B9DEF8: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.673s\nFile size: 32311 bytes, Checksum: CRC32 $F6DB371C\nSectors processed: 131072, 3331 compressed\nSpeed: 453.4KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-after.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $271FF159\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $17CBA981\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified CRC32 $1A745E87\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $17CBA981\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $A8B9DEF8\nverified CRC32 $F6DB371C\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "Case-sensitive APFS",
+      "-volname",
+      "v3-apfs-case-sensitive",
+      "-type",
+      "UDIF",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "ditto",
+      "--hfsCompression",
+      "--noclone",
+      "/Volumes/v3-apfs-case-sensitive/replacement-compression-input",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/native-ditto"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $B9AD7233: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $83A678F1: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $36C2A068: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $83A678F1: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $360B5D92: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.632s\nFile size: 24456 bytes, Checksum: CRC32 $21C4267B\nSectors processed: 131072, 2619 compressed\nSpeed: 360.5KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-apfs-case-sensitive"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>65835008</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk5</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk4s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>438272</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>D2F94769-14AB-46A7-B480-DBB4747F9305</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>D2F94769-14AB-46A7-B480-DBB4747F9305</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $B9AD7233\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $83A678F1\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified CRC32 $36C2A068\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $83A678F1\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $360B5D92\nverified CRC32 $21C4267B\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/apfs-case-sensitive-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $B9AD7233: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $83A678F1: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $2B8E8701: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $83A678F1: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $360B5D92: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.675s\nFile size: 32345 bytes, Checksum: CRC32 $60688A8B\nSectors processed: 131072, 3331 compressed\nSpeed: 453.2KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive-after.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $B9AD7233\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $83A678F1\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified CRC32 $2B8E8701\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $83A678F1\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $360B5D92\nverified CRC32 $60688A8B\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/apfs-case-sensitive-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "HFS+",
+      "-volname",
+      "v3-hfsplus",
+      "-type",
+      "UDIF",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "ditto",
+      "--hfsCompression",
+      "--noclone",
+      "/Volumes/v3-hfsplus/replacement-compression-input",
+      "/Volumes/v3-hfsplus/Fixture/native-ditto"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $7ED9348B: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $0C4165DC: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFS : 4)\u2026\n   (CRC32 $CF48CE0E: disk image (Apple_HFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $0C4165DC: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $F17F1B2A: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  4.707s\nFile size: 22924 bytes, Checksum: CRC32 $1E631309\nSectors processed: 131072, 3932 compressed\nSpeed: 417.7KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-hfsplus"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk4s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk4s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>020B7108-4503-459D-A172-8AB2D8F89D83</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended</string>\n\t<key>FreeSpace</key>\n\t<integer>65085440</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsplus</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk4</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsplus</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>A901BAA7-1E2E-3371-B3BD-D69092D68465</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $7ED9348B\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $0C4165DC\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_HFS : 4)\u2026\n          disk image (Apple_HFS : 4): verified CRC32 $CF48CE0E\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $0C4165DC\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $F17F1B2A\nverified CRC32 $1E631309\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsplus-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $7ED9348B: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $0C4165DC: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFS : 4)\u2026\n   (CRC32 $D925F732: disk image (Apple_HFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $0C4165DC: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $F17F1B2A: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  4.725s\nFile size: 25414 bytes, Checksum: CRC32 $8DA69CBC\nSectors processed: 131072, 4540 compressed\nSpeed: 480.4KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus-after.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $7ED9348B\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $0C4165DC\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_HFS : 4)\u2026\n          disk image (Apple_HFS : 4): verified CRC32 $D925F732\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $0C4165DC\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $F17F1B2A\nverified CRC32 $8DA69CBC\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsplus-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "Case-sensitive HFS+",
+      "-volname",
+      "v3-hfsx",
+      "-type",
+      "UDIF",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil create -size -volname ...' is deprecated. Please use 'diskutil image create from/blank -size --volumeName ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "ditto",
+      "--hfsCompression",
+      "--noclone",
+      "/Volumes/v3-hfsx/replacement-compression-input",
+      "/Volumes/v3-hfsx/Fixture/native-ditto"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $E6D2908F: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $62509A57: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFSX : 4)\u2026\n   (CRC32 $F889D0BE: disk image (Apple_HFSX : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $62509A57: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $6974BF2E: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  4.741s\nFile size: 22926 bytes, Checksum: CRC32 $3FB691A0\nSectors processed: 131072, 3932 compressed\nSpeed: 414.6KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-hfsx"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk4s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk4s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>980F85CC-A3E8-42BD-94D7-D9859EB6FB57</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>65085440</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsx</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk4</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsx</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>22ED382E-C35E-381D-94DB-D3C31FC1194F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $E6D2908F\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $62509A57\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_HFSX : 4)\u2026\n         disk image (Apple_HFSX : 4): verified CRC32 $F889D0BE\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $62509A57\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $6974BF2E\nverified CRC32 $3FB691A0\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/hfsx-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $E6D2908F: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $62509A57: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFSX : 4)\u2026\n   (CRC32 $B3F027C5: disk image (Apple_HFSX : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $62509A57: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $6974BF2E: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  4.740s\nFile size: 25428 bytes, Checksum: CRC32 $6AD1B464\nSectors processed: 131072, 4540 compressed\nSpeed: 478.9KB/s\nSavings: 100.0%\ncreated: /private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx-after.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk4</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nobrowse -owners -readonly ...' is deprecated. Please use 'diskutil image attach --mountOptions nobrowse --mountOptions owners --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk4s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk4\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $E6D2908F\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $62509A57\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_HFSX : 4)\u2026\n         disk image (Apple_HFSX : 4): verified CRC32 $B3F027C5\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $62509A57\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $6974BF2E\nverified CRC32 $6AD1B464\n",
+    "stderr": "hdiutil: verify: checksum of \"/private/tmp/apfs-v3-native-replacement-01/apfs-native-wckjkzdf/corpus/hfsx-after.dmg\" is VALID\n"
+  }
+]

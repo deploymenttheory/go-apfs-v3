@@ -19,11 +19,8 @@ import (
 )
 
 type nativePreservation struct {
-	RawAttributes []struct {
-		Object     uint64                 `json:"object"`
-		Attributes map[string]nativeValue `json:"attributes"`
-	} `json:"rawAttributes"`
-	AppleDouble []struct {
+	RawAttributes []nativeRawAttributes `json:"rawAttributes"`
+	AppleDouble   []struct {
 		Path               string                 `json:"path"`
 		File               string                 `json:"file"`
 		SHA256             string                 `json:"sha256"`
@@ -201,4 +198,9 @@ func compareHistoricalExtraction(t *testing.T, reader filesystem.Reader, observa
 		return
 	}
 	t.Fatal("native historical generation file missing")
+}
+
+type nativeRawAttributes struct {
+	Object     uint64                 `json:"object"`
+	Attributes map[string]nativeValue `json:"attributes"`
 }

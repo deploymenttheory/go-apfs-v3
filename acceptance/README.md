@@ -96,7 +96,7 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all eight families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all nine families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
@@ -312,3 +312,47 @@ retained local extraction comparison takes about nine seconds; native readback
 of its four workspaces and 12 AppleDouble controls takes less than one second.
 This qualifies capture/readback and serialized metadata, not host metadata
 application, app-bundle execution, workspace editing or filesystem rebuilding.
+
+## Content replacement
+
+Purpose: replace an existing macOS file's data on a portable host while retaining
+its other information and all hard-link aliases. Native capture creates 14 entries
+per filesystem profile, saves a before image, performs seven real truncate/write
+operations on the original inodes, then captures a final read-only after image.
+
+| Operation | Native evidence | Portable assertion |
+| --- | --- | --- |
+| Write through an ordinary hard-link alias | Same inode/link count and new contents at all three paths | Every alias receives identical bytes; metadata and independent resource fork remain intact |
+| Replace inline zlib contents with an independent resource fork | Native data and raw xattrs before/after | Compression flag/attribute removed; independent resource bytes retained |
+| Truncate resource-backed zlib through a linked inode to empty; replace native ditto LZVN | Native flags, fork/attribute absence, empty/short data | Compression-owned storage disappears; logical/raw data both contain the replacement |
+| Grow an empty file and replace `CON` using its original name | Native final file hashes | Empty values and mapped host names work without changing source names |
+| Replace a file with inactive malformed decmpfs metadata | Native ordinary writes and unchanged opaque xattrs | Inactive bytes never become compression authority |
+| Leave other entries untouched | Native before/after observations | Original objects, attributes, raw data and symlinks remain unchanged |
+
+The portable preservation operation retains source timestamps. Native after-write
+times are captured but the timestamp assertion uses the original native values;
+the remaining replacement outcomes use the actual after observation. This is an
+explicit logical metadata policy, not a claim to emulate a kernel write clock.
+The changed nodes are marked and their source manifest hash is retained. Native
+before/after capture never invokes Go. The shared compression fixture helpers are
+included and hashed alongside the scenario's own source.
+
+Each consumer uploads its actual before/after workspaces. On each required Mac,
+`verify_replacement.py` independently verifies 36 pairs, 504 final entries and
+252 content replacements against native observations. Missing cases, extra/lost
+entries, changed original values, surviving compression storage or missing
+provenance fail the gate. The existing AppleDouble native-unpack gate also remains
+required. No synthetic Go roundtrip supplies the expected replacement semantics.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario content-replacement --output artifacts/native/replacement/macos-27
+APFS_NATIVE_REPLACEMENT=../artifacts/native/replacement APFS_REPLACEMENT_OUTPUT=../artifacts/outputs/replacement-macOS go test -v -run TestNativeContentReplacement ./acceptance
+python3 acceptance/native/verify_replacement.py --expected-major 27 --corpus artifacts/native/replacement --outputs artifacts/outputs --producers 27 --consumers macOS
+```
+
+Use a fresh destination for each run. Retained local comparison takes about two
+seconds. Focused failure controls cover borrowed source ownership, short reads,
+source errors, mid-copy cancellation, inconsistent data between reads, limits,
+duplicate identities, unknown compression profiles and destinations inside the
+baseline, including symlink aliases. General external import, namespace edits,
+native authorization and crash-durable transactions are subsequent work.

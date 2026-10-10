@@ -57,6 +57,8 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario disk-image-encryption --output artifacts/native/encrypted-dmg/macos-${{ matrix.major }}
       - name: Record portable extraction and Apple metadata packing references
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario preservation --output artifacts/native/preservation/macos-${{ matrix.major }}
+      - name: Record native file replacement and compression cleanup
+        run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario content-replacement --output artifacts/native/replacement/macos-${{ matrix.major }}
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -66,8 +68,9 @@ jobs:
           contents, metadata, resource forks, compression, APFS password unlocks
           password-protected DMG images, retained APFS snapshot histories, and
           preservation references including Apple copyfile pack/unpack controls.
+          Native before/after file writes record replacement, link and fork behavior.
 
-          The eight steps above isolate what is being checked. The uploaded images,
+          The nine steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -91,6 +94,7 @@ jobs:
             artifacts/native/encrypted-dmg/macos-${{ matrix.major }}/
             artifacts/native/snapshots/macos-${{ matrix.major }}/
             artifacts/native/preservation/macos-${{ matrix.major }}/
+            artifacts/native/replacement/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -132,11 +136,20 @@ jobs:
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation
           APFS_WORKSPACE_OUTPUT: ../artifacts/preservation
+          APFS_NATIVE_REPLACEMENT: ../artifacts/native/replacement
+          APFS_REPLACEMENT_OUTPUT: ../artifacts/replacement
       - name: Retain actual extracted workspaces and AppleDouble output
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: preservation-${{ matrix.platform }}
           path: artifacts/preservation/
+          include-hidden-files: true
+          if-no-files-found: error
+      - name: Retain original and replaced workspaces
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: replacement-${{ matrix.platform }}
+          path: artifacts/replacement/
           include-hidden-files: true
           if-no-files-found: error
       - name: Explain the compatibility result
@@ -191,8 +204,14 @@ jobs:
         with:
           pattern: preservation-*
           path: artifacts/outputs
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: replacement-*
+          path: artifacts/outputs
       - name: Verify preserved values and native AppleDouble unpack independently of Go
         run: python3 acceptance/native/verify_preservation.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/preservation --outputs artifacts/outputs
+      - name: Verify replaced contents, forks and links against native before and after files
+        run: python3 acceptance/native/verify_replacement.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/replacement --outputs artifacts/outputs
       - name: Explain the native output verification
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -202,7 +221,11 @@ jobs:
           Linux, Windows and macOS. Original names, metadata, contents, symlink
           targets, hard-link identities and raw attributes must remain exact.
           Apple's copyfile unpack also compared 108 Go-produced AppleDouble files
-          with their Apple-produced controls. No Go verifier supplies this result.
+          with their Apple-produced controls. The replacement check compares 36
+          before/after workspace pairs with 252 native content replacements,
+          including compression cleanup, hard-link identity and independent forks.
+          Source timestamps remain recorded by the explicit preservation policy.
+          No Go verifier supplies these results.
           EOF
 
   complete:

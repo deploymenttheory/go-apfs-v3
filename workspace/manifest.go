@@ -86,17 +86,19 @@ type entry struct {
 }
 
 type manifest struct {
-	Schema  int                  `json:"schema"`
-	Root    uint64               `json:"root"`
-	Names   filesystem.NameRules `json:"names"`
-	Objects []object             `json:"objects"`
-	Entries []entry              `json:"entries"`
-	Report  Report               `json:"report"`
+	ParentManifestSHA256 string               `json:"parentManifestSHA256,omitempty"`
+	Schema               int                  `json:"schema"`
+	Root                 uint64               `json:"root"`
+	Names                filesystem.NameRules `json:"names"`
+	Objects              []object             `json:"objects"`
+	Entries              []entry              `json:"entries"`
+	Report               Report               `json:"report"`
 }
 
 // Report describes preservation separately from the host projection. Source
 // permissions, flags, IDs and timestamps are recorded, never enforced on the host.
 type Report struct {
+	ModifiedFiles    int    `json:"modifiedFiles,omitempty"`
 	Objects          int    `json:"objects"`
 	Entries          int    `json:"entries"`
 	StoredBytes      int64  `json:"storedBytes"`
@@ -178,5 +180,5 @@ func validNode(n filesystem.Node) bool {
 			return false
 		}
 	}
-	return n.Identity.Object != 0 && m.Mode.State == filesystem.Present
+	return n.Identity.Object != 0 && m.Mode.State == filesystem.Present && (!n.DataModified || m.Mode.Value&0170000 == 0100000)
 }

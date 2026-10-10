@@ -288,7 +288,8 @@
       "components": [
         "internal/decmpfs",
         "apfs/reader.go",
-        "hfsplus/reader.go"
+        "hfsplus/reader.go",
+        "workspace/replace.go"
       ],
       "files": [
         {
@@ -300,7 +301,7 @@
           "sha256": "18dc3ff96bf71c686a45297e3c218aea21ee0ba6786527c0599e7111f157eb3e"
         }
       ],
-      "basis": "Original bounded reader using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied."
+      "basis": "Original bounded reader using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied. Replacement also studies decmpfs_decompress_file, unset_compressed_flag and decmpfs_free_compressed_data: zero truncation clears UF_COMPRESSED and frees codec-owned storage plus the decmpfs attribute. No kernel code translated; original Go storage transitions are independently checked by native O_TRUNC writes. Unlike native writes, the preservation API keeps recorded source timestamps and marks modified contents explicitly."
     },
     {
       "id": "native-file-compression-27",
@@ -571,6 +572,18 @@
       ],
       "evidence": "acceptance/testdata/preservation/macos-27/manifest.json",
       "basis": "Four native APFS/HFS+/HFSX images, 125\u2013126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
+    },
+    {
+      "id": "native-content-replacement-27",
+      "kind": "native-observation",
+      "components": [
+        "workspace/replace.go",
+        "internal/decmpfs/reader.go",
+        "acceptance/native/content_replacement.py",
+        "acceptance/native/verify_replacement.py"
+      ],
+      "evidence": "acceptance/testdata/replacement/macos-27/manifest.json",
+      "basis": "Four native before/after APFS/HFS+/HFSX images, 14 entries and seven content replacements each. Native truncate/write preserves inode/link identities, ordinary metadata and independent forks; active decmpfs types 3,4,8 become uncompressed with owned storage removed. Inactive malformed attributes survive. Portable results preserve before timestamps by policy while content/fork/link outcomes match after observations. Original sources and native post-write times remain independently recorded."
     }
   ]
 }

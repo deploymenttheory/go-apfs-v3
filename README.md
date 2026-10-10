@@ -7,8 +7,9 @@ contracts while retaining separate filesystem engines.
 **Status: readers and preservation-aware extraction.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
-opens retained APFS snapshots and extracts portable workspaces. Filesystem writes,
-recovery and mounting are not implemented yet. See [implementation status](docs/implementation.md)
+opens retained APFS snapshots, extracts portable workspaces, and replaces their
+file contents while preserving metadata. Filesystem writes, recovery and mounting
+are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -28,6 +29,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cat --image-password-file ./image-password.bin encrypted.dmg /Fixture/example.txt
 ./bin/apfs extract --json image.dmg /Applications/Example.app ./example-workspace
 ./bin/apfs workspace verify --json ./example-workspace
+./bin/apfs workspace replace --json ./example-workspace Contents/Info.plist ./updated.plist ./updated-workspace
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
@@ -138,10 +140,28 @@ not applied. The projection is therefore not yet a runnable macOS app bundle.
 implements `filesystem.Reader` with the original names and filename comparison
 rules. Keep it open while using values; keep the directory immutable. Missing,
 modified or incomplete content fails explicitly. This increment supports capture
-and readback; explicit replacement/import generations follow in phase 3. The
+and readback plus staged content replacement. General external import and
+structural editing remain later phase-3 work. The
 CLI refuses existing destinations. Failed capture can leave an incomplete
 workspace for diagnosis. Large values stream; object, entry, depth and byte
 budgets are configurable up to documented defaults in `workspace.DefaultLimits`.
+
+`w.ReplaceData(ctx, replacements, newDirectory, limits)` replaces complete data
+forks in a new, self-contained workspace. Each `workspace.DataReplacement` selects
+an existing object ID and borrows a sized `block.Source`. All hard-link aliases
+receive the same bytes. Source ownership, modes, timestamps, unrelated flags,
+attributes and independent resource forks remain recorded. Active compression
+is removed coherently; the replacement's logical and raw data are uncompressed.
+Inactive decmpfs attributes remain opaque. Symlinks are never followed.
+
+The baseline stays unchanged. The output records its parent manifest's SHA-256,
+and changed `filesystem.Node` values carry `DataModified`; their identity still
+identifies the source object/view. The marker survives subsequent replacement
+and re-extraction. Schema 1 captures remain readable; derived workspaces use
+schema 2. Replacement requires a new destination outside the baseline. Duplicate
+object requests, unknown compression ownership and partial I/O fail explicitly.
+This operation preserves recorded timestamps, including modification/change time;
+it does not synthesize native kernel write times from the consumer host clock.
 
 `appledouble.Decode(ctx, source)` borrows serialized metadata; `Write(ctx, out,
 file)` streams it. These APIs operate on explicit inputs, never infer companion

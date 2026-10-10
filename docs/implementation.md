@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction/workspace reader and streaming AppleDouble implemented; replacement/import generations pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; general import and structural editing pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -173,8 +173,9 @@ mappings. Symlinks are recorded without creating host traversal paths; hard-link
 relationships remain recorded even when the host requires independent files.
 Malformed trees, missing attributes, cancellation, resource limits and partial
 I/O fail explicitly. A completion manifest is published only after every value
-has been stored. Existing workspace data is immutable for this increment;
-replacement/import APIs and coherent edit generations follow in phase 3.
+has been stored. Existing workspace data remains immutable. The next content-replacement
+increment below writes a separate workspace; general import and structural
+editing remain later phase-3 work.
 
 AppleDouble operates on serialized metadata values using the pinned Apple
 `copyfile` layouts. Native `COPYFILE_PACK` output is decoded and re-encoded on
@@ -189,6 +190,42 @@ workspace, original/raw fork hashes, byte names, mapped collisions, ordinary
 and Linux/Windows/macOS outputs are required. Native readback verifies those
 outputs independently; missing artifacts or a mismatch fail the gate. Existing
 reader/snapshot/encryption families remain required.
+
+## Staged content replacement increment
+
+Replace complete contents of existing regular files while preserving their source
+identity, hard-link aliases, unrelated metadata and independent resource forks.
+The library accepts a batch of explicit object IDs and borrowed sized inputs;
+`workspace replace` resolves one original path for CLI callers. Both create a
+new self-contained workspace and leave the baseline untouched. Existing, nested
+or symlink-aliased destinations cannot replace or modify the source workspace.
+
+Active compression becomes ordinary data, removing only its owned storage.
+Inactive decmpfs attributes remain opaque. Source timestamps stay recorded by
+explicit policy; native kernel write times are not invented. `Node.DataModified`
+marks supplied contents and persists through subsequent captures. Schema-2
+manifests bind the result to its input manifest hash; old captures remain readable.
+There is no generation database, concurrent commit API or general host-file import.
+
+The content-replacement family captures native before/after images on all four
+filesystem profiles. Seven native O_TRUNC writes per image exercise ordinary and
+compressed hard links, growth, shrinking, empty data, original mapped names,
+inline compression with an independent fork, resource compression and inactive
+attributes. Go replacement is compared against the independent native after
+observation. Timestamps are checked against the native before observation because
+preserving those recorded values is the stated API policy. Both observations
+remain unmodified evidence. Current native qualification covers decmpfs types
+3, 4 and 8; the storage classifier shares the reader's admitted profiles.
+
+Each Linux, Windows and macOS consumer returns before/after workspaces to every
+Mac. Python verifies all 36 pairs and 252 replacement operations against native
+reference data, including removed compression attributes, alias identity,
+unchanged objects and source provenance. The focused retained family takes about
+two seconds locally. Existing preservation and reader gates remain required.
+Unit controls cover partial/failed reads, cancellation, changing input, duplicate
+identities, limits, unknown ownership and output containment. Durable transactions,
+namespace edits, compression encoding and filesystem writes retain their later
+phase gates.
 
 ## Required phase gates
 

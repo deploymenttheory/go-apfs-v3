@@ -223,3 +223,45 @@ func TestExtractAndVerifyPreservationReport(t *testing.T) {
 		t.Fatal("overwrote destination", err)
 	}
 }
+
+func TestWorkspaceReplaceProducesSeparateVerifiedOutput(t *testing.T) {
+	ctx := context.Background()
+	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
+	parent := t.TempDir()
+	baseline := filepath.Join(parent, "before")
+	destination := filepath.Join(parent, "after")
+	contents := filepath.Join(parent, "contents")
+	payload := []byte("CLI supplied content\x00\xff")
+	if err := os.WriteFile(contents, payload, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diagnostics bytes.Buffer
+	if err := run(ctx, []string{"extract", image, "Fixture", baseline}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := run(ctx, []string{"workspace", "replace", "--json", baseline, "alias", contents, destination}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	var report struct{ Schema, ModifiedFiles int }
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Schema != 1 || report.ModifiedFiles != 1 || diagnostics.Len() != 0 {
+		t.Fatal("replacement report", out.String())
+	}
+	for _, name := range []string{"alias", "ordinary", filepath.Join("links", "second")} {
+		data, err := os.ReadFile(filepath.Join(destination, "files", name))
+		if err != nil || !bytes.Equal(data, payload) {
+			t.Fatal("CLI alias replacement", name, err)
+		}
+	}
+	out.Reset()
+	if err := run(ctx, []string{"workspace", "verify", baseline}, nil, &out, &diagnostics); err != nil {
+		t.Fatal("source workspace changed", err)
+	}
+	out.Reset()
+	if err := run(ctx, []string{"workspace", "replace", baseline, "link", contents, filepath.Join(parent, "bad")}, nil, &out, &diagnostics); !errors.Is(err, fs.ErrInvalid) || out.Len() != 0 {
+		t.Fatal("replacement followed symlink", err)
+	}
+}
