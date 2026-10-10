@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "scenario": "metadata-edits",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "1d9842585ca226c51c0b0200108050b873bc5b96a907333905a920cac43857f8",
+    "sources": [
+      {
+        "source": "content_replacement.py",
+        "sha256": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3"
+      },
+      {
+        "source": "file_compression.py",
+        "sha256": "863d278e09de6388a3eab01e6068a7ba1ef09a8ae015d72d3da542aeab1420a4"
+      },
+      {
+        "source": "preservation.py",
+        "sha256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+      },
+      {
+        "source": "metadata_edits.py",
+        "sha256": "ee77f926a29dbbfd5c1134346437b7ce66cada2126dcfac2c80af8b7436f3fb2"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "metadata-edits/apfs",
+      "image": "apfs.dmg",
+      "sha256": "fdb2adbaf3688f4a83c39373396bc3e1e89d74cfb8e89c3399b98b13261c64fc",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "76e65d1b42503dcc121dcb6d6a30248e23c9545284a479a19b9471740b4dcc5c",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "39597ACA-EA33-45A5-84A1-323E35522DE5"
+      },
+      "files": "apfs-files.json",
+      "filesSHA256": "002b868e6e215737b7d2de9988d0663f237f209b50ee8b1e54623e2833d6a17e"
+    },
+    {
+      "id": "metadata-edits/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "540bee120d3913198995bf3f79f9d55b763c489cdc828144c01f051bda7a6ed6",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "cf2de312664e1bf499960065f6892ae74e8205e93f376cfd4367f1397e91b3f6",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "7A1E7B01-8DD2-4224-A4AD-952DBDCE309C"
+      },
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "d3eb57cf9749c89544e85b299ddae35513bf386bcdeac3dd48f73824b5e59b14"
+    },
+    {
+      "id": "metadata-edits/hfsplus",
+      "image": "hfsplus.dmg",
+      "sha256": "456051a9aadbf15fb741b29c2d6c6ba1b05650e9706ec98ae64350354ffd0f7a",
+      "observation": "hfsplus-diskutil.plist",
+      "observationSHA256": "8c91c1513b3379daa823d187d95774811fc7355a7be9f9e87d3926a943775bde",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsplus-files.json",
+      "filesSHA256": "79dae682889a94b7079a2c5eb774a5427e92dd163dd2f619ccc43d5f526650c2"
+    },
+    {
+      "id": "metadata-edits/hfsx",
+      "image": "hfsx.dmg",
+      "sha256": "f11ff40322e9762ff6d698ecc4b73436be5faf87017563a610b1c5eb446eee04",
+      "observation": "hfsx-diskutil.plist",
+      "observationSHA256": "5270e499bd6850150ac38b40a1ae18889bd31d28ff8e0fce388a30a3430c2721",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsx-files.json",
+      "filesSHA256": "031bc7cad6b077915f8d1e7754332deede7e7c276d1fd9f2aa17abad6d23b57b"
+    }
+  ]
+}

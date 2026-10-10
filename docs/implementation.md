@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered creation/rename/removal/link batches implemented; general import pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; general import pending |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -260,6 +260,38 @@ are workspace creation digests, visibly separate from captured native identities
 Schema 3 retains creation/link-change markers through subsequent editing and
 subtree extraction. General host import and filesystem-image creation remain
 separate work. This completes the scoped logical tree-editing increment.
+
+## Workspace metadata editing increment
+
+Partial metadata patches and individual extended-attribute changes now compose
+with tree and content edits. A complete resource-fork replacement operation
+truncates old bytes and treats empty forks as absent, following native named-fork
+writes. FinderInfo has explicit length, public-value and hidden-flag behavior.
+The shared pinned Apple HFS helper supplies reserved-field masking. Unsupported
+compression/security changes fail before publication. Source timestamps remain
+recorded except where the caller explicitly supplies an admitted timestamp.
+Schema 4 records cumulative changed fields and attributes with source identity.
+
+One `metadata-edits` family supplies 29 native operations and seven rejection
+controls on each of four filesystem profiles. It checks mode, UID/GID, exact
+birth/modification/access precision, ordinary and empty attributes, FinderInfo,
+fork shrink/removal, hard-link aliases and symlinks. The batch includes a rename,
+an added alias and compressed-file replacement followed by independent fork
+creation. Timestamp assignments follow writable-mount attribute observations,
+which can themselves update HFS+ access time.
+
+Fresh captures on macOS 15/26/27 require actual UID/GID reassignment using sudo on
+disposable image files. The retained local macOS 27 corpus records same-owner
+assignment because the local account has no passwordless sudo; it does not supply
+that ownership-change gate. All three portable hosts replay all native producers.
+Each Mac independently checks 36 workspace pairs, 612 final entries and 1044 native
+operations without invoking Go. The focused retained replay takes about two
+seconds. Existing native families and independent output verification remain required.
+
+Unit controls cover unspecified metadata, explicit zero, invalid patches, unsafe
+compression/security changes, source lifetime and failures, cancellation, ordered
+attribute overlays, deterministic output and provenance through later extraction.
+General directory import and deterministic image construction follow this work.
 
 ## Required phase gates
 

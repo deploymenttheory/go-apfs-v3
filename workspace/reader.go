@@ -113,7 +113,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 	}()
 	m := w.document
-	if m.Schema != 1 && m.Schema != 2 && m.Schema != 3 {
+	if m.Schema < 1 || m.Schema > 4 {
 		return fmt.Errorf("workspace schema %d: %w", m.Schema, filesystem.ErrUnsupported)
 	}
 	if m.ParentManifestSHA256 != "" && (m.Schema < 2 || !validBlob(blob{SHA256: m.ParentManifestSHA256})) {
@@ -126,7 +126,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 	if len(m.Objects) == 0 || len(m.Entries) == 0 || len(m.Objects) > DefaultLimits().Objects || len(m.Entries) > DefaultLimits().Entries {
 		return filesystem.ErrLimit
 	}
-	modified, created := 0, 0
+	modified, created, metadata, attributes := 0, 0, 0, 0
 	for _, o := range m.Objects {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -144,6 +144,17 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 		if o.Node.LinksModified && m.Schema < 3 {
 			return filesystem.ErrCorrupt
+		}
+		if len(o.Node.MetadataModified) != 0 || len(o.Node.AttributesModified) != 0 {
+			if m.Schema < 4 {
+				return filesystem.ErrCorrupt
+			}
+		}
+		if len(o.Node.MetadataModified) != 0 {
+			metadata++
+		}
+		if len(o.Node.AttributesModified) != 0 {
+			attributes++
 		}
 		if o.Node.DataModified {
 			modified++
@@ -202,7 +213,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 	host := map[string]bool{}
 	native := map[uint64]map[string]bool{}
 	depth := map[uint64]int{}
-	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy, ModifiedFiles: modified, CreatedObjects: created}
+	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy, ModifiedFiles: modified, CreatedObjects: created, MetadataObjects: metadata, AttributeObjects: attributes}
 	for i, e := range m.Entries {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -448,7 +459,7 @@ func (w *Workspace) get(ctx context.Context, id uint64) (object, error) {
 
 func (w *Workspace) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 	o, err := w.get(ctx, id)
-	return o.Node, err
+	return copyNode(o.Node), err
 }
 func (w *Workspace) Lookup(ctx context.Context, parent uint64, name string) (filesystem.DirEntry, error) {
 	return names.Lookup(ctx, w, parent, name, w.key)

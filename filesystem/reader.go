@@ -10,6 +10,11 @@ import (
 // Node describes a logical object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
+	// MetadataModified and AttributesModified name explicitly edited fields and
+	// attributes, including removed values and FinderInfo/flag side effects.
+	// Sorted, cumulative names distinguish supplied values from native evidence.
+	MetadataModified   []string `json:"metadataModified,omitempty"`
+	AttributesModified []string `json:"attributesModified,omitempty"`
 	// Created identifies an object introduced in a workspace. Its Identity.Volume
 	// is a workspace creation digest, not a native filesystem UUID.
 	Created bool `json:"created,omitempty"`

@@ -48,9 +48,10 @@
         "hfsplus/finderinfo.go",
         "hfsplus/links.go",
         "internal/names/hfs_tables.go",
-        "internal/names/generate.py"
+        "internal/names/generate.py",
+        "internal/finderinfo/hfs.go"
       ],
-      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts. Regular-file indirection follows cat_lookup/cat_resolvelink, including creation-date qualification and native inode identity. HFS+ comparison data translates gLatinCaseFold/gLowerCaseTable; the generator records the frozen UTF-16 comparison rules.",
+      "basis": "Adapted hfs_zero_hidden_fields and the FinderInfo portion of hfs_vnop_getxattr. Go byte slices replace kernel cnode and vnode structures; public attribute results preserve native masking. Other reader structures are original Go interpretations of published layouts. Regular-file indirection follows cat_lookup/cat_resolvelink, including creation-date qualification and native inode identity. HFS+ comparison data translates gLatinCaseFold/gLowerCaseTable; the generator records the frozen UTF-16 comparison rules. The FinderInfo masking adaptation is shared by HFS+ reading and workspace edits. The hfs_vnop_setxattr/removexattr and hfs_set_bsd_flags behavior was also studied for native FinderInfo admission and hidden-bit coupling; workspace operations are original Go interpretations qualified against native final observations.",
       "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
       "license": "APSL-2.0",
       "licenseFile": "LICENSES/APSL-2.0.txt",
@@ -597,6 +598,18 @@
       ],
       "evidence": "acceptance/testdata/tree-edits/macos-27/manifest.json",
       "basis": "Four native before/after APFS/HFS+/HFSX profiles with 18 operations, eight rejection controls and six name-length probes each. Final read-only observations independently establish entry spelling, inode relationships, link counts, content, compression cleanup and attributes. Creation metadata and attribute bytes are explicit recorded inputs, including native process provenance. Source and supplied creation timestamps remain recorded by preservation policy. Native IDs for created objects are compared through a bijection of path/link groups; portable identities are explicitly marked as workspace-created. No C source is newly ported by the editor."
+    },
+    {
+      "id": "native-metadata-edits-27",
+      "kind": "native-evidence",
+      "components": [
+        "workspace/metadata.go",
+        "acceptance/metadata_edits_test.go",
+        "acceptance/native/metadata_edits.py",
+        "acceptance/native/verify_metadata_edits.py"
+      ],
+      "evidence": "acceptance/testdata/metadata-edits/macos-27/manifest.json",
+      "basis": "Four native before/after APFS/HFS+/HFSX profiles, 29 operations and seven rejections each. Final native read-only observations independently establish metadata precision, exact attributes, FinderInfo behavior, complete resource-fork truncation and identity through rename/hard links. Unspecified timestamps retain their source values by explicit portable policy. The retained local corpus uses same-owner assignment; fresh required CI captures must change UID/GID to 60001/60002 with native sudo on disposable image files. Native observation of resource forks precedes explicit timestamp assignment to avoid changing HFS+ atime during capture."
     }
   ]
 }

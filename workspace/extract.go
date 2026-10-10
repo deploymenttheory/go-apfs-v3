@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -135,6 +136,11 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 		if n.Identity.Object != id || !validNode(n) {
 			return fmt.Errorf("workspace object identity or mode: %w", filesystem.ErrCorrupt)
 		}
+		for _, field := range append(slices.Clone(n.MetadataModified), n.AttributesModified...) {
+			if err := x.metadata(2*len(field) + 32); err != nil {
+				return err
+			}
+		}
 		if !n.Created {
 			if x.haveSource && (n.Identity.Volume != x.source.Volume || n.Identity.View != x.source.View) {
 				return fmt.Errorf("mixed source views: %w", filesystem.ErrCorrupt)
@@ -151,7 +157,16 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 			x.manifest.Report.ModifiedFiles++
 		}
 		if n.Created || n.LinksModified {
-			x.manifest.Schema = 3
+			x.manifest.Schema = max(x.manifest.Schema, 3)
+		}
+		if len(n.MetadataModified) != 0 || len(n.AttributesModified) != 0 {
+			x.manifest.Schema = 4
+		}
+		if len(n.MetadataModified) != 0 {
+			x.manifest.Report.MetadataObjects++
+		}
+		if len(n.AttributesModified) != 0 {
+			x.manifest.Report.AttributeObjects++
 		}
 		if n.Created {
 			x.manifest.Report.CreatedObjects++

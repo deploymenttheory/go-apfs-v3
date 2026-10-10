@@ -175,6 +175,18 @@ hash identifies the complete edited state. Native objects retain source identity
 older schemas remain supported. Created-object and modified-file report counts
 are cumulative for reachable objects. This is recorded provenance, not a signature.
 
+Metadata and attribute edits use the same private graph and streaming capture.
+Partial metadata patches distinguish omission from explicit zero. Attribute
+create/replace conditions apply to the current batch state. Complete resource-fork
+replacement has a separate operation because native offset writes retain old tails.
+Public FinderInfo normalization is shared with the HFS+ reader; flags and attribute
+side effects follow qualified native behavior. Generic operations cannot change
+compression-owned storage or security ACL encodings. Schema 4 records cumulative
+changed metadata-field and attribute names, including deletions, and includes them
+in the manifest budget and object report counts. Returned node slices belong to
+the caller. Earlier workspace schemas remain readable. The complete contract is
+in [workspace edit semantics](workspace-edits.md#metadata-attributes-and-resource-forks).
+
 `appledouble` is a separate serialized metadata codec adapted from pinned Apple
 copyfile source. It borrows values, bounds header/record parsing, and streams data.
 Ordered duplicate records, empty values, flags and fixed FinderInfo/resource slots

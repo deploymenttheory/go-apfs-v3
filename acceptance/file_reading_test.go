@@ -22,6 +22,7 @@ import (
 )
 
 type fileObservation struct {
+	MetadataEdits         *nativeMetadataEdits         `json:"metadataEdits,omitempty"`
 	TreeEdits             *nativeTreeEdits             `json:"treeEdits,omitempty"`
 	Replacement           *nativeReplacement           `json:"replacement,omitempty"`
 	RawAttributes         []nativeRawAttributes        `json:"rawAttributes,omitempty"`
@@ -43,6 +44,7 @@ type nativeFile struct {
 	Object                uint64 `json:"object"`
 	Mode, UID, GID, Flags uint32
 	BirthSeconds          int64                  `json:"birthSeconds"`
+	BirthNS               *int64                 `json:"birthNS,omitempty"`
 	ModifyNS              int64                  `json:"modifyNS"`
 	ChangeNS              int64                  `json:"changeNS"`
 	AccessNS              int64                  `json:"accessNS"`
@@ -99,10 +101,13 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
 			}
-			if scenario == "content-replacement" || scenario == "tree-edits" {
+			if scenario == "content-replacement" || scenario == "tree-edits" || scenario == "metadata-edits" {
 				required := []string{"content_replacement.py", "file_compression.py", "preservation.py"}
 				if scenario == "tree-edits" {
 					required = append(required, "tree_edits.py")
+				}
+				if scenario == "metadata-edits" {
+					required = append(required, "metadata_edits.py")
 				}
 				if len(c.Producer.Sources) != len(required) {
 					t.Fatal("missing replacement source provenance")
@@ -202,6 +207,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					if scenario == "tree-edits" {
 						compareTreeEdits(t, reader, want, dir, test.ID, major)
 					}
+					if scenario == "metadata-edits" {
+						compareMetadataEdits(t, reader, want, dir, test.ID, major)
+					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)
 					}
@@ -259,6 +267,9 @@ func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
 			t.Fatalf("%s identity: got %d want %d", expected.Path, n.Identity.Object, expected.Object)
 		}
 		m := n.Metadata
+		if expected.BirthNS != nil && m.BirthTime.Value.UnixNano() != *expected.BirthNS {
+			t.Fatalf("%s birth nanoseconds: got %d want %d", expected.Path, m.BirthTime.Value.UnixNano(), *expected.BirthNS)
+		}
 		for _, field := range []struct {
 			name string
 			got  filesystem.Observation[uint32]
