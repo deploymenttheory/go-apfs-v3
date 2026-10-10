@@ -4,7 +4,7 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: readers, preservation, file-command sessions HFS+/HFSX image building and disk-image repacking.** The executable inspects images,
+**Status: readers, preservation, file-command sessions, HFS+/HFSX image building and disk-image repacking.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their

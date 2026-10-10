@@ -206,7 +206,12 @@ def create(case_id, work, command):
             second = info(other, command)
             create_files(Path(second['MountPoint']) / 'Fixture', command)
     finally:
-        command('hdiutil', 'detach', device)
+        # New APFS children can remain busy after automatic volume publication.
+        # Release every mount on this disposable image before detaching its disk.
+        try:
+            command('diskutil', 'unmountDisk', 'force', device)
+        finally:
+            command('hdiutil', 'detach', device)
     markers = []
     if case_id == 'hfsx-apm-raw':
         # Native SPUD creation produces flat disk bytes. Seed only an APM entry
