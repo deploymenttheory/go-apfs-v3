@@ -47,16 +47,18 @@ def timestamp_ns(value):
     return seconds * 10**9 + int((fraction + "000000000")[:9])
 
 
-def verify_workspace(root, expected, sensitive, volume_format):
+def verify_workspace(root, expected, sensitive, volume_format, *, source_times=None, modified_objects=frozenset(),
+                     minimum_mapped=8, minimum_symlinks=3, aliases=2):
     manifest = read_json(root / "metadata/manifest.json")
-    require(manifest["schema"] == 1, "workspace schema")
+    require(manifest["schema"] == (2 if modified_objects else 1), "workspace schema")
     require(manifest["names"] == {"format": volume_format, "caseSensitive": sensitive,
                                   "normalizationInsensitive": True}, "filename rules")
     objects = {o["node"]["identity"]["object"]: o for o in manifest["objects"]}
     require(len(objects) == len(manifest["objects"]), "duplicate workspace identity")
     entries = manifest["entries"]
     native = {e["path"]: e for e in expected["entries"]}
-    raw = {e["object"]: e["attributes"] for e in expected["preservation"]["rawAttributes"]}
+    raw_entries = expected["preservation"]["rawAttributes"] if "preservation" in expected else expected["rawAttributes"]
+    raw = {e["object"]: e["attributes"] for e in raw_entries}
     directories = {}
     observed = set()
     projected = set()
@@ -85,15 +87,17 @@ def verify_workspace(root, expected, sensitive, volume_format):
         obj = objects[entry["object"]]
         node = obj["node"]
         require(node["identity"]["object"] == want["object"], "native identity changed")
+        require(node.get("dataModified", False) == (want["object"] in modified_objects), "edited data provenance")
         origins.add((node["identity"]["volume"], node["identity"]["view"]))
         mode = want["mode"] & 0o170000
         for field, key in (("mode", "mode"), ("uid", "uid"), ("gid", "gid"), ("bsdFlags", "flags")):
             require(node["metadata"][field] == {"state": 2, "value": want[key]}, f"{logical}: {field}")
+        times = source_times.get(want["object"], want) if source_times else want
         for field, key in (("birthTime", "birthSeconds"), ("modifyTime", "modifyNS"),
                            ("changeTime", "changeNS"), ("accessTime", "accessNS")):
             value = node["metadata"][field]
             ns = timestamp_ns(value["value"])
-            require(value["state"] == 2 and (ns // 10**9 if field == "birthTime" else ns) == want[key],
+            require(value["state"] == 2 and (ns // 10**9 if field == "birthTime" else ns) == times[key],
                     f"{logical}: {field}")
         host = entry["hostPath"]
         require(host == "files" or host.startswith("files/"), "projection root")
@@ -127,8 +131,9 @@ def verify_workspace(root, expected, sensitive, volume_format):
     require(actual | {"files"} == projected, "extra or missing projected entries")
     report = manifest["report"]
     require(report["objects"] == len(objects) and report["entries"] == len(entries), "preservation report counts")
-    require(report["mappedNames"] >= 8 and report["symlinksRecorded"] >= 3 and
-            report["hardLinks"] + report["hardLinksCopied"] == 2, "missing preservation outcomes")
+    require(report.get("modifiedFiles", 0) == len(modified_objects), "modified file count")
+    require(report["mappedNames"] >= minimum_mapped and report["symlinksRecorded"] >= minimum_symlinks and
+            report["hardLinks"] + report["hardLinksCopied"] == aliases, "missing preservation outcomes")
     require(report["storedBytes"] == sum(v["size"] for v in verified.values()), "stored byte accounting")
     return len(entries)
 

@@ -22,6 +22,8 @@ import (
 )
 
 type fileObservation struct {
+	Replacement           *nativeReplacement           `json:"replacement,omitempty"`
+	RawAttributes         []nativeRawAttributes        `json:"rawAttributes,omitempty"`
 	Preservation          *nativePreservation          `json:"preservation,omitempty"`
 	Snapshots             *nativeSnapshots             `json:"snapshots,omitempty"`
 	SnapshotPasswords     *nativeSnapshotPasswords     `json:"snapshotPasswords,omitempty"`
@@ -95,6 +97,17 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 			helper := map[string]string{"file-compression": "file_compression.py", "file-encryption": "file_encryption.py", "disk-image-encryption": "disk_image_encryption.py", "snapshot-reading": "snapshot_reading.py", "preservation": "preservation.py"}[scenario]
 			if helper != "" && (len(c.Producer.Sources) != 1 || c.Producer.Sources[0].Source != helper) {
 				t.Fatal("missing native capture source", helper)
+			}
+			if scenario == "content-replacement" {
+				required := []string{"content_replacement.py", "file_compression.py", "preservation.py"}
+				if len(c.Producer.Sources) != len(required) {
+					t.Fatal("missing replacement source provenance")
+				}
+				for i, name := range required {
+					if c.Producer.Sources[i].Source != name {
+						t.Fatal("unexpected replacement source", name)
+					}
+				}
 			}
 			for _, source := range c.Producer.Sources {
 				verifyDigest(t, dir, source.Source, source.SHA256)
@@ -178,6 +191,9 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 					}
 					if scenario == "preservation" {
 						comparePreservation(t, reader, want, dir, test.ID, major)
+					}
+					if scenario == "content-replacement" {
+						compareReplacement(t, reader, want, dir, test.ID, major)
 					}
 					if extra != nil {
 						extra(t, reader, want, test.ID)

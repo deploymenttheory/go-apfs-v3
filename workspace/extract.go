@@ -21,7 +21,18 @@ import (
 // for diagnosis, but Open never admits it without a complete manifest. The source
 // must remain immutable and open. The destination must exclude external mutation.
 // Host files are a projection; the verified blobs and manifest retain authority.
-func Extract(ctx context.Context, reader filesystem.Reader, rootID uint64, destination string, limits Limits) (report Report, err error) {
+func Extract(ctx context.Context, reader filesystem.Reader, rootID uint64, destination string, limits Limits) (Report, error) {
+	parent := ""
+	if w, ok := reader.(*Workspace); ok {
+		if err := w.checkDestination(destination); err != nil {
+			return Report{}, err
+		}
+		parent = w.ManifestSHA256()
+	}
+	return extract(ctx, reader, rootID, destination, limits, parent)
+}
+
+func extract(ctx context.Context, reader filesystem.Reader, rootID uint64, destination string, limits Limits, parent string) (report Report, err error) {
 	limits, err = limits.normalize()
 	if err != nil {
 		return report, err
@@ -48,7 +59,10 @@ func Extract(ctx context.Context, reader filesystem.Reader, rootID uint64, desti
 		return report, err
 	}
 	x := capture{ctx: ctx, reader: reader, root: root, limits: limits, objects: map[uint64]int{}, links: map[uint64]string{}, stored: map[string]int64{}, key: key}
-	x.manifest = manifest{Schema: 1, Root: rootID, Names: reader.NameRules()}
+	x.manifest = manifest{Schema: 1, Root: rootID, Names: reader.NameRules(), ParentManifestSHA256: parent}
+	if parent != "" {
+		x.manifest.Schema = 2
+	}
 	x.manifest.Report.Metadata = metadataPolicy
 	if err = x.walk(rootID, 0, nil, "files", 0); err != nil {
 		return x.manifest.Report, err
@@ -126,6 +140,10 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 			}
 		}
 		o := object{Node: n, Attributes: []attribute{}}
+		if n.DataModified {
+			x.manifest.Schema = 2
+			x.manifest.Report.ModifiedFiles++
+		}
 		switch kind(o) {
 		case 0040000:
 		case 0100000:
@@ -150,6 +168,9 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 				return err
 			}
 			o.RawData = &raw
+			if n.DataModified && (b != raw || n.Compression.State != filesystem.Absent || n.Metadata.BSDFlags.State != filesystem.Present || n.Metadata.BSDFlags.Value&32 != 0) {
+				return fmt.Errorf("inconsistent replacement storage: %w", filesystem.ErrConflict)
+			}
 		case 0120000:
 			target, err := x.reader.Readlink(x.ctx, id)
 			if err != nil {

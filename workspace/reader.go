@@ -25,6 +25,7 @@ type Workspace struct {
 	mu       sync.RWMutex
 	root     *os.Root
 	closed   bool
+	digest   string
 	document manifest
 	objects  map[uint64]object
 	children map[uint64][]filesystem.DirEntry
@@ -81,7 +82,8 @@ func Open(ctx context.Context, directory string) (result *Workspace, err error) 
 	if !info.Mode().IsRegular() || info.Size() > maxManifest {
 		return nil, errors.Join(filesystem.ErrLimit, f.Close())
 	}
-	d := json.NewDecoder(io.LimitReader(f, maxManifest+1))
+	hash := sha256.New()
+	d := json.NewDecoder(io.TeeReader(io.LimitReader(f, maxManifest+1), hash))
 	d.DisallowUnknownFields()
 	decodeErr := d.Decode(&w.document)
 	if decodeErr == nil {
@@ -93,6 +95,7 @@ func Open(ctx context.Context, directory string) (result *Workspace, err error) 
 	if err = errors.Join(decodeErr, f.Close()); err != nil {
 		return nil, fmt.Errorf("workspace manifest: %w", errors.Join(filesystem.ErrCorrupt, err))
 	}
+	w.digest = hex.EncodeToString(hash.Sum(nil))
 	if err = w.validate(ctx); err != nil {
 		return nil, err
 	}
@@ -110,8 +113,11 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		}
 	}()
 	m := w.document
-	if m.Schema != 1 {
+	if m.Schema != 1 && m.Schema != 2 {
 		return fmt.Errorf("workspace schema %d: %w", m.Schema, filesystem.ErrUnsupported)
+	}
+	if m.ParentManifestSHA256 != "" && (m.Schema != 2 || !validBlob(blob{SHA256: m.ParentManifestSHA256})) {
+		return filesystem.ErrCorrupt
 	}
 	w.key, err = nameKey(m.Names)
 	if err != nil {
@@ -120,6 +126,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 	if len(m.Objects) == 0 || len(m.Entries) == 0 || len(m.Objects) > DefaultLimits().Objects || len(m.Entries) > DefaultLimits().Entries {
 		return filesystem.ErrLimit
 	}
+	modified := 0
 	for _, o := range m.Objects {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -128,6 +135,12 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 		at = fmt.Sprintf("object %d", id)
 		if !validNode(o.Node) || w.objects[id].Node.Identity.Object != 0 || len(o.Attributes) > maxAttributes {
 			return filesystem.ErrCorrupt
+		}
+		if o.Node.DataModified {
+			modified++
+			if m.Schema != 2 || kind(o) != 0100000 || o.Data == nil || o.RawData == nil || *o.Data != *o.RawData || o.Node.Compression.State != filesystem.Absent || o.Node.Metadata.BSDFlags.State != filesystem.Present || o.Node.Metadata.BSDFlags.Value&32 != 0 {
+				return filesystem.ErrCorrupt
+			}
 		}
 		switch kind(o) {
 		case 0100000:
@@ -173,7 +186,7 @@ func (w *Workspace) validate(ctx context.Context) (err error) {
 	host := map[string]bool{}
 	native := map[uint64]map[string]bool{}
 	depth := map[uint64]int{}
-	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy}
+	calculated := Report{Objects: len(m.Objects), Entries: len(m.Entries), Metadata: metadataPolicy, ModifiedFiles: modified}
 	for i, e := range m.Entries {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -373,6 +386,13 @@ func (w *Workspace) verifyFile(ctx context.Context, name string, b blob) (info f
 	}
 	return info, nil
 }
+
+// ManifestSHA256 identifies this immutable manifest, including its source metadata.
+func (w *Workspace) ManifestSHA256() string { return w.digest }
+
+// ParentManifestSHA256 identifies the input workspace of a derived capture.
+// The parent remains external; this workspace is self-contained for reading.
+func (w *Workspace) ParentManifestSHA256() string { return w.document.ParentManifestSHA256 }
 
 func (w *Workspace) Root() uint64                    { return w.document.Root }
 func (w *Workspace) NameRules() filesystem.NameRules { return w.document.Names }

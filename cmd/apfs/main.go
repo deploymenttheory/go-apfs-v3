@@ -38,14 +38,14 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs workspace replace [--json] WORKSPACE PATH CONTENTS NEW_WORKSPACE\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Paths use native filename comparison; symlinks are not followed. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
 	}
 	if args[0] == "snapshot" {
 		return snapshots(ctx, args[1:], input, out, diagnostics)
 	}
 	if args[0] == "workspace" {
-		return verifyWorkspace(ctx, args[1:], out, diagnostics)
+		return workspaceCommand(ctx, args[1:], out, diagnostics)
 	}
 	if args[0] == "list" || args[0] == "cat" || args[0] == "extract" {
 		return readFiles(ctx, args, input, out, diagnostics)

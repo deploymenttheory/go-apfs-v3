@@ -64,7 +64,7 @@ start block; missing, overlapping and surplus ranges are corruption. Attribute
 continuations use their separate attribute B-tree. The extents file itself must
 be described completely in the volume header, as specified by TN1150.
 
-Planned staged `ReplaceData` preserves inode identity, hard-link aliases, and
+Workspace `ReplaceData` preserves source object identity, hard-link aliases, and
 unrelated metadata while updating compression coherently. Directory-entry
 replacement is a separate operation. An independent resource fork must survive
 content replacement; stale compression storage must never become authoritative.
@@ -105,14 +105,44 @@ hash and the complete projection before returning `filesystem.Reader`. Source
 filename rules and byte spelling survive independently of host lookup. External
 mutation must be excluded during capture and use; edits detected at open are
 conflicts, not imports. Preserved metadata does not enforce host ownership,
-permissions, timestamps or ACLs. API-mediated changes, explicit external import
-and coherent generations remain the next phase-3 increment.
+permissions, timestamps or ACLs. Content replacement below produces a separate
+workspace. General external import and structural editing remain later phase-3 work.
 
 Traversal defaults are 100,000 objects, 200,000 entries, depth 128, 4,096 attributes
 per object, 64 MiB of manifest and 1 TiB per value and total streamed values.
 Callers may lower the configurable limits. Logical/raw/attribute reads count
 against the transfer budget even when storage deduplicates them. Data copies use
 64 KiB buffers. A report separates retained metadata from host materialization.
+
+`Workspace.ReplaceData` validates a nonempty batch of existing regular-file
+object IDs before extraction. Each complete replacement source is borrowed and
+streamed through the same bounded capture path. Duplicate IDs are conflicts,
+including two requests naming different aliases of one inode. The output must
+be new and outside the input workspace; actual ancestor directory identities
+catch symlink and case aliases. No source file or blob is opened for writing.
+
+A private reader overlays only the changed data, size and active compression
+state. Attribute-backed compression loses its decmpfs attribute; resource-backed
+compression also loses its compression-owned resource fork. Independent forks
+and inactive attributes remain byte-exact. The shared decmpfs profile classifier
+rejects unknown ownership. Logical and raw replacement hashes must agree before
+publication. Unchanged files retain their data, raw storage and metadata.
+
+Source timestamps are deliberately preserved, including modification/change
+times. The API does not emulate native authorization or assign the host clock.
+Each supplied object carries `Node.DataModified`, including byte-identical
+replacement requests, so its data cannot masquerade as untouched source evidence.
+Identity remains the original object/view. Derived schema-2 manifests record
+`parentManifestSHA256`; `ManifestSHA256` and `ParentManifestSHA256` expose that
+relationship without requiring the parent to remain present for reading.
+Re-extraction retains the marker. Schema-1 captures remain readable. The report
+counts distinct modified objects, not aliases or calls.
+
+The publication boundary remains the completed manifest after successful reads,
+writes and file flushes. There is no current-generation pointer, edit journal,
+in-place mutation or crash-durable commit guarantee. Failed work can leave
+incomplete output; the previous workspace stays usable. Independent destination
+files keep later host edits from mutating the original through shared hard links.
 
 `appledouble` is a separate serialized metadata codec adapted from pinned Apple
 copyfile source. It borrows values, bounds header/record parsing, and streams data.

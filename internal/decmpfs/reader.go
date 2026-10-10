@@ -83,13 +83,12 @@ func Open(ctx context.Context, open Attributes) (filesystem.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch h.Type {
-	case 1, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16:
-	default:
-		return nil, fmt.Errorf("decmpfs type %d: %w", h.Type, filesystem.ErrUnsupported)
+	usesResource, err := UsesResourceFork(h.Type)
+	if err != nil {
+		return nil, err
 	}
 	v := &value{ctx: ctx, header: h, cached: -1}
-	if h.Type == 1 || h.Type&1 != 0 {
+	if !usesResource {
 		if h.Size > blockSize {
 			return nil, filesystem.ErrLimit
 		}
@@ -296,3 +295,16 @@ func (v *value) Close() error {
 }
 
 func bad(reason string) error { return fmt.Errorf("decmpfs %s: %w", reason, filesystem.ErrCorrupt) }
+
+// UsesResourceFork classifies admitted decmpfs storage profiles. Unknown types
+// must not cause a caller to discard a possibly independent resource fork.
+func UsesResourceFork(kind uint32) (bool, error) {
+	switch kind {
+	case 1, 3, 7, 9, 11, 13, 15:
+		return false, nil
+	case 4, 8, 10, 12, 14, 16:
+		return true, nil
+	default:
+		return false, fmt.Errorf("decmpfs type %d: %w", kind, filesystem.ErrUnsupported)
+	}
+}

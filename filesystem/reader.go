@@ -7,14 +7,17 @@ import (
 	"strings"
 )
 
-// Node describes a native object. Its identity is independent of its directory
+// Node describes a logical object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
-	Identity    Identity                 `json:"identity"`
-	Metadata    Metadata                 `json:"metadata"`
-	Size        uint64                   `json:"size"`
-	Compression Observation[Compression] `json:"compression"`
-	Links       Observation[uint32]      `json:"links"`
+	// DataModified marks replacement contents. Identity still identifies the
+	// source object/view; these bytes are no longer an untouched native observation.
+	DataModified bool                     `json:"dataModified,omitempty"`
+	Identity     Identity                 `json:"identity"`
+	Metadata     Metadata                 `json:"metadata"`
+	Size         uint64                   `json:"size"`
+	Compression  Observation[Compression] `json:"compression"`
+	Links        Observation[uint32]      `json:"links"`
 }
 
 // Compression records the native decmpfs type, which identifies its codec and
@@ -36,9 +39,9 @@ type NameRules struct {
 	NormalizationInsensitive bool   `json:"normalizationInsensitive"`
 }
 
-// Reader borrows its image for its lifetime. Operations never follow symlinks
+// Reader borrows its backing store for its lifetime. Operations never follow symlinks
 // implicitly. Enumeration is incremental and stops when yield returns an error.
-// Opened values have independent lifetimes but still borrow the image.
+// Opened values have independent lifetimes but still borrow that backing store.
 // Extended attributes include the resource fork under its native name.
 type Reader interface {
 	Root() uint64
