@@ -144,26 +144,18 @@ jobs:
           APFS_REPLACEMENT_OUTPUT: ../artifacts/replacement
           APFS_NATIVE_TREE_EDITS: ../artifacts/native/tree-edits
           APFS_TREE_EDIT_OUTPUT: ../artifacts/tree-edits
-      - name: Retain actual extracted workspaces and AppleDouble output
+      - name: Archive complete workspaces including empty directories
+        shell: bash
+        run: |
+          mkdir -p artifacts/workspace-outputs
+          for family in preservation replacement tree-edits; do
+            tar -czf "artifacts/workspace-outputs/${family}-${{ matrix.platform }}.tar.gz" -C "artifacts/${family}" .
+          done
+      - name: Retain archived workspaces and AppleDouble output
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: preservation-${{ matrix.platform }}
-          path: artifacts/preservation/
-          include-hidden-files: true
-          if-no-files-found: error
-      - name: Retain original and replaced workspaces
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: replacement-${{ matrix.platform }}
-          path: artifacts/replacement/
-          include-hidden-files: true
-          if-no-files-found: error
-      - name: Retain original and edited workspace trees
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: tree-edits-${{ matrix.platform }}
-          path: artifacts/tree-edits/
-          include-hidden-files: true
+          name: workspace-outputs-${{ matrix.platform }}
+          path: artifacts/workspace-outputs/*.tar.gz
           if-no-files-found: error
       - name: Explain the compatibility result
         shell: bash
@@ -215,16 +207,16 @@ jobs:
           merge-multiple: true
       - uses: actions/download-artifact@v7
         with:
-          pattern: preservation-*
+          pattern: workspace-outputs-*
           path: artifacts/outputs
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: replacement-*
-          path: artifacts/outputs
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: tree-edits-*
-          path: artifacts/outputs
+      - name: Unpack complete workspace trees
+        shell: bash
+        run: |
+          for archive_file in artifacts/outputs/workspace-outputs-*/*.tar.gz; do
+            output_dir="artifacts/outputs/$(basename "$archive_file" .tar.gz)"
+            mkdir "$output_dir"
+            tar -xzf "$archive_file" -C "$output_dir"
+          done
       - name: Verify preserved values and native AppleDouble unpack independently of Go
         run: python3 acceptance/native/verify_preservation.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/preservation --outputs artifacts/outputs
       - name: Verify replaced contents, forks and links against native before and after files

@@ -396,3 +396,9 @@ final entries and 648 successful native operations across every producer/consume
 pair. It invokes no Go code. Existing native-output verification remains required.
 Focused tests cover failure before publication, borrowed sources, creation identity
 across subsequent edits, aliases outside extracted subtrees and deterministic output.
+
+Workspace outputs are transported as tar archives inside CI artifacts. Directory
+uploads alone omit empty directories, which would lose part of the captured tree.
+Each Mac unpacks the complete original/edited trees before independent verification;
+missing empty directories fail exactly like missing nonempty directories. This
+transport applies to preservation, replacement and tree-edit outputs alike.
