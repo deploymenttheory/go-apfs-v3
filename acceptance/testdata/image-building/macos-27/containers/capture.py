@@ -37,9 +37,6 @@ def main():
     parser.add_argument("--expected-major", type=int, choices=[15, 26, 27], required=True)
     parser.add_argument("--scenario", choices=["volume-inspection", "file-reading", "file-semantics", "file-compression", "file-encryption", "disk-image-encryption", "snapshot-reading", "preservation", "content-replacement", "tree-edits", "metadata-edits", "file-commands", "image-building"], default="volume-inspection")
     args = parser.parse_args()
-    if args.scenario == 'image-building':
-        import container_building
-        container_building.require_disposable_host()
     if platform.system() != "Darwin":
         parser.error("native capture requires macOS")
     product = subprocess.check_output(["sw_vers", "-productVersion"], text=True, timeout=10).strip()

@@ -516,9 +516,11 @@ application contents, metadata, forks, aliases or existing signatures.
 | APFS, case-sensitive APFS, HFS+/HFSX, deep trees, ordinary/compressed data, attributes/forks, hard links, signed universal app | Capture session; build UDRO and UDZO twice with fixed clock | `hdiutil verify`, `fsck_apfs -n` or `fsck_hfs -fn`, exact mounted readback, link bijection and `codesign --verify --deep --strict` |
 | APFS exact nanosecond times, tracked documents and native name equivalences/distinctions | Preserve metadata and construct hashed directory records | Native `getattrlist`, 53 positive/negative lookups per profile |
 | Independently observed empty APFS directory | Build an empty 64 MiB container twice | Native empty root, attributes, timestamps and filesystem checks |
+| Three APFS volumes with mixed case policy, reserve, quota and empty root | Build a shared container in both encodings | Exact native inventory/files, bounded quota/reserve pressure, protected allocation and reuse |
+| Native System/Data group | Preserve group UUID, roles, membership and System inode namespace | Native group inventory, exact files/signatures, independent writes to both members, fsck and remount |
 | Every constructed APFS output | Return unchanged image to every Mac | Native writes on a shadow: growth, links, rename, deletion, tree growth and reuse; fsck without repair, remount/readback and source hash unchanged |
 
-`go test -run TestNativeImageBuilding -v ./acceptance` replays the retained macOS
+`go test -run 'TestNative(ImageBuilding|ContainerBuilding)$' -v ./acceptance` replays the retained macOS
 27 corpus. Capture with `--scenario image-building`; `APFS_NATIVE_IMAGE_BUILDING`
 selects another corpus and `APFS_IMAGE_BUILDING_OUTPUT` retains constructed DMGs.
 `verify_image_building.py` accepts the corpus/output roots and expected verifier
@@ -526,10 +528,21 @@ macOS major, following the other independent verification scripts. CI requires
 all four filesystem profiles and both encodings from every producer/consumer combination,
 compares output hashes across hosts and retains failure diagnostics. Native source
 images and observations are immutable; a writer mismatch is fixed in Go. Each Mac
-checks 81 built DMGs (72 populated and nine empty), including 45 native APFS
-allocation journeys. The expanded local replay takes approximately 29 seconds.
+requires all 117 built DMGs to agree in triples across portable hosts, then checks
+the 39 distinct byte sequences, including 27 native APFS allocation journeys.
+Hash comparison precedes native verification, so identical output is mounted once
+per verifier OS. The two container cases add approximately five seconds to local
+Go replay. Their separately manifested references live in `macos-27/containers`;
+older single-volume observations and source provenance remain unchanged.
 The original HFS-only capture is retained under `testdata/image-building/history`;
 its files and expectations were not rewritten for APFS construction.
+
+Native image-building capture and verification require GitHub-hosted VMs, or
+`APFS_NATIVE_DISPOSABLE_VM=1` explicitly set inside another isolated disposable VM.
+Normal local invocation is refused. The [kernel-panic incident](../docs/native-testing-incident.md)
+shows why a shadow is insufficient isolation and why both native allocation and
+independent namespace assertions belong in this gate. Go replay remains portable
+and never invokes native image tools.
 
 ## Sector-preserving image repacking
 

@@ -26,7 +26,7 @@ func markBuildBits(b []byte, start, end uint64) {
 	}
 }
 
-func (p *Layout) addSpaceManager(g buildGeometry) error {
+func (p *Layout) addSpaceManager(g buildGeometry, reserved, reserveAllocated uint64) error {
 	usedChunks := (g.usedEnd + 32767) / 32768
 	firstCIB := g.poolBase + usedChunks
 	sm := make([]byte, g.spacemanBlocks*4096)
@@ -45,6 +45,8 @@ func (p *Layout) addSpaceManager(g buildGeometry) error {
 	le.PutUint32(sm[0xa4:], uint32(16*g.poolBitmapBlocks))
 	le.PutUint64(sm[0xa8:], g.bitmapBase)
 	le.PutUint64(sm[0xb0:], g.poolBase)
+	le.PutUint64(sm[0xb8:], reserved)
+	le.PutUint64(sm[0xc0:], reserveAllocated)
 	le.PutUint16(sm[0x140:], uint16(g.poolBitmapBlocks))
 	le.PutUint16(sm[0x142:], uint16(16*g.poolBitmapBlocks-1))
 	le.PutUint32(sm[0x144:], 0x150)

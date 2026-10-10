@@ -127,55 +127,10 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 				}
 				volume = v
 			}
-			relative := want
-			relative.Root = "."
-			relative.Entries = append([]nativeFile(nil), want.Entries...)
-			forward, reverse := map[uint64]uint64{}, map[uint64]uint64{}
-			for i := range relative.Entries {
-				e := &relative.Entries[i]
-				e.Path = strings.TrimPrefix(e.Path, want.Root+"/")
-				if e.Path == want.Root {
-					e.Path = "."
-				}
-				newID, err := filesystem.LookupExact(ctx, volume, e.Path)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if old, ok := forward[e.Object]; ok && old != newID {
-					t.Fatal("hard link split")
-				}
-				if old, ok := reverse[newID]; ok && old != e.Object {
-					t.Fatal("unrelated files merged")
-				}
-				forward[e.Object] = newID
-				reverse[newID] = e.Object
-				e.Object = newID
+			if reader.NameRules().Format == "APFS" && len(want.Lookups) != 53 {
+				t.Fatal("missing native name lookups")
 			}
-			compareFiles(t, volume, relative)
-			if reader.NameRules().Format == "APFS" {
-				if len(want.Lookups) != 53 {
-					t.Fatal("missing native name lookups")
-				}
-				for _, query := range want.Lookups {
-					got, e := filesystem.Lookup(ctx, volume, strings.TrimPrefix(query.Path, want.Root+"/"))
-					if query.Object == 0 {
-						if !errors.Is(e, fs.ErrNotExist) {
-							t.Fatal(query.Path, got, e)
-						}
-					} else if e != nil || got != forward[query.Object] {
-						t.Fatal(query.Path, got, e)
-					}
-				}
-			}
-			for _, raw := range want.RawAttributes {
-				for name, value := range raw.Attributes {
-					v, err := volume.OpenAttribute(ctx, forward[raw.Object], name)
-					if err != nil {
-						t.Fatal(err)
-					}
-					compareValue(t, name, v, value)
-				}
-			}
+			compareBuiltFiles(t, volume, want)
 			if sum != fileDigest(t, destination) {
 				t.Fatal("readback changed image")
 			}
@@ -224,4 +179,53 @@ func fileDigest(t *testing.T, path string) [32]byte {
 	var sum [32]byte
 	copy(sum[:], h.Sum(nil))
 	return sum
+}
+
+func compareBuiltFiles(t *testing.T, volume filesystem.Reader, want fileObservation) {
+	t.Helper()
+	ctx := context.Background()
+	relative := want
+	relative.Root = "."
+	relative.Entries = append([]nativeFile(nil), want.Entries...)
+	forward, reverse := map[uint64]uint64{}, map[uint64]uint64{}
+	for i := range relative.Entries {
+		e := &relative.Entries[i]
+		e.Path = strings.TrimPrefix(e.Path, want.Root+"/")
+		if e.Path == want.Root {
+			e.Path = "."
+		}
+		id, err := filesystem.LookupExact(ctx, volume, e.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if old, ok := forward[e.Object]; ok && old != id {
+			t.Fatal("hard link split")
+		}
+		if old, ok := reverse[id]; ok && old != e.Object {
+			t.Fatal("unrelated files merged")
+		}
+		forward[e.Object] = id
+		reverse[id] = e.Object
+		e.Object = id
+	}
+	compareFiles(t, volume, relative)
+	for _, query := range want.Lookups {
+		got, err := filesystem.Lookup(ctx, volume, strings.TrimPrefix(query.Path, want.Root+"/"))
+		if query.Object == 0 {
+			if !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal(query.Path, got, err)
+			}
+		} else if err != nil || got != forward[query.Object] {
+			t.Fatal(query.Path, got, err)
+		}
+	}
+	for _, raw := range want.RawAttributes {
+		for name, value := range raw.Attributes {
+			v, err := volume.OpenAttribute(ctx, forward[raw.Object], name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			compareValue(t, name, v, value)
+		}
+	}
 }

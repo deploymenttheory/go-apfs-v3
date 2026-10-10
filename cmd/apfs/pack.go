@@ -21,8 +21,15 @@ import (
 )
 
 func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+	if packHasVolumes(args) {
+		return packVolumesCommand(ctx, args, out, diagnostics)
+	}
 	f := flag.NewFlagSet("pack", flag.ContinueOnError)
 	f.SetOutput(diagnostics)
+	f.Usage = func() {
+		_, _ = fmt.Fprintln(diagnostics, "Usage: apfs pack [options] SOURCE NEW_DMG\n       apfs pack --session NAME [options] NEW_DMG\n       apfs pack --volume NAME [--session NAME | --directory PATH] [volume options] [--volume ...] NEW_DMG\nUse pack --volume NAME --help for APFS container options.")
+		f.PrintDefaults()
+	}
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	filesystemName := f.String("filesystem", "", "directory target: apfs, hfsplus or hfsx; sessions retain their format")
@@ -107,17 +114,9 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		if item.value == "" {
 			continue
 		}
-		x := item.value
-		if len(x) != 36 || x[8] != '-' || x[13] != '-' || x[18] != '-' || x[23] != '-' {
-			return fs.ErrInvalid
-		}
-		b, e := hex.DecodeString(strings.ReplaceAll(x, "-", ""))
-		if e != nil || len(b) != 16 {
-			return fs.ErrInvalid
-		}
-		copy(item.dst[:], b)
-		if *item.dst == [16]byte{} {
-			return fs.ErrInvalid
+		*item.dst, err = parseBuildUUID(item.value)
+		if err != nil {
+			return err
 		}
 	}
 	var s *session.Session

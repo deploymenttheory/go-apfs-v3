@@ -11,10 +11,53 @@ import (
 	"testing"
 	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
+
+type lateFailureReader struct {
+	filesystem.Reader
+	opens int
+	err   error
+}
+
+func (r *lateFailureReader) OpenRawData(ctx context.Context, id uint64) (filesystem.Value, error) {
+	r.opens++
+	if r.opens == 3 {
+		return nil, r.err
+	}
+	return r.Reader.OpenRawData(ctx, id)
+}
+
+// A failure in a later volume must stop both streaming sides and leave nothing
+// published, even after the first volume has already supplied its payload.
+func TestContainerLaterVolumeFailure(t *testing.T) {
+	s, o := inputFormat(t, "APFS")
+	sentinel := errors.New("second volume source failed")
+	r := &lateFailureReader{Reader: s, err: sentinel}
+	volumes := []apfs.VolumeSpec{{Reader: s, Name: "First"}, {Reader: r, Name: "Second"}}
+	options := pack.ContainerOptions{APFS: apfs.ContainerBuildOptions{Time: o.Volume.Time}}
+	dir := t.TempDir()
+	if _, err := pack.CreateContainer(context.Background(), filepath.Join(dir, "out.dmg"), volumes, options); !errors.Is(err, sentinel) {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatal("partial multi-volume output leaked")
+	}
+	if r.opens != 3 {
+		t.Fatal("failure did not occur during output", r.opens)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := pack.WriteContainer(cancelled, io.Discard, volumes, options); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	if _, err := pack.WriteContainer(context.Background(), failureWriter{sentinel}, volumes, options); !errors.Is(err, sentinel) {
+		t.Fatal(err)
+	}
+}
 
 func input(t *testing.T) (*session.Session, pack.Options) { return inputFormat(t, "HFS+") }
 func inputFormat(t *testing.T, format string) (*session.Session, pack.Options) {

@@ -10,7 +10,7 @@ software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Existing-filesystem
-writes, multi-volume APFS creation, recovery and mounting remain pending. See [implementation status](docs/implementation.md)
+writes, recovery and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -36,6 +36,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs chmod --session build 0755 /Example.app/Contents/MacOS/Example
 ./bin/apfs session export build ./edited-workspace
 ./bin/apfs pack --filesystem apfs --volume-name Example ./source Example.dmg
+./bin/apfs pack --volume Apps --directory ./apps --volume Resources --directory ./resources Bundle.dmg
 ./bin/apfs pack --format UDZO original.dmg repacked.dmg
 ./bin/apfs session remove build
 ```
@@ -76,7 +77,7 @@ Currently implemented:
   resource-fork replacement within the same ordered batches.
 - Persistent named sessions with managed scratch, host directory import and
   `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
-- Fresh, deterministic single-volume APFS containers and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
+- Fresh, deterministic APFS containers with one or more volumes, per-volume reserves/quotas and System/Data groups, and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
   see [packing semantics](docs/packing.md).
 - Sector-preserving raw/UDIF repacking to UDRO/UDZO, including partitioned disks,
   APFS snapshots and encrypted APFS volume sectors; strict container admission.

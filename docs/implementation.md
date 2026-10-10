@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh single-volume APFS and HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; native build/repack qualification required. Multiple-volume and volume-group construction remain pending |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; full native build/repack qualification required |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -421,6 +421,38 @@ Fresh macOS 15/26/27 capture, Linux/Windows/macOS replay and native verification
 are required before merging this increment. The readback job has a 15-minute
 ceiling to accommodate actual native allocation checks; no new scenario family
 or workflow is introduced.
+
+## Multiple-volume APFS construction increment
+
+The single-volume builder now delegates to one container engine. `PlanContainer`
+accepts ordered immutable readers, per-volume identity/case/role/reserve/quota
+options and explicit System/Data pairs. `pack --volume NAME` opens a scoped
+clause with a session, host directory or empty input. Scratch remains managed;
+ordinary file commands still perform edits. No input JSON configuration is used.
+
+One shared allocation pool accounts for all volume metadata, payloads and unused
+reservations. Automatic sizing includes Apple's volume-slot rule and the space
+manager's own overhead. The shared 64 MiB metadata budget, 1 TiB capacity bound,
+payload verification and no-overwrite publication contract apply to the entire
+container. Source volumes and existing images remain unchanged. Group identity
+does not imply a bootable, sealed macOS installation or firmlink construction.
+
+Two native cases extend `image-building`: mixed case policies/reserve/quota/empty
+volume, and a System/Data pair. They carry signed applications, raw compression,
+resource forks, aliases, metadata, native group inventories and space-pressure
+observations. Every host builds both encodings twice. Every macOS verifier first
+requires byte equality across hosts, then checks the 39 distinct images instead
+of mounting all 117 identical host copies. Quota exhaustion, reserve protection,
+independent volume writes, allocation reuse and remounts are required verdicts.
+
+The initial System allocator used a v2-derived inode base that passed fsck but
+panicked Apple's kernel. The corrected base matches SYSTEM_OBJ_ID_MARK and
+Apple-created allocator state. Namespace comparison is now independent of the
+usual inode bijection. See the [incident record](native-testing-incident.md).
+Native testing on a development Mac is blocked by default. The existing macOS
+15/26/27 CI labels were verified as GitHub-hosted disposable VMs; jobs assert
+that environment before native operations. Qualification must pass there before
+this increment can be merged. Local tests perform file-only Go replay.
 
 ## Required phase gates
 

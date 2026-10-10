@@ -14,13 +14,12 @@ const (
 	buildIPQueueOID   = 1026
 	buildMainQueueOID = 1027
 	buildVolumeOID    = 1028
-	buildTreeOID      = 1029
 )
 
 type buildGeometry struct {
-	blocks, chunks, cibs, poolBlocks, poolBitmapBlocks, spacemanBlocks                                uint64
-	bitmapAddressOffset, bitmapFreeOffset, deviceAddressOffset                                        uint32
-	dataBase, dataBlocks, containerMap, volume, volumeMap, bitmapBase, poolBase, payloadBase, usedEnd uint64
+	blocks, chunks, cibs, poolBlocks, poolBitmapBlocks, spacemanBlocks             uint64
+	bitmapAddressOffset, bitmapFreeOffset, deviceAddressOffset                     uint32
+	dataBase, dataBlocks, containerMap, bitmapBase, poolBase, payloadBase, usedEnd uint64
 }
 
 func buildGeometryFor(blocks uint64) buildGeometry {
@@ -34,8 +33,6 @@ func buildGeometryFor(blocks uint64) buildGeometry {
 	g.spacemanBlocks = (uint64(g.deviceAddressOffset) + 8*g.cibs + 4095) / 4096
 	g.dataBlocks = max(uint64(8), g.spacemanBlocks+3)
 	g.containerMap = g.dataBase + g.dataBlocks
-	g.volume = g.containerMap + 2
-	g.volumeMap = g.volume + 1
 	return g
 }
 
@@ -51,107 +48,151 @@ func buildMapping(oid, address uint64) buildRecord {
 	return buildRecord{key, val}
 }
 
-func (p *Layout) arrange(ctx context.Context) error {
-	var payload uint64
-	for _, s := range p.streams {
-		payload += s.blocks
-		if payload > 1<<28 {
-			return filesystem.ErrLimit
+type volumeTrees struct {
+	volume                        *volumeLayout
+	fst, extents, snapshots, omap *buildTree
+	oid, address, mapAddress      uint64
+}
+
+func fillBuildTree(t *buildTree, records []buildRecord) {
+	at := 0
+	for _, n := range t.nodes {
+		if n.level == 0 {
+			copy(n.records, records[at:at+len(n.records)])
+			at += len(n.records)
 		}
 	}
-	records, extents, _ := p.records()
-	fst, err := newBuildTree(records, 14, 0, false)
-	if err != nil {
-		return err
+	for _, n := range t.nodes {
+		for i, c := range n.children {
+			n.records[i].key = c.records[0].key
+		}
 	}
-	ert, err := newBuildTree(extents, 15, 0x40000000, false)
-	if err != nil {
-		return err
+}
+
+func (p *Layout) arrange(ctx context.Context) error {
+	var payload, nodes, reserved, reserveAllocated uint64
+	var trees []volumeTrees
+	for _, v := range p.volumes {
+		records, extents, _ := v.records()
+		fst, err := newBuildTree(records, 14, 0, false)
+		if err != nil {
+			return err
+		}
+		ert, err := newBuildTree(extents, 15, 0x40000000, false)
+		if err != nil {
+			return err
+		}
+		snap, err := newBuildTree(nil, 16, 0x40000000, false)
+		if err != nil {
+			return err
+		}
+		mappings := make([]buildRecord, len(fst.nodes))
+		for i := range mappings {
+			mappings[i] = buildMapping(uint64(i), 0)
+		}
+		omap, err := buildObjectMap(mappings)
+		if err != nil {
+			return err
+		}
+		count := uint64(len(fst.nodes) + len(ert.nodes) + len(snap.nodes) + len(omap.nodes))
+		used := uint64(0)
+		for _, stream := range v.streams {
+			used += stream.blocks
+		}
+		v.allocated = count + 1 + used
+		quota := uint64(v.options.Quota+4095) / 4096
+		if quota != 0 && v.allocated > quota {
+			return fmt.Errorf("volume %q exceeds its quota: %w", v.options.Name, filesystem.ErrLimit)
+		}
+		reserve := uint64(v.options.Reserve+4095) / 4096
+		reserved += reserve
+		reserveAllocated += min(reserve, v.allocated)
+		nodes += count + 2
+		payload += used
+		trees = append(trees, volumeTrees{volume: v, fst: fst, extents: ert, snapshots: snap, omap: omap})
 	}
-	snap, err := newBuildTree(nil, 16, 0x40000000, false)
-	if err != nil {
-		return err
-	}
-	mappings := make([]buildRecord, len(fst.nodes))
+	mappings := make([]buildRecord, len(trees))
 	for i := range mappings {
-		mappings[i] = buildMapping(buildTreeOID+uint64(i), 0)
+		mappings[i] = buildMapping(uint64(i), 0)
 	}
-	omap, err := buildObjectMap(mappings)
+	cmap, err := buildObjectMap(mappings)
 	if err != nil {
 		return err
 	}
-	nodes := uint64(len(fst.nodes) + len(ert.nodes) + len(snap.nodes) + len(omap.nodes))
+	minimum := max(uint64(2048), uint64(len(trees)-1)*131072+1)
 	blocks := uint64(p.options.Capacity+4095) / 4096
 	if blocks == 0 {
-		blocks = max(uint64(2048), payload+nodes+(payload+nodes)/8+128)
+		blocks = max(minimum, payload+nodes+reserved-reserveAllocated+(payload+nodes)/8+128)
 	}
-	if blocks < 2048 || blocks > 1<<28 {
-		return fmt.Errorf("APFS capacity must be 8 MiB–1 TiB: %w", filesystem.ErrLimit)
+	var g buildGeometry
+	var oid uint64
+	for {
+		if blocks < minimum || blocks > 1<<28 {
+			return fmt.Errorf("APFS capacity cannot hold %d volumes: %w", len(trees), filesystem.ErrLimit)
+		}
+		g = buildGeometryFor(blocks)
+		at := cmap.place(g.containerMap+1, 0)
+		oid = buildVolumeOID
+		for i := range trees {
+			v := &trees[i]
+			v.oid, v.address, v.mapAddress = oid, at, at+1
+			at = v.fst.place(at+2, oid+1)
+			oid += 1 + uint64(len(v.fst.nodes))
+			at = v.extents.place(at, 0)
+			at = v.snapshots.place(at, 0)
+			at = v.omap.place(at, 0)
+		}
+		g.bitmapBase = at
+		g.poolBase = at + 16*g.poolBitmapBlocks
+		g.payloadBase = g.poolBase + g.poolBlocks
+		g.usedEnd = g.payloadBase + payload
+		required := g.usedEnd + reserved - reserveAllocated
+		if required <= blocks {
+			break
+		}
+		if p.options.Capacity != 0 {
+			return fmt.Errorf("APFS container capacity, including reservations: %w", filesystem.ErrLimit)
+		}
+		// Space-manager overhead itself grows with capacity. Recompute until
+		// automatic sizing covers both that overhead and unused reservations.
+		blocks = required + 128
 	}
-	g := buildGeometryFor(blocks)
-	at := fst.place(g.volumeMap+1, buildTreeOID)
-	at = ert.place(at, 0)
-	at = snap.place(at, 0)
-	at = omap.place(at, 0)
-	g.bitmapBase = at
-	g.poolBase = at + 16*g.poolBitmapBlocks
-	g.payloadBase = g.poolBase + g.poolBlocks
-	g.usedEnd = g.payloadBase + payload
-	if g.usedEnd > blocks {
-		return fmt.Errorf("APFS capacity requires at least %d bytes: %w", g.usedEnd*4096, filesystem.ErrLimit)
-	}
-	if err = p.reserve(int64(nodes+g.cibs+g.spacemanBlocks+g.poolBitmapBlocks+(g.usedEnd+32767)/32768+8) * 4096); err != nil {
+	if err = p.volumes[0].reserve(int64(nodes+uint64(len(cmap.nodes))+g.cibs+g.spacemanBlocks+g.poolBitmapBlocks+(g.usedEnd+32767)/32768+8) * 4096); err != nil {
 		return err
 	}
 	p.size = int64(blocks * 4096)
-	at = g.payloadBase
-	for _, s := range p.streams {
-		s.start = at
-		at += s.blocks
-		if s.blocks != 0 {
-			p.parts = append(p.parts, buildPart{offset: int64(s.start) * 4096, stream: s})
-		}
-	}
-	// Rebuild address-bearing records only after every tree shape is fixed.
-	records, extents, nextDoc := p.records()
-	fill := func(t *buildTree, recs []buildRecord) {
-		at := 0
-		for _, n := range t.nodes {
-			if n.level == 0 {
-				copy(n.records, recs[at:at+len(n.records)])
-				at += len(n.records)
+	at := g.payloadBase
+	for i, t := range trees {
+		v := t.volume
+		for _, stream := range v.streams {
+			stream.start = at
+			at += stream.blocks
+			if stream.blocks != 0 {
+				p.parts = append(p.parts, buildPart{offset: int64(stream.start) * 4096, stream: stream})
 			}
 		}
-		// Parent separator keys track the lowest key of each child.
-		for _, n := range t.nodes {
-			for i, c := range n.children {
-				n.records[i].key = c.records[0].key
-			}
+		records, extents, nextDoc := v.records()
+		fillBuildTree(t.fst, records)
+		fillBuildTree(t.extents, extents)
+		vm := make([]buildRecord, len(t.fst.nodes))
+		for j, n := range t.fst.nodes {
+			vm[j] = buildMapping(n.oid, n.address)
 		}
+		fillBuildTree(t.omap, vm)
+		for _, tree := range []*buildTree{t.fst, t.extents, t.snapshots, t.omap} {
+			p.parts = append(p.parts, tree.blocks()...)
+		}
+		p.addMap(t.mapAddress, t.omap.root().address, false)
+		p.addVolume(t, uint32(i), nextDoc)
+		mappings[i] = buildMapping(t.oid, t.address)
 	}
-	fill(fst, records)
-	fill(ert, extents)
-	for i, n := range fst.nodes {
-		mappings[i] = buildMapping(n.oid, n.address)
-	}
-	fill(omap, mappings)
-	p.parts = append(p.parts, fst.blocks()...)
-	p.parts = append(p.parts, ert.blocks()...)
-	p.parts = append(p.parts, snap.blocks()...)
-	p.parts = append(p.parts, omap.blocks()...)
-	cmap, err := buildObjectMap([]buildRecord{buildMapping(buildVolumeOID, g.volume)})
-	if err != nil {
-		return err
-	}
-	cmap.place(g.containerMap+1, 0)
+	fillBuildTree(cmap, mappings)
 	p.parts = append(p.parts, cmap.blocks()...)
 	p.addMap(g.containerMap, cmap.root().address, true)
-	p.addMap(g.volumeMap, omap.root().address, false)
-	p.addVolume(g, fst, ert, snap, nodes, nextDoc)
-	if err = p.addSpaceManager(g); err != nil {
+	if err = p.addSpaceManager(g, reserved, reserveAllocated); err != nil {
 		return err
 	}
-	p.addCheckpoint(g, buildTreeOID+uint64(len(fst.nodes)))
+	p.addCheckpoint(g, oid, trees)
 	sort.Slice(p.parts, func(i, j int) bool { return p.parts[i].offset < p.parts[j].offset })
 	end := int64(0)
 	for _, part := range p.parts {
@@ -182,32 +223,37 @@ func (p *Layout) addMap(address, root uint64, manual bool) {
 	le.PutUint64(b[48:], root)
 	p.addBlock(address, b, address, 0x4000000b, 0)
 }
-func (p *Layout) addVolume(g buildGeometry, fst, ert, snap *buildTree, nodes uint64, nextDoc uint32) {
+func (p *Layout) addVolume(t volumeTrees, index, nextDoc uint32) {
+	v := t.volume
 	b := make([]byte, 4096)
 	copy(b[32:], "APSB")
-	le.PutUint64(b[40:], 2) // APFS_FEATURE_HARDLINK_MAP_RECORDS
+	le.PutUint32(b[36:], index)
+	features := uint64(2) // APFS_FEATURE_HARDLINK_MAP_RECORDS
+	if v.grouped {
+		features |= volumeGroupInodeSpace
+	}
+	le.PutUint64(b[40:], features)
 	incompat := uint64(1)
-	if p.options.CaseSensitive {
+	if v.options.CaseSensitive {
 		incompat = 8
 	}
 	le.PutUint64(b[56:], incompat)
-	var payload uint64
-	for _, s := range p.streams {
-		payload += s.blocks
-	}
-	le.PutUint64(b[88:], nodes+1+payload) // volume map, its tree, the three other trees, data
+
+	le.PutUint64(b[72:], uint64(v.options.Reserve+4095)/4096)
+	le.PutUint64(b[80:], uint64(v.options.Quota+4095)/4096)
+	le.PutUint64(b[88:], v.allocated) // volume map, its tree, the three other trees, data
 	le.PutUint16(b[96:], 5)
 	le.PutUint32(b[104:], 6)
 	le.PutUint16(b[112:], 1)
 	le.PutUint32(b[116:], 2)
 	le.PutUint32(b[120:], 0x40000002)
 	le.PutUint32(b[124:], 0x40000002)
-	le.PutUint64(b[128:], g.volumeMap)
-	le.PutUint64(b[136:], fst.root().oid)
-	le.PutUint64(b[144:], ert.root().address)
-	le.PutUint64(b[152:], snap.root().address)
-	le.PutUint64(b[176:], p.nextID)
-	for _, o := range p.objects {
+	le.PutUint64(b[128:], t.mapAddress)
+	le.PutUint64(b[136:], t.fst.root().oid)
+	le.PutUint64(b[144:], t.extents.root().address)
+	le.PutUint64(b[152:], t.snapshots.root().address)
+	le.PutUint64(b[176:], v.nextID)
+	for _, o := range v.objects {
 		if o.id == 2 {
 			continue
 		}
@@ -220,18 +266,20 @@ func (p *Layout) addVolume(g buildGeometry, fst, ert, snap *buildTree, nodes uin
 		}
 		le.PutUint64(b[off:], le.Uint64(b[off:])+1)
 	}
-	le.PutUint64(b[224:], nodes+1+payload)
-	copy(b[240:], p.options.VolumeUUID[:])
+	le.PutUint64(b[224:], v.allocated)
+	copy(b[240:], v.options.UUID[:])
 	le.PutUint64(b[264:], 1)
 	copy(b[272:], "go-apfs-v3")
 	stamp, _ := buildTime(p.options.Time)
 	le.PutUint64(b[304:], stamp)
 	le.PutUint64(b[312:], 1)
-	copy(b[704:], p.options.Name)
+	copy(b[704:], v.options.Name)
 	le.PutUint32(b[960:], nextDoc)
-	p.addBlock(g.volume, b, buildVolumeOID, 13, 0)
+	le.PutUint16(b[964:], v.options.Role)
+	v.superblock = b
+	p.addBlock(t.address, b, t.oid, 13, 0)
 }
-func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64) {
+func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64, volumes []volumeTrees) {
 	reaper := make([]byte, 4096)
 	le.PutUint64(reaper[32:], 1)
 	le.PutUint32(reaper[64:], 1)
@@ -259,7 +307,7 @@ func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64) {
 	le.PutUint32(b[36:], 4096)
 	le.PutUint64(b[40:], g.blocks)
 	le.PutUint64(b[64:], 2)
-	copy(b[72:], p.options.ContainerUUID[:])
+	copy(b[72:], p.options.UUID[:])
 	le.PutUint64(b[88:], nextOID)
 	le.PutUint64(b[96:], 2)
 	le.PutUint32(b[104:], 8)
@@ -274,7 +322,9 @@ func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64) {
 	le.PutUint64(b[160:], g.containerMap)
 	le.PutUint64(b[168:], buildReaperOID)
 	le.PutUint32(b[180:], uint32(min(uint64(100), (g.blocks+131071)/131072)))
-	le.PutUint64(b[184:], buildVolumeOID)
+	for i, v := range volumes {
+		le.PutUint64(b[184+i*8:], v.oid)
+	}
 	minimum := uint64(8)
 	if g.blocks < 32768 {
 		minimum = uint64(buildMainQueueLimit(g.blocks))

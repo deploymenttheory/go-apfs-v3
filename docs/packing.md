@@ -34,6 +34,54 @@ accepts `--case-sensitive`. A named session retains its native filesystem and ca
 policy. Cross-format metadata conversion is not implicit. An empty directory or
 session builds an empty filesystem using the same command.
 
+## Several APFS volumes in one container
+
+```sh
+# Three independent volumes sharing one allocation pool; the last starts empty.
+apfs pack --capacity 2GiB --time 2025-06-07T08:09:10Z \
+  --volume Applications --session apps --reserve 256MiB \
+  --volume Resources --directory ./resources --case-sensitive --quota 512MiB \
+  --volume Empty Bundle.dmg
+
+# Pair a System volume with a Data volume. The named target may appear later.
+apfs pack --volume System --session system --role system --group-with Data \
+  --volume Data --session data --role data Group.dmg
+```
+
+Each `--volume NAME` begins a new volume clause. `--session NAME` or
+`--directory PATH` supplies its contents; omitting both creates an empty volume.
+Volume names must be unique in the CLI so `--group-with` is unambiguous. Reusing
+a session supplies independent copies in separate volumes; hard links stay within
+their own volume. Volume order is retained.
+
+`--case-sensitive`, `--uid`, `--gid`, `--role`, `--reserve`, `--quota`,
+`--volume-uuid`, `--group-with` and `--group-uuid` apply to the preceding volume.
+Session inputs retain their case policy and ownership; use ordinary session
+commands to change metadata. Case and ownership-default flags apply only to
+directory or empty inputs. `--capacity`, `--time`, `--container-uuid`, `--format`,
+`--scratch-dir` and `--json` apply to the complete build. JSON reports import
+defaults and unavailable attributes separately for each volume.
+
+Reserves guarantee available bytes; quotas cap a volume's allocation. Both round
+up to 4096-byte blocks, with zero meaning no constraint. Planning includes volume
+metadata and existing payloads in quota usage, and unused reservations in shared
+capacity. An overcommitted build fails before publication. Automatic sizing also
+accounts for the space manager's capacity-dependent overhead.
+
+At most 100 volumes are admitted. Apple's container slot rule allows one volume
+per rounded-up 512 MiB of capacity: two volumes require more than 512 MiB, three
+require more than 1 GiB. Automatic capacity satisfies that rule. A volume's quota
+may be smaller than this container-level slot allowance.
+
+Roles are `none` (default), `data` and `system`. System construction requires an
+explicit System/Data pair. Put `--group-with DATA_NAME` on the System clause;
+the Data clause must have `--role data`. Members must have the same case policy,
+and a volume can belong to only one group. `--group-uuid` optionally supplies a
+nonzero canonical UUID on the System clause. Otherwise group, volume and
+container UUIDs derive reproducibly from the complete ordered build inputs.
+The group records native identity and inode namespaces; it does not install
+macOS, create firmlinks, seal a system volume or produce a bootable installation.
+
 ## Repacking an existing image
 
 ```sh
@@ -89,8 +137,8 @@ unrecognized partition maps retains a separate qualification gate.
 ## Fresh-output and preservation contract
 
 The output is a single-region UDIF without a partition map, with 4096-byte
-filesystem blocks. HFS+/HFSX is clean and nonjournaled. APFS contains one
-unencrypted, unsealed volume and a complete initial checkpoint, object maps,
+filesystem blocks. HFS+/HFSX is clean and nonjournaled. APFS contains one or more
+unencrypted, unsealed volumes and a complete initial checkpoint, object maps,
 filesystem/extent-reference trees, space manager and free queues. It is a fresh
 filesystem; source snapshots, clone sharing, physical allocation and native inode
 numbers are not carried into a rebuild. `--format UDZO` (default)
@@ -134,7 +182,7 @@ JSON is an optional output report only.
 
 ## Capacity and reproducibility
 
-`--capacity` specifies volume bytes, optionally suffixed `KiB`, `MiB` or `GiB`.
+`--capacity` specifies APFS container or HFS volume bytes, optionally suffixed `KiB`, `MiB` or `GiB`.
 Capacity rounds up to a 4096-byte block and must be at least 8 MiB. Automatic sizing reserves space for every
 payload and metadata tree plus free space, with an 8 MiB minimum. Insufficient
 capacity fails before output publication.
@@ -151,9 +199,9 @@ outputs across all three hosts. Different host-import observations or Go encoder
 versions are not assumed to be identical. Reproducible builds should pin their
 input session and tool version.
 
-Planning bounds are 100,000 entries, depth 256, 4096 attributes per object, a 64 MiB
-metadata accounting budget and fewer than 16,000 used nodes per B-tree. Volumes
-are limited to 1 TiB. File data streams through a bounded 4 MiB DMG chunk buffer;
+Planning bounds are 100,000 entries per volume, depth 256, 4096 attributes per object,
+a shared 64 MiB metadata accounting budget and fewer than 16,000 used nodes per B-tree.
+An APFS container or HFS volume is limited to 1 TiB. File data streams through a bounded 4 MiB DMG chunk buffer;
 file size does not determine RAM usage. Content-derived identifiers require a
 payload hash pass before the streaming output pass. No intermediate raw disk image
 is materialized.
@@ -164,6 +212,11 @@ is materialized.
 return bounded layouts with `Size` and `Write`. Each engine owns its format
 options and validation. `pack.VolumeOptions` supplies common construction choices;
 `pack.Write` selects the engine from the reader's native format.
+`apfs.PlanContainer` takes ordered `apfs.VolumeSpec` inputs and
+`apfs.ContainerBuildOptions`, including groups identified by volume indexes.
+`apfs.Plan` is the single-volume wrapper around that engine. `pack.WriteContainer`
+streams its result; `pack.CreateContainer` publishes it with the same contract
+as `pack.Create`. All readers remain borrowed and immutable through completion.
 `diskimage.EncodeVolume` independently consumes a sized sequential source with an
 `Apple_APFS` or `Apple_HFS` content hint. The existing `Encode` retains its HFS default. `pack.Write` connects them with
 bounded streaming and stops
@@ -193,7 +246,9 @@ output to macOS 15, 26 and 27 for `hdiutil verify`, `fsck_apfs -n` or
 readback and `codesign --verify --deep --strict`. An independent Python comparison
 checks exact values and a bijection of link identities; hashes must match across
 portable hosts for the same captured input and options. No Go writer or reader
-supplies the native expected values or the final native verdict.
+supplies the native expected values or the final native verdict. CI requires
+same-input output hashes to match across hosts before verifying one identical
+copy of each image on every macOS version.
 
 APFS adds exact birth nanoseconds, tracked documents, 53 native positive/negative
 name lookups per profile and an independently observed empty-directory build. Each
@@ -202,6 +257,23 @@ links, rename, deletion, tree growth and allocation reuse. The new checkpoint mu
 pass Apple's checker without repair and retain its contents after remounting; the
 original image hash must remain unchanged. Fresh builds qualify native continued
 use, not Go transactions or power-loss durability.
+
+Two additional cases remain within this same family: a three-volume container
+with mixed case policies, a reserve, a quota and an empty volume; and a System/Data
+group. Their native inventories supply UUIDs, roles, grouping and space limits.
+Native pressure controls exhaust the limited volume and an unreserved neighbour,
+prove that the reserved volume can still write, then delete and reuse allocations.
+Every volume undergoes independent file growth and remount checks. These cases
+add four images per producer/consumer, without multiplying all existing file
+profiles. All 117 host images must agree in triples; each Mac checks the resulting
+39 distinct images, including 27 APFS allocation journeys.
+
+Native image-building tests require a disposable macOS VM. The helper admits
+GitHub-hosted Actions VMs, or an explicit `APFS_NATIVE_DISPOSABLE_VM=1` inside
+another isolated disposable VM. It refuses a normal local invocation. The
+[kernel-panic incident](native-testing-incident.md) explains this requirement;
+shadows protect image bytes, not the host kernel. Portable Go tests need no
+native attachment and remain suitable for local development.
 
 The `image-repacking` family reuses independently captured signed-app and snapshot
 images, then adds native bare HFS+, raw GPT and HFSX Apple Partition Map disks with seeded free

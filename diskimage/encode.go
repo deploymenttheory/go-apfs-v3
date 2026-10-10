@@ -189,10 +189,7 @@ func encode(ctx context.Context, out io.Writer, source io.Reader, size int64, fo
 	return write(footer)
 }
 func allZero(b []byte) bool {
-	for _, c := range b {
-		if c != 0 {
-			return false
-		}
-	}
-	return true
+	// Container free space dominates large images. The standard-library count
+	// avoids a byte-at-a-time scan, including under race instrumentation.
+	return bytes.Count(b, []byte{0}) == len(b)
 }

@@ -46,6 +46,7 @@ type buildObject struct {
 	target     string
 }
 type buildStream struct {
+	reader                    filesystem.Reader
 	id, source, start, blocks uint64
 	attribute                 string
 	size                      int64
@@ -62,40 +63,47 @@ type buildPart struct {
 	stream *buildStream
 }
 
-// Layout is a bounded immutable construction plan borrowing its filesystem.Reader.
-// Write streams stored contents and zero-filled free space; the caller owns output
-// publication and must discard output on error. It is safe to write a plan twice.
+// Layout is a bounded immutable container plan borrowing all source readers.
+// Write may be called repeatedly. The caller discards partial output on error.
 type Layout struct {
-	reader              filesystem.Reader
-	options             BuildOptions
-	objects             []*buildObject
-	streams             []*buildStream
+	options             ContainerBuildOptions
+	volumes             []*volumeLayout
 	parts               []buildPart
-	nextID              uint64
 	size, metadataBytes int64
+}
+
+type volumeLayout struct {
+	reader     filesystem.Reader
+	options    VolumeSpec
+	time       time.Time
+	group      [16]byte
+	grouped    bool
+	objects    []*buildObject
+	streams    []*buildStream
+	nextID     uint64
+	budget     *int64
+	superblock []byte
+	allocated  uint64
 }
 
 func (p *Layout) Size() int64 { return p.size }
 
 func Plan(ctx context.Context, r filesystem.Reader, o BuildOptions) (*Layout, error) {
-	if r == nil || o.Time.IsZero() || o.Capacity < 0 || o.Capacity > 1<<40 {
-		return nil, fs.ErrInvalid
-	}
+	return PlanContainer(ctx, []VolumeSpec{{Reader: r, Name: o.Name, CaseSensitive: o.CaseSensitive, UUID: o.VolumeUUID}}, ContainerBuildOptions{Capacity: o.Capacity, Time: o.Time, UUID: o.ContainerUUID})
+}
+
+func (p *volumeLayout) collect(ctx context.Context) error {
+	r, o := p.reader, p.options
 	rules := r.NameRules()
 	if rules.Format != "APFS" || rules.CaseSensitive != o.CaseSensitive || !rules.NormalizationInsensitive {
-		return nil, fmt.Errorf("APFS build requires matching native name rules: %w", filesystem.ErrUnsupported)
+		return fmt.Errorf("APFS build requires matching native name rules: %w", filesystem.ErrUnsupported)
 	}
 	if _, err := names.Stored(o.Name, "APFS"); err != nil {
-		return nil, err
+		return err
 	}
 	if len(o.Name) > 255 {
-		return nil, filesystem.ErrLimit
+		return filesystem.ErrLimit
 	}
-	if _, err := buildTime(o.Time); err != nil {
-		return nil, err
-	}
-	o.Time = o.Time.UTC()
-	p := &Layout{reader: r, options: o, nextID: 16}
 	seen := map[uint64]*buildObject{}
 	entries := 0
 	var visit func(uint64, uint64, string, int) error
@@ -171,10 +179,10 @@ func Plan(ctx context.Context, r filesystem.Reader, o BuildOptions) (*Layout, er
 		return nil
 	}
 	if err := visit(r.Root(), 1, "root", 0); err != nil {
-		return nil, err
+		return err
 	}
 	if p.objects[0].node.Metadata.Mode.Value&0170000 != 0040000 {
-		return nil, fs.ErrInvalid
+		return fs.ErrInvalid
 	}
 	for _, obj := range p.objects {
 		if len(obj.aliases) > 1 {
@@ -195,14 +203,15 @@ func Plan(ctx context.Context, r filesystem.Reader, o BuildOptions) (*Layout, er
 			p.streams = append(p.streams, obj.data)
 		}
 	}
-	// Reject capacity and metadata limits before hashing potentially large data.
-	if err := p.arrange(ctx); err != nil {
-		return nil, err
+	for _, stream := range p.streams {
+		stream.reader = r
 	}
-	// The seed contains every logical input, including payload hashes. On write,
-	// each streamed value is hashed again so changed inputs cannot be published.
+	return nil
+}
+
+func (p *volumeLayout) fingerprint(ctx context.Context) ([]byte, error) {
 	h := sha256.New()
-	options, _ := json.Marshal(o)
+	options, _ := json.Marshal(p.options)
 	_, _ = h.Write(options)
 	for _, obj := range p.objects {
 		meta, _ := json.Marshal(obj.node)
@@ -217,48 +226,15 @@ func Plan(ctx context.Context, r filesystem.Reader, o BuildOptions) (*Layout, er
 			_, _ = h.Write(a.inline)
 		}
 	}
-	for _, s := range p.streams {
+	for _, stream := range p.streams {
 		digest := sha256.New()
-		if err := p.copyStream(ctx, digest, s, false); err != nil {
+		if err := copyBuildStream(ctx, digest, stream, false); err != nil {
 			return nil, err
 		}
-		copy(s.digest[:], digest.Sum(nil))
-		_, _ = h.Write(s.digest[:])
+		copy(stream.digest[:], digest.Sum(nil))
+		_, _ = h.Write(stream.digest[:])
 	}
-	seed := h.Sum(nil)
-	derive := func(label string) [16]byte {
-		sum := sha256.Sum256(append([]byte(label), seed...))
-		var id [16]byte
-		copy(id[:], sum[:])
-		id[6] = (id[6] & 15) | 0x80 // custom SHA-256 UUID
-		id[8] = (id[8] & 63) | 0x80
-		return id
-	}
-	if p.options.ContainerUUID == [16]byte{} {
-		p.options.ContainerUUID = derive("APFS container")
-	}
-	if p.options.VolumeUUID == [16]byte{} {
-		p.options.VolumeUUID = derive("APFS volume")
-	}
-	for _, part := range p.parts {
-		b := part.data
-		if len(b) < 32 {
-			continue
-		}
-		switch le.Uint32(b[24:]) {
-		case 0x80000001:
-			copy(b[72:88], p.options.ContainerUUID[:])
-		case 13:
-			copy(b[240:256], p.options.VolumeUUID[:])
-		default:
-			continue
-		}
-		sealBuildObject(b, le.Uint64(b[8:]), le.Uint32(b[24:]), le.Uint32(b[28:]))
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return p, nil
+	return h.Sum(nil), ctx.Err()
 }
 
 func buildTime(t time.Time) (uint64, error) {
@@ -267,14 +243,14 @@ func buildTime(t time.Time) (uint64, error) {
 	}
 	return uint64(t.UnixNano()), nil
 }
-func (p *Layout) reserve(n int64) error {
-	if n < 0 || n > (64<<20)-p.metadataBytes {
+func (p *volumeLayout) reserve(n int64) error {
+	if n < 0 || n > (64<<20)-*p.budget {
 		return filesystem.ErrLimit
 	}
-	p.metadataBytes += n
+	*p.budget += n
 	return nil
 }
-func (p *Layout) validateObject(ctx context.Context, o *buildObject) error {
+func (p *volumeLayout) validateObject(ctx context.Context, o *buildObject) error {
 	n := o.node
 	m := n.Metadata
 	if m.Mode.State != filesystem.Present || m.UID.State != filesystem.Present || m.GID.State != filesystem.Present || m.BSDFlags.State != filesystem.Present || m.Mode.Value > 0177777 {
@@ -400,7 +376,7 @@ func (p *Layout) validateObject(ctx context.Context, o *buildObject) error {
 	return nil
 }
 
-func (p *Layout) validateCompression(ctx context.Context, o *buildObject) (err error) {
+func (p *volumeLayout) validateCompression(ctx context.Context, o *buildObject) (err error) {
 	open := func(name string) (filesystem.Value, error) { return p.reader.OpenAttribute(ctx, o.source, name) }
 	h, err := decmpfs.Inspect(open)
 	if err != nil {
@@ -428,12 +404,12 @@ func (p *Layout) validateCompression(ctx context.Context, o *buildObject) (err e
 	return nil
 }
 
-func (p *Layout) copyStream(ctx context.Context, out io.Writer, s *buildStream, verify bool) (err error) {
+func copyBuildStream(ctx context.Context, out io.Writer, s *buildStream, verify bool) (err error) {
 	var v filesystem.Value
 	if s.attribute == "" {
-		v, err = p.reader.OpenRawData(ctx, s.source)
+		v, err = s.reader.OpenRawData(ctx, s.source)
 	} else {
-		v, err = p.reader.OpenAttribute(ctx, s.source, s.attribute)
+		v, err = s.reader.OpenAttribute(ctx, s.source, s.attribute)
 	}
 	if err != nil {
 		return err
@@ -504,7 +480,7 @@ func (p *Layout) Write(ctx context.Context, out io.Writer) error {
 			return err
 		}
 		if part.stream != nil {
-			if err := p.copyStream(ctx, out, part.stream, true); err != nil {
+			if err := copyBuildStream(ctx, out, part.stream, true); err != nil {
 				return err
 			}
 			off += part.stream.size

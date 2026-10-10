@@ -18,9 +18,10 @@
         "apfs/build_container.go",
         "apfs/build_spaceman.go",
         "apfs/build_tree.go",
-        "apfs/build_records.go"
+        "apfs/build_records.go",
+        "apfs/build_options.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state. Multiple-volume construction uses nx_fs_oid slots, per-volume fs_index, reserves/quotas, group UUIDs and SYSTEM_OBJ_ID_MARK. The latter is independently observed in native System user objects and apfs_next_obj_id; UNIFIED_ID_SPACE_MARK is not used as the allocator base."
     },
     {
       "id": "apple-tn1150",
@@ -789,7 +790,8 @@
         "apfs/build_container.go",
         "apfs/build_spaceman.go",
         "apfs/build_tree.go",
-        "apfs/build_records.go"
+        "apfs/build_records.go",
+        "apfs/build_options.go"
       ],
       "files": [
         {
@@ -845,7 +847,7 @@
           "sha256": "eac104aae3d634ee1753d76a1833cb03122f81d8140f60085606eaa7500b2032"
         }
       ],
-      "basis": "Production-only format study: space-manager geometry and native free-queue limits, checkpoint mapping, APFS B-tree records, name hashing and hard-link/document records. Original bounded single-volume planner borrows filesystem.Reader and streams sorted output rather than importing v2 Entry trees, host adapters or mutation APIs. No v2 tests or harness imported. Apple format facts and independent native checks determine acceptance."
+      "basis": "Production-only format study: space-manager geometry and native free-queue limits, checkpoint mapping, APFS B-tree records, name hashing and hard-link/document records. Original bounded container planner borrows filesystem.Reader and streams sorted output rather than importing v2 Entry trees, host adapters or mutation APIs. No v2 tests or harness imported. Apple format facts and independent native checks determine acceptance. Volume-group root/private IDs and reserve accounting were studied, but the v2 System user-inode base was rejected after a native kernel panic. Apple SYSTEM_OBJ_ID_MARK and captured native allocator state replace that assumption."
     },
     {
       "id": "native-apfs-image-building-27",
@@ -861,6 +863,19 @@
       ],
       "evidence": "acceptance/testdata/image-building/macos-27/manifest.json",
       "basis": "Expanded independent macOS 27 reference includes APFS and case-sensitive APFS alongside HFS+/HFSX, signed universal applications, exact birth/modification/change/access times, tracked documents, 53 filename lookup observations, links, attributes, forks, compression and an empty-directory construction root. Native fsck, mounted comparisons, codesign and writes through disposable shadows followed by check/remount qualify Go output. Prior HFS-only capture is retained unchanged under history. Local evidence does not replace the required macOS 15/26/27 CI matrix."
+    },
+    {
+      "id": "native-apfs-container-building-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/build_options.go",
+        "apfs/build_container.go",
+        "apfs/build_spaceman.go",
+        "acceptance/container_building_test.go",
+        "acceptance/native/container_building.py"
+      ],
+      "evidence": "acceptance/testdata/image-building/macos-27/containers/manifest.json",
+      "basis": "Independent Apple-created shared and grouped containers provide UUIDs, per-volume reserves/quotas/case/roles, group inventories, signed application trees and inode namespaces. Native shadow writes establish bounded quota/reserve enforcement, protected-volume allocation, independent writes and reuse after remount. Original references and copied capture sources remain immutable. Full macOS 15/26/27 capture, portable replay and VM-isolated native readback qualify output; fsck alone is insufficient."
     }
   ]
 }
