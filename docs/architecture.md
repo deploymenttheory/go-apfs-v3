@@ -106,7 +106,7 @@ filename rules and byte spelling survive independently of host lookup. External
 mutation must be excluded during capture and use; edits detected at open are
 conflicts, not imports. Preserved metadata does not enforce host ownership,
 permissions, timestamps or ACLs. Content replacement below produces a separate
-workspace. General external import and structural editing remain later phase-3 work.
+workspace. Ordered tree editing is described below; general external import remains later work.
 
 Traversal defaults are 100,000 objects, 200,000 entries, depth 128, 4,096 attributes
 per object, 64 MiB of manifest and 1 TiB per value and total streamed values.
@@ -143,6 +143,37 @@ writes and file flushes. There is no current-generation pointer, edit journal,
 in-place mutation or crash-durable commit guarantee. Failed work can leave
 incomplete output; the previous workspace stays usable. Independent destination
 files keep later host edits from mutating the original through shared hard links.
+
+`Workspace.Edit` holds a bounded private directory graph copied from the verified
+manifest. Ordered changes resolve paths against that graph and reuse the existing
+content replacement/compression rules. One final call to the capture engine
+streams the resulting tree. Preflight errors create no output; streaming failures
+leave an incomplete destination without a completion manifest. The baseline and
+borrowed input lifetimes have the same contract as replacement.
+
+Directory entries and objects remain distinct. Rename retains identity and permits
+native replacement of compatible targets; renaming between distinct aliases of
+one inode is a no-op. An empty directory can replace another empty directory.
+Moves into descendants, directory hard links and intermediate symlink traversal
+are rejected. Removing an entry adjusts its object's recorded link count by one,
+retaining external aliases rather than counting only the extracted subtree.
+Directory size and link counts remain outside native comparison as in the reader.
+
+Creation requires all logical metadata fields explicitly present. Optional initial
+attributes are borrowed sources, including independent resource forks. Active
+compression is not a creation input. APFS retains supplied Unicode spelling;
+HFS+ decomposes it with the existing pinned Apple tables. The 255-UTF-16-unit
+limit applies to the stored spelling. Host projection mapping remains separate.
+
+`Node.Created` distinguishes newly supplied objects. Their graph IDs are allocated
+above the input's maximum; their `Identity.Volume` is `workspace:` plus a creation
+digest, with View zero. The digest combines the parent manifest hash and the
+captured object's metadata, ID, target and data/attribute hashes, requiring no
+additional payload pass. It is stable through later edits; the containing manifest
+hash identifies the complete edited state. Native objects retain source identity.
+`LinksModified` distinguishes changed link counts. Schema 3 admits these fields;
+older schemas remain supported. Created-object and modified-file report counts
+are cumulative for reachable objects. This is recorded provenance, not a signature.
 
 `appledouble` is a separate serialized metadata codec adapted from pinned Apple
 copyfile source. It borrows values, bounds header/record parsing, and streams data.

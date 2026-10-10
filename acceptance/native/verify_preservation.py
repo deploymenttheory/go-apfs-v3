@@ -48,9 +48,10 @@ def timestamp_ns(value):
 
 
 def verify_workspace(root, expected, sensitive, volume_format, *, source_times=None, modified_objects=frozenset(),
-                     minimum_mapped=8, minimum_symlinks=3, aliases=2):
+                     minimum_mapped=8, minimum_symlinks=3, aliases=2, schema=None,
+                     created_objects=frozenset(), links_modified_objects=frozenset()):
     manifest = read_json(root / "metadata/manifest.json")
-    require(manifest["schema"] == (2 if modified_objects else 1), "workspace schema")
+    require(manifest["schema"] == (schema if schema is not None else (2 if modified_objects else 1)), "workspace schema")
     require(manifest["names"] == {"format": volume_format, "caseSensitive": sensitive,
                                   "normalizationInsensitive": True}, "filename rules")
     objects = {o["node"]["identity"]["object"]: o for o in manifest["objects"]}
@@ -88,7 +89,16 @@ def verify_workspace(root, expected, sensitive, volume_format, *, source_times=N
         node = obj["node"]
         require(node["identity"]["object"] == want["object"], "native identity changed")
         require(node.get("dataModified", False) == (want["object"] in modified_objects), "edited data provenance")
-        origins.add((node["identity"]["volume"], node["identity"]["view"]))
+        created = want["object"] in created_objects
+        require(node.get("created", False) == created, "created object provenance")
+        require(node.get("linksModified", False) == (want["object"] in links_modified_objects), "link count provenance")
+        if created:
+            scope = node["identity"]["volume"]
+            require(scope.startswith("workspace:") and len(scope) == 74 and
+                    all(c in "0123456789abcdef" for c in scope[10:]) and node["identity"]["view"] == 0,
+                    "created object claims native identity")
+        else:
+            origins.add((node["identity"]["volume"], node["identity"]["view"]))
         mode = want["mode"] & 0o170000
         for field, key in (("mode", "mode"), ("uid", "uid"), ("gid", "gid"), ("bsdFlags", "flags")):
             require(node["metadata"][field] == {"state": 2, "value": want[key]}, f"{logical}: {field}")
@@ -126,12 +136,13 @@ def verify_workspace(root, expected, sensitive, volume_format, *, source_times=N
             attributes[name] = blob(attribute["value"])
         for name, value in raw[want["object"]].items():
             require(attributes.get(name) == value, f"{logical}: raw attribute {name}")
-    require(observed == set(native) and len(origins) == 1, "incomplete or mixed workspace")
+    require(observed == set(native) and len(origins) <= 1, "incomplete or mixed workspace")
     actual = {str(p.relative_to(root)).replace(os.sep, "/") for p in (root / "files").rglob("*")}
     require(actual | {"files"} == projected, "extra or missing projected entries")
     report = manifest["report"]
     require(report["objects"] == len(objects) and report["entries"] == len(entries), "preservation report counts")
     require(report.get("modifiedFiles", 0) == len(modified_objects), "modified file count")
+    require(report.get("createdObjects", 0) == len(created_objects), "created object count")
     require(report["mappedNames"] >= minimum_mapped and report["symlinksRecorded"] >= minimum_symlinks and
             report["hardLinks"] + report["hardLinksCopied"] == aliases, "missing preservation outcomes")
     require(report["storedBytes"] == sum(v["size"] for v in verified.values()), "stored byte accounting")

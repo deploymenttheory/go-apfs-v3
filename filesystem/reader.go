@@ -10,8 +10,13 @@ import (
 // Node describes a logical object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
-	// DataModified marks replacement contents. Identity still identifies the
-	// source object/view; these bytes are no longer an untouched native observation.
+	// Created identifies an object introduced in a workspace. Its Identity.Volume
+	// is a workspace creation digest, not a native filesystem UUID.
+	Created bool `json:"created,omitempty"`
+	// LinksModified records a change to the source object's observed link count.
+	LinksModified bool `json:"linksModified,omitempty"`
+	// DataModified marks supplied contents. For source objects Identity retains
+	// their original object/view; these bytes are no longer a native observation.
 	DataModified bool                     `json:"dataModified,omitempty"`
 	Identity     Identity                 `json:"identity"`
 	Metadata     Metadata                 `json:"metadata"`

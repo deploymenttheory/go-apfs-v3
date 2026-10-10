@@ -174,7 +174,7 @@
       ],
       "license": "APSL-2.0",
       "licenseFile": "LICENSES/APSL-2.0.txt",
-      "basis": "Generation compiles the pinned normalizeOptCaseFoldU32Char and its local helpers and materializes the Unicode 16 mappings plus original combining classes in pure Go. ASCII folding and Hangul are algorithmic. HFS+ uses the separately frozen Unicode 3.2 decomposition/class data in vfs_utfconvdata.h. The checked inputs do not use the build host's Unicode library. Admission of unassigned/invalid native names and historical APFS profiles are outside current qualification. Native APFS observations independently qualify the selected comparison behavior; the APFS reference alone does not specify this modern profile.",
+      "basis": "Generation compiles the pinned normalizeOptCaseFoldU32Char and its local helpers and materializes the Unicode 16 mappings plus original combining classes in pure Go. ASCII folding and Hangul are algorithmic. HFS+ uses the separately frozen Unicode 3.2 decomposition/class data in vfs_utfconvdata.h. The checked inputs do not use the build host's Unicode library. Admission of unassigned/invalid native names and historical APFS profiles are outside current qualification. Native APFS observations independently qualify the selected comparison behavior; the APFS reference alone does not specify this modern profile. Workspace creation now also reuses the frozen HFS+ decomposition data to produce stored spelling; native tree-edit observations independently qualify UTF-16-unit limits and stored spelling.",
       "files": [
         {
           "path": "bsd/vfs/vfs_unicode.c",
@@ -584,6 +584,19 @@
       ],
       "evidence": "acceptance/testdata/replacement/macos-27/manifest.json",
       "basis": "Four native before/after APFS/HFS+/HFSX images, 14 entries and seven content replacements each. Native truncate/write preserves inode/link identities, ordinary metadata and independent forks; active decmpfs types 3,4,8 become uncompressed with owned storage removed. Inactive malformed attributes survive. Portable results preserve before timestamps by policy while content/fork/link outcomes match after observations. Original sources and native post-write times remain independently recorded."
+    },
+    {
+      "id": "native-tree-edits-27",
+      "kind": "native-observation",
+      "components": [
+        "workspace/edit.go",
+        "workspace/extract.go",
+        "internal/names/names.go",
+        "acceptance/native/tree_edits.py",
+        "acceptance/native/verify_tree_edits.py"
+      ],
+      "evidence": "acceptance/testdata/tree-edits/macos-27/manifest.json",
+      "basis": "Four native before/after APFS/HFS+/HFSX profiles with 18 operations, eight rejection controls and six name-length probes each. Final read-only observations independently establish entry spelling, inode relationships, link counts, content, compression cleanup and attributes. Creation metadata and attribute bytes are explicit recorded inputs, including native process provenance. Source and supplied creation timestamps remain recorded by preservation policy. Native IDs for created objects are compared through a bijection of path/link groups; portable identities are explicitly marked as workspace-created. No C source is newly ported by the editor."
     }
   ]
 }

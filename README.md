@@ -8,7 +8,8 @@ contracts while retaining separate filesystem engines.
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
-file contents while preserving metadata. Filesystem writes, recovery and mounting
+file contents while preserving metadata. Ordered workspace edits create, move,
+remove and link entries. Filesystem writes, recovery and mounting
 are not implemented yet. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
@@ -30,6 +31,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs extract --json image.dmg /Applications/Example.app ./example-workspace
 ./bin/apfs workspace verify --json ./example-workspace
 ./bin/apfs workspace replace --json ./example-workspace Contents/Info.plist ./updated.plist ./updated-workspace
+./bin/apfs workspace edit --json ./example-workspace ./changes.json ./edited-workspace
 ```
 
 `info` is an alias for structural inspection. Flags precede the image argument.
@@ -61,6 +63,7 @@ Currently implemented:
   snapshot name or XID; live and historical reads share the same file APIs.
 - Portable extraction with original names, logical/raw data, metadata, attributes,
   resource forks, symlink targets and hard-link identities; verified workspace readers.
+- Ordered workspace creation, rename, removal, link and data replacement batches.
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
@@ -140,9 +143,8 @@ not applied. The projection is therefore not yet a runnable macOS app bundle.
 implements `filesystem.Reader` with the original names and filename comparison
 rules. Keep it open while using values; keep the directory immutable. Missing,
 modified or incomplete content fails explicitly. This increment supports capture
-and readback plus staged content replacement. General external import and
-structural editing remain later phase-3 work. The
-CLI refuses existing destinations. Failed capture can leave an incomplete
+and readback, staged content replacement and ordered tree edits. General external
+import remains later work. The CLI refuses existing destinations. Failed capture can leave an incomplete
 workspace for diagnosis. Large values stream; object, entry, depth and byte
 budgets are configurable up to documented defaults in `workspace.DefaultLimits`.
 
@@ -162,6 +164,22 @@ schema 2. Replacement requires a new destination outside the baseline. Duplicate
 object requests, unknown compression ownership and partial I/O fail explicitly.
 This operation preserves recorded timestamps, including modification/change time;
 it does not synthesize native kernel write times from the consumer host clock.
+
+`w.Edit(ctx, changes, newDirectory, limits)` applies an ordered batch of
+`workspace.Change` values, then captures its final tree once. It supports file,
+directory and symlink creation, regular-file hard links, rename/move (including
+replacement of an existing entry), empty-directory removal, unlink and content
+replacement. Paths use the source filename rules and see preceding edits.
+Symlinks are not traversed. New objects require explicit metadata and optional
+initial attribute/fork sources; the host's clock, umask and process metadata are
+never inferred. Existing timestamps stay recorded under the preservation policy.
+
+Created nodes carry `Created` and a `workspace:` creation digest in their identity;
+these are graph object numbers, not invented native inode IDs. Link count changes
+carry `LinksModified`, with counts adjusted for aliases outside the captured tree.
+These markers use schema 3 and persist through subsequent captures. Schemas 1 and
+2 remain readable. See [the edit plan format](docs/workspace-edits.md) for the CLI
+and library contract, native qualification, and creation metadata policy.
 
 `appledouble.Decode(ctx, source)` borrows serialized metadata; `Write(ctx, out,
 file)` streams it. These APIs operate on explicit inputs, never infer companion

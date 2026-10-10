@@ -96,7 +96,7 @@ python3 acceptance/native/capture.py --expected-major 27 --scenario file-semanti
 APFS_NATIVE_SEMANTICS=../artifacts/semantics go test -v -run TestNativeFileSemantics ./acceptance
 ```
 
-CI captures all nine families on macOS 15/26/27. Each Linux, Windows and macOS
+CI captures all ten families on macOS 15/26/27. Each Linux, Windows and macOS
 consumer must replay every producer; `APFS_REQUIRED_NATIVE_MAJORS` prevents a
 missing corpus from passing as a skipped profile.
 
@@ -356,3 +356,43 @@ source errors, mid-copy cancellation, inconsistent data between reads, limits,
 duplicate identities, unknown compression profiles and destinations inside the
 baseline, including symlink aliases. General external import, namespace edits,
 native authorization and crash-durable transactions are subsequent work.
+
+
+## Ordered tree edits
+
+Purpose: make application structure changes on a portable host while preserving
+untouched source objects. The native family starts with 18 entries per filesystem
+and records 18 successful operations, eight rejected operations and six name
+boundary probes. Final read-only mounts contain 21 entries. Creation metadata and
+attributes, including any native process provenance, are explicit supplied values.
+The Go implementation must never manufacture those values from its host.
+
+| Native case | Value of the comparison |
+| --- | --- |
+| Create a signature directory, files, Unicode resource and symlink | Exact stored names, supplied metadata/attributes and target bytes; created objects have distinct provenance |
+| Link both source and newly created files | Same native object relationships and final counts at every alias |
+| Case-only rename; move a populated directory | Correct native comparison and preserved object identity/contents/forks |
+| Replace an existing file that has another alias | The displaced object survives under its other name with its original bytes and reduced link count |
+| Rename between two aliases of one inode | Both names survive the native no-op |
+| Replace an empty directory; remove entries | Correct final namespace, with nonempty removal and descendant moves rejected |
+| Move and then replace a compressed file | Content replacement composes with tree changes and retains compression cleanup rules |
+| ASCII, accented BMP and supplementary-plane name lengths | Native 255 UTF-16-unit limits, applied after HFS+ decomposition |
+
+Existing timestamps are compared with the original native observation. Created
+objects retain the metadata supplied immediately after native creation; subsequent
+native clock changes remain evidence, not portable timestamp defaults. New-object
+IDs are compared by path and a bijection of native hard-link groups, never by
+expecting independent object allocators to choose the same inode numbers.
+
+```sh
+python3 acceptance/native/capture.py --expected-major 27 --scenario tree-edits --output artifacts/native/tree-edits/macos-27
+APFS_NATIVE_TREE_EDITS=../artifacts/native/tree-edits APFS_TREE_EDIT_OUTPUT=../artifacts/outputs/tree-edits-macOS go test -v -run TestNativeTreeEdits ./acceptance
+python3 acceptance/native/verify_tree_edits.py --expected-major 27 --corpus artifacts/native/tree-edits --outputs artifacts/outputs --producers 27 --consumers macOS
+```
+
+Use fresh output directories. Local retained comparison takes about three seconds.
+Each required native verifier checks 36 actual before/after workspace pairs, 756
+final entries and 648 successful native operations across every producer/consumer
+pair. It invokes no Go code. Existing native-output verification remains required.
+Focused tests cover failure before publication, borrowed sources, creation identity
+across subsequent edits, aliases outside extracted subtrees and deterministic output.
