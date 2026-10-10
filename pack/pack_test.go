@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
@@ -173,5 +174,28 @@ func TestUnrepresentableMetadataFailsBeforeOutput(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Fatal("unsupported metadata emitted an image")
+	}
+}
+
+func TestEncryptedPublicationFailure(t *testing.T) {
+	s, o := input(t)
+	sentinel := errors.New("source failed during encrypted output")
+	r := &lateFailureReader{Reader: s, err: sentinel}
+	o.Encryption = &diskimage.EncryptionOptions{KeyBits: 128, Password: []byte("borrowed password")}
+	dir := t.TempDir()
+	if _, err := pack.Create(context.Background(), filepath.Join(dir, "out.dmg"), r, o); !errors.Is(err, sentinel) {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatal("encrypted publication leaked staging or output", entries)
+	}
+	if r.opens != 3 {
+		t.Fatal("failure was not during streaming", r.opens)
+	}
+	if string(o.Encryption.Password) != "borrowed password" {
+		t.Fatal("modified borrowed password")
+	}
+	if _, err := pack.Write(context.Background(), io.Discard, s, o); !errors.Is(err, fs.ErrInvalid) {
+		t.Fatal("accepted nonseekable encrypted output", err)
 	}
 }

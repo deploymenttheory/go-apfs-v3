@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 )
 
@@ -185,12 +186,30 @@ func TestNativeImageRepacking(t *testing.T) {
 							if fileDigest(t, destination) != fileDigest(t, repeat) {
 								t.Fatal("repacking is not reproducible")
 							}
+							buildEncryptedOutput(t, destination, encryptedRepackBits(id, format), func(path string, encryption *diskimage.EncryptionOptions) error {
+								r, err := pack.RepackWithOptions(context.Background(), source, path, diskimage.RepackOptions{Format: format, Encryption: encryption})
+								if err == nil && (r.DiskSHA256 != native.DiskSHA256 || r.DiskBytes != native.DiskBytes) {
+									t.Fatal("encryption changed native disk sectors")
+								}
+								return err
+							})
 							t.Logf("preserved every native disk sector: %d bytes; %s", report.DiskBytes, report.DiskSHA256)
 						})
+					}
+					if id == "hfsplus-gpt" {
+						// Apple encrypted this exact disk with the public corpus password.
+						// The legacy credential-free refusal above remains a separate control.
+						for _, r := range c.Rejections {
+							if r.ID == "encrypted-container" {
+								repackEncryptedInput(t, filepath.Join(dir, r.Image), output, native.DiskBytes, native.DiskSHA256)
+								verifyDigest(t, dir, r.Image, r.SHA256)
+							}
+						}
 					}
 					verifyDigest(t, dir, v.Image, v.SHA256)
 				})
 			}
+			repackNativeRawEncrypted(t, major)
 		})
 	}
 	if required := os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"); required != "" {

@@ -21,6 +21,7 @@ from verify_preservation import require
 from metadata_edits import birth_ns
 import container_building as containers
 import encrypted_output
+from image_outputs import verify_identical_outputs
 
 
 def built_devices(attached, apfs, command):
@@ -213,16 +214,6 @@ def verify_container(image, expected, case_id, command):
     require(sha256(image) == before, 'container verification changed source image')
     return before, total
 
-
-def verify_identical_outputs(images, verify_one):
-    # The host outputs must be byte-identical before native verification. One
-    # Apple check then qualifies those exact bytes for every portable producer.
-    digests = [sha256(image) for image in images]
-    require(images and len(set(digests)) == 1, 'hosts produced different image bytes')
-    digest, entries = verify_one(images[0])
-    require(digest == digests[0], 'image changed between host comparison and native check')
-    print(f'Qualified {len(images)} identical host outputs via {images[0]}', flush=True)
-    return entries
 
 
 def verify_containers(corpus, outputs, major, consumers, command):

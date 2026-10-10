@@ -3,6 +3,7 @@ package crypto
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/subtle"
 	"encoding/binary"
 	"hash"
 )
@@ -41,9 +42,7 @@ func PBKDF2(ctx context.Context, newHash func() hash.Hash, password, salt []byte
 			m.Reset()
 			_, _ = m.Write(u)
 			m.Sum(u[:0])
-			for j := range sum {
-				sum[j] ^= u[j]
-			}
+			subtle.XORBytes(sum, sum, u)
 		}
 		key = append(key, sum[:min(len(sum), size-len(key))]...)
 		if err := ctx.Err(); err != nil {

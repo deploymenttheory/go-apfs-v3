@@ -2,6 +2,7 @@ package diskimage
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -32,6 +33,9 @@ func (o EncryptionOptions) Validate() error {
 	}
 	if len(o.Password) == 0 || len(o.Password) > 4096 {
 		return fmt.Errorf("output password must contain 1 to 4096 bytes: %w", fs.ErrInvalid)
+	}
+	if bytes.IndexByte(o.Password, 0) >= 0 {
+		return fmt.Errorf("output password must not contain NUL bytes: %w", fs.ErrInvalid)
 	}
 	return nil
 }

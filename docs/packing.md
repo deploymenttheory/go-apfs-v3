@@ -59,7 +59,7 @@ their own volume. Volume order is retained.
 Session inputs retain their case policy and ownership; use ordinary session
 commands to change metadata. Case and ownership-default flags apply only to
 directory or empty inputs. `--capacity`, `--time`, `--container-uuid`, `--format`,
-`--scratch-dir` and `--json` apply to the complete build. JSON reports import
+`--scratch-dir`, `--encryption`, `--output-password-file` and `--json` apply to the complete build. JSON reports import
 defaults and unavailable attributes separately for each volume.
 
 Reserves guarantee available bytes; quotas cap a volume's allocation. Both round
@@ -118,11 +118,13 @@ native empty `plst` placeholder. Unknown resource keys or values, nonempty/unkno
 unaccounted envelope bytes are refused. License resources are therefore refused
 rather than removed. Signed applications inside an ordinary DMG are supported;
 a signature on the DMG itself requires a separate future signing workflow.
-Encrypted DMG envelopes are refused. APFS encryption inside an unencrypted image
-survives unchanged and needs no password for this operation.
+Password-only version-2 encrypted DMG envelopes are admitted with an explicit
+source password and output policy, as described below. The same strict inner
+UDIF resource checks apply after decryption. Separately encrypted APFS sectors
+survive unchanged and need no volume password for this operation.
 
-Identical image bytes, format and tool version produce identical output across
-hosts. Repacking hashes the decoded disk before and during encoding and refuses a
+Without output encryption, identical decoded image bytes, format and tool version
+produce identical output across hosts. Repacking hashes the decoded disk before and during encoding and refuses a
 detected change. Inputs must remain immutable for the call. Memory is bounded by
 the existing decoder cache, a 4 MiB output chunk and bounded metadata; it does not
 scale with disk capacity. The existing 1 TiB disk and 16 MiB XML limits apply,
@@ -133,6 +135,66 @@ opens a source file and publishes the completed image at a new path with the sam
 flush, no-overwrite and cleanup contract as fresh builds below. Reader ownership
 and output-on-error rules remain explicit. Raw forensic imaging of damaged or
 unrecognized partition maps retains a separate qualification gate.
+
+## Encrypted DMG output
+
+Encryption applies to the complete disk image, independently of APFS volume
+keys. The same options work for directory, session and multi-volume builds, and
+for sector-preserving repacking:
+
+```sh
+apfs pack --session build --encryption AES-256 \
+  --output-password-file ./new-password.bin Encrypted.dmg
+
+# Replace an image password while keeping every decoded disk sector.
+apfs pack --image-password-file ./old-password.bin --encryption AES-256 \
+  --output-password-file ./new-password.bin original.dmg changed-password.dmg
+
+# Removing image encryption is always explicit.
+apfs pack --image-password-file ./old-password.bin --encryption none \
+  original.dmg decrypted.dmg
+```
+
+Choose `AES-128` or `AES-256`; `--output-password-file` is required with either.
+The source password and output password are separate even if their bytes match.
+A password file contains exact bytes: whitespace and final newlines are retained.
+Use `-` for stdin through EOF; only one password can read stdin in a command.
+New passwords require 1–4096 bytes with no NUL, to remain usable with Apple's
+NUL-terminated password input. Passwords never appear in reports or command-line
+arguments. The CLI clears its password buffers after use; library passwords are
+borrowed for the call and remain unmodified.
+
+Output is a password-only `encrcdsa` v2 envelope around UDRO or UDZO. It uses
+AES-CBC for payload blocks, the format's HMAC-SHA1 block IV derivation, and
+PBKDF2-HMAC-SHA1 with 600,000 iterations and a fresh salt to wrap new payload keys
+using AES-192-CBC. Every call draws a new identity, salt, wrapping IV and keys
+from `crypto/rand`. There is no deterministic-encryption option. Identical build
+inputs and clocks retain identical plaintext image/disk bytes; ciphertext differs
+between runs and hosts. Unencrypted builds remain byte-identical.
+
+Encryption streams directly into a private ciphertext staging file. It does not
+create a plaintext DMG or raw-disk temporary file. Directory import and named
+sessions retain their existing plaintext scratch policy. Write, callback,
+cancellation, flush and publication failures use the normal cleanup contract.
+The library's encrypted output writer must be an empty `io.WriteSeeker`, because
+the complete plaintext length is recorded only after successful encoding.
+
+Encrypted repacking accepts exactly one supported password record. Both Apple's
+older 3DES-wrapped and current AES-wrapped source keys are decoded; new keys use
+the AES-wrapped profile. Certificate/keybag records, extra credentials, unknown
+nonzero header resources and trailing bytes are refused rather than discarded.
+Signed inner DMGs remain refused. This format does not authenticate the payload;
+CRC checks detect damage in UDIF inputs, not authenticity. Repacking an encrypted
+raw disk has no equivalent whole-disk checksum supplied by its envelope.
+
+Use `pack.Options.Encryption` or `pack.ContainerOptions.Encryption` for builds.
+`pack.RepackWithOptions` and `diskimage.RepackWithOptions` take
+`diskimage.RepackOptions`, with `SourcePassword`, `Encryption` and explicit
+`Decrypt`. A nil source password means none supplied. The original `Repack` API
+retains its credential-free behavior and refuses encrypted input.
+`diskimage.Encrypt` also exposes the bounded streaming envelope encoder. Keep all
+sources immutable until completion, and discard library output on any error.
+Image encryption does not create or change FileVault/APFS volume keys.
 
 ## Fresh-output and preservation contract
 
@@ -195,7 +257,8 @@ HFS `--volume-id` accepts an eight-byte identifier as 16 hex digits. APFS accept
 distinct content-derived UUIDs. Options belonging to the other format are refused.
 Enumeration, native object-ID assignment, allocation, zero filling, chunking and zlib settings
 are deterministic. Identical captured inputs and options produce byte-identical
-outputs across all three hosts. Different host-import observations or Go encoder
+unencrypted outputs across all three hosts; encrypted output preserves identical
+plaintext bytes but uses fresh randomness. Different host-import observations or Go encoder
 versions are not assumed to be identical. Reproducible builds should pin their
 input session and tool version.
 
@@ -279,8 +342,24 @@ The `image-repacking` family reuses independently captured signed-app and snapsh
 images, then adds native bare HFS+, raw GPT and HFSX Apple Partition Map disks with seeded free
 sectors, and two APFS volumes sharing a container, one encrypted. Inputs exercise
 raw, UDRO, UDZO and UDBZ storage. Apple devices supply the complete disk hashes;
-all three hosts produce UDRO/UDZO twice. Every Mac verifies all 90 outputs with
+all three hosts produce UDRO/UDZO twice. All 90 outputs must agree in triples;
+every Mac verifies the 30 distinct images with
 `hdiutil verify`, raw-device SHA-256, partition/volume inventories, native mounted
 file and raw-attribute observations, retained snapshot mounts, encrypted-volume
 unlocking, filesystem checks and application signature verification. Cross-host
 image hashes must agree. The native comparison never invokes Go.
+
+Encrypted output extends these two existing acceptance families. A bounded set
+covers APFS, case-sensitive APFS, HFS+, HFSX and a System/Data group, both ciphers
+and both UDIF encodings. Repacking adds all five disk-preservation profiles,
+password replacement, explicit decryption, and the existing Apple-created
+encrypted UDRW input. The outer envelope never needs an APFS volume password.
+Every Mac independently unlocks each of the 108 randomized portable outputs,
+checks the reported native cipher and rejected passwords, verifies UDIF CRCs,
+and hashes the complete attached device against its independently qualified
+plaintext disk. Password changes also reject the old credential. The raw input
+comparison starts from Apple's decrypted source device. The 18 explicitly
+decrypted outputs must agree across hosts and have no image encryption.
+Source and output hashes remain unchanged by native readback. These checks add
+no new workflow or scenario family and never use a Go decoder for the final
+native verdict.

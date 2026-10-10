@@ -78,3 +78,10 @@ func clearPackPasswords(o diskimage.RepackOptions) {
 		clear(o.Encryption.Password)
 	}
 }
+
+func packEncryptionLabel(e *diskimage.Encryption) string {
+	if e == nil {
+		return "none"
+	}
+	return fmt.Sprintf("AES-%d", e.KeyBits)
+}

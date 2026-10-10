@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; full native build/repack qualification required |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; full native build/repack/encryption qualification required |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -453,6 +453,40 @@ Native testing on a development Mac is blocked by default. The existing macOS
 15/26/27 CI labels were verified as GitHub-hosted disposable VMs; jobs assert
 that environment before native operations. Qualification must pass there before
 this increment can be merged. Local tests perform file-only Go replay.
+
+## Encrypted DMG construction and repacking increment
+
+Fresh AES-128/256 image encryption wraps the shared UDRO/UDZO encoder. Directory,
+session and multi-volume builds use the same output options. Image inputs use
+`--image-password-file` separately from `--output-password-file`; an explicit
+`--encryption AES-128|AES-256|none` policy controls replacement or removal. The
+source remains immutable and the new destination is published without overwrite.
+No literal password option or JSON input configuration is introduced.
+
+The writer uses Apple's observed password-only v2 envelope and AES-192 wrapping
+profile. It streams ciphertext without a plaintext image temporary file and
+uses fresh cryptographic randomness for every image. Plaintext build bytes stay
+reproducible; encrypted bytes must differ. Unknown encryption credentials/header
+resources and unsupported inner UDIF resources remain refusal cases. APFS
+volume-key creation and mutation remain separate work.
+
+The existing `image-building` and `image-repacking` families qualify both cipher
+sizes and encodings, all four filesystem profiles, System/Data groups, retained
+snapshots, opaque APFS encryption, signed apps, password replacement, explicit
+decryption and Apple's encrypted raw-disk input. Each Mac decrypts every distinct
+ciphertext independently and compares complete native device hashes to already
+qualified plaintext disks. Old and wrong passwords must fail. Plaintext host
+copies first have to agree byte-for-byte, so the native repacking verifier checks
+one of each identical triple instead of repeating the same native work three
+times. All native operations remain confined to disposable hosted VMs.
+
+[PR #24](https://github.com/deploymenttheory/go-apfs-v3/pull/24) tracks this increment.
+Its complete macOS 15/26/27 capture, Linux/Windows/macOS replay and native output
+readback matrix must pass before it is ready to merge. Focused failure tests and
+race checks supplement that independent evidence; Go roundtrips alone do not
+qualify the format. PBKDF2 uses Go’s constant-time bulk XOR to reduce repeated
+byte-loop overhead, with the same derivation, iteration count and cancellation
+checks. A focused benchmark records the password-work cost.
 
 ## Required phase gates
 

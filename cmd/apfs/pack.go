@@ -89,7 +89,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 					pack.RepackReport
 				}{1, report})
 			}
-			_, e = fmt.Fprintf(out, "Repacked %s image: %d bytes (%d-byte disk)\nDisk SHA-256: %s\n", report.Format, report.ImageBytes, report.DiskBytes, report.DiskSHA256)
+			_, e = fmt.Fprintf(out, "Repacked %s image: %d bytes (%d-byte disk)\nDisk SHA-256: %s\nImage encryption: %s\n", report.Format, report.ImageBytes, report.DiskBytes, report.DiskSHA256, packEncryptionLabel(report.Encryption))
 			return e
 		}
 	}
@@ -219,7 +219,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			AttributesUnavailable []uint64          `json:"attributesUnavailable,omitempty"`
 		}{1, report, provenance.Defaulted, provenance.AttributesUnavailable})
 	}
-	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes)
+	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\nImage encryption: %s\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes, packEncryptionLabel(report.Encryption))
 	if err == nil && (len(provenance.Defaulted) > 0 || len(provenance.AttributesUnavailable) > 0) {
 		_, err = fmt.Fprintf(out, "Host metadata defaults on %d objects; attributes unavailable on %d objects.\n", len(provenance.Defaulted), len(provenance.AttributesUnavailable))
 	}

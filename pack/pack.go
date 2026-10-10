@@ -50,6 +50,7 @@ type Report struct {
 
 // Write streams a fresh volume through the DMG encoder. The caller owns the
 // output and discards it on error. The reader is borrowed and must remain fixed.
+// Encrypted output requires an empty io.WriteSeeker and uses fresh randomness.
 func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (Report, error) {
 	var report Report
 	if out == nil || r == nil {
@@ -116,6 +117,7 @@ type ContainerReport struct {
 
 // WriteContainer streams one fresh APFS container through the DMG encoder.
 // It borrows every immutable reader through completion. Discard output on error.
+// Encrypted output requires an empty io.WriteSeeker and uses fresh randomness.
 func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpec, o ContainerOptions) (ContainerReport, error) {
 	var report ContainerReport
 	if out == nil {

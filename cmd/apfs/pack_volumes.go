@@ -306,7 +306,7 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 			Volumes []provenance `json:"volumes"`
 		}{1, report, imports})
 	}
-	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes)
+	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\nImage encryption: %s\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes, packEncryptionLabel(report.Encryption))
 	return err
 }
 

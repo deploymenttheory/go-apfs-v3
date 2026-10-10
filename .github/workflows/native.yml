@@ -265,9 +265,9 @@ jobs:
         run: python3 acceptance/native/verify_metadata_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/metadata-edits --outputs artifacts/outputs
       - name: Verify exported command sessions against Apple command observations
         run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
-      - name: Check built filesystems, native APFS writes, metadata and signatures with Apple tools
+      - name: Check built filesystems, encrypted DMGs, native APFS writes and signatures with Apple tools
         run: python3 acceptance/native/verify_image_building.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-building --outputs artifacts/outputs
-      - name: Check repacked disk sectors, volumes, snapshots and signatures with Apple tools
+      - name: Check repacked sectors, snapshots, encrypted DMGs and password changes with Apple tools
         run: python3 acceptance/native/verify_image_repacking.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-repacking --outputs artifacts/outputs
       - name: Retain image-building and repacking verification diagnostics
         if: always()
@@ -303,9 +303,16 @@ jobs:
           multi-volume controls exercise reserves, quotas and System/Data groups.
           Native tests run in disposable GitHub-hosted VMs. Identical bytes from
           the three portable hosts are verified once per macOS version.
-          Image repacking checks 90 DMGs against complete native disk hashes,
+          Image repacking requires 90 plaintext DMGs to agree in triples, then checks
+          all 30 distinct images against complete native disk hashes,
           partition and volume inventories, encrypted-volume unlocks, retained
           snapshot histories, signed apps and recorded unused-sector bytes.
+          Apple tools also independently decrypt 108 randomized encrypted outputs
+          covering both AES key sizes, both UDIF encodings, all filesystem builders,
+          snapshot/volume preservation, password replacement and encrypted raw input.
+          Complete native device hashes must match the qualified plaintext disks;
+          wrong and replaced passwords fail. Another 18 explicitly decrypted outputs
+          must agree across hosts and expose the same native disk bytes.
           No Go verifier supplies these results.
           EOF
 
