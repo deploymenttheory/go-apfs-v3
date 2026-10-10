@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "scenario": "snapshot-reading",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "9f4364c7e61e6a288645290db69ff9862ff46b96a4cc9d929646c184dc6d1dac",
+    "sources": [
+      {
+        "source": "snapshot_reading.py",
+        "sha256": "30fa832a8fa72bd8f6f2e2acf25b559dbd47da152daa43163ef057fa297554e9"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "snapshot-reading/apfs",
+      "image": "apfs.dmg",
+      "sha256": "97fe04ce5f49ecf81608296392094cdc8e8c0b20739bffef64bc9559ccd90eee",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "34d37ae73f0ead8e8819b57cba5c354ef33925adcad21b3b1317d1e16f4a2488",
+      "files": "apfs-files.json",
+      "filesSHA256": "3d6473f1dc2ef02aca7ec8e985f60053e43b1a8c35fd01d880896b5d1d81ae17",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-snapshots-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 134176768,
+        "uuid": "30FE89F0-8CC2-42F6-A82D-9305855B3E9C"
+      }
+    },
+    {
+      "id": "snapshot-reading/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "6671be0834136cc72229985260a9baa0b4cb8bdbb36b62de4e1e091e016e9888",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "d2ff2ff9ace8a00a77943e3eaf1bdc962d0ecc4cf0fc071b314c84ca2d2f38a3",
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "f20edd1fa0ab122094b39d14862e9477cf5e3598bea4db7b90b05b164a2bb9b1",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-snapshots-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 134176768,
+        "uuid": "BDFBA7D0-B9D1-49B0-902B-56ACB8221912"
+      }
+    },
+    {
+      "id": "snapshot-reading/apfs-encrypted-dmg",
+      "image": "apfs-encrypted-dmg.dmg",
+      "sha256": "10620354eebecf49f5d67eb360ac5c55a3867ac85b16db9ad4a5a513d9904d8e",
+      "observation": "apfs-encrypted-dmg-diskutil.plist",
+      "observationSHA256": "d613ad9583a00ff102347fea7e4e588c7c1ebf6a320abbe6a4ef38711ca6b3e8",
+      "files": "apfs-encrypted-dmg-files.json",
+      "filesSHA256": "39e58c55460d57e22a57975aeafc2e0908304070ea60e97488fbd44ff8f0c043",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-snapshots-apfs-encrypted-dmg",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 134176768,
+        "uuid": "1598AAF8-2105-44BB-B7D5-C2D3B56977A0"
+      }
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "scenario": "image-repacking",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "image_repacking.py",
+    "sourceSHA256": "9b092ce7d3cb1df4ed9045a5251e8f790563bebea6dd5e05372cdaa57339180a",
+    "sources": [
+      {
+        "source": "image_repacking.py",
+        "sha256": "9b092ce7d3cb1df4ed9045a5251e8f790563bebea6dd5e05372cdaa57339180a"
+      },
+      {
+        "source": "capture.py",
+        "sha256": "cb1e395a2df086a71913cf1888b223a3b86d506678a85797abe93a7f77ff9446"
+      },
+      {
+        "source": "snapshot_reading.py",
+        "sha256": "1824d7e669a6584e20cc3d30918a304845c9414f12b8ae6d3c753d9da95454be"
+      },
+      {
+        "source": "apfs-snapshots-parent.json",
+        "sha256": "496e30560b455b6bd98cf8bc45b7cff3343047ae24bb08dd033f48513b1509e1"
+      },
+      {
+        "source": "hfsplus-gpt-parent.json",
+        "sha256": "4e61f6cf07756b6f2b1ff96abe6fed54175fb05d1c761752cf37ae03bb6bb832"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "image-repacking/apfs-snapshots",
+      "image": "apfs-snapshots.dmg",
+      "sha256": "97fe04ce5f49ecf81608296392094cdc8e8c0b20739bffef64bc9559ccd90eee",
+      "observation": "apfs-snapshots.json",
+      "observationSHA256": "01e6c0048fbd4433eeee0f32ffaf5e3e10d545a32538c80918f864d39683c0f2"
+    },
+    {
+      "id": "image-repacking/apfs-volumes",
+      "image": "apfs-volumes.dmg",
+      "sha256": "4a2109db29db9bfdf1a0ceb8a2a37e2e74b6d4aa858e638e6a435926f0cb54d7",
+      "observation": "apfs-volumes.json",
+      "observationSHA256": "cf7bd4ee7da3d60c712a5b225c4352e3b9969c867b59d65e102cf36c3ca19f59"
+    },
+    {
+      "id": "image-repacking/hfsplus-bare",
+      "image": "hfsplus-bare.dmg",
+      "sha256": "451201bf72e1d3f04c8489623a9691d7efec8f806c1d7b1678988e56fbc743f7",
+      "observation": "hfsplus-bare.json",
+      "observationSHA256": "7afc926acc3f2aab4d135dcd78feafe27e0a69f063072b6d06075a7385bed94c"
+    },
+    {
+      "id": "image-repacking/hfsplus-gpt",
+      "image": "hfsplus-gpt.raw.gz",
+      "sha256": "fd10ffa6b9efe01b98d3f8766dc682c980ef2fa7494d93daa6f1a978466824af",
+      "observation": "hfsplus-gpt.json",
+      "observationSHA256": "e94a79632a793d37657f633c88a9a3396766e867c1c0fb4ce313f60e66d85659"
+    },
+    {
+      "id": "image-repacking/hfsx-apm-raw",
+      "image": "hfsx-apm-raw.raw.gz",
+      "sha256": "7945e7bf897dfcc5883b8c5e702ad94dc0a278a78bd232fe9df4e37815f73aad",
+      "observation": "hfsx-apm-raw.json",
+      "observationSHA256": "621bd94746770217ea48d13df737c70f227f6fb7bc12f095174adb56832b142e"
+    }
+  ],
+  "rejections": [
+    {
+      "id": "signed-container",
+      "image": "signed-container.dmg",
+      "sha256": "51d0610cd5bff27a0720126233445c4972e702a19bc3f79e5b01f1616841753a"
+    },
+    {
+      "id": "encrypted-container",
+      "image": "encrypted-container.dmg",
+      "sha256": "e6759f1fff66b6fa68b9691e9fbf1661ed018489826b662c92c3504f49708e4e"
+    }
+  ]
+}

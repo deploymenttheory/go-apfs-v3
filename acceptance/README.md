@@ -523,3 +523,47 @@ macOS major, following the other independent verification scripts. CI requires
 both filesystem profiles and encodings from every producer/consumer combination,
 compares output hashes across hosts and retains failure diagnostics. Native source
 images and observations are immutable; a writer mismatch is fixed in Go.
+
+## Sector-preserving image repacking
+
+Purpose: prove an image conversion retains **every decoded disk sector**, including
+partition tables, unused bytes, APFS snapshots and encrypted volume data. This is
+separate from logical tree rebuilding in `image-building`.
+
+`native/image_repacking.py` reuses the signed HFS+ and APFS snapshot references
+already captured in the same workflow. Apple tools additionally create a bare
+HFS+ volume, an HFSX APM disk with an explicit free partition and seeded unused
+sector, and a 1100 MiB APFS container with an encrypted and an ordinary volume.
+The larger container admits two native volumes; its retained encoded file is
+small. Raw, UDRO, UDZO and UDBZ input profiles remain distinct. Apple-attached raw
+devices supply complete disk SHA-256 values. Native filesystem APIs record files,
+raw attributes/forks, identities and snapshot history; Apple verifies signatures.
+Native signed and encrypted DMGs supply refusal controls.
+
+`TestNativeImageRepacking` checks provenance, required producers/profiles and
+refusal outcomes. It builds UDRO and UDZO twice, compares native whole-disk hashes,
+checks deterministic output and leaves source hashes unchanged. Raw input is
+retained gzip-compressed solely to keep the repository small and is expanded to
+a test temporary directory before invoking the production API. Production
+repacking does not need raw scratch. Local positive replay takes about 7 seconds.
+
+`native/verify_image_repacking.py` independently verifies every host output on
+macOS 15, 26 and 27: `hdiutil verify`, whole raw-device hashes, native partition and
+volume inventories, filesystem checks, exact mounted files/raw attributes,
+snapshot historical contents, native APFS unlocking and signed-app verification.
+All 90 outputs are checked on each Mac; cross-host image hashes must match. It
+never invokes Go. Source references and diagnostics are retained with hashes.
+
+```sh
+python3 acceptance/native/image_repacking.py --expected-major 27 \
+  --references acceptance/testdata --output /tmp/repacking/macos-27
+APFS_NATIVE_REPACKING=/tmp/repacking APFS_REPACKING_OUTPUT=/tmp/repack-output \
+  go test -v -run '^TestNativeImageRepacking$' ./acceptance
+```
+
+CI sets `APFS_REQUIRED_NATIVE_MAJORS=15,26,27`. Missing cases, negative controls,
+producers or returned output images fail; unsupported input never counts as a
+successful positive case. Corrupt CRCs, missing/overlapping runs, unknown resources,
+publication refusal, streaming failure and cancellation also have focused unit
+controls. This increment does not qualify image decryption/re-encryption,
+filesystem repair, damaged-image salvage or signing implementations.

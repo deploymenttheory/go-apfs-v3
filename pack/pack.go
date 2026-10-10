@@ -1,4 +1,4 @@
-// Package pack constructs new filesystem images from immutable logical readers.
+// Package pack constructs filesystem images and repacks complete disks.
 // It neither mutates source images nor interprets command-line file operations.
 package pack
 
@@ -76,14 +76,23 @@ func (w *countWriter) Write(b []byte) (int, error) {
 // publication is atomic and refuses an existing file, directory or symlink.
 // Power-loss directory durability is outside this fresh-output contract.
 func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (report Report, err error) {
+	err = publish(ctx, path, func(out io.Writer) error {
+		report, err = Write(ctx, out, r, o)
+		return err
+	})
+	return report, err
+}
+
+// publish is shared by fresh filesystem builds and sector-preserving repacks.
+func publish(ctx context.Context, path string, write func(io.Writer) error) (err error) {
 	if _, e := os.Lstat(path); e == nil {
-		return report, fs.ErrExist
+		return fs.ErrExist
 	} else if !errors.Is(e, fs.ErrNotExist) {
-		return report, e
+		return e
 	}
 	f, err := os.CreateTemp(filepath.Dir(path), ".apfs-pack-*")
 	if err != nil {
-		return report, err
+		return err
 	}
 	temporary := f.Name()
 	closed := false
@@ -97,22 +106,22 @@ func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (r
 			err = errors.Join(err, removeErr)
 		}
 	}()
-	report, err = Write(ctx, f, r, o)
+	err = write(f)
 	if err != nil {
-		return report, err
+		return err
 	}
 	if err = f.Sync(); err != nil {
-		return report, err
+		return err
 	}
 	err = f.Close()
 	closed = true
 	if err != nil {
-		return report, err
+		return err
 	}
 	if err = ctx.Err(); err != nil {
-		return report, err
+		return err
 	}
 	err = os.Link(temporary, path)
 	published = err == nil
-	return report, err
+	return err
 }

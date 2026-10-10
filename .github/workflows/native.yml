@@ -68,6 +68,8 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-commands --output artifacts/native/file-commands/macos-${{ matrix.major }}
       - name: Record HFS packaging inputs and signed application references
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario image-building --output artifacts/native/image-building/macos-${{ matrix.major }}
+      - name: Record complete disks, snapshots, encrypted volumes and unused sectors for repacking
+        run: python3 acceptance/native/image_repacking.py --expected-major "${{ matrix.major }}" --references artifacts/native --output artifacts/native/image-repacking/macos-${{ matrix.major }}
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -86,7 +88,9 @@ jobs:
 
           Image building records HFS+/HFSX trees and an independently signed universal application.
 
-          The thirteen steps above isolate what is being checked. The uploaded images,
+          Image repacking records complete native disk hashes, partition maps, snapshots, encrypted volumes and unused-sector controls.
+
+          The fourteen steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -115,6 +119,7 @@ jobs:
             artifacts/native/metadata-edits/macos-${{ matrix.major }}/
             artifacts/native/file-commands/macos-${{ matrix.major }}/
             artifacts/native/image-building/macos-${{ matrix.major }}/
+            artifacts/native/image-repacking/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -166,7 +171,9 @@ jobs:
           APFS_COMMAND_OUTPUT: ../artifacts/file-commands
           APFS_NATIVE_IMAGE_BUILDING: ../artifacts/native/image-building
           APFS_IMAGE_BUILDING_OUTPUT: ../artifacts/image-building
-      - name: Archive complete workspaces including empty directories
+          APFS_NATIVE_REPACKING: ../artifacts/native/image-repacking
+          APFS_REPACKING_OUTPUT: ../artifacts/image-repacking
+      - name: Archive complete workspaces and output images
         shell: bash
         run: |
           mkdir -p artifacts/workspace-outputs
@@ -174,10 +181,10 @@ jobs:
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          for family in preservation replacement tree-edits metadata-edits file-commands image-building; do
+          for family in preservation replacement tree-edits metadata-edits file-commands image-building image-repacking; do
             tar -czf "artifacts/workspace-outputs/${family}-${{ matrix.platform }}.tar.gz" "${archive_options[@]}" -C "artifacts/${family}" .
           done
-      - name: Retain archived workspaces and AppleDouble output
+      - name: Retain archived workspaces and output images
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: workspace-outputs-${{ matrix.platform }}
@@ -255,12 +262,16 @@ jobs:
         run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
       - name: Check built DMGs, mounted metadata, signatures and reproducibility with Apple tools
         run: python3 acceptance/native/verify_image_building.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-building --outputs artifacts/outputs
-      - name: Retain image-building verification diagnostics
+      - name: Check repacked disk sectors, volumes, snapshots and signatures with Apple tools
+        run: python3 acceptance/native/verify_image_repacking.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-repacking --outputs artifacts/outputs
+      - name: Retain image-building and repacking verification diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: image-building-verification-${{ matrix.major }}
-          path: artifacts/outputs/image-building-*.diagnostics.json
+          path: |
+            artifacts/outputs/image-building-*.diagnostics.json
+            artifacts/outputs/image-repacking-*.diagnostics.json
           if-no-files-found: warn
       - name: Explain the native output verification
         run: |
@@ -284,6 +295,9 @@ jobs:
           Image building checks 36 DMGs with Apple checksum verification, fsck_hfs,
           exact mounted readback and codesign. Every host must produce identical bytes
           from the same captured source and build options.
+          Image repacking checks 90 DMGs against complete native disk hashes,
+          partition and volume inventories, encrypted-volume unlocks, retained
+          snapshot histories, signed apps and recorded unused-sector bytes.
           No Go verifier supplies these results.
           EOF
 

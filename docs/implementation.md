@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh HFS+/HFSX volume construction and UDRO/UDZO packing implemented; native image-building qualification required. APFS creation, repacking and volume groups remain pending |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh HFS+/HFSX construction and sector-preserving raw/UDIF repacking to UDRO/UDZO implemented; native build/repack qualification required. APFS creation and volume-group construction remain pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -342,10 +342,47 @@ signed universal app. Linux, Windows and macOS build both encodings twice from
 every producer. Every output returns to every Mac for image checks, fsck without
 repair, exact mounted metadata/fork/link readback and signature verification.
 Same-input outputs must be byte-identical across hosts. Local native qualification
-uses macOS 27; the full macOS 15/26/27 matrix remains mandatory before completion.
+uses macOS 27; the full macOS 15/26/27 capture, portable build and native readback
+matrix passed in [PR #20](https://github.com/deploymenttheory/go-apfs-v3/pull/20).
 
 APFS creation, journaled/in-place writes, new decmpfs encoding, encryption writing,
-sector-preserving repacking, snapshots and volume groups retain separate gates.
+snapshot mutation and volume-group construction retain separate gates.
+
+## Sector-preserving image repacking increment
+
+`pack IMAGE NEW_DMG` encodes the complete decoded disk as UDRO or UDZO. Source
+partition maps, every volume, allocation, retained snapshots, encrypted APFS
+sectors and recorded unallocated bytes survive exactly. It uses no filesystem
+builder, session or raw scratch image. The same bounded UDIF encoder handles
+fresh HFS builds and ordered source block ranges; the same publication helper
+flushes and closes staging before refusing-overwrite publication.
+
+Repacking admits complete raw GPT/APM or recognizable bare APFS/HFS+ disks and
+the documented flattened XML UDIF profile. It verifies every present data/block/
+master CRC and complete run coverage before encoding. Unknown resources, extended
+footers, encrypted DMG envelopes and container signatures fail explicitly. The
+native empty `plst` placeholder and source block labels/IDs/ranges are retained.
+A before/during decoded-disk hash detects changed input under an immutable-source
+contract. See [packing semantics](packing.md#repacking-an-existing-image).
+
+One `image-repacking` family reuses signed-app and snapshot references from the
+existing independent native families. New native cases cover bare HFS+, HFSX on
+APM with an explicit free partition and a sentinel sector, and a sufficiently
+large APFS container with ordinary and encrypted volumes. Raw, UDRO, UDZO and
+UDBZ sources produce both output encodings twice on every portable host. Native
+signed and encrypted DMG inputs are refusal controls and must leave no output.
+The local macOS 27 positive replay takes approximately seven seconds.
+
+Each macOS verifier checks all 90 portable outputs using Apple image verification,
+raw-device disk hashes, partition/volume inventories, read-only mounted file and
+raw-attribute observations, retained snapshot mounts, encrypted-volume unlocks,
+filesystem checks and signature verification. Outputs for the same input/options
+must be byte-identical across hosts. Sources and native observations remain
+immutable; no Go decoder supplies the final native verdict. Fresh macOS 15/26/27
+capture, Linux/Windows/macOS replay and every native readback are required.
+
+Filesystem rebuilding, APFS construction, encrypted DMG writing, container signing,
+new filesystem compression and existing-image mutation retain separate gates.
 
 ## Required phase gates
 

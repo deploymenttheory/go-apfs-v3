@@ -370,3 +370,24 @@ Both layers borrow input and leave destination publication to the caller.
 A bounded pipe connects them without writing an intermediate raw disk. The
 file-output helper flushes a sibling temporary file and uses no-overwrite hard-link
 publication. Existing images and their transaction algorithms are untouched.
+
+## Complete-disk repacking
+
+`diskimage.Repack` accepts borrowed immutable image storage and a sequential
+output writer. It opens the existing image decoder, applies stricter envelope
+admission than file reading, verifies native CRCs and hashes all logical sectors.
+The shared UDIF encoder then streams every source block range and checks the disk
+hash again. The operation never opens an APFS/HFS+ tree or changes allocation.
+APFS encrypted sectors remain ciphertext. Encrypted DMG envelopes are refused.
+
+Strict XML resource admission is local to repacking: duplicate keys, unsupported
+resources and unexplained bytes cannot be silently dropped by re-encoding. Native
+empty `plst` values and existing block names/IDs/ranges are retained. Absent native
+checksums do not establish checksum validation; disk SHA-256 records
+the resulting byte stream, without claiming forensic recovery or authenticity.
+
+`pack.Repack` owns the read-only source file and closes it before publication.
+Both repacking and fresh-volume construction use one private-sibling, flush/close,
+no-overwrite publication helper. CLI file operands select repacking; directory
+and session operands retain the existing build path. Construction-only flags
+cannot accidentally rename, resize or reinterpret an existing image.
