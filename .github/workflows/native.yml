@@ -41,7 +41,7 @@ jobs:
           - runner: xcode-27
             major: 27
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Record APFS snapshot inventories and historical files
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
       - name: Record volume layout and identity
@@ -133,7 +133,7 @@ jobs:
           - os: macos-26
             platform: macOS
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
@@ -225,7 +225,7 @@ jobs:
           - runner: xcode-27
             major: 27
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/download-artifact@v7
         with:
           pattern: native-corpus-*
