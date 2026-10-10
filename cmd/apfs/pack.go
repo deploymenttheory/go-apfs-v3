@@ -47,6 +47,11 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if len(operands) != want {
 		return fmt.Errorf("usage: apfs pack [--session NAME | --filesystem hfsplus|hfsx DIRECTORY] [options] NEW_DMG")
 	}
+	if _, e := os.Lstat(operands[len(operands)-1]); e == nil {
+		return fs.ErrExist
+	} else if !errors.Is(e, fs.ErrNotExist) {
+		return e
+	}
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {
 		clock, err = time.Parse(time.RFC3339, *fixed)
@@ -98,7 +103,12 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		if !info.IsDir() {
 			return fmt.Errorf("pack source must be a directory")
 		}
-		root, e := os.MkdirTemp("", "apfs-pack-session-")
+		if common.scratch != "" {
+			if e = os.MkdirAll(common.scratch, 0700); e != nil {
+				return e
+			}
+		}
+		root, e := os.MkdirTemp(common.scratch, "apfs-pack-session-")
 		if e != nil {
 			return e
 		}

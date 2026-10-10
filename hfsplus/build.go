@@ -243,8 +243,8 @@ func (p *Layout) reserveMetadata(n int64) error {
 
 func buildDate(t time.Time) (uint32, error) {
 	s := t.Unix() + 2082844800
-	if t.Nanosecond() != 0 || s < 0 || s > math.MaxUint32 {
-		return 0, fmt.Errorf("HFS timestamp %s must be whole seconds in 1904–2040: %w", t, filesystem.ErrUnsupported)
+	if t.Nanosecond() != 0 || s < 2082844800 || s > math.MaxUint32 {
+		return 0, fmt.Errorf("HFS timestamp %s must be whole seconds in 1970–2040: %w", t, filesystem.ErrUnsupported)
 	}
 	return uint32(s), nil
 }
@@ -443,6 +443,9 @@ func (p *Layout) arrange(ctx context.Context) error {
 		total = max(uint64(2048), needed+needed/8+32)
 	}
 	bitmapBlocks := ((total+7)/8 + 4095) / 4096
+	if total < 2048 {
+		return fmt.Errorf("HFS build capacity must be at least 8 MiB: %w", filesystem.ErrLimit)
+	}
 	if total < needed+bitmapBlocks {
 		return fmt.Errorf("capacity requires at least %d bytes: %w", (needed+bitmapBlocks)*4096, filesystem.ErrLimit)
 	}

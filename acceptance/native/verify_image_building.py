@@ -21,6 +21,8 @@ from verify_preservation import require
 
 def verify(image, expected, sensitive, command):
     before = sha256(image)
+    image_info = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', image))
+    require(image_info['Format'] == image.stem, 'requested DMG encoding')
     command('hdiutil', 'verify', image)
     attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-nomount', '-plist', image))
     devices = [e['dev-entry'] for e in attached['system-entities'] if 'dev-entry' in e]
@@ -34,6 +36,7 @@ def verify(image, expected, sensitive, command):
         command('diskutil', 'mount', 'readOnly', '-mountPoint', mount, device)
         info = plistlib.loads(command('diskutil', 'info', '-plist', device))
         require(info['VolumeName'] == 'Example', 'volume name')
+        require(info['TotalSize'] == (160 if sensitive else 8) * 1024 * 1024, 'volume capacity')
         require(('case-sensitive' in info['FilesystemName'].lower()) == sensitive, 'case policy')
         # Capture the root under the same logical spelling as the input tree.
         actual = observe_files(mount)

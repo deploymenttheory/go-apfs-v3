@@ -60,7 +60,8 @@ func Encode(ctx context.Context, out io.Writer, source io.Reader, size int64, fo
 		kind := uint32(1)
 		payload := b
 		if allZero(b) {
-			kind = 2
+			// Type 0 is checksum-covered zero fill; type 2 ignores sectors in native CRCs.
+			kind = 0
 			payload = nil
 		} else if format == "UDZO" {
 			var compressed bytes.Buffer

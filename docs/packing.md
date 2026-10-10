@@ -20,7 +20,9 @@ Directory import uses the existing session engine with archive preservation and
 regular-file hard-link preservation. Scratch is created and removed automatically.
 The directory's contents become the volume root's children; the volume root uses
 the session creation defaults. A session build retains its captured root metadata.
-`--scratch-dir` and `APFS_SCRATCH_DIR` locate named sessions as usual.
+`--scratch-dir` and `APFS_SCRATCH_DIR` locate named sessions and select the
+temporary import scratch root. Unnamed imports default to the system temporary
+directory.
 
 `--filesystem hfsplus|hfsx` is required for directory input. A named session must
 already be HFS+ or HFSX. APFS creation and cross-format metadata conversion require
@@ -62,7 +64,7 @@ JSON is an optional output report only.
 ## Capacity and reproducibility
 
 `--capacity` specifies volume bytes, optionally suffixed `KiB`, `MiB` or `GiB`.
-Capacity rounds up to a 4096-byte block. Automatic sizing reserves space for every
+Capacity rounds up to a 4096-byte block and must be at least 8 MiB. Automatic sizing reserves space for every
 payload and metadata tree plus free space, with an 8 MiB minimum. Insufficient
 capacity fails before output publication.
 
@@ -104,7 +106,9 @@ The CLI refuses destinations inside the managed session scratch directory.
 One `image-building` acceptance family starts from Apple-created HFS+/HFSX images.
 Its source contains deep catalog trees, large and empty attributes, resource forks,
 compressed files, native filenames, aliases and an Apple-signed universal app.
-Every portable host captures a session and builds UDRO and UDZO twice. Local
+Every portable host captures a session and builds UDRO and UDZO twice. Automatic
+8 MiB and explicit 160 MiB capacities exercise multi-block allocation bitmaps and
+checksum-covered zero chunks; long keys force a three-level catalog. Local
 comparisons check the original observations and reproducibility. CI returns every
 output to macOS 15, 26 and 27 for `hdiutil verify`, `fsck_hfs -fn`, read-only mounted
 readback and `codesign --verify --deep --strict`. An independent Python comparison

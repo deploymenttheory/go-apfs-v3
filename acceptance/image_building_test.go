@@ -37,6 +37,24 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(want.RawAttributes) != len(want.Entries) {
+		t.Fatal("missing raw attribute observations")
+	}
+	kinds := map[uint32]bool{}
+	for _, entry := range want.Entries {
+		n, e := reader.Stat(ctx, entry.Object)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if n.Compression.State == filesystem.Present {
+			kinds[n.Compression.Value.Type] = true
+		}
+	}
+	for _, kind := range []uint32{1, 3, 4, 7, 8} {
+		if !kinds[kind] {
+			t.Fatal("missing native compression control", kind)
+		}
+	}
 	clock := time.Date(2025, 6, 7, 8, 9, 10, 0, time.UTC)
 	s, err := session.Capture(ctx, buildRoot{reader, id}, filepath.Join(t.TempDir(), "session"), session.Options{Time: &clock})
 	if err != nil {
@@ -54,6 +72,10 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 	for _, format := range []string{"UDRO", "UDZO"} {
 		t.Run(format, func(t *testing.T) {
 			options := pack.Options{Format: format, Volume: hfsplus.BuildOptions{Name: "Example", Time: clock, CaseSensitive: reader.NameRules().CaseSensitive}}
+			// Cross the allocation bitmap block boundary and exercise large zero chunks.
+			if reader.NameRules().CaseSensitive {
+				options.Volume.Capacity = 160 << 20
+			}
 			destination := filepath.Join(output, format+".dmg")
 			report, err := pack.Create(ctx, destination, s, options)
 			if err != nil {
