@@ -497,7 +497,9 @@ evidence and is excluded only where no copied source supplied it. Copied securit
 metadata is still checked byte-for-byte. See [the contract](../docs/sessions.md).
 
 Required captures change UID/GID to 60001/60002 with sudo on disposable volumes.
-The retained local macOS 27 reference records same-owner assignment because this
+The retained macOS 15 CI corpus supplies actual ownership changes, including
+physical symlinks during recursive chown. The retained local macOS 27 reference
+records same-owner assignment because this
 account lacks passwordless sudo. Independent local readback accepts
 `--allow-same-owner` only with one local producer and macOS consumer; that option
 cannot bypass the required release matrix. Process-interruption, hash corruption,

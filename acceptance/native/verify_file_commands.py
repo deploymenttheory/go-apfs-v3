@@ -96,7 +96,7 @@ def verify_case(corpus, output, case, allow_same_owner=False):
                 entry['flags'] &= ~32
             if p in ('build-alias', 'Applications/Source.app/Contents/Moved/build.bin'):
                 links.add(portable)
-            if ref['ownership'] == 'changed-with-sudo' and p.startswith('Applications/Source.app') and entry['mode'] & 0o170000 != 0o120000:
+            if ref['ownership'] == 'changed-with-sudo' and p.startswith('Applications/Source.app'):
                 require(entry['uid'] == 60001 and entry['gid'] == 60002, 'native owner change missing')
         # Cumulative explicit assignments can include unchanged values. Their
         # allowed field set is checked here; all values are checked independently

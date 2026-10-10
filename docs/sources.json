@@ -660,6 +660,18 @@
       ],
       "evidence": "acceptance/testdata/file-commands/macos-27/manifest.json",
       "basis": "Four native before/after filesystem profiles, 23 Apple commands and five rejection controls each. noatime mounts avoid lazy read-cache effects. Automatic clock times normalize to a supplied fixed instant; explicit assignments retain native precision and birth-time coupling. Copied provenance remains exact; native process-injected provenance on new objects remains recorded but is outside portable process-authorization behavior. Local ownership uses same-owner assignment; required CI must change owners with sudo."
+    },
+    {
+      "id": "native-file-commands-15",
+      "kind": "native-observation",
+      "components": [
+        "session/commands.go",
+        "session/path.go",
+        "acceptance/file_commands_test.go"
+      ],
+      "evidence": "acceptance/testdata/file-commands/macos-15/manifest.json",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38039112409",
+      "basis": "Immutable macOS 15 CI reference with actual UID/GID reassignment to 60001/60002. Native capture passed on all three Macs; the first portable replay exposed that physical recursive chown changes symlink ownership while chmod skips symlinks. The corrected implementation passes these saved native observations. This reference prevents same-owner local capture from hiding the difference."
     }
   ]
 }

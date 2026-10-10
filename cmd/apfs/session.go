@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -119,20 +120,36 @@ func sessionDirectory(root, name string) (string, error) {
 	}
 	return filepath.Join(root, name), nil
 }
-func printSessionReport(out io.Writer, r session.Report, jsonOutput bool) error {
+func printSessionReport(out io.Writer, r session.Report, jsonOutput, details bool) error {
 	if jsonOutput {
 		return json.NewEncoder(out).Encode(r)
 	}
-	if _, err := fmt.Fprintf(out, "%s session: %d objects, %d entries, %d stored bytes.\nScratch: %s\nRevision: %s\n", r.Names.Format, r.Objects, r.Entries, r.BlobBytes, r.Location, r.Revision); err != nil {
+	if _, err := fmt.Fprintf(out, "%s session: %d objects, %d entries.\n", r.Names.Format, r.Objects, r.Entries); err != nil {
 		return err
 	}
-	for _, d := range r.Defaulted {
-		if _, err := fmt.Fprintf(out, "Object %d uses supplied defaults: %s.\n", d.Object, strings.Join(d.Fields, ", ")); err != nil {
+	if details {
+		if _, err := fmt.Fprintf(out, "Scratch: %s\nRevision: %s\nStored bytes: %d\n", r.Location, r.Revision, r.BlobBytes); err != nil {
 			return err
 		}
 	}
-	for _, id := range r.AttributesUnavailable {
-		if _, err := fmt.Fprintf(out, "Object %d: host extended attributes were unavailable.\n", id); err != nil {
+	counts := map[string]int{}
+	for _, d := range r.Defaulted {
+		for _, field := range d.Fields {
+			counts[field]++
+		}
+	}
+	var fields []string
+	for field, count := range counts {
+		fields = append(fields, fmt.Sprintf("%s (%d)", field, count))
+	}
+	sort.Strings(fields)
+	if len(fields) > 0 {
+		if _, err := fmt.Fprintf(out, "Metadata defaults by object count: %s.\n", strings.Join(fields, ", ")); err != nil {
+			return err
+		}
+	}
+	if len(r.AttributesUnavailable) > 0 {
+		if _, err := fmt.Fprintf(out, "Host extended attributes unavailable for %d objects.\n", len(r.AttributesUnavailable)); err != nil {
 			return err
 		}
 	}
@@ -295,7 +312,7 @@ func sessions(ctx context.Context, args []string, input io.Reader, out, diagnost
 		}
 		return printWorkspaceReport(out, r, common.json)
 	}
-	return printSessionReport(out, s.Report(), common.json)
+	return printSessionReport(out, s.Report(), common.json, args[0] == "status")
 }
 
 func hasSession(args []string) bool {

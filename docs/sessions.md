@@ -79,7 +79,8 @@ A trailing slash on a source directory copies its contents into the destination.
 `-H` follows command-line source links, `-L` follows all source links and `-P`
 copies the links themselves during recursive copy. Nonrecursive copy follows its
 source link. Recursive metadata commands default to physical traversal; `-h`
-changes links themselves. `rm` unlinks a final symlink without traversing its target.
+changes links themselves. Recursive `chown -P` also changes symlink ownership
+without following their targets, as Apple chown does. `rm` unlinks a final symlink without traversing its target.
 
 Copying onto an existing regular file retains its identity and updates all its
 aliases. New copies contain logical uncompressed data; active compression-owned

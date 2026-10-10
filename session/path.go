@@ -13,9 +13,10 @@ import (
 // WalkOptions follows macOS -R, -h and -H/-L/-P traversal choices. Follow is
 // empty or P (physical), H (command-line links), or L (all links).
 type WalkOptions struct {
-	Recursive bool
-	NoFollow  bool
-	Follow    string
+	includeLinks bool // chown -R changes physical symlink ownership; chmod skips it.
+	Recursive    bool
+	NoFollow     bool
+	Follow       string
 }
 type target struct {
 	id   uint64
@@ -157,7 +158,7 @@ func collect(ctx context.Context, r filesystem.Reader, paths []string, o WalkOpt
 		if err != nil {
 			return err
 		}
-		if n.Metadata.Mode.Value&0170000 == 0120000 && o.Recursive && !o.NoFollow {
+		if n.Metadata.Mode.Value&0170000 == 0120000 && o.Recursive && !o.NoFollow && !o.includeLinks {
 			return nil
 		}
 		result = append(result, at)

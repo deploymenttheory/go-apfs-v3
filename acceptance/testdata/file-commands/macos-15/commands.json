@@ -1,0 +1,2278 @@
+[
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "APFS",
+      "-volname",
+      "v3-apfs",
+      "-type",
+      "UDIF",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $AE0409B3: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $460FD80A: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $8F8C3F75: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $460FD80A: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $21A22612: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  2.168s\nFile size: 19287 bytes, Checksum: CRC32 $22A68F38\nSectors processed: 131072, 1891 compressed\nSpeed: 436.0KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-apfs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>66183168</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>90112</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>A96D7E22-DA91-4AAF-BD42-9E5D3EC8C85D</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>Fusion</key>\n\t<false/>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>A96D7E22-DA91-4AAF-BD42-9E5D3EC8C85D</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $AE0409B3\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $460FD80A\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified   CRC32 $8F8C3F75\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $460FD80A\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $21A22612\nverified   CRC32 $22A68F38\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "unmount",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-apfs on disk6s1 unmounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "nobrowse",
+      "-mountOptions",
+      "noatime,owners",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-apfs on /dev/disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>66183168</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>90112</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>A96D7E22-DA91-4AAF-BD42-9E5D3EC8C85D</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>Fusion</key>\n\t<false/>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>A96D7E22-DA91-4AAF-BD42-9E5D3EC8C85D</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<true/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/sbin/mount"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "/dev/disk2s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk2s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk2s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk2s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, root data)\n/dev/disk4s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex (apfs, sealed, local, nodev, nosuid, journaled, noowners)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n/dev/disk10s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex 1 (apfs, sealed, local, nodev, nosuid, journaled, noowners)\n/dev/disk6s1 on /Volumes/v3-apfs (apfs, local, nodev, nosuid, journaled, noatime, nobrowse, mounted by runner)\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "/Volumes/v3-apfs/Fixture/Source.app",
+      "/Volumes/v3-apfs/Fixture/Applications"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x,g=u-w,o=",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "-R",
+      "u=rwX,go=rX",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mkdir",
+      "-pm775",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New/deep"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-payload.bin",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "0644",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New/build.bin",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-fork.bin",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "Applications/Source.app",
+      "/Volumes/v3-apfs/Fixture/app-link"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x",
+      "/Volumes/v3-apfs/Fixture/app-link/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/chflags",
+      "hidden",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-w",
+      "org.command",
+      "command attribute",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-wx",
+      "org.binary",
+      "0001ff",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-d",
+      "org.original",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-fork.bin",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-empty.bin",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/Resources/executable-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "/Volumes/v3-apfs/Fixture/compressed",
+      "/Volumes/v3-apfs/Fixture/plain-copy"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/New",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/Moved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-d",
+      "2009-08-07T06:05:04Z",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-c",
+      "/Volumes/v3-apfs/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-r",
+      "/Volumes/v3-apfs/Fixture/obsolete"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-f",
+      "/Volumes/v3-apfs/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "-n",
+      "/usr/sbin/chown",
+      "-R",
+      "60001:60002",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-n",
+      "/Volumes/v3-apfs/Fixture/plain-copy",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "/Volumes/v3-apfs/Fixture/build-alias",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "cp: /Volumes/v3-apfs/Fixture/build-alias and /Volumes/v3-apfs/Fixture/build-alias are identical (not copied).\n"
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-apfs/Fixture/Applications",
+      "/Volumes/v3-apfs/Fixture/directory-hardlink"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "ln: /Volumes/v3-apfs/Fixture/Applications: Is a directory\n"
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "invalid",
+      "/Volumes/v3-apfs/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "chmod: Invalid file mode: invalid\n"
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app",
+      "/Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/cycle"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "mv: rename /Volumes/v3-apfs/Fixture/Applications/Source.app to /Volumes/v3-apfs/Fixture/Applications/Source.app/Contents/cycle: Invalid argument\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $AE0409B3: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $460FD80A: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $C7235FF4: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $460FD80A: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $21A22612: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.749s\nFile size: 26744 bytes, Checksum: CRC32 $1C20988E\nSectors processed: 131072, 2235 compressed\nSpeed: 298.0KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-after.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $AE0409B3\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $460FD80A\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified   CRC32 $C7235FF4\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $460FD80A\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $21A22612\nverified   CRC32 $1C20988E\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "Case-sensitive APFS",
+      "-volname",
+      "v3-apfs-case-sensitive",
+      "-type",
+      "UDIF",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $A7424E7A: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $BBBB65A6: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $4632020E: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $BBBB65A6: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $28E461DB: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  2.368s\nFile size: 19325 bytes, Checksum: CRC32 $13BCDA96\nSectors processed: 131072, 1891 compressed\nSpeed: 399.3KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-apfs-case-sensitive"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>66183168</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>90112</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>15C9503B-7770-4CFE-94C1-E089A16D6FC1</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>Fusion</key>\n\t<false/>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>15C9503B-7770-4CFE-94C1-E089A16D6FC1</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $A7424E7A\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $BBBB65A6\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified   CRC32 $4632020E\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $BBBB65A6\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $28E461DB\nverified   CRC32 $13BCDA96\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "unmount",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-apfs-case-sensitive on disk6s1 unmounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "nobrowse",
+      "-mountOptions",
+      "noatime,owners",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-apfs-case-sensitive on /dev/disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>66183168</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>67067904</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5s1</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>90112</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>15C9503B-7770-4CFE-94C1-E089A16D6FC1</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>Fusion</key>\n\t<false/>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-apfs-case-sensitive</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>15C9503B-7770-4CFE-94C1-E089A16D6FC1</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<true/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/sbin/mount"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "/dev/disk2s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk2s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk2s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk2s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, root data)\n/dev/disk4s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex (apfs, sealed, local, nodev, nosuid, journaled, noowners)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n/dev/disk10s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex 1 (apfs, sealed, local, nodev, nosuid, journaled, noowners)\n/dev/disk6s1 on /Volumes/v3-apfs-case-sensitive (apfs, local, nodev, nosuid, journaled, noatime, nobrowse, mounted by runner)\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Source.app",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x,g=u-w,o=",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "-R",
+      "u=rwX,go=rX",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mkdir",
+      "-pm775",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New/deep"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-payload.bin",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "0644",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New/build.bin",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-fork.bin",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "Applications/Source.app",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/app-link"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/app-link/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/chflags",
+      "hidden",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-w",
+      "org.command",
+      "command attribute",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-wx",
+      "org.binary",
+      "0001ff",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-d",
+      "org.original",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-fork.bin",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-empty.bin",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/Resources/executable-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/compressed",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/plain-copy"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/New",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/Moved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-d",
+      "2009-08-07T06:05:04Z",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-c",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-r",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/obsolete"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-f",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "-n",
+      "/usr/sbin/chown",
+      "-R",
+      "60001:60002",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-n",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/plain-copy",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "cp: /Volumes/v3-apfs-case-sensitive/Fixture/build-alias and /Volumes/v3-apfs-case-sensitive/Fixture/build-alias are identical (not copied).\n"
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/directory-hardlink"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "ln: /Volumes/v3-apfs-case-sensitive/Fixture/Applications: Is a directory\n"
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "invalid",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "chmod: Invalid file mode: invalid\n"
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app",
+      "/Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/cycle"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "mv: rename /Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app to /Volumes/v3-apfs-case-sensitive/Fixture/Applications/Source.app/Contents/cycle: Invalid argument\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/apfs-case-sensitive-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $A7424E7A: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $BBBB65A6: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_APFS : 4)\u2026\n   (CRC32 $E6BE4478: disk image (Apple_APFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $BBBB65A6: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $28E461DB: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  1.804s\nFile size: 26785 bytes, Checksum: CRC32 $F0660A5E\nSectors processed: 131072, 2235 compressed\nSpeed: 619.2KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-after.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-apfs-case-sensitive</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_APFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>7C3457EF-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $A7424E7A\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $BBBB65A6\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified   CRC32 $E6BE4478\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $BBBB65A6\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $28E461DB\nverified   CRC32 $F0660A5E\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/apfs-case-sensitive-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "HFS+",
+      "-volname",
+      "v3-hfsplus",
+      "-type",
+      "UDIF",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $43D3C5DD: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $615A9ACD: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFS : 4)\u2026\n   (CRC32 $AABB814B: disk image (Apple_HFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $615A9ACD: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $CC75EA7C: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  1.433s\nFile size: 19297 bytes, Checksum: CRC32 $79EEC62A\nSectors processed: 131072, 3260 compressed\nSpeed: 1.1MB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-hfsplus"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>621A7FC2-C89B-4DAF-8E32-EA29BEBAE4CA</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended</string>\n\t<key>FreeSpace</key>\n\t<integer>65429504</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsplus</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsplus</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>EEAF2128-8B50-31CE-B1E3-3FE6DAAA5B62</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $43D3C5DD\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $615A9ACD\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_HFS : 4)\u2026\n          disk image (Apple_HFS : 4): verified   CRC32 $AABB814B\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $615A9ACD\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $CC75EA7C\nverified   CRC32 $79EEC62A\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "unmount",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-hfsplus on disk5s1 unmounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "nobrowse",
+      "-mountOptions",
+      "noatime,owners",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-hfsplus on /dev/disk5s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>621A7FC2-C89B-4DAF-8E32-EA29BEBAE4CA</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended</string>\n\t<key>FreeSpace</key>\n\t<integer>65429504</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsplus</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsplus</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>EEAF2128-8B50-31CE-B1E3-3FE6DAAA5B62</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<true/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/sbin/mount"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "/dev/disk2s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk2s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk2s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk2s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, root data)\n/dev/disk4s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex (apfs, sealed, local, nodev, nosuid, journaled, noowners)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n/dev/disk10s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex 1 (apfs, sealed, local, nodev, nosuid, journaled, noowners)\n/dev/disk5s1 on /Volumes/v3-hfsplus (hfs, local, nodev, nosuid, noatime, nobrowse, mounted by runner)\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "/Volumes/v3-hfsplus/Fixture/Source.app",
+      "/Volumes/v3-hfsplus/Fixture/Applications"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x,g=u-w,o=",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "-R",
+      "u=rwX,go=rX",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mkdir",
+      "-pm775",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New/deep"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-payload.bin",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "0644",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New/build.bin",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-fork.bin",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "Applications/Source.app",
+      "/Volumes/v3-hfsplus/Fixture/app-link"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x",
+      "/Volumes/v3-hfsplus/Fixture/app-link/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/chflags",
+      "hidden",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-w",
+      "org.command",
+      "command attribute",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-wx",
+      "org.binary",
+      "0001ff",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-d",
+      "org.original",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-fork.bin",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-empty.bin",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/Resources/executable-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "/Volumes/v3-hfsplus/Fixture/compressed",
+      "/Volumes/v3-hfsplus/Fixture/plain-copy"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/New",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/Moved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-d",
+      "2009-08-07T06:05:04Z",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-c",
+      "/Volumes/v3-hfsplus/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-r",
+      "/Volumes/v3-hfsplus/Fixture/obsolete"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-f",
+      "/Volumes/v3-hfsplus/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "-n",
+      "/usr/sbin/chown",
+      "-R",
+      "60001:60002",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-n",
+      "/Volumes/v3-hfsplus/Fixture/plain-copy",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "/Volumes/v3-hfsplus/Fixture/build-alias",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "cp: /Volumes/v3-hfsplus/Fixture/build-alias and /Volumes/v3-hfsplus/Fixture/build-alias are identical (not copied).\n"
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-hfsplus/Fixture/Applications",
+      "/Volumes/v3-hfsplus/Fixture/directory-hardlink"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "ln: /Volumes/v3-hfsplus/Fixture/Applications: Is a directory\n"
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "invalid",
+      "/Volumes/v3-hfsplus/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "chmod: Invalid file mode: invalid\n"
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app",
+      "/Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/cycle"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "mv: rename /Volumes/v3-hfsplus/Fixture/Applications/Source.app to /Volumes/v3-hfsplus/Fixture/Applications/Source.app/Contents/cycle: Invalid argument\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsplus-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $43D3C5DD: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $615A9ACD: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFS : 4)\u2026\n   (CRC32 $7A43D088: disk image (Apple_HFS : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $615A9ACD: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $CC75EA7C: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  3.133s\nFile size: 21559 bytes, Checksum: CRC32 $7031F7B3\nSectors processed: 131072, 3484 compressed\nSpeed: 555.9KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-after.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsplus</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $43D3C5DD\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $615A9ACD\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_HFS : 4)\u2026\n          disk image (Apple_HFS : 4): verified   CRC32 $7A43D088\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $615A9ACD\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $CC75EA7C\nverified   CRC32 $7031F7B3\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsplus-after.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "create",
+      "-size",
+      "64m",
+      "-layout",
+      "GPTSPUD",
+      "-fs",
+      "Case-sensitive HFS+",
+      "-volname",
+      "v3-hfsx",
+      "-type",
+      "UDIF",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "created: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $ADB13B57: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $013B286D: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFSX : 4)\u2026\n   (CRC32 $5121EEFE: disk image (Apple_HFSX : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $013B286D: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $221714F6: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  1.300s\nFile size: 19293 bytes, Checksum: CRC32 $AE30C061\nSectors processed: 131072, 3260 compressed\nSpeed: 1.2MB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/Volumes/v3-hfsx"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>C8640692-DE92-4A35-89F0-79741B6499B5</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>65429504</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsx</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsx</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>ED4BCFE1-C500-3E3D-A780-568CA44C7E57</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $ADB13B57\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $013B286D\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_HFSX : 4)\u2026\n         disk image (Apple_HFSX : 4): verified   CRC32 $5121EEFE\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $013B286D\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $221714F6\nverified   CRC32 $AE30C061\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx.dmg\" is VALID\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "unmount",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-hfsx on disk5s1 unmounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "nobrowse",
+      "-mountOptions",
+      "noatime,owners",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume v3-hfsx on /dev/disk5s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Bootable</key>\n\t<false/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>Content</key>\n\t<string>Apple_HFS</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>512</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk5s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk5s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>C8640692-DE92-4A35-89F0-79741B6499B5</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive HFS+</string>\n\t<key>FilesystemType</key>\n\t<string>hfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>Mac OS Extended (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>65429504</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<true/>\n\t<key>IOKitSize</key>\n\t<integer>67067904</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>disk image</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string>/Volumes/v3-hfsx</string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk5</string>\n\t<key>PartitionMapPartition</key>\n\t<true/>\n\t<key>PartitionMapPartitionOffset</key>\n\t<integer>20480</integer>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Size</key>\n\t<integer>67067904</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeAllocationBlockSize</key>\n\t<integer>4096</integer>\n\t<key>VolumeName</key>\n\t<string>v3-hfsx</string>\n\t<key>VolumeSize</key>\n\t<integer>67067904</integer>\n\t<key>VolumeUUID</key>\n\t<string>ED4BCFE1-C500-3E3D-A780-568CA44C7E57</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<true/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/sbin/mount"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "/dev/disk2s1s1 on / (apfs, sealed, local, read-only, journaled)\ndevfs on /dev (devfs, local, nobrowse)\n/dev/disk2s6 on /System/Volumes/VM (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk2s2 on /System/Volumes/Preboot (apfs, local, journaled, nobrowse)\n/dev/disk2s4 on /System/Volumes/Update (apfs, local, journaled, nobrowse)\n/dev/disk1s2 on /System/Volumes/xarts (apfs, local, noexec, journaled, noatime, nobrowse)\n/dev/disk1s1 on /System/Volumes/iSCPreboot (apfs, local, journaled, nobrowse)\n/dev/disk1s3 on /System/Volumes/Hardware (apfs, local, journaled, nobrowse)\n/dev/disk2s5 on /System/Volumes/Data (apfs, local, journaled, nobrowse, root data)\n/dev/disk4s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex (apfs, sealed, local, nodev, nosuid, journaled, noowners)\nmap auto_home on /System/Volumes/Data/home (autofs, automounted, nobrowse)\n/dev/disk10s1 on /Volumes/Creedence11M6270.SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex 1 (apfs, sealed, local, nodev, nosuid, journaled, noowners)\n/dev/disk5s1 on /Volumes/v3-hfsx (hfs, local, nodev, nosuid, noatime, nobrowse, mounted by runner)\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "/Volumes/v3-hfsx/Fixture/Source.app",
+      "/Volumes/v3-hfsx/Fixture/Applications"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x,g=u-w,o=",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "-R",
+      "u=rwX,go=rX",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mkdir",
+      "-pm775",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New/deep"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-payload.bin",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "0644",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New/build.bin",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-fork.bin",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "Applications/Source.app",
+      "/Volumes/v3-hfsx/Fixture/app-link"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "u+x",
+      "/Volumes/v3-hfsx/Fixture/app-link/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/chflags",
+      "hidden",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New/build.bin"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-w",
+      "org.command",
+      "command attribute",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-wx",
+      "org.binary",
+      "0001ff",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/xattr",
+      "-d",
+      "org.original",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-fork.bin",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "python3",
+      "-c",
+      "from pathlib import Path; import sys; Path(sys.argv[2]+\"/..namedfork/rsrc\").write_bytes(Path(sys.argv[1]).read_bytes())",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-empty.bin",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/Resources/executable-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "/Volumes/v3-hfsx/Fixture/compressed",
+      "/Volumes/v3-hfsx/Fixture/plain-copy"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/New",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/Moved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-d",
+      "2009-08-07T06:05:04Z",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-c",
+      "/Volumes/v3-hfsx/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-r",
+      "/Volumes/v3-hfsx/Fixture/obsolete"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-f",
+      "/Volumes/v3-hfsx/Fixture/absent"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "-n",
+      "/usr/sbin/chown",
+      "-R",
+      "60001:60002",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-n",
+      "/Volumes/v3-hfsx/Fixture/plain-copy",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "/Volumes/v3-hfsx/Fixture/build-alias",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "cp: /Volumes/v3-hfsx/Fixture/build-alias and /Volumes/v3-hfsx/Fixture/build-alias are identical (not copied).\n"
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "/Volumes/v3-hfsx/Fixture/Applications",
+      "/Volumes/v3-hfsx/Fixture/directory-hardlink"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "ln: /Volumes/v3-hfsx/Fixture/Applications: Is a directory\n"
+  },
+  {
+    "argv": [
+      "/bin/chmod",
+      "invalid",
+      "/Volumes/v3-hfsx/Fixture/build-alias"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "chmod: Invalid file mode: invalid\n"
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app",
+      "/Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/cycle"
+    ],
+    "status": 1,
+    "expectedSuccess": false,
+    "stdout": "",
+    "stderr": "mv: rename /Volumes/v3-hfsx/Fixture/Applications/Source.app to /Volumes/v3-hfsx/Fixture/Applications/Source.app/Contents/cycle: Invalid argument\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/hfsx-writable.dmg",
+      "-format",
+      "UDZO",
+      "-o",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Preparing imaging engine\u2026\nReading Protective Master Boot Record (MBR : 0)\u2026\n   (CRC32 $4620B9E2: Protective Master Boot Record (MBR : 0))\nReading GPT Header (Primary GPT Header : 1)\u2026\n   (CRC32 $ADB13B57: GPT Header (Primary GPT Header : 1))\nReading GPT Partition Data (Primary GPT Table : 2)\u2026\n   (CRC32 $013B286D: GPT Partition Data (Primary GPT Table : 2))\nReading  (Apple_Free : 3)\u2026\n   (CRC32 $00000000:  (Apple_Free : 3))\nReading disk image (Apple_HFSX : 4)\u2026\n   (CRC32 $0B037BC0: disk image (Apple_HFSX : 4))\nReading  (Apple_Free : 5)\u2026\n   (CRC32 $00000000:  (Apple_Free : 5))\nReading GPT Partition Data (Backup GPT Table : 6)\u2026\n   (CRC32 $013B286D: GPT Partition Data (Backup GPT Table : 6))\nReading GPT Header (Backup GPT Header : 7)\u2026\n   (CRC32 $221714F6: GPT Header (Backup GPT Header : 7))\nAdding resources\u2026\nElapsed Time:  2.124s\nFile size: 21556 bytes, Checksum: CRC32 $2E64615A\nSectors processed: 131072, 3484 compressed\nSpeed: 820.0KB/s\nSavings: 100.0%\ncreated: /Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-after.dmg\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nobrowse",
+      "-noautoopen",
+      "-owners",
+      "on",
+      "-readonly",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>Apple_HFS</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5s1</string>\n\t\t\t<key>mount-point</key>\n\t\t\t<string>/Volumes/v3-hfsx</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>48465300-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>GUID_partition_scheme</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "verify",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-after.dmg"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified   CRC32 $4620B9E2\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified   CRC32 $ADB13B57\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified   CRC32 $013B286D\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified   CRC32 $00000000\nChecksumming disk image (Apple_HFSX : 4)\u2026\n         disk image (Apple_HFSX : 4): verified   CRC32 $0B037BC0\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified   CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified   CRC32 $013B286D\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified   CRC32 $221714F6\nverified   CRC32 $2E64615A\n",
+    "stderr": "hdiutil: verify: checksum of \"/Users/runner/work/go-apfs-v3/go-apfs-v3/artifacts/native/file-commands/apfs-native-ycbzhku2/corpus/hfsx-after.dmg\" is VALID\n"
+  }
+]

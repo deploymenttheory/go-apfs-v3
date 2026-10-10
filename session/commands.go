@@ -86,6 +86,7 @@ func (s *Session) Chmod(ctx context.Context, paths []string, expression string, 
 	})
 }
 func (s *Session) Chown(ctx context.Context, paths []string, owner string, o WalkOptions) (Report, error) {
+	o.includeLinks = true
 	parts := strings.Split(owner, ":")
 	if len(parts) > 2 || owner == "" || owner == ":" {
 		return Report{}, fs.ErrInvalid

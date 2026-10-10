@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- | --- |
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native matrix qualification pending |
+| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
@@ -318,9 +318,10 @@ Command clocks normalize to one supplied instant, retaining each format's precis
 Copied security provenance remains exact; runner-injected provenance on newly
 created objects is recorded separately from portable command semantics.
 
-Retained macOS 27 evidence passes locally, including independent output readback.
-Fresh macOS 15/26/27 capture, actual ownership reassignment and Linux/Windows/macOS
-replay remain the PR qualification gate. Usage, supported flags, default provenance
+Retained macOS 27 local evidence and macOS 15 CI evidence pass local replay and
+independent output readback. The latter records actual ownership reassignment,
+including recursive chown of physical symlinks. Fresh macOS 15/26/27 capture,
+Linux/Windows/macOS replay and independent verification remain mandatory PR gates. Usage, supported flags, default provenance
 and deferred behavior are in [the session contract](sessions.md).
 
 ## Required phase gates

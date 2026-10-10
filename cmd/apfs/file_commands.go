@@ -225,7 +225,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if err != nil {
 		return err
 	}
-	return printSessionReport(out, report, common.json)
+	return printSessionReport(out, report, common.json, false)
 }
 func sessionAttributes(ctx context.Context, s *session.Session, args []string, read, write, remove, hexadecimal, noFollow bool, valueFile string, jsonOutput bool, out io.Writer) (err error) {
 	operations := 0
@@ -277,7 +277,7 @@ func sessionAttributes(ctx context.Context, s *session.Session, args []string, r
 		if e != nil {
 			return e
 		}
-		return printSessionReport(out, r, jsonOutput)
+		return printSessionReport(out, r, jsonOutput, false)
 	}
 	if remove {
 		if len(args) < 2 || hexadecimal {
@@ -287,7 +287,7 @@ func sessionAttributes(ctx context.Context, s *session.Session, args []string, r
 		if e != nil {
 			return e
 		}
-		return printSessionReport(out, r, jsonOutput)
+		return printSessionReport(out, r, jsonOutput, false)
 	}
 	if read {
 		if len(args) != 2 || jsonOutput {

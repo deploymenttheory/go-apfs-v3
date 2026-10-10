@@ -414,3 +414,34 @@ func TestCorruptionLimitsAndValueLifetime(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRecursiveChownChangesPhysicalLinks(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newSession(t)
+	check := func(_ Report, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	check(s.Mkdir(ctx, []string{"/tree"}, MkdirOptions{}))
+	check(s.Touch(ctx, []string{"/outside"}, TouchOptions{}))
+	check(s.Link(ctx, "/outside", "/tree/link", LinkOptions{Symbolic: true}))
+	check(s.Link(ctx, "absent", "/tree/dangling", LinkOptions{Symbolic: true}))
+	check(s.Chown(ctx, []string{"/tree"}, "60001:60002", WalkOptions{Recursive: true}))
+	for _, p := range []string{"/tree", "/tree/link", "/tree/dangling"} {
+		id, err := s.LookupPath(ctx, p, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n, err := s.Stat(ctx, id)
+		if err != nil || n.Metadata.UID.Value != 60001 || n.Metadata.GID.Value != 60002 {
+			t.Fatal(p, n, err)
+		}
+	}
+	id, _ := s.LookupPath(ctx, "/outside", false)
+	n, err := s.Stat(ctx, id)
+	if err != nil || n.Metadata.UID.Value != 0 {
+		t.Fatal("followed physical link", n, err)
+	}
+}
