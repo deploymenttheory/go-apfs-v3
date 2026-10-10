@@ -4,13 +4,13 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: readers, preservation-aware extraction and file-command sessions.** The executable inspects images,
+**Status: readers, preservation, file-command sessions and HFS+/HFSX image building.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
-remove and link entries, and edit metadata, extended attributes and resource forks. Filesystem writes, recovery and mounting
-are not implemented yet. See [implementation status](docs/implementation.md)
+remove and link entries, and edit metadata, extended attributes and resource forks. Fresh HFS+/HFSX DMGs can be built from sessions or directories. Existing-filesystem
+writes, APFS creation, recovery and mounting remain pending. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -35,6 +35,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cp --session build --from-host -a ./Example.app /
 ./bin/apfs chmod --session build 0755 /Example.app/Contents/MacOS/Example
 ./bin/apfs session export build ./edited-workspace
+./bin/apfs pack --filesystem hfsplus --volume-name Example ./source Example.dmg
 ./bin/apfs session remove build
 ```
 
@@ -74,6 +75,8 @@ Currently implemented:
   resource-fork replacement within the same ordered batches.
 - Persistent named sessions with managed scratch, host directory import and
   `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
+- Fresh, deterministic HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
+  see [packing semantics](docs/packing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 

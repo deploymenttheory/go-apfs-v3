@@ -8,3 +8,5 @@
 
 Specification coverage, compilation, unit coverage, and native qualification are
 different things and must not be presented interchangeably.
+
+- [Packing](packing.md): fresh HFS+/HFSX DMG construction and preservation guarantees.

@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Pending |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh HFS+/HFSX volume construction and UDRO/UDZO packing implemented; native image-building qualification required. APFS creation, repacking and volume groups remain pending |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -325,6 +325,27 @@ Linux/Windows/macOS replay and independent verification remain mandatory PR gate
 and deferred behavior are in [the session contract](sessions.md).
 The command increment passed the complete native capture, portable replay and
 independent output matrix in [PR #19's compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38040323305).
+
+## Fresh HFS+/HFSX image-building increment
+
+`pack` consumes named sessions or imports directory contents through managed
+scratch. Apple’s pinned `makehfs` volume/header/map setup is adapted into bounded
+Go construction, with catalog, attributes, private-directory file links and
+contiguous extents. The single-volume profile is clean and nonjournaled. UDRO and
+UDZO encoding use one independent streaming layer with fixed 4 MiB chunks and
+native CRC fields. Output is published only after successful flush/close, without
+replacing existing paths. The [packing contract](packing.md) specifies preservation,
+capacity, reproducibility, limits, native identities and failure behavior.
+
+One `image-building` family independently captures HFS+/HFSX source trees and a
+signed universal app. Linux, Windows and macOS build both encodings twice from
+every producer. Every output returns to every Mac for image checks, fsck without
+repair, exact mounted metadata/fork/link readback and signature verification.
+Same-input outputs must be byte-identical across hosts. Local native qualification
+uses macOS 27; the full macOS 15/26/27 matrix remains mandatory before completion.
+
+APFS creation, journaled/in-place writes, new decmpfs encoding, encryption writing,
+sector-preserving repacking, snapshots and volume groups retain separate gates.
 
 ## Required phase gates
 

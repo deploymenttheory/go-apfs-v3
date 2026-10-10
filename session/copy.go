@@ -88,7 +88,11 @@ func (s *Session) Copy(ctx context.Context, sources []string, to string, options
 			if err != nil {
 				return err
 			}
-			if strings.HasSuffix(source, "/") && entry.node.Metadata.Mode.Value&0170000 == 0040000 {
+			contents := strings.HasSuffix(source, "/")
+			if options.FromHost && len(source) > 0 {
+				contents = os.IsPathSeparator(source[len(source)-1])
+			}
+			if contents && entry.node.Metadata.Mode.Value&0170000 == 0040000 {
 				dst, err = destination(ctx, c.tree, to)
 				if path.Clean(to) == "/" {
 					dst = "/"

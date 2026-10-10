@@ -672,6 +672,59 @@
       "evidence": "acceptance/testdata/file-commands/macos-15/manifest.json",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38039112409",
       "basis": "Immutable macOS 15 CI reference with actual UID/GID reassignment to 60001/60002. Native capture passed on all three Macs; the first portable replay exposed that physical recursive chown changes symlink ownership while chmod skips symlinks. The corrected implementation passes these saved native observations. This reference prevents same-owner local capture from hiding the difference."
+    },
+    {
+      "id": "apple-hfs-formatter",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "components": [
+        "hfsplus/build.go",
+        "hfsplus/build_tree.go"
+      ],
+      "files": [
+        {
+          "path": "newfs_hfs/makehfs.c",
+          "sha256": "170d748c26c56cda566cf0321b34c3ab3e6b97d14643db8a8229b7841a19a597"
+        },
+        {
+          "path": "core/hfs_format.h",
+          "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+        },
+        {
+          "path": "core/hfs_link.c",
+          "sha256": "1238abcd80ada12e254a8d0e45dd82d990693f3dea047ecd7c7345c7a1410078"
+        },
+        {
+          "path": "core/hfs_xattr.c",
+          "sha256": "22413ad83654198946ad26797c074fc9c64500a9fe75abbfcff426731ddce117"
+        }
+      ],
+      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, legacy regular-file indirection and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output."
+    },
+    {
+      "id": "native-hfs-image-building-27",
+      "kind": "native-observation",
+      "components": [
+        "hfsplus/build.go",
+        "diskimage/encode.go",
+        "pack",
+        "acceptance/native/verify_image_building.py"
+      ],
+      "evidence": "acceptance/testdata/image-building/macos-27/manifest.json",
+      "basis": "Apple-created HFS+/HFSX inputs include a signed universal app, hard links, exact native metadata, attributes, independent resource forks and decmpfs types 1/3/4/7/8. Portable outputs are checked by hdiutil verify, fsck_hfs -fn, read-only native file observations and codesign on each Mac. A native encoder diagnostic established the 4 MiB maximum uncompressed UDIF chunk and checksum-covered type-0 zero runs; formatter probes established the attributes fork clump field and HFSX private-folder count flag. Source observations are retained unchanged."
+    },
+    {
+      "id": "v2-udif-encoder-study",
+      "kind": "prior-implementation-study",
+      "url": "https://github.com/deploymenttheory/go-apfs-v2/blob/2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036/pkg/disk/dmg_writer.go",
+      "revision": "2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036",
+      "components": [
+        "diskimage/encode.go"
+      ],
+      "basis": "Production-only study of UDIF checksum/blkx/footer fields, cross-checked against native hdiutil conversion. Original sequential Go encoder; no v2 tests, orchestration or code copied. Fixed 4 MiB chunks, bounded XML and explicit exact-source-length failures."
     }
   ]
 }
