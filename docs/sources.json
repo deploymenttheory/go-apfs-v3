@@ -722,9 +722,57 @@
       "url": "https://github.com/deploymenttheory/go-apfs-v2/blob/2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036/pkg/disk/dmg_writer.go",
       "revision": "2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036",
       "components": [
+        "diskimage/encode.go",
+        "diskimage/repack.go",
+        "diskimage/repack_layout.go"
+      ],
+      "basis": "Production-only study of UDIF checksum/blkx/footer fields, cross-checked against native hdiutil conversion. Original sequential Go encoder; no v2 tests, orchestration or code copied. Fixed 4 MiB chunks, bounded XML and explicit exact-source-length failures. Repacking also studies production-only block reconstruction, device/partition variants and signature footer offsets. Original strict resource admission and complete-coverage/CRC verification replace permissive reconstruction; no v2 tests were read or imported.",
+      "files": [
+        {
+          "path": "pkg/disk/dmg_writer.go",
+          "sha256": "3a0f8ae2a0261c34dcf3ffd52f1165502d70efafd28268603d5a3cacdceab92a"
+        },
+        {
+          "path": "pkg/disk/dmg_reader.go",
+          "sha256": "18c1900fd29579d963faef1d4e2488f4a62652f08e42a9e7dee30ac2f8d7a6e1"
+        },
+        {
+          "path": "pkg/disk/dmg_reconstruct.go",
+          "sha256": "3310ed4704a48c270bf4d66ad1519d61b43ab92ceee0f13c31e2f3029a394af9"
+        }
+      ]
+    },
+    {
+      "id": "libmodi-udif-format-study",
+      "kind": "format-research",
+      "url": "https://github.com/libyal/libmodi/blob/8fc5088e51cd606d9f2b8ce000bfdf5a78042f84/documentation/Mac%20OS%20disk%20image%20types.asciidoc",
+      "revision": "8fc5088e51cd606d9f2b8ce000bfdf5a78042f84",
+      "components": [
+        "diskimage/repack_layout.go",
         "diskimage/encode.go"
       ],
-      "basis": "Production-only study of UDIF checksum/blkx/footer fields, cross-checked against native hdiutil conversion. Original sequential Go encoder; no v2 tests, orchestration or code copied. Fixed 4 MiB chunks, bounded XML and explicit exact-source-length failures."
+      "files": [
+        {
+          "path": "documentation/Mac OS disk image types.asciidoc",
+          "sha256": "c44b22908ad9f7ca434891b41f41aed81ae43014c3cab319efc6ac9c7798c055"
+        }
+      ],
+      "basis": "Original format research cross-check for flattened UDIF footer flags, device/partition variants, block resources and native plst placeholder. Reference only; no prose or implementation copied. Apple-tool acceptance supplies the independent compatibility verdict."
+    },
+    {
+      "id": "native-image-repacking-27",
+      "kind": "native-observation",
+      "components": [
+        "diskimage/repack.go",
+        "diskimage/repack_layout.go",
+        "diskimage/encode.go",
+        "pack/repack.go",
+        "acceptance/native/image_repacking.py",
+        "acceptance/native/verify_image_repacking.py",
+        "diskimage/repack_raw.go"
+      ],
+      "evidence": "acceptance/testdata/image-repacking/macos-27/manifest.json",
+      "basis": "Apple-created raw, UDRO, UDZO and UDBZ disks; native raw-device full-disk SHA-256 and mounted file, fork, attribute, partition/volume, snapshot and encryption observations. Reuses independent signed-app and snapshot inputs with recorded parent provenance. Apple partitionDisk creates an APM free partition before seeding an unused sector; expected marker bytes are then read through the native device. Native signed and encrypted DMGs are explicit refusal controls. Every portable host output returns to each required Mac; no Go code supplies the native verdict. Native readback rejected a generic single-block device descriptor for raw APM input; native conversion supplies DDM/APM and GPT region descriptors, and raw-device hashes prove the resulting disk remains identical."
     }
   ]
 }

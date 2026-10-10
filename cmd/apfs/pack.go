@@ -45,12 +45,37 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		want = 1
 	}
 	if len(operands) != want {
-		return fmt.Errorf("usage: apfs pack [--session NAME | --filesystem hfsplus|hfsx DIRECTORY] [options] NEW_DMG")
+		return fmt.Errorf("usage: apfs pack [--format UDRO|UDZO] IMAGE NEW_DMG; or pack [--session NAME | --filesystem hfsplus|hfsx DIRECTORY] [options] NEW_DMG")
 	}
 	if _, e := os.Lstat(operands[len(operands)-1]); e == nil {
 		return fs.ErrExist
 	} else if !errors.Is(e, fs.ErrNotExist) {
 		return e
+	}
+	if common.name == "" {
+		info, e := os.Stat(operands[0])
+		if e != nil {
+			return e
+		}
+		if !info.IsDir() {
+			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "uid", "gid", "scratch-dir"} {
+				if flagWasSet(f, option) {
+					return fmt.Errorf("--%s does not apply to image repacking", option)
+				}
+			}
+			report, e := pack.Repack(ctx, operands[0], operands[1], *format)
+			if e != nil {
+				return e
+			}
+			if common.json {
+				return json.NewEncoder(out).Encode(struct {
+					Schema int `json:"schema"`
+					pack.RepackReport
+				}{1, report})
+			}
+			_, e = fmt.Fprintf(out, "Repacked %s image: %d bytes (%d-byte disk)\nDisk SHA-256: %s\n", report.Format, report.ImageBytes, report.DiskBytes, report.DiskSHA256)
+			return e
+		}
 	}
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {

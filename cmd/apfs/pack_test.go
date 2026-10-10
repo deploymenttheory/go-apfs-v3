@@ -38,3 +38,30 @@ func TestPackDirectoryAndSession(t *testing.T) {
 		}
 	}
 }
+
+func TestPackImageAndRejectConstructionFlags(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "input.raw")
+	raw := make([]byte, 8192)
+	copy(raw[32:], "NXSB")
+	if err := os.WriteFile(source, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, diag bytes.Buffer
+	args := []string{"pack", source, filepath.Join(root, "output.dmg"), "--format", "UDRO", "--json"}
+	if err := run(context.Background(), args, nil, &out, &diag); err != nil {
+		t.Fatal(err, diag.String())
+	}
+	if !bytes.Contains(out.Bytes(), []byte(`"diskSHA256"`)) {
+		t.Fatal(out.String())
+	}
+	for _, option := range []string{"--filesystem=hfsplus", "--volume-name=Changed", "--capacity=16MiB", "--time=2025-06-07T08:09:10Z", "--volume-id=0000000000000000", "--uid=0", "--gid=0", "--scratch-dir=" + root} {
+		destination := filepath.Join(root, "refused.dmg")
+		if err := run(context.Background(), []string{"pack", option, source, destination}, nil, &out, &diag); err == nil {
+			t.Fatal("accepted", option)
+		}
+		if _, err := os.Stat(destination); !os.IsNotExist(err) {
+			t.Fatal("published refused output", err)
+		}
+	}
+}

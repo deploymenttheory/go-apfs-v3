@@ -1,6 +1,8 @@
-# Building filesystem images
+# Packing filesystem and disk images
 
-`pack` creates a new, mountable HFS+ or HFSX DMG on Linux, Windows or macOS.
+`pack` builds a new HFS+/HFSX filesystem from a directory or session, or repacks
+an existing disk image while preserving all decoded sectors. Both operations
+run on Linux, Windows and macOS.
 The filesystem builder and UDIF encoder are pure Go. Apple tools are used only
 for independent acceptance verification.
 
@@ -27,6 +29,58 @@ directory.
 `--filesystem hfsplus|hfsx` is required for directory input. A named session must
 already be HFS+ or HFSX. APFS creation and cross-format metadata conversion require
 their own implementation and qualification.
+
+## Repacking an existing image
+
+```sh
+apfs pack --format UDZO original.dmg compressed.dmg
+apfs pack --format UDRO original.dmg uncompressed.dmg
+apfs pack --json disk.raw packaged.dmg
+```
+
+A file operand selects sector-preserving repacking. The complete decoded disk is
+retained: partition tables and identifiers, every partition, filesystem allocation
+and metadata, recorded unused sectors, APFS volumes, encrypted volume sectors and
+retained snapshots. No filesystem is unlocked, repaired, rebuilt or resized. No
+session or intermediate raw disk file is needed. Construction-only flags, including
+`--filesystem`, `--volume-name`, `--capacity` and `--time`, are rejected for image
+input. The report supplies the preserved disk size and SHA-256.
+
+Lossless here means identical decoded disk bytes. The output DMG envelope is newly
+encoded; its compressed bytes, CRCs and segment identifier can differ from the
+input. Files and application signatures inside the disk retain their exact bytes.
+Bytes that an original image already omitted cannot be recovered by repacking.
+
+The admitted inputs are flat raw GPT/APM disks with 512-byte logical sectors or recognizable bare APFS/HFS+
+volumes, and flattened, single-segment version-4 UDIFs with XML metadata and raw,
+zero/ignored, zlib or bzip2 runs. Block tables and runs must cover the entire disk
+in order without overlap or gaps. Stored payloads must be accounted for. Every
+present data, block and master CRC32 is verified before encoding. An absent native
+checksum is accepted only when its complete field is zero; a computed disk hash
+does not establish authenticity or filesystem health. Structural/checksum errors
+fail without publishing an output; there is no repair or salvage option.
+
+The encoder retains source block names, identifiers, ranges and the recognized
+native empty `plst` placeholder. Unknown resource keys or values, nonempty/unknown
+`plst` resources, extended footers, container signatures, notarization data and
+unaccounted envelope bytes are refused. License resources are therefore refused
+rather than removed. Signed applications inside an ordinary DMG are supported;
+a signature on the DMG itself requires a separate future signing workflow.
+Encrypted DMG envelopes are refused. APFS encryption inside an unencrypted image
+survives unchanged and needs no password for this operation.
+
+Identical image bytes, format and tool version produce identical output across
+hosts. Repacking hashes the decoded disk before and during encoding and refuses a
+detected change. Inputs must remain immutable for the call. Memory is bounded by
+the existing decoder cache, a 4 MiB output chunk and bounded metadata; it does not
+scale with disk capacity. The existing 1 TiB disk and 16 MiB XML limits apply,
+with at most 4096 block tables and bounded XML depth/node counts.
+
+`diskimage.Repack` borrows a `block.Source` and an output writer. `pack.Repack`
+opens a source file and publishes the completed image at a new path with the same
+flush, no-overwrite and cleanup contract as fresh builds below. Reader ownership
+and output-on-error rules remain explicit. Raw forensic imaging of damaged or
+unrecognized partition maps retains a separate qualification gate.
 
 ## Output and preservation contract
 
@@ -115,3 +169,13 @@ readback and `codesign --verify --deep --strict`. An independent Python comparis
 checks exact values and a bijection of link identities; hashes must match across
 portable hosts for the same captured input and options. No Go writer or reader
 supplies the native expected values or the final native verdict.
+
+The `image-repacking` family reuses independently captured signed-app and snapshot
+images, then adds native bare HFS+, raw GPT and HFSX Apple Partition Map disks with seeded free
+sectors, and two APFS volumes sharing a container, one encrypted. Inputs exercise
+raw, UDRO, UDZO and UDBZ storage. Apple devices supply the complete disk hashes;
+all three hosts produce UDRO/UDZO twice. Every Mac verifies all 90 outputs with
+`hdiutil verify`, raw-device SHA-256, partition/volume inventories, native mounted
+file and raw-attribute observations, retained snapshot mounts, encrypted-volume
+unlocking, filesystem checks and application signature verification. Cross-host
+image hashes must agree. The native comparison never invokes Go.
