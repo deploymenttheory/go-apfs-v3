@@ -4,13 +4,13 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: readers, preservation, file-command sessions, HFS+/HFSX image building and disk-image repacking.** The executable inspects images,
+**Status: readers, preservation, file-command sessions, APFS/HFS+/HFSX image building and disk-image repacking.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
-remove and link entries, and edit metadata, extended attributes and resource forks. Fresh HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Existing-filesystem
-writes, APFS creation, recovery and mounting remain pending. See [implementation status](docs/implementation.md)
+remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Existing-filesystem
+writes, multi-volume APFS creation, recovery and mounting remain pending. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -35,7 +35,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cp --session build --from-host -a ./Example.app /
 ./bin/apfs chmod --session build 0755 /Example.app/Contents/MacOS/Example
 ./bin/apfs session export build ./edited-workspace
-./bin/apfs pack --filesystem hfsplus --volume-name Example ./source Example.dmg
+./bin/apfs pack --filesystem apfs --volume-name Example ./source Example.dmg
 ./bin/apfs pack --format UDZO original.dmg repacked.dmg
 ./bin/apfs session remove build
 ```
@@ -76,7 +76,7 @@ Currently implemented:
   resource-fork replacement within the same ordered batches.
 - Persistent named sessions with managed scratch, host directory import and
   `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
-- Fresh, deterministic HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
+- Fresh, deterministic single-volume APFS containers and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
   see [packing semantics](docs/packing.md).
 - Sector-preserving raw/UDIF repacking to UDRO/UDZO, including partitioned disks,
   APFS snapshots and encrypted APFS volume sectors; strict container admission.

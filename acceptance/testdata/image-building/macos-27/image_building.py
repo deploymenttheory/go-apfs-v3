@@ -1,4 +1,4 @@
-"""Independent HFS image-building inputs, including an Apple-signed app bundle.
+"""Independent APFS/HFS image-building inputs and an Apple-signed app bundle.
 
 Apple tools create every source filesystem and signature. Final observations are
 captured from a read-only mount; Go is never invoked to produce expectations.
@@ -10,10 +10,26 @@ from pathlib import Path
 
 from preservation import digest_values
 import file_compression as compression
+from metadata_edits import birth_ns, set_metadata
+from capture import NAME_CASES
 
 
-def create(root, command, sensitive, create_files):
+def create(root, command, sensitive, create_files, apfs=False):
     create_files(root, command)
+    if apfs:
+        (root / 'empty-build-root').mkdir()
+        (root / 'names').mkdir()
+        for label, stored, _ in NAME_CASES:
+            directory = root / 'names' / label
+            directory.mkdir()
+            (directory / stored).write_bytes((label + '\n').encode())
+        precise = root / 'precise-times'
+        precise.write_bytes(b'Nanosecond metadata and a native tracked document.\n')
+        set_metadata(precise, {key: {'state': 2, 'value': value} for key, value in {
+            'birthTime': '2023-11-14T22:13:20.123456789Z',
+            'modifyTime': '2024-02-03T04:05:06.987654321Z',
+            'accessTime': '2024-03-04T05:06:07.234567891Z',
+            'bsdFlags': 0x40}.items()}, command)
     (root / 'deep-catalog').mkdir()
     # Long keys force index nodes above the first index level in the Go builder.
     for i in range(300):
@@ -65,4 +81,16 @@ def observe(root, observe_files, native_xattrs):
     result['rawAttributes'] = [
         {'object': entry['object'], 'attributes': digest_values(native_xattrs(root.parent / entry['path'], 0x21))}
         for entry in result['entries']]
+    for entry in result['entries']:
+        entry['birthNS'] = birth_ns(root.parent / entry['path'])
+    if (root / 'names').exists():
+        result['lookups'] = []
+        for label, stored, alternatives in NAME_CASES:
+            for spelling in [stored, *alternatives, 'absent']:
+                path = root / 'names' / label / spelling
+                try:
+                    object_id = path.lstat().st_ino
+                except FileNotFoundError:
+                    object_id = 0
+                result['lookups'].append({'path': path.relative_to(root.parent).as_posix(), 'object': object_id})
     return result

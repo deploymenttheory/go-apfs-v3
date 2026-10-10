@@ -13,9 +13,14 @@
         "apfs/reader.go",
         "apfs/keybag.go",
         "apfs/encryption.go",
-        "apfs/snapshot.go"
+        "apfs/snapshot.go",
+        "apfs/build.go",
+        "apfs/build_container.go",
+        "apfs/build_spaceman.go",
+        "apfs/build_tree.go",
+        "apfs/build_records.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state."
     },
     {
       "id": "apple-tn1150",
@@ -713,7 +718,7 @@
         "pack",
         "acceptance/native/verify_image_building.py"
       ],
-      "evidence": "acceptance/testdata/image-building/macos-27/manifest.json",
+      "evidence": "acceptance/testdata/image-building/history/macos-27-hfs/manifest.json",
       "basis": "Apple-created HFS+/HFSX inputs include a signed universal app, hard links, exact native metadata, attributes, independent resource forks and decmpfs types 1/3/4/7/8. Portable outputs are checked by hdiutil verify, fsck_hfs -fn, read-only native file observations and codesign on each Mac. A native encoder diagnostic established the 4 MiB maximum uncompressed UDIF chunk and checksum-covered type-0 zero runs; formatter probes established the attributes fork clump field and HFSX private-folder count flag. Source observations are retained unchanged."
     },
     {
@@ -773,6 +778,89 @@
       ],
       "evidence": "acceptance/testdata/image-repacking/macos-27/manifest.json",
       "basis": "Apple-created raw, UDRO, UDZO and UDBZ disks; native raw-device full-disk SHA-256 and mounted file, fork, attribute, partition/volume, snapshot and encryption observations. Reuses independent signed-app and snapshot inputs with recorded parent provenance. Apple partitionDisk creates an APM free partition before seeding an unused sector; expected marker bytes are then read through the native device. Native signed and encrypted DMGs are explicit refusal controls. Every portable host output returns to each required Mac; no Go code supplies the native verdict. Native readback rejected a generic single-block device descriptor for raw APM input; native conversion supplies DDM/APM and GPT region descriptors, and raw-device hashes prove the resulting disk remains identical."
+    },
+    {
+      "id": "v2-apfs-formatter-study",
+      "kind": "prior-implementation-study",
+      "url": "https://github.com/deploymenttheory/go-apfs-v2/tree/2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036/pkg/apfswrite",
+      "revision": "2bd8a20b6bd2a4b6db2857d3f1d3412ca82ce036",
+      "components": [
+        "apfs/build.go",
+        "apfs/build_container.go",
+        "apfs/build_spaceman.go",
+        "apfs/build_tree.go",
+        "apfs/build_records.go"
+      ],
+      "files": [
+        {
+          "path": "pkg/apfswrite/writer.go",
+          "sha256": "4e69ecf6f654ce97fd00629cbca68db6247c80b6089e2b83d13a8a712657cc2a"
+        },
+        {
+          "path": "pkg/apfswrite/consts.go",
+          "sha256": "d94ce394f039bc2b5e442a99675b53dbc6c5a8b910956720b9437ce2590a392a"
+        },
+        {
+          "path": "pkg/apfswrite/structs.go",
+          "sha256": "35a8b0c041f130b9ac61a8ec53c2028670d298b53dc6c38e461c84997bf08210"
+        },
+        {
+          "path": "pkg/apfswrite/super.go",
+          "sha256": "d6c159a74ff633e7cb815ffda89ebc555a25c4757934548f15e8259df96b608e"
+        },
+        {
+          "path": "pkg/apfswrite/spaceman.go",
+          "sha256": "64781420e6f65c7c50735c165968feaffaa7b8abc6dbb00117ad79f63733f6ef"
+        },
+        {
+          "path": "pkg/apfswrite/btree.go",
+          "sha256": "0beddd7c5b0e5239029e0abb60c18467b13cada9e448329d5562de1c31ddb657"
+        },
+        {
+          "path": "pkg/apfswrite/fstree.go",
+          "sha256": "78ddecc57bdf2fa0a93a7dbc6682cf71a3c16d3371dbff67187c1f5901f8bd9e"
+        },
+        {
+          "path": "pkg/apfswrite/tree.go",
+          "sha256": "a4e0589574be862069b6c036d433b82c2d8e832bcb7b110abdb8939750346b33"
+        },
+        {
+          "path": "pkg/apfswrite/file.go",
+          "sha256": "2c42408bc0d2cce176f6fd6de1bbb120c342af21cc362828ef19b0ebb1fb68cd"
+        },
+        {
+          "path": "pkg/apfswrite/values.go",
+          "sha256": "3d325fa16100ed546784ee6d292241332ea57d3f836e74b39b4d48a33bfb50fa"
+        },
+        {
+          "path": "pkg/apfswrite/document_flags.go",
+          "sha256": "09c3ce915c2d951314700c649cba8f7cf34fd8ad5f0a54f290617bd69708eff4"
+        },
+        {
+          "path": "pkg/apfswrite/xattr_streams.go",
+          "sha256": "47f785346bdb7400f207ad53eec55424c3541a55761590329f080cdfc6cbacc6"
+        },
+        {
+          "path": "pkg/apfs/name_hash.go",
+          "sha256": "eac104aae3d634ee1753d76a1833cb03122f81d8140f60085606eaa7500b2032"
+        }
+      ],
+      "basis": "Production-only format study: space-manager geometry and native free-queue limits, checkpoint mapping, APFS B-tree records, name hashing and hard-link/document records. Original bounded single-volume planner borrows filesystem.Reader and streams sorted output rather than importing v2 Entry trees, host adapters or mutation APIs. No v2 tests or harness imported. Apple format facts and independent native checks determine acceptance."
+    },
+    {
+      "id": "native-apfs-image-building-27",
+      "kind": "native-observation",
+      "components": [
+        "apfs/build.go",
+        "apfs/build_container.go",
+        "apfs/build_spaceman.go",
+        "apfs/build_tree.go",
+        "apfs/build_records.go",
+        "pack",
+        "acceptance/native/verify_image_building.py"
+      ],
+      "evidence": "acceptance/testdata/image-building/macos-27/manifest.json",
+      "basis": "Expanded independent macOS 27 reference includes APFS and case-sensitive APFS alongside HFS+/HFSX, signed universal applications, exact birth/modification/change/access times, tracked documents, 53 filename lookup observations, links, attributes, forks, compression and an empty-directory construction root. Native fsck, mounted comparisons, codesign and writes through disposable shadows followed by check/remount qualify Go output. Prior HFS-only capture is retained unchanged under history. Local evidence does not replace the required macOS 15/26/27 CI matrix."
     }
   ]
 }

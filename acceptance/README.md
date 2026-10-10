@@ -513,16 +513,23 @@ application contents, metadata, forks, aliases or existing signatures.
 
 | Native inputs | Portable operation | Independent native verdict |
 | --- | --- | --- |
-| HFS+/HFSX, deep catalog, ordinary/compressed data, attributes/forks, hard links, signed universal app | Capture session; build UDRO and UDZO twice with fixed clock | `hdiutil verify`, `fsck_hfs -fn`, exact mounted readback, link bijection and `codesign --verify --deep --strict` |
+| APFS, case-sensitive APFS, HFS+/HFSX, deep trees, ordinary/compressed data, attributes/forks, hard links, signed universal app | Capture session; build UDRO and UDZO twice with fixed clock | `hdiutil verify`, `fsck_apfs -n` or `fsck_hfs -fn`, exact mounted readback, link bijection and `codesign --verify --deep --strict` |
+| APFS exact nanosecond times, tracked documents and native name equivalences/distinctions | Preserve metadata and construct hashed directory records | Native `getattrlist`, 53 positive/negative lookups per profile |
+| Independently observed empty APFS directory | Build an empty 64 MiB container twice | Native empty root, attributes, timestamps and filesystem checks |
+| Every constructed APFS output | Return unchanged image to every Mac | Native writes on a shadow: growth, links, rename, deletion, tree growth and reuse; fsck without repair, remount/readback and source hash unchanged |
 
 `go test -run TestNativeImageBuilding -v ./acceptance` replays the retained macOS
 27 corpus. Capture with `--scenario image-building`; `APFS_NATIVE_IMAGE_BUILDING`
 selects another corpus and `APFS_IMAGE_BUILDING_OUTPUT` retains constructed DMGs.
 `verify_image_building.py` accepts the corpus/output roots and expected verifier
 macOS major, following the other independent verification scripts. CI requires
-both filesystem profiles and encodings from every producer/consumer combination,
+all four filesystem profiles and both encodings from every producer/consumer combination,
 compares output hashes across hosts and retains failure diagnostics. Native source
-images and observations are immutable; a writer mismatch is fixed in Go.
+images and observations are immutable; a writer mismatch is fixed in Go. Each Mac
+checks 81 built DMGs (72 populated and nine empty), including 45 native APFS
+allocation journeys. The expanded local replay takes approximately 29 seconds.
+The original HFS-only capture is retained under `testdata/image-building/history`;
+its files and expectations were not rewritten for APFS construction.
 
 ## Sector-preserving image repacking
 

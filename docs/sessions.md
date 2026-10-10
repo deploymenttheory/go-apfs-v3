@@ -17,8 +17,8 @@ apfs session remove build
 ```
 
 `export` creates the existing preservation format, including a portable host
-projection and metadata/blobs. It does not yet create a DMG or a runnable host app
-bundle. [`pack`](packing.md) builds a new HFS+/HFSX DMG from a session.
+projection and metadata/blobs. Use `pack --session NAME OUTPUT_DMG` to build an APFS or HFS+/HFSX image;
+export itself does not materialize a runnable host app bundle. [`pack`](packing.md) builds a new HFS+/HFSX DMG from a session.
 No existing image or mounted filesystem is modified by these commands.
 
 ## Lifecycle

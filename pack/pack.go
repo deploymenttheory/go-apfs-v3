@@ -9,15 +9,34 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 )
 
 type Options struct {
-	Volume hfsplus.BuildOptions
+	Volume VolumeOptions
 	Format string
+}
+
+// VolumeOptions supplies fresh construction choices. The reader's native format
+// selects the engine; filesystem conversion is not implicit. VolumeID belongs to
+// HFS; the two UUIDs belong to APFS. Inapplicable identity options are refused.
+type VolumeOptions struct {
+	Name                      string
+	CaseSensitive             bool
+	Capacity                  int64
+	Time                      time.Time
+	VolumeID                  [8]byte
+	VolumeUUID, ContainerUUID [16]byte
+}
+
+type layout interface {
+	Size() int64
+	Write(context.Context, io.Writer) error
 }
 type Report struct {
 	Format      string `json:"format"`
@@ -30,7 +49,7 @@ type Report struct {
 // output and discards it on error. The reader is borrowed and must remain fixed.
 func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (Report, error) {
 	var report Report
-	if out == nil {
+	if out == nil || r == nil {
 		return report, fs.ErrInvalid
 	}
 	if o.Format == "" {
@@ -39,22 +58,40 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if o.Format != "UDRO" && o.Format != "UDZO" {
 		return report, filesystem.ErrUnsupported
 	}
-	layout, err := hfsplus.Plan(ctx, r, o.Volume)
+	var plan layout
+	var err error
+	hint := "Apple_HFS"
+	v := o.Volume
+	switch r.NameRules().Format {
+	case "APFS":
+		if v.VolumeID != [8]byte{} {
+			return report, fs.ErrInvalid
+		}
+		hint = "Apple_APFS"
+		plan, err = apfs.Plan(ctx, r, apfs.BuildOptions{Name: v.Name, CaseSensitive: v.CaseSensitive, Capacity: v.Capacity, Time: v.Time, VolumeUUID: v.VolumeUUID, ContainerUUID: v.ContainerUUID})
+	case "HFS+":
+		if v.VolumeUUID != [16]byte{} || v.ContainerUUID != [16]byte{} {
+			return report, fs.ErrInvalid
+		}
+		plan, err = hfsplus.Plan(ctx, r, hfsplus.BuildOptions{Name: v.Name, CaseSensitive: v.CaseSensitive, Capacity: v.Capacity, Time: v.Time, VolumeID: v.VolumeID})
+	default:
+		return report, filesystem.ErrUnsupported
+	}
 	if err != nil {
 		return report, err
 	}
 	input, producer := io.Pipe()
 	done := make(chan error, 1)
-	go func() { err := layout.Write(ctx, producer); _ = producer.CloseWithError(err); done <- err }()
+	go func() { err := plan.Write(ctx, producer); _ = producer.CloseWithError(err); done <- err }()
 	counter := &countWriter{out: out}
-	err = diskimage.Encode(ctx, counter, input, layout.Size(), o.Format)
+	err = diskimage.EncodeVolume(ctx, counter, input, plan.Size(), o.Format, hint)
 	_ = input.CloseWithError(err)
 	err = errors.Join(err, <-done)
 	if err != nil {
 		return report, err
 	}
-	report = Report{Format: o.Format, Filesystem: "HFS+", VolumeBytes: layout.Size(), ImageBytes: counter.count}
-	if o.Volume.CaseSensitive {
+	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: counter.count}
+	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
 	return report, nil

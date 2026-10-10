@@ -9,4 +9,4 @@
 Specification coverage, compilation, unit coverage, and native qualification are
 different things and must not be presented interchangeably.
 
-- [Packing](packing.md): HFS+/HFSX construction, complete-disk repacking and preservation guarantees.
+- [Packing](packing.md): APFS/HFS+/HFSX construction, complete-disk repacking and preservation guarantees.

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "scenario": "image-building",
+  "producer": {
+    "system": "macOS",
+    "version": "27.0.1",
+    "build": "26A434",
+    "architecture": "arm64",
+    "source": "capture.py",
+    "sourceSHA256": "cb1e395a2df086a71913cf1888b223a3b86d506678a85797abe93a7f77ff9446",
+    "sources": [
+      {
+        "source": "image_building.py",
+        "sha256": "e4aa0f641af7e666ca11a01ac08c9414208b2cc3407f14ac9b5786b98d8d3d28"
+      },
+      {
+        "source": "file_compression.py",
+        "sha256": "863d278e09de6388a3eab01e6068a7ba1ef09a8ae015d72d3da542aeab1420a4"
+      },
+      {
+        "source": "preservation.py",
+        "sha256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "image-building/hfsplus",
+      "image": "hfsplus.dmg",
+      "sha256": "59f2da6e6e9877112f516f048bb1d7f374c2ca2be533ac4ada7601ec838390a1",
+      "observation": "hfsplus-diskutil.plist",
+      "observationSHA256": "e692b8881a1ce55e33d6a8ec03961173b0daed7d45423c8c7024e48b7e5100ca",
+      "expected": {
+        "filesystem": "HFS+",
+        "name": "v3-hfsplus",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsplus-files.json",
+      "filesSHA256": "e93b549d75728f610c38c07ba78a7e9a6ded4827f2b54cfebf3e21450aab7656"
+    },
+    {
+      "id": "image-building/hfsx",
+      "image": "hfsx.dmg",
+      "sha256": "567d885823d1c617afcf5589be1bba1e25c3a464b3ff6c281930ed1134250fdc",
+      "observation": "hfsx-diskutil.plist",
+      "observationSHA256": "12e702773842bf36ad1022a204f59e51e3f452033acb7950185c51bf7419a047",
+      "expected": {
+        "filesystem": "HFSX",
+        "name": "v3-hfsx",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904
+      },
+      "files": "hfsx-files.json",
+      "filesSHA256": "5e1f0d4e72741d51dc7cc85992f3fa5e620025ee837960a0ed9593a233d98bbe"
+    }
+  ]
+}

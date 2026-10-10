@@ -20,7 +20,19 @@ import (
 // and master CRCs. Chunk boundaries and compression settings are fixed, making
 // output independent of the host. Output must be discarded on any error.
 func Encode(ctx context.Context, out io.Writer, source io.Reader, size int64, format string) error {
-	return encode(ctx, out, source, size, format, encodingLayout{variant: 2, blocks: []encodingBlock{{size: size, name: "whole disk (Apple_HFS : 0)", cfName: "whole disk (Apple_HFS : 0)", id: "0", attributes: "0x0050", descriptor: 0xfffffffe}}})
+	return EncodeVolume(ctx, out, source, size, format, "Apple_HFS")
+}
+
+// EncodeVolume wraps a fresh HFS volume or APFS container in a single-region UDIF.
+// contentHint is Apple's partition type, Apple_HFS or Apple_APFS. This descriptor
+// lets native image attachment identify the filesystem without a partition map.
+// Ownership, determinism and output-on-error follow Encode.
+func EncodeVolume(ctx context.Context, out io.Writer, source io.Reader, size int64, format, contentHint string) error {
+	if contentHint != "Apple_HFS" && contentHint != "Apple_APFS" {
+		return filesystem.ErrUnsupported
+	}
+	name := "whole disk (" + contentHint + " : 0)"
+	return encode(ctx, out, source, size, format, encodingLayout{variant: 2, blocks: []encodingBlock{{size: size, name: name, cfName: name, id: "0", attributes: "0x0050", descriptor: 0xfffffffe}}})
 }
 
 type encodingBlock struct {

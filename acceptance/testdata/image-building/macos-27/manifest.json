@@ -7,11 +7,11 @@
     "build": "26A434",
     "architecture": "arm64",
     "source": "capture.py",
-    "sourceSHA256": "cb1e395a2df086a71913cf1888b223a3b86d506678a85797abe93a7f77ff9446",
+    "sourceSHA256": "666ccd020fc161ff94d2f26271854ad387ef01e30f1fc6cb9e0eb43bf4bb2033",
     "sources": [
       {
         "source": "image_building.py",
-        "sha256": "e4aa0f641af7e666ca11a01ac08c9414208b2cc3407f14ac9b5786b98d8d3d28"
+        "sha256": "4983d60afc93fcbe941412d4d4c5da82715660b30a36dafa138f2f9af7428595"
       },
       {
         "source": "file_compression.py",
@@ -20,16 +20,58 @@
       {
         "source": "preservation.py",
         "sha256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+      },
+      {
+        "source": "metadata_edits.py",
+        "sha256": "7e8543ac291445facdf7b9529f367e5ed83b400794c81ed1e3ecd74326499137"
+      },
+      {
+        "source": "content_replacement.py",
+        "sha256": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3"
       }
     ]
   },
   "cases": [
     {
+      "id": "image-building/apfs",
+      "image": "apfs.dmg",
+      "sha256": "aa4d086fa169ecb7db407db217b10d631fd3f71e207f090244085f60b6801573",
+      "observation": "apfs-diskutil.plist",
+      "observationSHA256": "4803b0f7bbd43acd16ed838e24d214d95bc3738c250de59aa306fcebb7915173",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs",
+        "caseSensitive": false,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "E8C05134-6FEA-4FA9-AAEB-CBF9DF5B754A"
+      },
+      "files": "apfs-files.json",
+      "filesSHA256": "e27bd72739dd67777af3822c3a31b1cac1d41581becbec47ba487802f210d0d9"
+    },
+    {
+      "id": "image-building/apfs-case-sensitive",
+      "image": "apfs-case-sensitive.dmg",
+      "sha256": "25747c784dd74b0e701489a8ea21aeee132e956df822eefc08a2a8ea0da8f789",
+      "observation": "apfs-case-sensitive-diskutil.plist",
+      "observationSHA256": "c7194a7472c334797577eeecf67fdf92f3c2ae3ca3ba727eec1abdaa5c1587c4",
+      "expected": {
+        "filesystem": "APFS",
+        "name": "v3-apfs-case-sensitive",
+        "caseSensitive": true,
+        "blockSize": 4096,
+        "size": 67067904,
+        "uuid": "2265E491-28C8-4CDC-9C55-18380972C826"
+      },
+      "files": "apfs-case-sensitive-files.json",
+      "filesSHA256": "f0ecef2f4c604918c484ced92cdf9bcf3033eb89d91bfdfe56ef0413cb57af57"
+    },
+    {
       "id": "image-building/hfsplus",
       "image": "hfsplus.dmg",
-      "sha256": "59f2da6e6e9877112f516f048bb1d7f374c2ca2be533ac4ada7601ec838390a1",
+      "sha256": "a8c1ea8265608e07bfd2fab90ca17036da12abeffe2351fd7aeedf9f57895dad",
       "observation": "hfsplus-diskutil.plist",
-      "observationSHA256": "e692b8881a1ce55e33d6a8ec03961173b0daed7d45423c8c7024e48b7e5100ca",
+      "observationSHA256": "2a6c4cf78762b157a47e8338ceee959a21a910996b8c3af49e4e1283fa455747",
       "expected": {
         "filesystem": "HFS+",
         "name": "v3-hfsplus",
@@ -38,14 +80,14 @@
         "size": 67067904
       },
       "files": "hfsplus-files.json",
-      "filesSHA256": "e93b549d75728f610c38c07ba78a7e9a6ded4827f2b54cfebf3e21450aab7656"
+      "filesSHA256": "d071e0dd7e12fd79872fadea17c121517ee30218e106bec0c0966195cf38d224"
     },
     {
       "id": "image-building/hfsx",
       "image": "hfsx.dmg",
-      "sha256": "567d885823d1c617afcf5589be1bba1e25c3a464b3ff6c281930ed1134250fdc",
+      "sha256": "eb1ef6d21f8c02d7df98c4af8366fbcc422d387b1234ab560a24e09d72bc4210",
       "observation": "hfsx-diskutil.plist",
-      "observationSHA256": "12e702773842bf36ad1022a204f59e51e3f452033acb7950185c51bf7419a047",
+      "observationSHA256": "c8f9395739249a04b510e0d304939adc49674670db59da710179ce707506d0ac",
       "expected": {
         "filesystem": "HFSX",
         "name": "v3-hfsx",
@@ -54,7 +96,7 @@
         "size": 67067904
       },
       "files": "hfsx-files.json",
-      "filesSHA256": "5e1f0d4e72741d51dc7cc85992f3fa5e620025ee837960a0ed9593a233d98bbe"
+      "filesSHA256": "289d242c843b8bb3467f0be8ea2980790e9957534aa63522619dd0f325374377"
     }
   ]
 }

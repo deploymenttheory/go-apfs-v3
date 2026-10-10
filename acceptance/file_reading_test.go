@@ -123,7 +123,7 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 				}
 			}
 			if scenario == "image-building" {
-				required := []string{"image_building.py", "file_compression.py", "preservation.py"}
+				required := []string{"image_building.py", "file_compression.py", "preservation.py", "metadata_edits.py", "content_replacement.py"}
 				if len(c.Producer.Sources) != len(required) {
 					t.Fatal("incomplete image-building source provenance")
 				}
@@ -145,9 +145,6 @@ func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimu
 				for _, id := range []string{"apfs-aes128", "apfs-case-sensitive-aes256", "hfsplus-aes128", "hfsx-aes256", "hfsplus-raw-aes256", "apfs-nested-aes256"} {
 					wantIDs[scenario+"/"+id] = false
 				}
-			}
-			if scenario == "image-building" {
-				wantIDs = map[string]bool{scenario + "/hfsplus": false, scenario + "/hfsx": false}
 			}
 			if scenario == "snapshot-reading" {
 				wantIDs = map[string]bool{scenario + "/apfs": false, scenario + "/apfs-case-sensitive": false, scenario + "/apfs-encrypted-dmg": false}

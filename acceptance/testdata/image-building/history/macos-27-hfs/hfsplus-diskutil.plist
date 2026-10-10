@@ -21,7 +21,7 @@
 	<key>DeviceTreePath</key>
 	<string>IODeviceTree:/</string>
 	<key>DiskUUID</key>
-	<string>AFAB9BC2-7B3C-4389-AB66-32D26C041D41</string>
+	<string>6AE58BEC-5FBC-4698-9D6B-9364B2EDC3A8</string>
 	<key>Ejectable</key>
 	<true/>
 	<key>EjectableMediaAutomaticUnderSoftwareControl</key>
@@ -29,13 +29,13 @@
 	<key>EjectableOnly</key>
 	<true/>
 	<key>FilesystemName</key>
-	<string>Case-sensitive HFS+</string>
+	<string>HFS+</string>
 	<key>FilesystemType</key>
 	<string>hfs</string>
 	<key>FilesystemUserVisibleName</key>
-	<string>Mac OS Extended (Case-sensitive)</string>
+	<string>Mac OS Extended</string>
 	<key>FreeSpace</key>
-	<integer>61370368</integer>
+	<integer>61374464</integer>
 	<key>GlobalPermissionsEnabled</key>
 	<true/>
 	<key>IOKitSize</key>
@@ -49,7 +49,7 @@
 	<key>MediaType</key>
 	<string>Generic</string>
 	<key>MountPoint</key>
-	<string>/Volumes/v3-hfsx</string>
+	<string>/Volumes/v3-hfsplus</string>
 	<key>OSInternalMedia</key>
 	<false/>
 	<key>ParentWholeDisk</key>
@@ -83,11 +83,11 @@
 	<key>VolumeAllocationBlockSize</key>
 	<integer>4096</integer>
 	<key>VolumeName</key>
-	<string>v3-hfsx</string>
+	<string>v3-hfsplus</string>
 	<key>VolumeSize</key>
 	<integer>67067904</integer>
 	<key>VolumeUUID</key>
-	<string>C43CEA85-74F5-3F9A-AB64-24969406973C</string>
+	<string>268C0BE8-87C8-39D2-B692-B22DB35B2127</string>
 	<key>WholeDisk</key>
 	<false/>
 	<key>Writable</key>

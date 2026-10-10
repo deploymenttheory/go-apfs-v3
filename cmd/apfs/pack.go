@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
-	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
@@ -26,11 +25,14 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	f.SetOutput(diagnostics)
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
-	filesystemName := f.String("filesystem", "", "directory target: hfsplus or hfsx; sessions retain their format")
+	filesystemName := f.String("filesystem", "", "directory target: apfs, hfsplus or hfsx; sessions retain their format")
+	sensitive := f.Bool("case-sensitive", false, "use case-sensitive APFS names for directory input")
 	name := f.String("volume-name", "Untitled", "volume name")
 	capacity := f.String("capacity", "", "volume size in bytes, or with KiB/MiB/GiB suffix; default automatic")
 	fixed := f.String("time", "", "fixed RFC3339 build clock; file timestamps remain preserved")
 	id := f.String("volume-id", "", "native HFS identifier as 16 hex digits; default derived from contents")
+	volumeUUID := f.String("volume-uuid", "", "APFS volume UUID; default derived from contents")
+	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived from contents")
 	uid := f.Uint("uid", 0, "owner for metadata unavailable on the source host")
 	gid := f.Uint("gid", 0, "group for metadata unavailable on the source host")
 	operands, err := parseCommandFlags(f, args)
@@ -45,7 +47,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		want = 1
 	}
 	if len(operands) != want {
-		return fmt.Errorf("usage: apfs pack [--format UDRO|UDZO] IMAGE NEW_DMG; or pack [--session NAME | --filesystem hfsplus|hfsx DIRECTORY] [options] NEW_DMG")
+		return fmt.Errorf("usage: apfs pack [--format UDRO|UDZO] IMAGE NEW_DMG; or pack [--session NAME | --filesystem apfs|hfsplus|hfsx DIRECTORY] [options] NEW_DMG")
 	}
 	if _, e := os.Lstat(operands[len(operands)-1]); e == nil {
 		return fs.ErrExist
@@ -58,7 +60,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return e
 		}
 		if !info.IsDir() {
-			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "uid", "gid", "scratch-dir"} {
+			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir"} {
 				if flagWasSet(f, option) {
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
@@ -83,11 +85,8 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		if err != nil {
 			return err
 		}
-		if clock.Nanosecond() != 0 {
-			return fmt.Errorf("HFS build time requires whole seconds")
-		}
 	}
-	options := pack.Options{Format: *format, Volume: hfsplus.BuildOptions{Name: *name, Time: clock}}
+	options := pack.Options{Format: *format, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -101,9 +100,29 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		}
 		copy(options.Volume.VolumeID[:], b)
 	}
+	for _, item := range []struct {
+		value string
+		dst   *[16]byte
+	}{{*volumeUUID, &options.Volume.VolumeUUID}, {*containerUUID, &options.Volume.ContainerUUID}} {
+		if item.value == "" {
+			continue
+		}
+		x := item.value
+		if len(x) != 36 || x[8] != '-' || x[13] != '-' || x[18] != '-' || x[23] != '-' {
+			return fs.ErrInvalid
+		}
+		b, e := hex.DecodeString(strings.ReplaceAll(x, "-", ""))
+		if e != nil || len(b) != 16 {
+			return fs.ErrInvalid
+		}
+		copy(item.dst[:], b)
+		if *item.dst == [16]byte{} {
+			return fs.ErrInvalid
+		}
+	}
 	var s *session.Session
 	if common.name != "" {
-		if *filesystemName != "" || flagWasSet(f, "uid") || flagWasSet(f, "gid") {
+		if *filesystemName != "" || flagWasSet(f, "uid") || flagWasSet(f, "gid") || flagWasSet(f, "case-sensitive") {
 			return fs.ErrInvalid
 		}
 		path, e := sessionDirectory(common.scratch, common.name)
@@ -115,8 +134,11 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return err
 		}
 	} else {
-		if *filesystemName != "hfsplus" && *filesystemName != "hfsx" {
-			return fmt.Errorf("--filesystem must be hfsplus or hfsx")
+		if *filesystemName != "apfs" && *filesystemName != "hfsplus" && *filesystemName != "hfsx" {
+			return fmt.Errorf("--filesystem must be apfs, hfsplus or hfsx")
+		}
+		if *filesystemName != "apfs" && flagWasSet(f, "case-sensitive") {
+			return fs.ErrInvalid
 		}
 		if *uid >= uint(^uint32(0)) || *gid >= uint(^uint32(0)) {
 			return fs.ErrInvalid
@@ -138,7 +160,12 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return e
 		}
 		defer func() { err = errors.Join(err, os.RemoveAll(root)) }()
-		s, err = session.Create(ctx, filepath.Join(root, "build"), session.Options{Names: filesystem.NameRules{Format: "HFS+", CaseSensitive: *filesystemName == "hfsx", NormalizationInsensitive: true}, UID: uint32(*uid), GID: uint32(*gid), Time: &clock})
+		rules := filesystem.NameRules{Format: "HFS+", CaseSensitive: *filesystemName == "hfsx", NormalizationInsensitive: true}
+		if *filesystemName == "apfs" {
+			rules.Format = "APFS"
+			rules.CaseSensitive = *sensitive
+		}
+		s, err = session.Create(ctx, filepath.Join(root, "build"), session.Options{Names: rules, UID: uint32(*uid), GID: uint32(*gid), Time: &clock})
 		if err != nil {
 			return err
 		}
@@ -152,8 +179,14 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if common.name != "" {
 		defer func() { err = errors.Join(err, s.Close()) }()
 	}
-	if s.NameRules().Format != "HFS+" {
-		return fmt.Errorf("APFS image creation is not implemented: %w", filesystem.ErrUnsupported)
+	if s.NameRules().Format == "APFS" {
+		if flagWasSet(f, "volume-id") {
+			return fmt.Errorf("--volume-id applies to HFS; use --volume-uuid for APFS")
+		}
+	} else {
+		if flagWasSet(f, "volume-uuid") || flagWasSet(f, "container-uuid") {
+			return fmt.Errorf("UUID options apply to APFS")
+		}
 	}
 	options.Volume.CaseSensitive = s.NameRules().CaseSensitive
 	if err = s.Verify(ctx); err != nil {

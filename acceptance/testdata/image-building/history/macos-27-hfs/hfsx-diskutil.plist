@@ -21,7 +21,7 @@
 	<key>DeviceTreePath</key>
 	<string>IODeviceTree:/</string>
 	<key>DiskUUID</key>
-	<string>AFAB9BC2-7B3C-4389-AB66-32D26C041D41</string>
+	<string>07A6EECD-F699-4409-9F0B-06A09DA19B2D</string>
 	<key>Ejectable</key>
 	<true/>
 	<key>EjectableMediaAutomaticUnderSoftwareControl</key>
@@ -87,7 +87,7 @@
 	<key>VolumeSize</key>
 	<integer>67067904</integer>
 	<key>VolumeUUID</key>
-	<string>C43CEA85-74F5-3F9A-AB64-24969406973C</string>
+	<string>DE756E74-7055-3BDD-9E3E-7534B64A9FAF</string>
 	<key>WholeDisk</key>
 	<false/>
 	<key>Writable</key>
