@@ -402,3 +402,9 @@ uploads alone omit empty directories, which would lose part of the captured tree
 Each Mac unpacks the complete original/edited trees before independent verification;
 missing empty directories fail exactly like missing nonempty directories. This
 transport applies to preservation, replacement and tree-edit outputs alike.
+
+On macOS, archive creation disables native metadata packing with
+`--no-mac-metadata --no-xattrs --no-acls`. Extraction also passes
+`--options '!mac-ext'`: libarchive otherwise interprets genuine `._` files as
+AppleDouble companions even when metadata application is disabled. Their bytes
+remain ordinary content; metadata stays in the workspace manifest and blobs.
