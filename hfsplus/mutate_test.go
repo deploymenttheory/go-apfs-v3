@@ -147,7 +147,7 @@ func (shortMutation) WriteAt(p []byte, _ int64) (int, error) { return len(p) - 1
 func TestMutationRejectsUnsafeProfilesAndWriteFailures(t *testing.T) {
 	ctx := context.Background()
 	original := mutationFixture(t, false, "preserve")
-	for _, kind := range []string{"journal", "dirty", "bitmap", "alternate", "crosslink", "shortwrite", "cancel"} {
+	for _, kind := range []string{"journal", "dirty", "bitmap", "alternate", "crosslink", "catalog-map", "shortwrite", "cancel"} {
 		t.Run(kind, func(t *testing.T) {
 			b := bytes.Clone(original)
 			switch kind {
@@ -160,6 +160,18 @@ func TestMutationRejectsUnsafeProfilesAndWriteFailures(t *testing.T) {
 			case "bitmap":
 				off := be.Uint32(b[1024+112+16:])
 				b[int(off)*4096] ^= 0x80
+			case "catalog-map":
+				off := int(be.Uint32(b[1024+272+16:])) * 4096
+				h := b[off : off+int(be.Uint16(b[off+32:]))]
+				start, _, e := recordBounds(h, 2)
+				if e != nil {
+					t.Fatal(e)
+				}
+				root := be.Uint32(h[16:])
+				// Keep the map's free count internally consistent, but mark the
+				// reachable catalog root free. Admission must reject before writing.
+				h[start+int(root/8)] &^= 0x80 >> (root % 8)
+				be.PutUint32(h[40:], be.Uint32(h[40:])+1)
 			case "crosslink":
 				v, e := Open(bytes.NewReader(b))
 				if e != nil {

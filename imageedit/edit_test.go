@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"io"
 	"io/fs"
@@ -104,6 +105,66 @@ func TestExistingImageOutputPreservesSourceAndIsReproducible(t *testing.T) {
 		}
 		if _, e = os.Lstat(out); !errors.Is(e, fs.ErrNotExist) {
 			t.Fatal("failed output published", e)
+		}
+	}
+}
+
+func TestSelectedPartitionRetainsEveryOutsideByte(t *testing.T) {
+	ctx := context.Background()
+	image, err := diskimage.Open(fixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	volume := make([]byte, image.Size())
+	if _, err = io.ReadFull(io.NewSectionReader(image, 0, image.Size()), volume); err != nil {
+		t.Fatal(err)
+	}
+	image.Close()
+	const start = 32 * 512
+	end := start + len(volume)
+	// Nonzero bytes surround the selected filesystem, including an opaque
+	// partition and unused sectors. None may be altered by a filesystem edit.
+	disk := bytes.Repeat([]byte("outside!"), (end+32*512)/8)
+	clear(disk[:4*512])
+	copy(disk, "ER")
+	be := binary.BigEndian
+	be.PutUint16(disk[2:], 512)
+	be.PutUint32(disk[4:], uint32(len(disk)/512))
+	for n, p := range []struct {
+		start, size int
+		kind        string
+	}{{512, 3 * 512, "Apple_partition_map"}, {start, len(volume), "Apple_HFS"}, {end + 8*512, 8 * 512, "Apple_Free"}} {
+		e := disk[(n+1)*512 : (n+2)*512]
+		copy(e, "PM")
+		be.PutUint32(e[4:], 3)
+		be.PutUint32(e[8:], uint32(p.start/512))
+		be.PutUint32(e[12:], uint32(p.size/512))
+		copy(e[48:], p.kind)
+	}
+	copy(disk[start:end], volume)
+	source := filepath.Join(t.TempDir(), "partitioned.raw")
+	if err = os.WriteFile(source, disk, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, format := range []string{"UDRO", "UDZO"} {
+		out := filepath.Join(t.TempDir(), "edited.dmg")
+		if _, err = imageedit.Apply(ctx, source, out, imageedit.Options{Partition: 2, Format: format, Time: clock}, []hfsplus.Change{{Path: "/file", Data: bytes.NewReader(bytes.Repeat([]byte("growth"), 30000))}}); err != nil {
+			t.Fatal(err)
+		}
+		got, err := diskimage.Open(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		decoded := make([]byte, got.Size())
+		if _, err = io.ReadFull(io.NewSectionReader(got, 0, got.Size()), decoded); err != nil {
+			t.Fatal(err)
+		}
+		got.Close()
+		if len(decoded) != len(disk) || !bytes.Equal(decoded[:start], disk[:start]) || !bytes.Equal(decoded[end:], disk[end:]) {
+			t.Fatal("partition map, other partition or unused sectors changed")
+		}
+		if bytes.Equal(decoded[start:end], disk[start:end]) {
+			t.Fatal("selected filesystem was not edited")
 		}
 	}
 }

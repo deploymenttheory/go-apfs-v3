@@ -317,6 +317,9 @@ func (m *mutation) admit() error {
 	if _, err = m.mutableTree(3, 192); err != nil {
 		return err
 	}
+	if _, err = m.mutableTree(4, 272); err != nil {
+		return err
+	}
 	if be.Uint64(v.attributeFork) > 0 {
 		if _, err = m.mutableTree(8, 352); err != nil {
 			return err

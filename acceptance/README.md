@@ -85,6 +85,10 @@ actual output images; every Mac verifies the identical triples using exact raw
 copies rather than shadows. Explicit offline ctime is compared to the requested
 clock, while the original native wall-clock observations remain retained.
 Native commands run only on disposable VMs. Local regression tests read files.
+The unchanged baseline for macOS 15, 26 and 27 is committed under
+`testdata/hfs-editing` with source/peak/final disks, recipes, commands and hashes.
+All six sources replay in about 19 seconds locally; fresh CI capture remains a
+separate required check. Missing retained references fail rather than skip.
 
 ```sh
 go test -count=1 -run '^TestNativeHFSImageEditing$' ./acceptance
@@ -720,5 +724,6 @@ read-only remount verification. APFS uses private shadows. HFS uses private Appl
 raw-sector copies admitted only after native device size and full sector SHA equality;
 the [source study and route controls](../docs/native-hfs-writes.md) explain why.
 Source hashes must remain unchanged. This proves
-continued native use without claiming Go existing-filesystem mutation or power-loss
-durability. All native operations run on disposable hosted VMs.
+continued native use of freshly built images. Existing-filesystem Go mutation
+has its own HFS family above; physical power-loss durability remains a separate
+capability. All native operations run on disposable hosted VMs.

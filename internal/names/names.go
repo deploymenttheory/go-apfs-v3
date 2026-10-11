@@ -59,6 +59,13 @@ func APFS(s string, sensitive, normalized bool) string {
 func HFS(s string, sensitive bool) string {
 	// POSIX presents stored slashes as colons and stored NULs as U+2400.
 	s = strings.ReplaceAll(strings.ReplaceAll(s, ":", "/"), "\u2400", "\x00")
+	return HFSStored(s, sensitive)
+}
+
+// HFSStored compares a stored Unicode catalog name without applying POSIX
+// slash/colon or NUL presentation conversion. Its result is an ordered UTF-16
+// comparison key, using the same frozen tables as ordinary name lookup.
+func HFSStored(s string, sensitive bool) string {
 	n := normalize([]rune(s), hfsDecomposition, hfsClass)
 	units := utf16.Encode(n)
 	var key strings.Builder

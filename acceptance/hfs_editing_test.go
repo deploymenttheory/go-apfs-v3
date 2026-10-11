@@ -66,10 +66,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(paths) == 0 {
-		if os.Getenv("APFS_NATIVE_HFS_EDITS") != "" {
-			t.Fatal("required HFS editing references absent")
-		}
-		t.Skip("native HFS edit corpus not retained yet")
+		t.Fatal("required HFS editing references absent")
 	}
 	majors := map[int]bool{}
 	for _, manifestPath := range paths {

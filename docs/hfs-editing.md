@@ -25,7 +25,7 @@ The CLI has no edit-recipe configuration file.
 
 The first engine admits clean, nonjournaled, unlocked HFS+/HFSX volumes with
 complete allocation-block geometry. It verifies both structural headers, all
-allocation ownership, extent-tree keys, node allocation maps and tree
+allocation ownership, catalog/extent/attribute keys, node allocation maps and tree
 reachability before writing. Unsupported or inconsistent state is refused.
 Journaled/dirty volumes, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
@@ -106,3 +106,12 @@ images undergo native append, catalog growth, deletion and allocation reuse;
 Go reads and re-edits those disks, and a further Apple checker/remount validates
 the result. The native gate never qualifies output using shadow replay.
 Native testing remains confined to disposable CI VMs; local tests read files.
+
+The native baseline has passed all three capture, portable edit and native
+qualification matrices. Its immutable 10 MiB corpus is committed under
+`acceptance/testdata/hfs-editing`, including native source/peak/final disks for
+every version. `go test -count=1 -run '^TestNativeHFSImageEditing$' ./acceptance`
+replays all six sources in about 19 seconds locally. Fresh required CI captures
+remain separate from this regression corpus. Focused failure tests also prove
+that admission writes nothing on corruption, interrupted transactions publish
+no partial output, and partitioned-image edits preserve every outside byte.

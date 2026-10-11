@@ -39,8 +39,10 @@ import (
 	"cmp"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
 type nodeMap struct {
@@ -59,6 +61,7 @@ type mutableTree struct {
 	total, mapBits uint32
 	maps           []nodeMap
 	compare        func([]byte, []byte) int
+	idOffset       int
 }
 type treeChild struct {
 	key  []byte
@@ -86,6 +89,17 @@ func attributeCompare(a, b []byte) int {
 	return cmp.Compare(be.Uint32(a[8:]), be.Uint32(b[8:]))
 }
 
+func catalogCompare(sensitive bool) func([]byte, []byte) int {
+	return func(a, b []byte) int {
+		if n := cmp.Compare(be.Uint32(a[2:]), be.Uint32(b[2:])); n != 0 {
+			return n
+		}
+		left, _ := unicodeName(a[6:])
+		right, _ := unicodeName(b[6:])
+		return strings.Compare(names.HFSStored(left, sensitive), names.HFSStored(right, sensitive))
+	}
+}
+
 func recordBounds(b []byte, index int) (int, int, error) {
 	n := int(be.Uint16(b[10:]))
 	if n < 1 || n > (len(b)-14)/2 || index < 0 || index >= n {
@@ -106,7 +120,11 @@ func (m *mutation) mutableTree(id uint32, descriptor int) (*mutableTree, error) 
 	if err != nil {
 		return nil, err
 	}
-	base, err := openTree(f, 4)
+	idOffset := 4
+	if id == 4 {
+		idOffset = 2
+	}
+	base, err := openTree(f, idOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -124,14 +142,17 @@ func (m *mutation) mutableTree(id uint32, descriptor int) (*mutableTree, error) 
 	if err != nil || start != 14 || end-start != 106 {
 		return nil, bad("mutable tree header record")
 	}
-	t := &mutableTree{m: m, id: id, descriptor: descriptor, fork: f, header: h, nodeSize: base.nodeSize, total: base.total, compare: extentCompare}
+	t := &mutableTree{m: m, id: id, descriptor: descriptor, fork: f, header: h, nodeSize: base.nodeSize, total: base.total, compare: extentCompare, idOffset: idOffset}
 	if id == 8 {
 		t.compare = attributeCompare
 	}
-	if id != 3 && id != 8 {
+	if id == 4 {
+		t.compare = catalogCompare(m.v.CaseSensitive)
+	}
+	if id != 3 && id != 8 && id != 4 {
 		return nil, filesystem.ErrUnsupported
 	}
-	if be.Uint32(h[52:])&2 == 0 || (id == 8 && be.Uint32(h[52:])&4 == 0) || (id == 3 && be.Uint16(h[34:]) != 10) {
+	if be.Uint32(h[52:])&2 == 0 || ((id == 8 || id == 4) && be.Uint32(h[52:])&4 == 0) || (id == 3 && be.Uint16(h[34:]) != 10) {
 		return nil, fmt.Errorf("HFS mutable tree key profile: %w", filesystem.ErrUnsupported)
 	}
 	seen := map[uint32]bool{0: true}
@@ -233,6 +254,13 @@ func (t *mutableTree) keyValid(key []byte) bool {
 	if t.id == 3 {
 		return len(key) == 12 && be.Uint16(key) == 10 && key[3] == 0 && (key[2] == 0 || key[2] == 255)
 	}
+	if t.id == 4 {
+		if len(key) < 8 || int(be.Uint16(key))+2 != len(key) {
+			return false
+		}
+		_, err := unicodeName(key[6:])
+		return err == nil
+	}
 	if len(key) < 14 || int(be.Uint16(key))+2 != len(key) || key[2] != 0 || key[3] != 0 {
 		return false
 	}
@@ -254,7 +282,7 @@ func (t *mutableTree) node(id uint32, height int) ([]byte, []treeRecord, error) 
 	if int(b[9]) != height || height < 1 || height > 16 || (height == 1 && b[8] != 255) || (height > 1 && b[8] != 0) {
 		return nil, nil, bad("mutable tree height or kind")
 	}
-	r, err := nodeRecords(b, 4)
+	r, err := nodeRecords(b, t.idOffset)
 	if err != nil {
 		return nil, nil, err
 	}
