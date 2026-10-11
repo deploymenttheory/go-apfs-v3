@@ -181,7 +181,7 @@ func (m *mutation) validateOwnership() error {
 					return filesystem.ErrUnsupported
 				}
 				streams[stream] = true
-				owners[stream] = p.id
+				owners[stream] = stream // inode private_id; attribute owners use their record ID below
 			}
 		case 4:
 			if len(r.key) < 11 || len(r.value) < 4 || int(le.Uint16(r.value[2:])) != len(r.value)-4 {

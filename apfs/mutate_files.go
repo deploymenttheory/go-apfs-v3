@@ -116,7 +116,7 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 				stream = id
 				le.PutUint64(value[8:], stream)
 			}
-			blocks, e := m.replaceStream(stream, id, c.Data)
+			blocks, e := m.replaceStream(stream, stream, c.Data)
 			if e != nil {
 				return 0, e
 			}
