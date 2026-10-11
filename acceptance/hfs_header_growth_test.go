@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/session"
@@ -56,6 +58,24 @@ type hfsGrowthState struct {
 	} `json:"checker"`
 }
 
+type hfsGrowthArchive struct {
+	Image              string
+	SHA256             string
+	UncompressedSHA256 string
+	UncompressedBytes  int64
+}
+
+type hfsSectorProbe struct {
+	Capacity                                      int64
+	Source, WrittenShadow, ReadOnlyShadow, Shadow hfsGrowthArchive
+	After                                         struct{ Image, SHA256, DiskSHA256 string }
+	AllWritesSurvived                             bool
+	Markers                                       []struct {
+		Offset, StoredShadowOffset, WritableStoredShadowOffset                   int64
+		SHA256, SameAttachmentSHA256, ReattachedSHA256, WritableReattachedSHA256 string
+	}
+}
+
 // TestNativeHFSCatalogGrowth replays retained native writes without mounting.
 // Whole disk hashes bind the evidence; both headers expose stale alternates,
 // while the production reader must recover the native-observed surviving tree,
@@ -73,11 +93,14 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, manifest := range manifests {
+		seen[filepath.Base(filepath.Dir(manifest))] = true
 		t.Run(filepath.Base(filepath.Dir(manifest)), func(t *testing.T) {
 			var evidence struct {
-				Schema   int
-				Scenario string
-				Producer struct {
+				Schema         int
+				Scenario       string
+				Complete       bool
+				CommandsSHA256 string
+				Producer       struct {
 					System, Version, Build, Architecture, Run, Revision string
 					Sources                                             []struct{ Source, SHA256 string }
 				}
@@ -86,7 +109,9 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 					Capacity                      int64
 					Before, Admitted, After       hfsGrowthState
 					Files, ReadbackFiles          fileObservation
+					Source, Shadow                hfsGrowthArchive
 				}
+				SectorProbes []hfsSectorProbe
 			}
 			data, err := os.ReadFile(manifest)
 			if err != nil || len(data) > 16<<20 {
@@ -97,24 +122,33 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 			}
 			p := evidence.Producer
 			major := strings.Split(p.Version, ".")[0]
-			if evidence.Schema != 1 || evidence.Scenario != "hfs-header-growth" || p.System != "macOS" || p.Build == "" || p.Architecture == "" || p.Run == "" || len(p.Revision) != 40 || seen[major] {
+			if evidence.Schema != 1 || evidence.Scenario != "hfs-header-growth" || !evidence.Complete || p.System != "macOS" || p.Build == "" || p.Architecture == "" || p.Run == "" || len(p.Revision) != 40 || filepath.Base(filepath.Dir(manifest)) != "macos-"+major {
 				t.Fatal("incomplete or duplicate native provenance")
 			}
-			seen[major] = true
 			dir := filepath.Dir(manifest)
-			if len(p.Sources) < 5 || len(evidence.Cases) < 4 {
+			if len(p.Sources) != 6 || len(evidence.Cases) != 16 || len(evidence.SectorProbes) != 5 {
 				t.Fatal("incomplete source/control inventory")
 			}
 			for _, source := range p.Sources {
 				verifyDigest(t, dir, source.Source, source.SHA256)
 			}
+			if evidence.CommandsSHA256 != "" {
+				verifyDigest(t, dir, "commands.json", evidence.CommandsSHA256)
+			}
+			for _, probe := range evidence.SectorProbes {
+				t.Run(fmt.Sprintf("unmounted-sectors-%d", probe.Capacity), func(t *testing.T) { compareSectorProbe(t, dir, probe) })
+			}
 			ids := map[string]bool{}
 			for _, c := range evidence.Cases {
 				t.Run(c.ID, func(t *testing.T) {
-					if ids[c.ID] || (c.Origin != "apple" && c.Origin != "go") || (c.Route != "direct" && c.Route != "shadow") || (c.Filesystem != "hfsplus" && c.Filesystem != "hfsx") || c.Capacity < 8<<20 || c.Capacity > 16<<20 {
+					if ids[c.ID] || c.ID != fmt.Sprintf("%s-%d-%s-%s", c.Filesystem, c.Capacity, c.Origin, c.Route) || (c.Origin != "apple" && c.Origin != "go") || (c.Route != "direct" && c.Route != "shadow") || (c.Filesystem != "hfsplus" && c.Filesystem != "hfsx") || (c.Capacity != 10936320 && c.Capacity != 16777216) {
 						t.Fatal("invalid matched control")
 					}
 					ids[c.ID] = true
+					verifyGrowthEnvelope(t, dir, c.Source, c.Before.DiskSHA256, c.Capacity)
+					if c.Route == "shadow" {
+						openGrowthArchive(t, dir, c.Shadow)
+					}
 					if c.Before.DiskSHA256 != c.Admitted.DiskSHA256 || c.Before.Geometry.DeviceBytes != c.Capacity || c.Admitted.Geometry.DeviceBytes != c.Capacity || c.Before.Checker.Status != 0 || c.Admitted.Checker.Status != 0 {
 						t.Fatal("write route did not start with identical admitted sectors")
 					}
@@ -161,10 +195,121 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 		})
 	}
 	for _, major := range []string{"15", "26", "27"} {
-		if !seen[major] {
+		if !seen["macos-"+major] {
 			t.Errorf("missing macOS %s retained HFS growth references", major)
 		}
 	}
+}
+
+func compareSectorProbe(t *testing.T, dir string, p hfsSectorProbe) {
+	t.Helper()
+	if p.Capacity < 8<<20 || p.Capacity > 16<<20 || len(p.Markers) < 4 {
+		t.Fatal("incomplete unmounted sector control")
+	}
+	source := openGrowthArchive(t, dir, p.Source)
+	image, err := diskimage.New(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer image.Close()
+	disk, err := image.Partition(0)
+	if err != nil || disk.Size() != p.Capacity {
+		t.Fatal("sector control geometry", err)
+	}
+	after := openGrowthSnapshot(t, dir, hfsGrowthState{Image: p.After.Image, ImageSHA256: p.After.SHA256, DiskSHA256: p.After.DiskSHA256, Geometry: struct {
+		DeviceBytes int64 `json:"deviceBytes"`
+	}{p.Capacity}})
+	written := openGrowthArchive(t, dir, p.WrittenShadow)
+	openGrowthArchive(t, dir, p.ReadOnlyShadow)
+	final := openGrowthArchive(t, dir, p.Shadow)
+	survived := true
+	for _, m := range p.Markers {
+		if m.Offset < 0 || m.Offset > p.Capacity-512 || m.SHA256 != m.SameAttachmentSHA256 {
+			t.Fatal("unacknowledged or invalid native sector write")
+		}
+		if got := growthSectorDigest(t, after, m.Offset); got != m.ReattachedSHA256 {
+			t.Fatal("retained reopened sector differs from native readback")
+		}
+		if m.StoredShadowOffset >= 0 && growthSectorDigest(t, written, m.StoredShadowOffset) != m.SHA256 {
+			t.Fatal("retained shadow lacks acknowledged write")
+		}
+		if m.WritableStoredShadowOffset >= 0 && growthSectorDigest(t, final, m.WritableStoredShadowOffset) != m.SHA256 {
+			t.Fatal("retained writable shadow differs")
+		}
+		if m.ReattachedSHA256 != m.SHA256 {
+			survived = false
+			if m.ReattachedSHA256 != growthSectorDigest(t, disk, m.Offset) {
+				t.Fatal("omitted write did not expose original sector")
+			}
+			t.Logf("native shadow replay omitted sector at %d; write retained at shadow offset %d", m.Offset, m.StoredShadowOffset)
+		}
+	}
+	if survived != p.AllWritesSurvived {
+		t.Fatal("native persistence verdict differs from retained sectors")
+	}
+}
+
+func growthSectorDigest(t *testing.T, source block.Source, offset int64) string {
+	t.Helper()
+	data := make([]byte, 512)
+	if err := block.ReadFull(source, data, offset); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(data)
+	return hex.EncodeToString(digest[:])
+}
+
+func verifyGrowthEnvelope(t *testing.T, dir string, archive hfsGrowthArchive, want string, size int64) {
+	t.Helper()
+	source := openGrowthArchive(t, dir, archive)
+	image, err := diskimage.New(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer image.Close()
+	disk, err := image.Partition(0)
+	if err != nil || disk.Size() != size {
+		t.Fatal("retained envelope device size", err)
+	}
+	digest := sha256.New()
+	if _, err = io.Copy(digest, io.NewSectionReader(disk, 0, disk.Size())); err != nil {
+		t.Fatal(err)
+	}
+	if hex.EncodeToString(digest.Sum(nil)) != want {
+		t.Fatal("portable UDIF interpretation differs from native complete disk hash")
+	}
+}
+
+func openGrowthArchive(t *testing.T, dir string, archive hfsGrowthArchive) *block.File {
+	t.Helper()
+	verifyDigest(t, dir, archive.Image, archive.SHA256)
+	input, err := os.Open(filepath.Join(dir, archive.Image))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer input.Close()
+	z, err := gzip.NewReader(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer z.Close()
+	path := filepath.Join(t.TempDir(), "retained.bin")
+	out, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.New()
+	n, err := io.Copy(io.MultiWriter(out, digest), io.LimitReader(z, (32<<20)+1))
+	closeErr := out.Close()
+	if err != nil || closeErr != nil || n == 0 || n > 32<<20 || (archive.UncompressedBytes != 0 && n != archive.UncompressedBytes) || hex.EncodeToString(digest.Sum(nil)) != archive.UncompressedSHA256 {
+		t.Fatal("retained archive integrity", n, err, closeErr)
+	}
+	source, err := block.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { source.Close() })
+	return source
 }
 
 // Apple's freshly formatted empty volumes independently supply the system-fork

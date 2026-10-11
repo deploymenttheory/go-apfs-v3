@@ -132,7 +132,8 @@ def retain_file(source, output):
     with source.open('rb') as inp, output.open('xb') as out:
         with gzip.GzipFile(filename='', mode='wb', fileobj=out, mtime=0) as compressed:
             shutil.copyfileobj(inp, compressed, 1 << 20)
-    return {'image': output.name, 'sha256': sha256(output), 'uncompressedSHA256': sha256(source)}
+    return {'image': output.name, 'sha256': sha256(output), 'uncompressedSHA256': sha256(source),
+            'uncompressedBytes': source.stat().st_size}
 
 
 def sector_probe(capacity, work, output, command):
@@ -362,7 +363,7 @@ def main():
                 for origin, source, before in (('go', go, before_go), ('apple', apple, before_apple)):
                     source_digest = sha256(source)
                     envelope = args.output / f'{profile}-{capacity}-{origin}-source.dmg.gz'
-                    retain_file(source, envelope)
+                    envelope_evidence = retain_file(source, envelope)
                     for route in ('direct', 'shadow'):
                         case_id = f'{profile}-{capacity}-{origin}-{route}'
                         private = work / f'{case_id}.raw'
@@ -394,8 +395,7 @@ def main():
                                     'total blocks' in after['checker']['stdout'],
                                     'unexpected checker failure in native growth control')
                         case = {'id': case_id, 'origin': origin, 'route': route, 'filesystem': profile,
-                                'capacity': capacity, 'sourceImageSHA256': source_digest,
-                                'sourceImage': envelope.name, 'sourceGzipSHA256': sha256(envelope),
+                                'capacity': capacity, 'source': envelope_evidence,
                                 'before': before, 'admitted': admitted, 'mountedGeometry': mounted_geometry,
                                 'after': after, 'files': observations}
                         result['cases'].append(case)
@@ -415,6 +415,7 @@ def main():
                         print('HFS growth verdict:', case_id, after['checker']['status'], flush=True)
     require(len(result['cases']) == 16, 'complete matched growth inventory')
     result['complete'] = True
+    result['commandsSHA256'] = sha256(args.output / 'commands.json')
     save()
 
 
