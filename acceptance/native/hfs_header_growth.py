@@ -25,6 +25,7 @@ from file_compression import xattr
 from verify_preservation import require
 
 CAPACITIES = (10936320, 16777216)
+PROBE_CAPACITIES = (10936320, 10944512, 11010048, 11534336, 16777216)
 SOURCES = ('hfs_header_growth.py', 'capture.py', 'container_building.py',
            'image_repacking.py', 'verify_preservation.py', 'file_compression.py')
 FORKS = {'allocation': 112, 'extents': 192, 'catalog': 272, 'attributes': 352, 'startup': 432}
@@ -107,12 +108,12 @@ def read_headers(device, size):
     return {'primary': primary, 'alternate': alternate, 'catalog': catalog}
 
 
-def attach(image, command, shadow=None, mount=None, readonly=False):
+def attach(image, command, shadow=None, mount=None, readonly=False, writable=False):
     options = ['-shadow', shadow] if shadow else []
     if image.suffix == '.raw':
         options += ['-imagekey', 'diskimage-class=CRawDiskImage']
     options += ['-nomount', '-noautofsck']
-    if not mount or readonly:
+    if (not mount and not writable) or readonly:
         options += ['-readonly']
     data = plistlib.loads(command('hdiutil', 'attach', '-plist', *options, image))
     devices = [e['dev-entry'] for e in data['system-entities'] if 'dev-entry' in e]
@@ -125,6 +126,72 @@ def attach(image, command, shadow=None, mount=None, readonly=False):
             command('hdiutil', 'detach', devices[0])
             raise
     return devices[0]
+
+
+def retain_file(source, output):
+    with source.open('rb') as inp, output.open('xb') as out:
+        with gzip.GzipFile(filename='', mode='wb', fileobj=out, mtime=0) as compressed:
+            shutil.copyfileobj(inp, compressed, 1 << 20)
+    return {'image': output.name, 'sha256': sha256(output), 'uncompressedSHA256': sha256(source)}
+
+
+def sector_probe(capacity, work, output, command):
+    """Unmounted Apple storage control: HFS never interprets these blank bytes."""
+    raw = work / f'sector-{capacity}.raw'
+    with raw.open('xb') as stream:
+        stream.truncate(capacity)
+    image = work / f'sector-{capacity}.dmg'
+    command('hdiutil', 'convert', raw, '-srcimagekey', 'diskimage-class=CRawDiskImage',
+            '-format', 'UDRO', '-o', image)
+    source = retain_file(image, output / f'sector-{capacity}-source.dmg.gz')
+    shadow = work / f'sector-{capacity}.shadow'
+    # Mark the first band, the preceding full 64 KiB band, and the tail sectors
+    # where HFS's alternate header/reserved trailer normally live.
+    offsets = sorted({0, (capacity // 65536 - 1) * 65536, capacity - 1024, capacity - 512})
+    markers = []
+    device = attach(image, command, shadow, writable=True)
+    try:
+        native = geometry(device.replace('/dev/disk', '/dev/rdisk'))
+        with open(device.replace('/dev/disk', '/dev/rdisk'), 'r+b', buffering=0) as stream:
+            for offset in offsets:
+                data = hashlib.sha256(f'sector probe {capacity} {offset}'.encode()).digest() * 16
+                stream.seek(offset)
+                require(stream.write(data) == 512, 'native sector probe short write')
+                markers.append({'offset': offset, 'sha256': hashlib.sha256(data).hexdigest()})
+            # Apple's SDK: DKIOCSYNCHRONIZECACHE = _IO('d', 22).
+            fcntl.ioctl(stream.fileno(), 0x20000000 | ord('d') << 8 | 22)
+            for marker in markers:
+                stream.seek(marker['offset'])
+                marker['sameAttachmentSHA256'] = hashlib.sha256(stream.read(512)).hexdigest()
+                require(marker['sameAttachmentSHA256'] == marker['sha256'], 'native sector immediate readback')
+    finally:
+        command('hdiutil', 'detach', device)
+    device = attach(image, command, shadow)
+    try:
+        with open(device.replace('/dev/disk', '/dev/rdisk'), 'rb', buffering=0) as stream:
+            for marker in markers:
+                stream.seek(marker['offset'])
+                marker['reattachedSHA256'] = hashlib.sha256(stream.read(512)).hexdigest()
+            disk = output / f'sector-{capacity}-after.raw.gz'
+            stream.seek(0)
+            digest = hashlib.sha256()
+            with disk.open('xb') as out:
+                with gzip.GzipFile(filename='', mode='wb', fileobj=out, mtime=0) as compressed:
+                    remaining = capacity
+                    while remaining:
+                        data = stream.read(min(1 << 20, remaining))
+                        require(data, 'short native sector probe snapshot')
+                        compressed.write(data)
+                        digest.update(data)
+                        remaining -= len(data)
+        after = {'image': disk.name, 'sha256': sha256(disk), 'diskSHA256': digest.hexdigest()}
+    finally:
+        command('hdiutil', 'detach', device)
+    require(sha256(image) == source['uncompressedSHA256'], 'sector probe preserved original image')
+    retained_shadow = retain_file(shadow, output / f'sector-{capacity}.shadow.gz')
+    return {'capacity': capacity, 'source': source, 'shadow': retained_shadow,
+            'after': after, 'geometry': native, 'markers': markers,
+            'allWritesSurvived': all(m['sha256'] == m['reattachedSHA256'] for m in markers)}
 
 
 def snapshot(image, output, command, shadow=None):
@@ -146,9 +213,11 @@ def snapshot(image, output, command, shadow=None):
                     remaining -= len(data)
         command('/sbin/fsck_hfs', '-dfn', raw, expected_success=None)
         checker = command.records[-1].copy()
-        return {'image': output.name, 'imageSHA256': sha256(output),
-                'diskSHA256': digest.hexdigest(), 'geometry': native,
-                'headers': state, 'checker': checker}
+        result = {'image': output.name, 'imageSHA256': sha256(output),
+                  'diskSHA256': digest.hexdigest(), 'geometry': native,
+                  'headers': state, 'checker': checker}
+        output.with_suffix('.json').write_text(json.dumps(result, indent=2) + '\n')
+        return result
     finally:
         command('hdiutil', 'detach', device)
 
@@ -197,7 +266,13 @@ def workload(mount):
         (root / f'entry-{i:03}-{"catalog-growth-" * 6}').unlink()
     (root / 'reused').write_bytes(payload)
     os.sync()
-    return files(root)
+    return observe_growth(root)
+
+
+def observe_growth(root):
+    result = files(root)
+    result['root'] = root.name
+    return result
 
 
 def main():
@@ -225,12 +300,15 @@ def main():
     producer['diskImagesVersion'] = {key: value for key, value in disk_images.items() if key != 'images'}
     sdk = Path(command('xcrun', '--show-sdk-path').decode().strip())
     producer['sdkDiskHeaderSHA256'] = sha256(sdk / 'usr/include/sys/disk.h')
-    result = {'schema': 1, 'scenario': 'hfs-header-growth', 'producer': producer, 'cases': []}
+    result = {'schema': 1, 'scenario': 'hfs-header-growth', 'producer': producer, 'cases': [], 'sectorProbes': []}
     def save():
         (args.output / 'manifest.json').write_text(json.dumps(result, indent=2) + '\n')
     save()
     with tempfile.TemporaryDirectory(prefix='apfs-hfs-growth-') as work:
         work = Path(work)
+        for capacity in PROBE_CAPACITIES:
+            result['sectorProbes'].append(sector_probe(capacity, work, args.output, command))
+            save()
         for profile in ('hfsplus', 'hfsx'):
             for capacity in CAPACITIES:
                 go = args.go_images / f'{profile}-{capacity}.dmg'
@@ -257,6 +335,8 @@ def main():
                                 'matched system-fork initial and clump sizes')
                 for origin, source, before in (('go', go, before_go), ('apple', apple, before_apple)):
                     source_digest = sha256(source)
+                    envelope = args.output / f'{profile}-{capacity}-{origin}-source.dmg.gz'
+                    retain_file(source, envelope)
                     for route in ('direct', 'shadow'):
                         case_id = f'{profile}-{capacity}-{origin}-{route}'
                         private = work / f'{case_id}.raw'
@@ -283,13 +363,17 @@ def main():
                         require(sha256(source) == source_digest, 'native writes preserved original source')
                         case = {'id': case_id, 'origin': origin, 'route': route, 'filesystem': profile,
                                 'capacity': capacity, 'sourceImageSHA256': source_digest,
+                                'sourceImage': envelope.name, 'sourceGzipSHA256': sha256(envelope),
                                 'before': before, 'admitted': admitted, 'mountedGeometry': mounted_geometry,
                                 'after': after, 'files': observations}
                         result['cases'].append(case)
                         save()
+                        if shadow:
+                            case['shadow'] = retain_file(shadow, args.output / f'{case_id}.shadow.gz')
+                            save()
                         device = attach(image, command, shadow, mount, readonly=True)
                         try:
-                            case['readbackFiles'] = files(mount / 'native-allocation')
+                            case['readbackFiles'] = observe_growth(mount / 'native-allocation')
                             require(case['readbackFiles'] == observations, 'native contents/metadata survive remount')
                         finally:
                             command('hdiutil', 'detach', device)
