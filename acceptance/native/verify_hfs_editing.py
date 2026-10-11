@@ -47,6 +47,7 @@ def check_raw(raw, expected, phase, command, work, modify=False, journal=None):
         require(observed is not None, 'journaling retained')
         for key in ('infoBlock', 'offset', 'size', 'sha256', 'infoSHA256'):
             require(observed[key] == journal[key], 'journal storage preserved: ' + key)
+        require(observed['backingFiles'] == journal['backingFiles'], 'journal backing identity')
     device = attach(raw, command, readonly=not modify, writable=modify)
     try:
         command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
@@ -57,10 +58,6 @@ def check_raw(raw, expected, phase, command, work, modify=False, journal=None):
         command('diskutil', 'mount', *([] if modify else ['readOnly']), '-mountOptions',
                 'owners,noatime', '-mountPoint', mount, device)
         compare(files(mount / 'Fixture'), expected, phase)
-        if journal is not None:
-            for name, file in journal['backingFiles'].items():
-                st = os.lstat(mount / name)
-                require(st.st_ino == file['object'] and st.st_size == file['size'], 'journal backing identity')
         command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
         if modify:
             with (mount / 'Fixture/alias').open('ab') as stream:

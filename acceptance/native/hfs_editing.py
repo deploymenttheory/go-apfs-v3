@@ -110,6 +110,54 @@ def apply_native(root, phase, command):
         os.chmod(root / 'small', 0o755)
 
 
+def journal_backing_files(stream, volume):
+    """Observe raw native CNIDs: hfs_lookup deliberately hides journal vnodes.
+
+    Root records precede later parents in the catalog. This bounded observer
+    reads their leaf chain through the header's inline catalog extents only;
+    it is a capture tool, not another general filesystem implementation.
+    """
+    block_size = struct.unpack_from('>I', volume, 40)[0]
+    extents = [struct.unpack_from('>II', volume, 288 + n * 8) for n in range(8)]
+    def read_fork(offset, size):
+        result = bytearray()
+        for start, count in extents:
+            length = count * block_size
+            if offset >= length:
+                offset -= length
+                continue
+            take = min(size - len(result), length - offset)
+            stream.seek(start * block_size + offset)
+            result.extend(stream.read(take))
+            offset = 0
+            if len(result) == size:
+                return bytes(result)
+        raise ValueError('capture catalog root outside inline extents')
+    header = read_fork(0, 512)
+    node_size, leaf = struct.unpack_from('>H', header, 32)[0], struct.unpack_from('>I', header, 24)[0]
+    result, seen = {}, set()
+    while leaf:
+        require(leaf not in seen and len(seen) < 64, 'bounded journal catalog observation')
+        seen.add(leaf)
+        node = read_fork(leaf * node_size, node_size)
+        require(node[8] == 255, 'native catalog leaf')
+        for n in range(struct.unpack_from('>H', node, 10)[0]):
+            off = struct.unpack_from('>H', node, node_size - 2 * (n + 1))[0]
+            key_size, parent, name_size = struct.unpack_from('>HIH', node, off)
+            if parent > 2:
+                require(len(result) == 2, 'both native journal backing files observed')
+                return result
+            name = node[off + 8:off + 8 + 2 * name_size].decode('utf-16-be')
+            if parent == 2 and name in ('.journal', '.journal_info_block'):
+                value = off + 2 + key_size
+                require(struct.unpack_from('>H', node, value)[0] == 2, 'journal catalog file')
+                result[name] = {'object': struct.unpack_from('>I', node, value + 8)[0],
+                                'size': struct.unpack_from('>Q', node, value + 88)[0]}
+        leaf = struct.unpack_from('>I', node)[0]
+    require(len(result) == 2, 'native journal backing inventory')
+    return result
+
+
 def read_journal(image):
     """File-only observations of native journal bytes, independent of Go."""
     with image.open('rb') as stream:
@@ -140,7 +188,8 @@ def read_journal(image):
         return {'infoBlock': info_block, 'flags': flags, 'offset': offset, 'size': size,
                 'start': start, 'end': end, 'headerSize': header_size, 'blockListSize': list_size,
                 'checksum': checksum, 'sequence': sequence, 'byteOrder': order,
-                'sha256': digest.hexdigest(), 'infoSHA256': hashlib.sha256(info).hexdigest()}
+                'sha256': digest.hexdigest(), 'infoSHA256': hashlib.sha256(info).hexdigest(),
+                'backingFiles': journal_backing_files(stream, volume)}
 
 
 def observe(image, work, command):
@@ -166,10 +215,6 @@ def observe(image, work, command):
         result = {'files': observed, 'headers': headers, 'nativeExtents': ranges, 'checkerStatus': 0}
         journal = read_journal(image)
         if journal is not None:
-            journal['backingFiles'] = {name: {'object': os.lstat(mount / name).st_ino,
-                                            'size': os.lstat(mount / name).st_size,
-                                            'extents': native_extents(mount / name)}
-                                      for name in ('.journal', '.journal_info_block')}
             result['journal'] = journal
         return result
     finally:
