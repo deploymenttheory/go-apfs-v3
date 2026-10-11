@@ -274,6 +274,9 @@ func (m *mutation) protectEntry(e *mutationEntry, root bool) error {
 		if depth >= 256 {
 			return filesystem.ErrLimit
 		}
+		if cursor.id < 16 {
+			return fmt.Errorf("filesystem-owned ancestor: %w", filesystem.ErrUnsupported)
+		}
 		if cursor.parent == 2 && (cursor.name == ".fseventsd" || cursor.name == ".Spotlight-V100" || cursor.name == ".Trashes" || cursor.name == ".DocumentRevisions-V100" || cursor.name == ".TemporaryItems") {
 			return fmt.Errorf("filesystem-owned directory: %w", filesystem.ErrUnsupported)
 		}

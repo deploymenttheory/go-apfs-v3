@@ -171,7 +171,8 @@ func replaceInodeField(inode []byte, kind, flag byte, data []byte) ([]byte, erro
 			v := bytes.Clone(b[at : at+size])
 			if k == kind {
 				v = data
-				f = flag
+				// Flags include reserved bits that Apple's format requires us to
+				// retain. The supplied flag applies only when adding a new field.
 				found = true
 			}
 			types = append(types, k)
