@@ -14,6 +14,11 @@ on:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      hfs_reference_capture:
+        description: 'Capture matched HFS header-growth disks and checker outcomes only'
+        required: false
+        type: boolean
+        default: false
       readback_run:
         description: 'Prior run with successful captures/replays; verifier-only changes permitted'
         required: false
@@ -33,7 +38,7 @@ env:
 
 jobs:
   produce:
-    if: ${{ inputs.readback_run == '' }}
+    if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -134,7 +139,7 @@ jobs:
 
   replay:
     name: Compare Go with macOS reference data (${{ matrix.platform }})
-    needs: produce
+    needs: [produce, hfs_reference]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -158,6 +163,11 @@ jobs:
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hfs-header-growth-*
+          path: artifacts/hfs-references
+          merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
         run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance
         env:
@@ -169,6 +179,7 @@ jobs:
           APFS_NATIVE_ENCRYPTED_DMG: ../artifacts/native/encrypted-dmg
           APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
+          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation
           APFS_WORKSPACE_OUTPUT: ../artifacts/preservation
           APFS_NATIVE_REPLACEMENT: ../artifacts/native/replacement
@@ -227,7 +238,7 @@ jobs:
           EOF
 
   readback:
-    if: ${{ always() && (needs.replay.result == 'success' || inputs.readback_run != '') }}
+    if: ${{ always() && !inputs.hfs_reference_capture && (needs.replay.result == 'success' || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
@@ -344,8 +355,8 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: always()
-    needs: [produce, replay, readback]
+    if: ${{ always() && !inputs.hfs_reference_capture }}
+    needs: [produce, hfs_reference, replay, readback]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -353,6 +364,7 @@ jobs:
           PRODUCERS: ${{ needs.produce.result }}
           CONSUMERS: ${{ needs.replay.result }}
           READBACK: ${{ needs.readback.result }}
+          HFS_REFERENCES: ${{ needs.hfs_reference.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
           if [ -n "$REUSED_RUN" ]; then
@@ -360,5 +372,71 @@ jobs:
             # successful replays and unchanged Go code/inputs before downloading.
             test "$READBACK" = success
           else
-            test "$PRODUCERS" = success && test "$CONSUMERS" = success && test "$READBACK" = success
+            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$READBACK" = success
           fi
+
+  hfs_reference:
+    if: ${{ inputs.readback_run == '' || inputs.hfs_reference_capture }}
+    name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            major: 15
+          - runner: macos-26
+            major: 26
+          - runner: xcode-27
+            major: 27
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Require separate capture and verifier-only dispatches
+        env:
+          PRIOR_RUN: ${{ inputs.readback_run }}
+        run: test -z "$PRIOR_RUN"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build explicitly labelled Go construction controls
+        run: |
+          mkdir -p artifacts/hfs-empty artifacts/hfs-go
+          go build -o artifacts/apfs ./cmd/apfs
+          for filesystem in hfsplus hfsx; do
+            for capacity in 10936320 16777216; do
+              artifacts/apfs pack --filesystem "$filesystem" --capacity "$capacity" --format UDRO --file-compression none --volume-name Growth --time 2025-06-07T08:09:10Z artifacts/hfs-empty "artifacts/hfs-go/$filesystem-$capacity.dmg"
+            done
+          done
+      - name: Capture freshly Apple-formatted controls, exact disks and native outcomes
+        run: python3 acceptance/native/hfs_header_growth.py --expected-major "${{ matrix.major }}" --go-images artifacts/hfs-go --output artifacts/hfs-header-growth/macos-${{ matrix.major }}
+      - name: Explain the retained native outcomes
+        env:
+          HFS_MAJOR: ${{ matrix.major }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = json.loads(Path('artifacts/hfs-header-growth', 'macos-' + os.environ['HFS_MAJOR'], 'manifest.json').read_text())
+          failed = sum(c['after']['checker']['status'] != 0 for c in evidence['cases'])
+          omitted = sum(not p['allWritesSurvived'] for p in evidence['sectorProbes'])
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('## Retained HFS growth and storage evidence\n\n'
+                        f"{len(evidence['cases'])} matched Apple/Go filesystem controls completed actual catalog growth and native remount readback. "
+                        f'{failed} shadow controls retain explicit failed native checker verdicts.\n\n'
+                        f"{len(evidence['sectorProbes'])} unmounted native sector probes retain complete images and actual shadow files; "
+                        f'{omitted} record replay omission. These diagnostic failures qualify the evidence, not the mutation route. '
+                        'Published HFS image qualification separately requires native success on exact raw copies.\n')
+          PY
+      - name: Retain complete and interrupted captures for analysis
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-header-growth-${{ matrix.major }}
+          path: |
+            artifacts/hfs-header-growth/
+            artifacts/hfs-go/
+          if-no-files-found: error

@@ -515,6 +515,26 @@ disposable CI VMs. The full macOS 15/26/27 capture, Linux/Windows/macOS replay a
 native readback must pass before merging. Existing-filesystem modification and
 durable transactions follow this increment.
 
+## Retained native HFS mutation references
+
+Matched Apple/Go HFS+/HFSX controls now qualify actual catalog growth through
+direct raw writes and retain the native shadow failures independently. A separate
+unmounted Apple storage probe reproduces tail-sector replay omission without Go
+construction or HFS mutation. Complete before/after disks, envelopes, shadows,
+native checker verdicts, remount observations and capture/tool provenance are
+retained for macOS 15, 26 and 27. Portable replay reads only image bytes and
+compares production readers and fresh-header construction with native evidence.
+
+The [investigation and retention contract](hfs-header-growth.md) describes the
+controls, observed OS differences and private-driver evidence limits. Fresh
+capture/replay stays in the existing compatibility workflow; the compact retained
+family runs locally without native operations. Exact native raw-copy admission
+continues to qualify HFS output modification. Caller capacities are preserved.
+
+This closes the reference/research increment before phase 5. The next bounded
+implementation increment is HFS+/HFSX existing-filesystem edits and durable
+transactions; this reference family does not claim that capability is implemented.
+
 ## Required phase gates
 
 1. Independent native fixtures/observations, readable portable comparisons, and

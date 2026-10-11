@@ -40,6 +40,31 @@ OS version/build/architecture. Replay requires all four cases and rejects
 missing files, unsafe filenames, duplicates, unexpected profiles, and mismatched
 digests. A fresh capture never automatically replaces a retained baseline.
 
+## Retained HFS catalog growth and shadow replay
+
+Purpose: establish native system-file growth invariants and preserve the evidence
+needed to distinguish filesystem construction from native image-storage defects.
+These references are the basis for subsequent existing-filesystem mutation work.
+
+| Cases | Independent native evidence | Portable assertions |
+| --- | --- | --- |
+| Fresh Apple and Go HFS+/HFSX, matched geometry, direct writes and shadows on macOS 15/26/27 | Complete native before/after disk hashes, both headers, `fsck_hfs -dfn`, read-only remount | Actual catalog growth; both header descriptions; surviving names, IDs, hard links, metadata, data, xattrs and resource forks |
+| Unmounted Apple UDRO sector writes at several size boundaries | Immediate reads, cache flush, read-only/writable reopen, raw reopened disk and actual shadows | Acknowledged writes, original-sector replay omission, stored shadow bytes and per-build outcomes remain distinct |
+| Fresh empty filesystem construction | Independently Apple-formatted volume-header fields and system-fork geometry | Go's nonjournaled mount identifier, allocation clump and initial metadata geometry match native values |
+
+All references are committed under `testdata/hfs-header-growth`; fresh captures
+also run in the existing compatibility pipeline. Archive deduplication changes
+only filenames, and replay compares the retained manifest with the original
+native document exactly. Small `manifest.json` indexes expose every native verdict;
+complete observations remain in the hashed `references.json.gz` archives.
+Known diagnostic shadow failures never count as passing
+native filesystem checks. Published output mutation still requires the exact
+native raw-copy gate to succeed. See [the investigation](../docs/hfs-header-growth.md).
+
+```sh
+go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
+```
+
 ## File reading
 
 Purpose: give packaging and forensic consumers the same names, file bytes, forks

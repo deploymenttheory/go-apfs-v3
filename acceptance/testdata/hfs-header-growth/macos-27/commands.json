@@ -1,0 +1,3620 @@
+[
+  {
+    "argv": [
+      "uname",
+      "-a"
+    ],
+    "status": 0,
+    "stdout": "Darwin sjc22-bt147-2fefb260-a2eb-4fbc-858d-4d855b7c1d3c-22F8AD9291E9.local 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:00:07 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_VMAPPLE arm64\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "info",
+      "-plist"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>framework</key>\n\t<string>704</string>\n\t<key>images</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>autodiskmount</key>\n\t\t\t<false/>\n\t\t\t<key>blockcount</key>\n\t\t\t<integer>8192</integer>\n\t\t\t<key>blocksize</key>\n\t\t\t<integer>512</integer>\n\t\t\t<key>diskimages2</key>\n\t\t\t<false/>\n\t\t\t<key>image-path</key>\n\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg</string>\n\t\t\t<key>owner-uid</key>\n\t\t\t<integer>0</integer>\n\t\t\t<key>removable</key>\n\t\t\t<true/>\n\t\t\t<key>system-entities</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string></string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk3</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4s1</string>\n\t\t\t\t\t<key>mount-point</key>\n\t\t\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/.AssetData</string>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>writeable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n\t<key>revision</key>\n\t<string>704</string>\n\t<key>vendor</key>\n\t<string>Apple</string>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "--show-sdk-path"
+    ],
+    "status": 0,
+    "stdout": "/Applications/Xcode_27.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $83739FAC: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:   3.501ms\nFile size: 10939616 bytes, Checksum: CRC32 $A1A669D6\nSectors processed: 21360, 21360 copied\nSpeed: 2.9GB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $E4BBF6D5: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:  15.231ms\nFile size: 10947808 bytes, Checksum: CRC32 $050D78E2\nSectors processed: 21376, 21376 copied\nSpeed: 685.3MB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10944512.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $4907B855: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:  16.259ms\nFile size: 10964192 bytes, Checksum: CRC32 $F50A5FE5\nSectors processed: 21408, 21408 copied\nSpeed: 642.9MB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10960896.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $CB17B948: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:   3.814ms\nFile size: 10980576 bytes, Checksum: CRC32 $D461DFBD\nSectors processed: 21440, 21440 copied\nSpeed: 2.7GB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-10977280.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $EEF981DB: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:   4.055ms\nFile size: 11013344 bytes, Checksum: CRC32 $9E68031E\nSectors processed: 21504, 21504 copied\nSpeed: 2.5GB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11010048.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $4DF11D94: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:   4.398ms\nFile size: 11537632 bytes, Checksum: CRC32 $F4327D5A\nSectors processed: 22528, 22528 copied\nSpeed: 2.4GB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-11534336.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (unknown partition : 0)\u2026\n   (CRC32 $A47CA14A: whole disk (unknown partition : 0))\nAdding resources\u2026\nElapsed Time:   5.148ms\nFile size: 16780512 bytes, Checksum: CRC32 $9FB3E55C\nSectors processed: 32768, 32768 copied\nSpeed: 3.0GB/s\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/sector-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nomount",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=4096,a=4096",
+      "-c",
+      "c=8,e=8,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=9,a=9",
+      "-v",
+      "Growth",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk5 as a 10 MB case-insensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (Apple_HFS : 0)\u2026\n   (CRC32 $4A139600: whole disk (Apple_HFS : 0))\nAdding resources\u2026\nElapsed Time:   1.429ms\nFile size: 454532 bytes, Checksum: CRC32 $EC9657F0\nSectors processed: 21360, 881 copied\nSpeed: 301.0MB/s\nSavings: 95.8%\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "artifacts/hfs-go/hfsplus-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 8,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n\tvolume headers disagree on catalog file total blocks - primary 34 alternate 10 \n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n   Volume header needs minor repair\n\tinvalid alternate VHB at 21358 result -60 \n   Verify Status: VIStat = 0x8000, ABTStat = 0x0000 EBTStat = 0x0000\n                  CBTStat = 0x0000 CatStat = 0x00000000\n** The volume Growth was found corrupt and needs to be repaired.\n\tvolume type is pure HFS+ \n\tprimary MDB is at block 0 0x00 \n\talternate MDB is at block 0 0x00 \n\tprimary VHB is at block 2 0x02 \n\talternate VHB is at block 21358 0x536e \n\tsector size = 512 0x200 \n\tVolumeObject flags = 0x03 \n\ttotal sectors for volume = 21360 0x5370 \n\ttotal sectors for embedded volume = 0 0x00 \n\tCheckHFS returned 7, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 8,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n\tvolume headers disagree on catalog file total blocks - primary 34 alternate 10 \n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n   Volume header needs minor repair\n\tinvalid alternate VHB at 21358 result -60 \n   Verify Status: VIStat = 0x8000, ABTStat = 0x0000 EBTStat = 0x0000\n                  CBTStat = 0x0000 CatStat = 0x00000000\n** The volume Growth was found corrupt and needs to be repaired.\n\tvolume type is pure HFS+ \n\tprimary MDB is at block 0 0x00 \n\talternate MDB is at block 0 0x00 \n\tprimary VHB is at block 2 0x02 \n\talternate VHB is at block 21358 0x536e \n\tsector size = 512 0x200 \n\tVolumeObject flags = 0x03 \n\ttotal sectors for volume = 21360 0x5370 \n\ttotal sectors for embedded volume = 0 0x00 \n\tCheckHFS returned 7, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-10936320-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nomount",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=4096,a=4096",
+      "-c",
+      "c=8,e=8,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=9,a=9",
+      "-v",
+      "Growth",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk5 as a 16 MB case-insensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (Apple_HFS : 0)\u2026\n   (CRC32 $86A59151: whole disk (Apple_HFS : 0))\nAdding resources\u2026\nElapsed Time:   3.888ms\nFile size: 454532 bytes, Checksum: CRC32 $42F37349\nSectors processed: 32768, 881 copied\nSpeed: 110.6MB/s\nSavings: 97.3%\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "artifacts/hfs-go/hfsplus-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsplus-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsplus-16777216-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nomount",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-s",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=4096,a=4096",
+      "-c",
+      "c=8,e=8,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=9,a=9",
+      "-v",
+      "Growth",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk5 as a 10 MB case-sensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (Apple_HFSX : 0)\u2026\n   (CRC32 $D360363A: whole disk (Apple_HFSX : 0))\nAdding resources\u2026\nElapsed Time:   1.081ms\nFile size: 454534 bytes, Checksum: CRC32 $12624A8C\nSectors processed: 21360, 881 copied\nSpeed: 397.9MB/s\nSavings: 95.8%\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "artifacts/hfs-go/hfsx-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 8,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n\tvolume headers disagree on catalog file total blocks - primary 34 alternate 10 \n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n   Volume header needs minor repair\n\tinvalid alternate VHB at 21358 result -60 \n   Verify Status: VIStat = 0x8000, ABTStat = 0x0000 EBTStat = 0x0000\n                  CBTStat = 0x0000 CatStat = 0x00000000\n** The volume Growth was found corrupt and needs to be repaired.\n\tvolume type is pure HFS+ \n\tprimary MDB is at block 0 0x00 \n\talternate MDB is at block 0 0x00 \n\tprimary VHB is at block 2 0x02 \n\talternate VHB is at block 21358 0x536e \n\tsector size = 512 0x200 \n\tVolumeObject flags = 0x03 \n\ttotal sectors for volume = 21360 0x5370 \n\ttotal sectors for embedded volume = 0 0x00 \n\tCheckHFS returned 7, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-10936320.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 8,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n\tvolume headers disagree on catalog file total blocks - primary 34 alternate 10 \n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n   Volume header needs minor repair\n\tinvalid alternate VHB at 21358 result -60 \n   Verify Status: VIStat = 0x8000, ABTStat = 0x0000 EBTStat = 0x0000\n                  CBTStat = 0x0000 CatStat = 0x00000000\n** The volume Growth was found corrupt and needs to be repaired.\n\tvolume type is pure HFS+ \n\tprimary MDB is at block 0 0x00 \n\talternate MDB is at block 0 0x00 \n\tprimary VHB is at block 2 0x02 \n\talternate VHB is at block 21358 0x536e \n\tsector size = 512 0x200 \n\tVolumeObject flags = 0x03 \n\ttotal sectors for volume = 21360 0x5370 \n\ttotal sectors for embedded volume = 0 0x00 \n\tCheckHFS returned 7, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-10936320-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nomount",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-s",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=4096,a=4096",
+      "-c",
+      "c=8,e=8,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=9,a=9",
+      "-v",
+      "Growth",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk5 as a 16 MB case-sensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "convert",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.raw",
+      "-srcimagekey",
+      "diskimage-class=CRawDiskImage",
+      "-format",
+      "UDRO",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "Preparing imaging engine\u2026\nReading whole disk (Apple_HFSX : 0)\u2026\n   (CRC32 $68BD77DB: whole disk (Apple_HFSX : 0))\nAdding resources\u2026\nElapsed Time:   1.399ms\nFile size: 454534 bytes, Checksum: CRC32 $632F89DE\nSectors processed: 32768, 881 copied\nSpeed: 307.5MB/s\nSavings: 97.3%\ncreated: /var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil convert -format ...' is deprecated. Please use 'diskutil image create from --format ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "artifacts/hfs-go/hfsx-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "artifacts/hfs-go/hfsx-16777216.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-go-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-direct-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "/sbin/fsck_hfs",
+      "-dfn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n\tUsing cacheBlockSize=32K cacheTotalBlock=28672 cacheSize=917504K.\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Growth\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Growth appears to be OK.\n\tCheckHFS returned 0, fsmodified = 0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-shadow",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow.shadow",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple.dmg"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/apfs-hfs-growth-enkc65n7/hfsx-16777216-apple-shadow-mount",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "Volume Growth on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  }
+]

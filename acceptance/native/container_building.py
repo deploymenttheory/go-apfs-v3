@@ -15,7 +15,6 @@ import subprocess
 import tempfile
 
 from capture import observe_files, native_xattrs, sha256
-from image_building import create_signed_app, observe
 import file_compression as compression
 from verify_preservation import require
 
@@ -96,6 +95,7 @@ def create_tree(root, spec, command):
     compression.xattr(root / 'same.txt', compression.RESOURCE, b'independent resource fork')
     data = compression.plain(500)
     compression.install(root / 'compressed', 3, data, payload=compression.encode(3, data))
+    from image_building import create_signed_app
     create_signed_app(root, command)
 
 
@@ -184,6 +184,9 @@ def native_allocation(image, case_id, command):
 
 def capture(work, corpus, command, producer):
     require_disposable_host()
+    # Native metadata bindings belong behind the disposable-host guard. The
+    # shared guard and file-only helpers must also import on portable CI hosts.
+    from image_building import observe
     corpus.mkdir()
     cases = []
     for case_id, size, specs in PROFILES:
