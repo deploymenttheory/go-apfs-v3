@@ -112,6 +112,10 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 					Source, Shadow                hfsGrowthArchive
 				}
 				SectorProbes []hfsSectorProbe
+				Retention    struct {
+					Recipe, RecipeSHA256 string
+					NativeCapture        hfsGrowthArchive
+				}
 			}
 			data, err := os.ReadFile(manifest)
 			if err != nil || len(data) > 16<<20 {
@@ -126,14 +130,17 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 				t.Fatal("incomplete or duplicate native provenance")
 			}
 			dir := filepath.Dir(manifest)
-			if len(p.Sources) != 6 || len(evidence.Cases) != 16 || len(evidence.SectorProbes) != 5 {
+			if len(p.Sources) != 6 || len(evidence.Cases) != 16 || len(evidence.SectorProbes) != 7 {
 				t.Fatal("incomplete source/control inventory")
 			}
 			for _, source := range p.Sources {
 				verifyDigest(t, dir, source.Source, source.SHA256)
 			}
-			if evidence.CommandsSHA256 != "" {
-				verifyDigest(t, dir, "commands.json", evidence.CommandsSHA256)
+			verifyDigest(t, dir, "commands.json", evidence.CommandsSHA256)
+			if evidence.Retention.Recipe != "" {
+				verifyDigest(t, dir, evidence.Retention.Recipe, evidence.Retention.RecipeSHA256)
+				original := openGrowthArchive(t, dir, evidence.Retention.NativeCapture)
+				compareRetainedNativeManifest(t, original, data)
 			}
 			for _, probe := range evidence.SectorProbes {
 				t.Run(fmt.Sprintf("unmounted-sectors-%d", probe.Capacity), func(t *testing.T) { compareSectorProbe(t, dir, probe) })
@@ -227,6 +234,9 @@ func compareSectorProbe(t *testing.T, dir string, p hfsSectorProbe) {
 		if m.Offset < 0 || m.Offset > p.Capacity-512 || m.SHA256 != m.SameAttachmentSHA256 {
 			t.Fatal("unacknowledged or invalid native sector write")
 		}
+		if m.WritableReattachedSHA256 != m.SHA256 && m.WritableReattachedSHA256 != growthSectorDigest(t, disk, m.Offset) {
+			t.Fatal("unexplained writable reattachment result")
+		}
 		if got := growthSectorDigest(t, after, m.Offset); got != m.ReattachedSHA256 {
 			t.Fatal("retained reopened sector differs from native readback")
 		}
@@ -246,6 +256,48 @@ func compareSectorProbe(t *testing.T, dir string, p hfsSectorProbe) {
 	}
 	if survived != p.AllWritesSurvived {
 		t.Fatal("native persistence verdict differs from retained sectors")
+	}
+}
+
+func compareRetainedNativeManifest(t *testing.T, source block.Source, retained []byte) {
+	t.Helper()
+	decode := func(r io.Reader) any {
+		d := json.NewDecoder(r)
+		d.UseNumber()
+		var value any
+		if err := d.Decode(&value); err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	original := decode(io.NewSectionReader(source, 0, source.Size()))
+	canonical := decode(strings.NewReader(string(retained)))
+	delete(canonical.(map[string]any), "retention")
+	var normalize func(any)
+	normalize = func(value any) {
+		switch value := value.(type) {
+		case map[string]any:
+			// Retention can share only archive filenames; every hash, observation,
+			// command verdict, nanosecond and provenance field remains exact.
+			if _, ok := value["imageSHA256"]; ok {
+				delete(value, "image")
+			}
+			if _, ok := value["sha256"]; ok {
+				delete(value, "image")
+			}
+			for _, child := range value {
+				normalize(child)
+			}
+		case []any:
+			for _, child := range value {
+				normalize(child)
+			}
+		}
+	}
+	normalize(original)
+	normalize(canonical)
+	if !reflect.DeepEqual(original, canonical) {
+		t.Fatal("retention changed original native expectations or provenance")
 	}
 }
 

@@ -25,7 +25,7 @@ from file_compression import xattr
 from verify_preservation import require
 
 CAPACITIES = (10936320, 16777216)
-PROBE_CAPACITIES = (10936320, 10944512, 11010048, 11534336, 16777216)
+PROBE_CAPACITIES = (10936320, 10944512, 10960896, 10977280, 11010048, 11534336, 16777216)
 SOURCES = ('hfs_header_growth.py', 'capture.py', 'container_building.py',
            'image_repacking.py', 'verify_preservation.py', 'file_compression.py')
 FORKS = {'allocation': 112, 'extents': 192, 'catalog': 272, 'attributes': 352, 'startup': 432}
@@ -323,6 +323,7 @@ def main():
     # Retain exact shipped tool bytes' hashes, SDK ioctl definitions and versions.
     producer['tools'] = {path: sha256(path) for path in ('/sbin/newfs_hfs', '/sbin/fsck_hfs', '/usr/bin/hdiutil')}
     producer['uname'] = command('uname', '-a').decode().strip()
+    producer['pageSize'] = os.sysconf('SC_PAGE_SIZE')
     disk_images = plistlib.loads(command('hdiutil', 'info', '-plist'))
     producer['diskImagesVersion'] = {key: value for key, value in disk_images.items() if key != 'images'}
     sdk = Path(command('xcrun', '--show-sdk-path').decode().strip())
