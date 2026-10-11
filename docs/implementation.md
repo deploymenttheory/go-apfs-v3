@@ -580,6 +580,14 @@ journaled references provide file-only regression replay. Pending-transaction
 replay, external/old journal profiles, in-place transactions and physical
 power-loss qualification remain separate work.
 
+## Existing HFS catalog editing increment
+
+Ordinary image cp/mkdir/mv/rm now share a catalog mutation layer derived from
+Apple's create/rename/delete/CNID and unlink paths. Catalog records and threads,
+parent/volume counts, existing hard-link chains, fork/attribute reclamation and
+B-tree changes remain one transaction in unpublished scratch. Native qualification
+extends the existing HFS scenario family, including both admitted journal profiles.
+
 ## Required phase gates
 
 1. Independent native fixtures/observations, readable portable comparisons, and

@@ -103,3 +103,8 @@ source hashes and native libc qualification are recorded in the source inventory
 `golang.org/x/sys` v0.49.0 provides operating-system locks and metadata calls under
 its [BSD license](LICENSES/BSD-x-sys.txt).
 It introduces no cgo dependency.
+
+HFS catalog mutation also adapts Apple `core/hfs_catalog.c`, `hfs_link.c`,
+`hfs_vnops.c` and `hfs_cnode.c` at the same pinned HFS revision under APSL-2.0.
+Translated functions and exact source hashes are recorded in `docs/sources.json`;
+the adapted Go catalog layer retains the license notice.

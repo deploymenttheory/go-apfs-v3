@@ -65,6 +65,9 @@ type mutation struct {
 	journal         *mutationJournal
 	trees           map[uint32]*mutableTree
 	overflowUsed    map[string]bool
+	catalog         map[uint32]*catalogItem
+	children        map[uint32]map[string]*catalogItem
+	reservedIDs     map[uint32]bool
 }
 
 func (m *mutation) write(p []byte, off uint64) error {
@@ -324,6 +327,10 @@ func (m *mutation) growTree(t *mutableTree) error {
 	if t.id == 3 {
 		m.v.overflow.fork = f
 		m.v.overflow.total = newTotal
+	}
+	if t.id == 4 {
+		m.v.catalog.fork = f
+		m.v.catalog.total = newTotal
 	}
 	if t.id == 8 {
 		m.v.attributeFork = bytesCopy(m.header[352:432])

@@ -10,8 +10,9 @@ apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
 apfs cp --image Executable.dmg --output Forked.dmg --from-host --resource-fork ./fork.bin /Payload/file
 ```
 
-`cp` replaces one existing regular file, including replacement with an empty
-host file. A hard-link alias changes its shared inode. `chmod` accepts numeric
+`cp` creates a missing regular file or replaces an existing one, including
+replacement with an empty host file. An existing directory destination uses the
+host file basename. A hard-link alias changes its shared inode. `chmod` accepts numeric
 and Apple symbolic modes and several existing regular-file paths. Filename
 lookup follows the volume's HFS+/HFSX rules on every host; symlinks are refused.
 The source is always read-only and an existing output path is refused.
@@ -48,6 +49,43 @@ Replacing a fork used by active compression is refused; an inactive decmpfs
 attribute remains opaque metadata. Empty independent forks have no allocated
 storage. Untouched application signatures are retained; editing signed contents
 requires the consumer's signing operation.
+
+## File and directory operations
+
+```sh
+apfs mkdir --image Original.dmg --output Directories.dmg -p -m 0750 /Payload/Resources
+apfs cp --image Directories.dmg --output Added.dmg --from-host ./asset /Payload/Resources
+apfs mv --image Added.dmg --output Moved.dmg /Payload/Resources /Payload/Assets
+apfs rm --image Moved.dmg --output Removed.dmg -r /Payload/obsolete
+```
+
+`mkdir` accepts multiple paths, `-p` and numeric/Apple symbolic `-m`. New
+regular files default to 0644; directories default to 0755. Intermediate `-p`
+directories use 0755. Creation uses the supplied image clock for all four times
+and inherits parent UID/GID, independently of the executing host's user/umask.
+ACL-bearing or set-ID parents and set-ID creation are refused until inheritance
+has an independently qualified credential policy. This is an offline packaging
+policy, not an emulation of the executing macOS process.
+
+`mv` preserves the original CNID, forks, attributes, metadata and link chains.
+An existing directory destination receives the source basename. Replacement
+requires matching file/directory kinds, and an existing directory being replaced
+must be empty. Equal hard-link inodes are a no-op. Case-only names obey the
+volume's comparison policy. Self-descendant moves and root changes are refused.
+`cp -n` and `mv -n` refuse existing destinations without publishing output.
+`rm` accepts multiple paths; `-r`/`-R` is required for any directory, and `-f`
+ignores missing entries. Symbolic links are moved/removed as entries, never
+followed. Removing a hard-link alias repairs the doubly linked catalog chain;
+only final-link removal frees its inode, both forks and all attribute storage.
+Filesystem private directories and journal backing files are protected by CNID.
+
+One catalog layer owns named records, CNID threads, parent valence/folder counts,
+volume file/directory counts, ID collision checks and mutable B-tree operations.
+The complete parent graph and hard-link chains are validated. Operations within
+a batch see prior operations. Names are bounded to 255 stored UTF-16 units,
+paths to 256 components, and the metadata index to 2^20 records. Existing tree,
+allocation, operation and metadata-file extent bounds still apply. Unsupported
+geometry fails without publishing an output.
 
 ## Journaled sources
 

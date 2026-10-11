@@ -1126,6 +1126,37 @@
         "acceptance/native/verify_hfs_editing.py"
       ],
       "basis": "Unchanged Apple-created HFS+/HFSX source/peak/final raw disks captured at 3431004 on macOS 15/26/27, with native contents, identity, metadata, forks, Apple checker verdicts and signed application. Manifests retain current empty little-endian internal journals, their full storage/JIB hashes, cursors/sequence and raw catalog backing CNIDs 16/17. All sources show primary attributes 0x80002100 and alternate 0x80002000, with agreeing journal pointers and structural geometry. Exact producer/command and compressed/uncompressed hashes are retained. Portable replay must preserve journal bytes and identities; the separate fresh gate must prove continued native journal writes and subsequent Go/native cycles. No Go-generated native expectations."
+    },
+    {
+      "id": "apple-hfs-catalog-mutation",
+      "kind": "source",
+      "url": "https://github.com/apple-oss-distributions/hfs/tree/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "files": [
+        {
+          "path": "core/hfs_catalog.c",
+          "sha256": "a459793a5f38d05ad3b5a8e6f9761aefb3d9dfeb077962a7a190b6812bd37dd6"
+        },
+        {
+          "path": "core/hfs_link.c",
+          "sha256": "1238abcd80ada12e254a8d0e45dd82d990693f3dea047ecd7c7345c7a1410078"
+        },
+        {
+          "path": "core/hfs_vnops.c",
+          "sha256": "a07a8cd9bad0e485a6c7248facac3edcf66736727777715f8cf6a86fb77f3f44"
+        },
+        {
+          "path": "core/hfs_cnode.c",
+          "sha256": "d9fffdcd7cf157ba1fb9b804f27fef7e2dc712054452fd48c7baeab0966eb109"
+        }
+      ],
+      "components": [
+        "hfsplus/mutate_catalog.go",
+        "hfsplus/mutate.go",
+        "hfsplus/mutate_tree.go"
+      ],
+      "basis": "Bounded unpublished-copy adaptation of cat_create/buildrecord/buildthread, cat_rename, cat_delete, cat_acquire_cnid, hfs_makenode, hfs_unlink and catalog sibling chains. Thread and orphan-attribute collisions reserve CNIDs; wraparound is refused until qualified. Date-added and generation fields follow hfs_write_dateadded/hfs_write_gencount/hfs_incr_gencount. No vnodes, process-credential emulation, live journal callbacks or open-unlinked orphan staging: exclusively owned copies reclaim final-link storage immediately. New records use explicit clocks, parent UID/GID and fixed portable creation modes; ACL/set-ID inheritance is refused. Independent Apple namespace qualification is separate."
     }
   ]
 }

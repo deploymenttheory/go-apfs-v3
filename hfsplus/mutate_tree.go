@@ -626,5 +626,9 @@ func (t *mutableTree) set(key, value []byte, remove bool) error {
 		t.m.v.overflow.root = be.Uint32(t.header[16:])
 		t.m.v.overflow.total = t.total
 	}
+	if t.id == 4 {
+		t.m.v.catalog.root = be.Uint32(t.header[16:])
+		t.m.v.catalog.total = t.total
+	}
 	return t.flush()
 }
