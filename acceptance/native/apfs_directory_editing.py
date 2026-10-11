@@ -50,7 +50,7 @@ def apply(root, phase, command, host):
         changed = [catalog, catalog / 'A', catalog / 'other', catalog / 'other/Moved',
                    catalog / 'caf\u00e9:resource', root / 'small', *list((catalog / 'other/Moved').iterdir())]
     else:
-        command('/bin/rm', catalog / 'linked', root / 'third', root / 'inline-compressed', root / 'resource-compressed')
+        command('/bin/rm', catalog / 'linked', root / 'inline-compressed', root / 'resource-compressed')
         command('/bin/rm', '-r', catalog / 'symlink', catalog / 'dir-link')
         for number in range(0, COUNT, 2):
             command('/bin/rm', catalog / 'other/Moved' / filename(number))
