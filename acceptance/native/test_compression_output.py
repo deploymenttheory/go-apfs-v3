@@ -10,9 +10,22 @@ import zlib
 import compression_output
 import file_compression
 from preservation import digest_values
+from verify_image_building import verify_capacity
 
 
 class CompressionOutput(unittest.TestCase):
+    def test_automatic_capacity_and_explicit_capacity_have_distinct_contracts(self):
+        for size in (8 * 1024 * 1024, 9052160):
+            verify_capacity(size, False, False)
+        for size in (8 * 1024 * 1024 - 4096, 9052161, (1 << 40) + 4096):
+            with self.assertRaises(ValueError):
+                verify_capacity(size, False, False)
+        verify_capacity(160 * 1024 * 1024, True, False)
+        verify_capacity(64 * 1024 * 1024, False, True)
+        for sensitive, empty in ((True, False), (False, True)):
+            with self.assertRaises(ValueError):
+                verify_capacity(9052160, sensitive, empty)
+
     def test_ordinary_writer_inputs_do_not_require_compression_attributes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / 'Fixture'
