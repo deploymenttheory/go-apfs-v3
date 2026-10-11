@@ -130,6 +130,12 @@ func newImage(ctx context.Context, source block.Source, password []byte, hasPass
 }
 
 func (i *Image) Size() int64 { return i.source.Size() }
+
+// ReadAt reads complete decoded disk bytes, including partition maps and unused
+// sectors. It borrows the image lifetime and never obtains writable access.
+func (i *Image) ReadAt(p []byte, off int64) (int, error) {
+	return i.source.ReadAt(p, off)
+}
 func (i *Image) Close() error {
 	i.mu.Lock()
 	defer i.mu.Unlock()

@@ -10,7 +10,7 @@ and harness were not imported.
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
+| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean nonjournaled HFS+/HFSX regular-file edits and completed-output transactions qualified through portable/native/Go/native cycles on macOS 15/26/27; retained native references committed. Journaling, physical power-loss qualification and APFS mutation pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
 | 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -534,6 +534,32 @@ continues to qualify HFS output modification. Caller capacities are preserved.
 This closes the reference/research increment before phase 5. The next bounded
 implementation increment is HFS+/HFSX existing-filesystem edits and durable
 transactions; this reference family does not claim that capability is implemented.
+
+
+## Existing HFS+/HFSX file editing increment
+
+The new engine modifies existing catalog and fork records without rebuilding the
+filesystem. It preserves volume identity, file IDs, aliases, geometry, unrelated
+metadata and unrelated decoded sectors. Ordinary image `cp` replaces existing
+regular data/resource forks; image `chmod` applies the existing Apple mode grammar.
+
+Allocation and mutable extent/attribute trees adapt the pinned Apple C write
+paths. Complete allocation ownership and structural headers are checked before
+and after mutation. Private regular-file scratch, explicit modification clocks,
+flush-before-publication and no-overwrite publication provide the documented
+completed-output transaction contract. In-place journaling and physical
+power-loss durability remain separate capabilities.
+
+The first admission profile is clean nonjournaled HFS+/HFSX. The
+[capability contract](hfs-editing.md) explains the supported commands, preservation,
+limits, source translation and durability guarantees. A focused scenario family
+runs as a required compatibility subworkflow: independent Apple-created fragmented
+sources, portable editing, native checker/remount qualification and a subsequent
+native/Go/native editing cycle. Those HFS gates passed on all three native
+versions and all three portable hosts. Compact source evidence is retained for
+each macOS version under `acceptance/testdata/hfs-editing`; local replay takes
+about 19 seconds without native operations. Fresh captures remain an independent
+required CI gate and never automatically replace the retained evidence.
 
 ## Required phase gates
 

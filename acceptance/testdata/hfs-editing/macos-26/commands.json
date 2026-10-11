@@ -1,0 +1,745 @@
+[
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-source.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=1024,a=4096",
+      "-c",
+      "c=8,e=1,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=1,a=10",
+      "-v",
+      "Existing",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk7 as a 64 MB case-insensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write/example.c",
+      "-o",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write/Fixture/Example.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write/Fixture/Example.app: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-write/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-source.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-source",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-source/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-peak.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-peak-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-peak.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-peak",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-peak/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-final.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-final-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsplus-final.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-final",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsplus-final/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-source.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-s",
+      "-b",
+      "4096",
+      "-n",
+      "c=4096,e=1024,a=4096",
+      "-c",
+      "c=8,e=1,a=8,d=1,r=1",
+      "-I",
+      "c=10,e=1,a=10",
+      "-v",
+      "Existing",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Initialized /dev/rdisk7 as a 64 MB case-sensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write/example.c",
+      "-o",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write/Fixture/Example.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write/Fixture/Example.app: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-write/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-source.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-source",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-source/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-peak.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-peak-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-peak.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-peak",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-peak/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-final.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-final-write",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/hfsx-final.raw"
+    ],
+    "status": 0,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk7</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk7"
+    ],
+    "status": 0,
+    "stdout": "Can't open /dev/rdisk7: Permission denied\n** /dev/rdisk7 (NO WRITE)\n   Executing fsck_hfs (version hfs-715.160.9).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Existing\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Existing appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-final",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "Volume Existing on /dev/disk7 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-existing-edits-vaxp3w6r/read-hfsx-final/Fixture/Example.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk7"
+    ],
+    "status": 0,
+    "stdout": "\"disk7\" ejected.\n",
+    "stderr": ""
+  }
+]

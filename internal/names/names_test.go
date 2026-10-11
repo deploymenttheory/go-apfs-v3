@@ -58,6 +58,21 @@ func TestNativeAndExactPathLookup(t *testing.T) {
 	}
 }
 
+// Catalog keys carry stored names; applying POSIX presentation conversion here
+// would conflate a stored colon with a slash when validating tree ordering.
+func TestHFSStoredNamesRetainCatalogSpelling(t *testing.T) {
+	for _, sensitive := range []bool{false, true} {
+		if HFSStored("a:b", sensitive) == HFSStored("a/b", sensitive) ||
+			HFSStored("a\u2400b", sensitive) == HFSStored("a\x00b", sensitive) {
+			t.Fatal("distinct stored catalog names conflated")
+		}
+		if HFS("a:b", sensitive) != HFSStored("a/b", sensitive) ||
+			HFS("a\u2400b", sensitive) != HFSStored("a\x00b", sensitive) {
+			t.Fatal("POSIX lookup no longer addresses its stored spelling")
+		}
+	}
+}
+
 type pathDirectory struct{ directory }
 
 func (d pathDirectory) Root() uint64 { return 2 }

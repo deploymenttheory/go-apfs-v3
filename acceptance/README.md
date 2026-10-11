@@ -65,6 +65,41 @@ native raw-copy gate to succeed. See [the investigation](../docs/hfs-header-grow
 go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
 ```
 
+
+## Editing existing HFS+/HFSX filesystems
+
+Purpose: modify existing image contents while preserving their original volume,
+file identities, aliases and unrelated data. Sources are Apple-created volumes;
+a successful Go self-read does not qualify an output.
+
+| Cases | Native expectation | Portable operation and proof |
+| --- | --- | --- |
+| HFS+/HFSX with fragmented data/resource forks and hard-link aliases | Native before/peak/final contents, IDs, metadata and clean fsck | Real allocation, extent-tree growth, replacement/shrink/truncation, shared inode identity, matching headers |
+| Attribute/resource compression and independent forks | Native replacement clears active compression and retains independent storage | Exact raw attribute sets/hashes, compression storage freed, unrelated metadata retained |
+| Signed application and unchanged entries | Native codesign and complete filesystem observations | Original identities and untouched signature/content/metadata retained |
+| Continued native writes and Go re-edits | Native append, catalog growth, deletion/reuse, fsck and remount | Original volume remains usable after alternating implementations |
+
+`native.yml` calls the focused `hfs-edit.yml` scenario subworkflow, and its required
+aggregate includes the result. Capture uses no Go. Linux/Windows/macOS generate
+actual output images; every Mac verifies the identical triples using exact raw
+copies rather than shadows. Explicit offline ctime is compared to the requested
+clock, while the original native wall-clock observations remain retained.
+Native commands run only on disposable VMs. Local regression tests read files.
+The unchanged baseline for macOS 15, 26 and 27 is committed under
+`testdata/hfs-editing` with source/peak/final disks, recipes, commands and hashes.
+All six sources replay in about 19 seconds locally; fresh CI capture remains a
+separate required check. Missing retained references fail rather than skip.
+Linux instruments the fresh-corpus editing replay with the race detector, split
+by native source version into three bounded jobs with four-minute deadlines.
+Each covers HFS+ and HFSX; their archives combine into the same 24 Linux outputs.
+The ordinary race groups exclude that duplicate family, while retaining race
+coverage for its engine, transaction and CLI unit tests. Ordinary portable CI still replays the full retained corpus on
+all three hosts. No native scenario or output check is removed.
+
+```sh
+go test -count=1 -run '^TestNativeHFSImageEditing$' ./acceptance
+```
+
 ## File reading
 
 Purpose: give packaging and forensic consumers the same names, file bytes, forks
@@ -654,12 +689,16 @@ and signatures, credential policies, publication cleanup and interrupted output.
 
 The portable acceptance families read immutable references and own separate
 scratch/output paths. They can run concurrently; CI uses `-parallel 2` to bound
-active families and memory. Race CI also uses `-p 1`, giving each package the
-runner CPU budget instead of competing with other instrumented packages.
-Each family retains its sequential scenario checks,
-required inventories and before/after hashes. This scheduling applies only to
+active families and memory. Race checks schedule library packages, readers and
+workspaces, image construction, and image repacking independently, with the
+required `quality` check aggregating every result. The default readers/workspaces
+group includes future acceptance tests automatically. The separate required HFS
+subworkflow instruments fresh edits from each native source version on Linux.
+Every case remains covered; each family retains its sequential scenario checks,
+required inventories and before/after hashes. Library race checks use `-p 1`;
+acceptance groups retain five-minute deadlines. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
-each disposable macOS job. The race timeout stays at five minutes.
+each disposable macOS job.
 
 For a native-verifier-only correction, dispatch the existing compatibility
 workflow with `readback_run` set to a prior run whose three captures and three
@@ -695,5 +734,6 @@ read-only remount verification. APFS uses private shadows. HFS uses private Appl
 raw-sector copies admitted only after native device size and full sector SHA equality;
 the [source study and route controls](../docs/native-hfs-writes.md) explain why.
 Source hashes must remain unchanged. This proves
-continued native use without claiming Go existing-filesystem mutation or power-loss
-durability. All native operations run on disposable hosted VMs.
+continued native use of freshly built images. Existing-filesystem Go mutation
+has its own HFS family above; physical power-loss durability remains a separate
+capability. All native operations run on disposable hosted VMs.

@@ -10,3 +10,5 @@ Specification coverage, compilation, unit coverage, and native qualification are
 different things and must not be presented interchangeably.
 
 - [Packing](packing.md): APFS/HFS+/HFSX construction, complete-disk repacking and preservation guarantees.
+
+- [Editing existing HFS+/HFSX filesystems](hfs-editing.md): commands, allocation/tree mutation, preservation and the completed-output transaction contract.

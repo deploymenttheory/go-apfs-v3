@@ -8,6 +8,7 @@ on:
       - go.sum
       - 'acceptance/**'
       - '.github/workflows/native.yml'
+      - '.github/workflows/hfs-edit.yml'
   push:
     branches: [main]
   schedule:
@@ -37,6 +38,10 @@ env:
   CGO_ENABLED: "0"
 
 jobs:
+  hfs_edits:
+    if: ${{ !inputs.hfs_reference_capture }}
+    uses: ./.github/workflows/hfs-edit.yml
+
   produce:
     if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
@@ -169,7 +174,9 @@ jobs:
           path: artifacts/hfs-references
           merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance
+        # The required hfs_edits subworkflow separately replays fresh HFS edit
+        # controls on all hosts; ordinary CI covers their retained corpus.
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNativeHFSImageEditing'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -356,7 +363,7 @@ jobs:
   complete:
     name: Require all filesystem compatibility checks
     if: ${{ always() && !inputs.hfs_reference_capture }}
-    needs: [produce, hfs_reference, replay, readback]
+    needs: [produce, hfs_reference, replay, readback, hfs_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -365,8 +372,10 @@ jobs:
           CONSUMERS: ${{ needs.replay.result }}
           READBACK: ${{ needs.readback.result }}
           HFS_REFERENCES: ${{ needs.hfs_reference.result }}
+          HFS_EDITS: ${{ needs.hfs_edits.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
+          test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,
             # successful replays and unchanged Go code/inputs before downloading.
