@@ -103,7 +103,8 @@ func Encode(ctx context.Context, source block.Source, resource io.WriteSeeker, a
 	blocks := (size + blockSize - 1) / blockSize
 	end := int64(264) + blocks*8
 	if end+50 > math.MaxUint32 {
-		return result, filesystem.ErrLimit
+		result.Reason = "resource-size-limit"
+		return result, nil
 	}
 	if _, err = resource.Seek(end, io.SeekStart); err != nil {
 		return result, err
@@ -117,7 +118,8 @@ func Encode(ctx context.Context, source block.Source, resource io.WriteSeeker, a
 			return result, err
 		}
 		if end+int64(len(data))+50 > math.MaxUint32 {
-			return result, filesystem.ErrLimit
+			result.Reason = "resource-size-limit"
+			return result, nil
 		}
 		if err = writeEncoded(ctx, resource, data); err != nil {
 			return result, err

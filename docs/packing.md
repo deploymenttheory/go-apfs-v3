@@ -272,7 +272,8 @@ An attribute can contain at most 3802 bytes including the 16-byte decmpfs header
 Larger representations use a Resource Manager `cmpf` resource with independently
 encoded 64 KiB blocks; incompressible blocks use Apple's stored marker. Compression
 is used only when its complete attribute/resource representation is smaller than
-the logical data fork. Empty and tiny files, incompressible files, an independent
+the logical data fork. Empty and tiny files, incompressible files, representations
+exceeding Resource Manager's 32-bit range, an independent
 fork that would conflict with required resource storage, and inactive decmpfs
 attributes are reported with explicit reasons. An independent resource fork can
 coexist with attribute-based compression and is never overwritten. Under `zlib`,
