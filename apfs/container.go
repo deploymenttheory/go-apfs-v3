@@ -111,7 +111,9 @@ func Open(source block.Source) (*Container, error) {
 		if le.Uint32(b[24:])&0xffff != 1 || le.Uint32(b[36:]) != bs || le.Uint64(b[40:]) != c.BlockCount || !bytes.Equal(h[72:88], b[72:88]) {
 			continue
 		}
-		if le.Uint64(b[16:]) > le.Uint64(selected[16:]) {
+		if le.Uint64(b[16:]) > le.Uint64(selected[16:]) || (le.Uint64(b[16:]) == le.Uint64(selected[16:]) && c.Checkpoint == 0) {
+			// Block zero locates checkpoints; its clean-unmount copy can carry
+			// different counters at the same XID. Use the actual descriptor.
 			selected = b
 			c.Checkpoint = PhysicalAddress(base + n)
 		}

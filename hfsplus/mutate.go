@@ -20,16 +20,8 @@ import (
 // paths can name earlier creations. Paths never follow symlinks. Hard-link
 // aliases address shared contents; moves/removals address their named records.
 // Data is borrowed for the call; mode strings use Apple's setmode grammar.
-type Change struct {
-	Name                                 string // cp source basename when the destination is a directory
-	Operation                            string // cp (default), chmod, mkdir, mv or rm
-	Destination                          string // mv destination
-	Parents, Recursive, Force, NoClobber bool
-	Path                                 string
-	Data                                 block.Source
-	ResourceFork                         bool
-	Mode                                 string
-}
+type Change = filesystem.Change
+
 type ChangeReport struct {
 	VolumeID   string   `json:"volumeId"`
 	Changed    []uint64 `json:"changed"`

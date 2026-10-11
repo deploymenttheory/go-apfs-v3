@@ -13,7 +13,6 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
-	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 )
 
@@ -57,21 +56,21 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 			return fs.ErrInvalid
 		}
 	}
-	var changes []hfsplus.Change
+	var changes []imageedit.Change
 	switch verb {
 	case "chmod":
 		if len(operands) < 2 {
 			return fmt.Errorf("usage: apfs chmod --image IMAGE --output NEW_DMG MODE PATH [PATH]")
 		}
 		for _, path := range operands[1:] {
-			changes = append(changes, hfsplus.Change{Operation: verb, Path: path, Mode: operands[0]})
+			changes = append(changes, imageedit.Change{Operation: verb, Path: path, Mode: operands[0]})
 		}
 	case "mkdir", "rm":
 		if len(operands) == 0 {
 			return fs.ErrInvalid
 		}
 		for _, path := range operands {
-			c := hfsplus.Change{Operation: verb, Path: path}
+			c := imageedit.Change{Operation: verb, Path: path}
 			if verb == "mkdir" {
 				c.Parents = f.Lookup("p").Value.String() == "true"
 				c.Mode = f.Lookup("m").Value.String()
@@ -85,7 +84,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		if len(operands) != 2 {
 			return fs.ErrInvalid
 		}
-		changes = []hfsplus.Change{{Operation: verb, Path: operands[0], Destination: operands[1], NoClobber: f.Lookup("n").Value.String() == "true"}}
+		changes = []imageedit.Change{{Operation: verb, Path: operands[0], Destination: operands[1], NoClobber: f.Lookup("n").Value.String() == "true"}}
 	case "cp":
 		if len(operands) != 2 || f.Lookup("from-host").Value.String() != "true" {
 			return fmt.Errorf("usage: apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE PATH")
@@ -95,7 +94,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 			return e
 		}
 		defer func() { err = errors.Join(err, data.Close()) }()
-		changes = []hfsplus.Change{{Operation: verb, Path: operands[1], Name: filepath.Base(operands[0]), Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true"}}
+		changes = []imageedit.Change{{Operation: verb, Path: operands[1], Name: filepath.Base(operands[0]), Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true"}}
 	}
 	report, err := imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, changes)
 	if err != nil {

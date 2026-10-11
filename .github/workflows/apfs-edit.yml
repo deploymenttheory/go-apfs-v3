@@ -45,3 +45,120 @@ jobs:
           name: apfs-edit-reference-${{ matrix.major }}
           path: artifacts/apfs-editing
           if-no-files-found: error
+
+  replay:
+    if: ${{ !inputs.capture_only }}
+    name: Edit existing APFS files (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
+    needs: capture
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, host: Linux, major: 15, race: '-race'}
+          - {runner: ubuntu-24.04, host: Linux, major: 26, race: '-race'}
+          - {runner: ubuntu-24.04, host: Linux, major: 27, race: '-race'}
+          - {runner: windows-2025, host: Windows, major: 15, race: ''}
+          - {runner: windows-2025, host: Windows, major: 26, race: ''}
+          - {runner: windows-2025, host: Windows, major: 27, race: ''}
+          - {runner: macos-26, host: macOS, major: 15, race: ''}
+          - {runner: macos-26, host: macOS, major: 26, race: ''}
+          - {runner: macos-26, host: macOS, major: 27, race: ''}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: apfs-edit-reference-${{ matrix.major }}
+          path: artifacts/apfs-editing
+      - name: Verify native file semantics, unchanged identities, source preservation and reproducibility
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '^TestNativeAPFSImageEditing$'
+        env:
+          CGO_ENABLED: ${{ matrix.host == 'Linux' && '1' || '0' }}
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_APFS_EDITS: ../artifacts/apfs-editing
+          APFS_APFS_EDIT_OUTPUT: ../artifacts/apfs-edits-${{ matrix.host }}
+      - name: Archive actual portable output images
+        shell: bash
+        run: |
+          archive_options=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            archive_options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
+          path: artifacts/apfs-edits-*.tar.gz
+          if-no-files-found: error
+
+  readback:
+    if: ${{ !inputs.capture_only }}
+    name: Qualify APFS edits and continued native writes (macOS ${{ matrix.major }})
+    needs: replay
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: apfs-edit-reference-*
+          path: artifacts/apfs-editing
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: apfs-edits-*
+          path: artifacts/outputs
+          merge-multiple: true
+      - name: Unpack all host/source-version images
+        run: |
+          for archive_file in artifacts/outputs/*.tar.gz; do
+            tar -xzf "$archive_file" --no-mac-metadata --no-xattrs --no-acls --options '!mac-ext' -C artifacts/outputs
+          done
+      - name: Qualify exact raw copies with Apple fsck, native readback and continued allocation
+        run: python3 acceptance/native/verify_apfs_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/apfs-editing --outputs artifacts/outputs --continuation artifacts/apfs-continued-native
+      - name: Edit Apple's subsequent allocation and tree state again with Go
+        run: go test -v -count=1 -timeout 2m ./acceptance -run '^TestNativeAPFSImageEditingContinuation$'
+        env:
+          APFS_APFS_EDIT_CONTINUATION: ../artifacts/apfs-continued-native
+          APFS_APFS_EDIT_CONTINUED_OUTPUT: ../artifacts/apfs-continued-go
+      - name: Qualify Go re-edits with Apple fsck and remount
+        run: python3 acceptance/native/verify_apfs_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/apfs-continued-go
+      - name: Retain native verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-edit-verification-${{ matrix.major }}
+          path: |
+            artifacts/outputs/*.diagnostics.json
+            artifacts/apfs-continued-go/*.diagnostics.json
+          if-no-files-found: error
+
+  complete:
+    if: ${{ always() && !inputs.capture_only }}
+    name: Require all existing APFS editing checks
+    needs: [capture, replay, readback]
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success
+        env:
+          CAPTURE: ${{ needs.capture.result }}
+          REPLAY: ${{ needs.replay.result }}
+          READBACK: ${{ needs.readback.result }}

@@ -15,7 +15,6 @@ from capture import native_extents, sha256
 from container_building import attached, check_filesystem, require_disposable_host
 import file_compression as compression
 from hfs_header_growth import retain_file
-from image_building import create_signed_app
 from image_mutation import copy_disk, raw_command
 from image_repacking import Commands, files, version
 from verify_preservation import require
@@ -62,6 +61,7 @@ def write_payload(path, label, size):
 
 
 def create(root, command):
+    from image_building import create_signed_app
     root.mkdir()
     for name in ('small', 'empty', 'independent', 'fragmented-data', 'fragmented-resource'):
         (root / name).write_bytes(b'existing data\n')
