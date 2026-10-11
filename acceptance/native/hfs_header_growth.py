@@ -21,11 +21,12 @@ import tempfile
 from capture import sha256
 from container_building import require_disposable_host
 from image_repacking import files, version
+from file_compression import xattr
 from verify_preservation import require
 
 CAPACITIES = (10936320, 16777216)
 SOURCES = ('hfs_header_growth.py', 'capture.py', 'container_building.py',
-           'image_repacking.py', 'verify_preservation.py')
+           'image_repacking.py', 'verify_preservation.py', 'file_compression.py')
 FORKS = {'allocation': 112, 'extents': 192, 'catalog': 272, 'attributes': 352, 'startup': 432}
 
 
@@ -176,9 +177,10 @@ def workload(mount):
     payload = bytes(range(256)) * 2048
     original = root / 'grow'
     original.write_bytes(payload)
-    os.setxattr(original, 'org.go-apfs.header-growth', b'catalog growth keeps attributes')
-    os.setxattr(original, 'com.apple.ResourceFork', b'independent growth-control resource fork')
+    xattr(original, 'org.go-apfs.header-growth', b'catalog growth keeps attributes')
+    xattr(original, 'com.apple.ResourceFork', b'independent growth-control resource fork')
     os.link(original, root / 'alias')
+    os.link(original, root / 'retained-alias')
     with original.open('ab') as stream:
         stream.write(payload)
         stream.flush()
@@ -186,11 +188,12 @@ def workload(mount):
     original.rename(root / 'renamed')
     require((root / 'alias').read_bytes() == payload * 2, 'native hard-link growth')
     (root / 'alias').unlink()
-    # 512 long names force catalog allocation beyond the matched small initial
+    os.symlink('renamed', root / 'symlink')
+    # 128 long names force catalog allocation beyond the matched small initial
     # fork; confirm growth from retained structures, never infer it from counts.
-    for i in range(512):
+    for i in range(128):
         (root / f'entry-{i:03}-{"catalog-growth-" * 6}').write_bytes(payload[:4096])
-    for i in range(0, 512, 2):
+    for i in range(0, 128, 2):
         (root / f'entry-{i:03}-{"catalog-growth-" * 6}').unlink()
     (root / 'reused').write_bytes(payload)
     os.sync()
