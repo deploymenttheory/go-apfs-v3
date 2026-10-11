@@ -239,7 +239,8 @@ def main():
                 # Both shadow controls use UDRO: raw-vs-UDIF driver selection
                 # would otherwise confound the Apple/Go construction comparison.
                 apple = work / f'{profile}-{capacity}-apple.dmg'
-                command('hdiutil', 'convert', apple_raw, '-format', 'UDRO', '-o', apple)
+                command('hdiutil', 'convert', apple_raw, '-srcimagekey',
+                        'diskimage-class=CRawDiskImage', '-format', 'UDRO', '-o', apple)
                 before_apple = snapshot(apple, args.output / f'{profile}-{capacity}-apple-before.raw.gz', command)
                 require(before_apple['checker']['status'] == 0, 'Apple control initially passes native checker')
                 for before in (before_go, before_apple):
