@@ -42,7 +42,7 @@ jobs:
           if-no-files-found: error
 
   replay:
-    name: Edit existing Apple HFS filesystems (${{ matrix.platform }})
+    name: Edit existing Apple HFS filesystems (${{ matrix.platform }}, ${{ matrix.scope }})
     needs: capture
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -50,9 +50,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race'}
-          - {runner: windows-2025, platform: Windows, race: ''}
-          - {runner: macos-26, platform: macOS, race: ''}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageEditing$/macos-15', artifact: Linux-15}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageEditing$/macos-26', artifact: Linux-26}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageEditing$/macos-27', artifact: Linux-27}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: Windows}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -66,8 +68,9 @@ jobs:
           merge-multiple: true
       - name: Verify existing identities, forks, compression cleanup, allocation and reproducibility
         # Race coverage owns this bounded family on Linux, instead of repeating
-        # its full-disk I/O and compression in the combined quality job.
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '^TestNativeHFSImageEditing$'
+        # its full-disk I/O and compression in the combined quality job. Each
+        # Linux job covers both filesystems from one native source version.
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '${{ matrix.tests }}'
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           APFS_NATIVE_HFS_EDITS: ../artifacts/hfs-editing
@@ -79,10 +82,10 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf "artifacts/hfs-edits-${{ matrix.platform }}.tar.gz" "${archive_options[@]}" -C artifacts "hfs-edits-${{ matrix.platform }}"
+          tar -czf "artifacts/hfs-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "hfs-edits-${{ matrix.platform }}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: hfs-edits-${{ matrix.platform }}
+          name: hfs-edits-${{ matrix.artifact }}
           path: artifacts/hfs-edits-*.tar.gz
           if-no-files-found: error
 

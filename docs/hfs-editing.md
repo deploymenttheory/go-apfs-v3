@@ -115,6 +115,8 @@ replays all six sources in about 19 seconds locally. Fresh required CI captures
 remain separate from this regression corpus. Focused failure tests also prove
 that admission writes nothing on corruption, interrupted transactions publish
 no partial output, and partitioned-image edits preserve every outside byte.
-Fresh Linux replay also runs with the race detector under a separate four-minute
-deadline; the combined five-minute race suite avoids duplicating that full-disk
-work. Portable CI continues to replay every retained case on all three hosts.
+Fresh Linux replay also runs with the race detector, split by native source
+version into three jobs with four-minute deadlines. Each covers both filesystems;
+their outputs combine for the same native checks. The combined five-minute race
+suite avoids duplicating that full-disk work. Portable CI continues to replay
+every retained case on all three hosts.
