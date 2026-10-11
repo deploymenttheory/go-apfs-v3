@@ -124,7 +124,7 @@ def capture(expected_major, output):
     cases = []
     with tempfile.TemporaryDirectory(prefix='apfs-existing-edits-') as tmp:
         work = Path(tmp)
-        for filesystem, native_fs in (('apfs', 'APFS'), ('apfs-case-sensitive', 'APFSX')):
+        for filesystem, native_fs in (('apfs', 'APFS'), ('apfs-case-sensitive', 'Case-sensitive APFS')):
             dmg = work / (filesystem + '.dmg')
             command('hdiutil', 'create', '-size', str(CAPACITY), '-layout', 'NONE',
                     '-fs', native_fs, '-volname', 'Existing', dmg)
