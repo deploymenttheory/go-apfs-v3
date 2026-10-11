@@ -96,8 +96,9 @@ def read_headers(device, size):
         alternate = decode_header(source.read(512))
         fork = primary['forks']['catalog']
         source.seek(fork['extents'][0][0] * primary['blockSize'])
-        tree = source.read(106)
-        require(len(tree) == 106 and tree[8] == 1, 'catalog B-tree header')
+        # Raw Darwin devices require sector-aligned reads, including lengths.
+        tree = source.read(512)
+        require(len(tree) == 512 and tree[8] == 1, 'catalog B-tree header')
         catalog = {'nodeSize': struct.unpack_from('>H', tree, 32)[0],
                    'totalNodes': struct.unpack_from('>I', tree, 36)[0],
                    'freeNodes': struct.unpack_from('>I', tree, 40)[0],
