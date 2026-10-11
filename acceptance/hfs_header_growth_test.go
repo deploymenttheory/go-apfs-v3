@@ -1,0 +1,263 @@
+package acceptance_test
+
+import (
+	"compress/gzip"
+	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/deploymenttheory/go-apfs-v3/block"
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
+	"github.com/deploymenttheory/go-apfs-v3/session"
+)
+
+type hfsGrowthFork struct {
+	LogicalSize uint64       `json:"logicalSize"`
+	ClumpSize   uint32       `json:"clumpSize"`
+	TotalBlocks uint32       `json:"totalBlocks"`
+	Extents     [8][2]uint32 `json:"extents"`
+}
+
+type hfsGrowthHeader struct {
+	Signature          string                   `json:"signature"`
+	Attributes         uint32                   `json:"attributes"`
+	LastMountedVersion string                   `json:"lastMountedVersion"`
+	Files              uint32                   `json:"files"`
+	Directories        uint32                   `json:"directories"`
+	BlockSize          uint32                   `json:"blockSize"`
+	TotalBlocks        uint32                   `json:"totalBlocks"`
+	FreeBlocks         uint32                   `json:"freeBlocks"`
+	Forks              map[string]hfsGrowthFork `json:"forks"`
+}
+
+type hfsGrowthState struct {
+	Image       string `json:"image"`
+	ImageSHA256 string `json:"imageSHA256"`
+	DiskSHA256  string `json:"diskSHA256"`
+	Geometry    struct {
+		DeviceBytes int64 `json:"deviceBytes"`
+	} `json:"geometry"`
+	Headers struct {
+		Primary, Alternate hfsGrowthHeader
+	} `json:"headers"`
+	Checker struct {
+		Status         int
+		Stdout, Stderr string
+	} `json:"checker"`
+}
+
+// TestNativeHFSCatalogGrowth replays retained native writes without mounting.
+// Whole disk hashes bind the evidence; both headers expose stale alternates,
+// while the production reader must recover the native-observed surviving tree,
+// metadata, data and resource forks from every successful or failing state.
+// A readable primary never turns a recorded native checker failure into a pass.
+func TestNativeHFSCatalogGrowth(t *testing.T) {
+	t.Parallel()
+	root := os.Getenv("APFS_NATIVE_HFS_GROWTH")
+	if root == "" {
+		root = "testdata/hfs-header-growth"
+	}
+	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
+	if err != nil || len(manifests) == 0 {
+		t.Fatal("missing retained HFS growth evidence", root, err)
+	}
+	seen := map[string]bool{}
+	for _, manifest := range manifests {
+		t.Run(filepath.Base(filepath.Dir(manifest)), func(t *testing.T) {
+			var evidence struct {
+				Schema   int
+				Scenario string
+				Producer struct {
+					System, Version, Build, Architecture, Run, Revision string
+					Sources                                             []struct{ Source, SHA256 string }
+				}
+				Cases []struct {
+					ID, Origin, Route, Filesystem string
+					Capacity                      int64
+					Before, Admitted, After       hfsGrowthState
+					Files, ReadbackFiles          fileObservation
+				}
+			}
+			data, err := os.ReadFile(manifest)
+			if err != nil || len(data) > 16<<20 {
+				t.Fatal("invalid growth manifest", err)
+			}
+			if err = json.Unmarshal(data, &evidence); err != nil {
+				t.Fatal(err)
+			}
+			p := evidence.Producer
+			major := strings.Split(p.Version, ".")[0]
+			if evidence.Schema != 1 || evidence.Scenario != "hfs-header-growth" || p.System != "macOS" || p.Build == "" || p.Architecture == "" || p.Run == "" || len(p.Revision) != 40 || seen[major] {
+				t.Fatal("incomplete or duplicate native provenance")
+			}
+			seen[major] = true
+			dir := filepath.Dir(manifest)
+			if len(p.Sources) < 5 || len(evidence.Cases) < 4 {
+				t.Fatal("incomplete source/control inventory")
+			}
+			for _, source := range p.Sources {
+				verifyDigest(t, dir, source.Source, source.SHA256)
+			}
+			ids := map[string]bool{}
+			for _, c := range evidence.Cases {
+				t.Run(c.ID, func(t *testing.T) {
+					if ids[c.ID] || (c.Origin != "apple" && c.Origin != "go") || (c.Route != "direct" && c.Route != "shadow") || (c.Filesystem != "hfsplus" && c.Filesystem != "hfsx") || c.Capacity < 8<<20 || c.Capacity > 16<<20 {
+						t.Fatal("invalid matched control")
+					}
+					ids[c.ID] = true
+					if c.Before.DiskSHA256 != c.Admitted.DiskSHA256 || c.Before.Geometry.DeviceBytes != c.Capacity || c.Admitted.Geometry.DeviceBytes != c.Capacity || c.Before.Checker.Status != 0 || c.Admitted.Checker.Status != 0 {
+						t.Fatal("write route did not start with identical admitted sectors")
+					}
+					before := c.Before.Headers.Primary.Forks["catalog"]
+					primary := c.After.Headers.Primary.Forks["catalog"]
+					alternate := c.After.Headers.Alternate.Forks["catalog"]
+					if primary.TotalBlocks <= before.TotalBlocks || len(c.Files.Entries) != 69 || !reflect.DeepEqual(c.Files, c.ReadbackFiles) {
+						t.Fatal("missing actual catalog growth or independent remount observations")
+					}
+					if c.After.Checker.Status != 0 {
+						if primary.TotalBlocks == alternate.TotalBlocks || !strings.Contains(c.After.Checker.Stdout+c.After.Checker.Stderr, "total blocks") {
+							t.Fatal("unexplained retained checker failure")
+						}
+						t.Logf("retained native checker failure: primary catalog %d, alternate %d", primary.TotalBlocks, alternate.TotalBlocks)
+					} else if !reflect.DeepEqual(primary, alternate) {
+						t.Fatal("successful native check has disagreeing catalog geometry")
+					}
+					for _, state := range []hfsGrowthState{c.Before, c.Admitted, c.After} {
+						source := openGrowthSnapshot(t, dir, state)
+						for _, h := range []struct {
+							offset int64
+							want   hfsGrowthHeader
+						}{{1024, state.Headers.Primary}, {source.Size() - 1024, state.Headers.Alternate}} {
+							if got := readGrowthHeader(t, source, h.offset); !reflect.DeepEqual(got, h.want) {
+								t.Fatalf("retained header differs at %d: got %+v want %+v", h.offset, got, h.want)
+							}
+						}
+						if state.Image == c.After.Image {
+							volume, err := hfsplus.Open(source)
+							if err != nil {
+								t.Fatal(err)
+							}
+							if volume.BlockSize != state.Headers.Primary.BlockSize || volume.BlockCount != state.Headers.Primary.TotalBlocks || volume.FreeBlocks != state.Headers.Primary.FreeBlocks || volume.CaseSensitive != (c.Filesystem == "hfsx") {
+								t.Fatal("portable interpretation differs from native volume geometry")
+							}
+							compareFiles(t, volume, c.ReadbackFiles)
+						}
+						if state.Image == c.Before.Image && c.Origin == "apple" && c.Route == "direct" {
+							compareGrowthConstruction(t, c.Before.Headers.Primary, c.Capacity, c.Filesystem == "hfsx")
+						}
+					}
+				})
+			}
+		})
+	}
+	for _, major := range []string{"15", "26", "27"} {
+		if !seen[major] {
+			t.Errorf("missing macOS %s retained HFS growth references", major)
+		}
+	}
+}
+
+// Apple's freshly formatted empty volumes independently supply the system-fork
+// geometry and implementation identifier for the same construction options.
+func compareGrowthConstruction(t *testing.T, native hfsGrowthHeader, capacity int64, sensitive bool) {
+	t.Helper()
+	ctx := context.Background()
+	clock := time.Date(2025, 6, 7, 8, 9, 10, 0, time.UTC)
+	r, err := session.Create(ctx, filepath.Join(t.TempDir(), "empty-session"), session.Options{Names: filesystem.NameRules{Format: "HFS+", CaseSensitive: sensitive, NormalizationInsensitive: true}, Time: &clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	plan, err := hfsplus.Plan(ctx, r, hfsplus.BuildOptions{Name: "Growth", Capacity: capacity, CaseSensitive: sensitive, Time: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "built.raw")
+	out, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = plan.Write(ctx, out)
+	closeErr := out.Close()
+	if err != nil || closeErr != nil {
+		t.Fatal(err, closeErr)
+	}
+	built, err := block.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer built.Close()
+	h := readGrowthHeader(t, built, 1024)
+	if h.LastMountedVersion != native.LastMountedVersion || h.BlockSize != native.BlockSize || h.TotalBlocks != native.TotalBlocks || h.Signature != native.Signature {
+		t.Fatalf("construction differs from Apple format: got %+v want %+v", h, native)
+	}
+	for _, name := range []string{"allocation", "catalog", "extents", "attributes"} {
+		got, want := h.Forks[name], native.Forks[name]
+		if got.TotalBlocks != want.TotalBlocks || got.ClumpSize != want.ClumpSize || got.LogicalSize != want.LogicalSize {
+			t.Fatalf("%s initial geometry differs from Apple format: got %+v want %+v", name, got, want)
+		}
+	}
+}
+
+func openGrowthSnapshot(t *testing.T, dir string, state hfsGrowthState) *block.File {
+	t.Helper()
+	verifyDigest(t, dir, state.Image, state.ImageSHA256)
+	if state.Geometry.DeviceBytes < 8<<20 || state.Geometry.DeviceBytes > 16<<20 || len(state.DiskSHA256) != 64 {
+		t.Fatal("invalid retained device bounds")
+	}
+	in, err := os.Open(filepath.Join(dir, state.Image))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer in.Close()
+	z, err := gzip.NewReader(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer z.Close()
+	path := filepath.Join(t.TempDir(), "native.raw")
+	out, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.New()
+	n, err := io.Copy(io.MultiWriter(out, digest), io.LimitReader(z, state.Geometry.DeviceBytes+1))
+	closeErr := out.Close()
+	if err != nil || closeErr != nil || n != state.Geometry.DeviceBytes || hex.EncodeToString(digest.Sum(nil)) != state.DiskSHA256 {
+		t.Fatal("retained native disk integrity", n, err, closeErr)
+	}
+	source, err := block.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { source.Close() })
+	return source
+}
+
+func readGrowthHeader(t *testing.T, source block.Source, offset int64) hfsGrowthHeader {
+	t.Helper()
+	raw := make([]byte, 512)
+	if err := block.ReadFull(source, raw, offset); err != nil {
+		t.Fatal(err)
+	}
+	be := binary.BigEndian
+	h := hfsGrowthHeader{Signature: string(raw[:2]), Attributes: be.Uint32(raw[4:]), LastMountedVersion: string(raw[8:12]), Files: be.Uint32(raw[32:]), Directories: be.Uint32(raw[36:]), BlockSize: be.Uint32(raw[40:]), TotalBlocks: be.Uint32(raw[44:]), FreeBlocks: be.Uint32(raw[48:]), Forks: map[string]hfsGrowthFork{}}
+	for name, offset := range map[string]int{"allocation": 112, "extents": 192, "catalog": 272, "attributes": 352, "startup": 432} {
+		f := hfsGrowthFork{LogicalSize: be.Uint64(raw[offset:]), ClumpSize: be.Uint32(raw[offset+8:]), TotalBlocks: be.Uint32(raw[offset+12:])}
+		for i := range f.Extents {
+			f.Extents[i] = [2]uint32{be.Uint32(raw[offset+16+i*8:]), be.Uint32(raw[offset+20+i*8:])}
+		}
+		h.Forks[name] = f
+	}
+	return h
+}

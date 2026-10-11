@@ -516,7 +516,8 @@ func (p *Layout) arrange(ctx context.Context) error {
 		be.PutUint16(header[2:], 5)
 	}
 	be.PutUint32(header[4:], 0x80000100)
-	copy(header[8:], "HFSJ")
+	// makehfs uses kHFSPlusMountVersion for a fresh nonjournaled volume.
+	copy(header[8:], "10.0")
 	stamp, _ := buildDate(p.options.Time)
 	for _, off := range []int{16, 20, 28} {
 		be.PutUint32(header[off:], stamp)
@@ -534,6 +535,7 @@ func (p *Layout) arrange(ctx context.Context) error {
 	be.PutUint64(header[72:], 1)
 	copy(header[104:], p.options.VolumeID[:])
 	putBuildFork(header[112:], buildFork{size: int64(len(bitmap)), start: 1, count: uint32(bitmapBlocks)})
+	be.PutUint32(header[120:], uint32(len(bitmap)))
 	putBuildFork(header[192:], extFork)
 	putBuildFork(header[272:], catFork)
 	putBuildFork(header[352:], attrFork)

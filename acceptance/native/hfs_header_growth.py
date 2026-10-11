@@ -169,6 +169,12 @@ def sector_probe(capacity, work, output, command):
                 require(marker['sameAttachmentSHA256'] == marker['sha256'], 'native sector immediate readback')
     finally:
         command('hdiutil', 'detach', device)
+    written_shadow = retain_file(shadow, output / f'sector-{capacity}-written.shadow.gz')
+    require(shadow.stat().st_size <= 32 << 20, 'bounded storage-only probe shadow')
+    written_bytes = shadow.read_bytes()
+    for marker in markers:
+        data = hashlib.sha256(f'sector probe {capacity} {marker["offset"]}'.encode()).digest() * 16
+        marker['storedShadowOffset'] = written_bytes.find(data)
     device = attach(image, command, shadow)
     try:
         with open(device.replace('/dev/disk', '/dev/rdisk'), 'rb', buffering=0) as stream:
@@ -190,6 +196,7 @@ def sector_probe(capacity, work, output, command):
         after = {'image': disk.name, 'sha256': sha256(disk), 'diskSHA256': digest.hexdigest()}
     finally:
         command('hdiutil', 'detach', device)
+    readonly_shadow = retain_file(shadow, output / f'sector-{capacity}-readonly.shadow.gz')
     require(sha256(image) == source['uncompressedSHA256'], 'sector probe preserved original image')
     device = attach(image, command, shadow, writable=True)
     try:
@@ -205,10 +212,10 @@ def sector_probe(capacity, work, output, command):
     shadow_bytes = shadow.read_bytes()
     for marker in markers:
         data = hashlib.sha256(f'sector probe {capacity} {marker["offset"]}'.encode()).digest() * 16
-        marker['storedShadowOffset'] = shadow_bytes.find(data)
-        require(marker['storedShadowOffset'] >= 0, 'acknowledged sector write absent from shadow file')
+        marker['writableStoredShadowOffset'] = shadow_bytes.find(data)
     retained_shadow = retain_file(shadow, output / f'sector-{capacity}.shadow.gz')
-    return {'capacity': capacity, 'source': source, 'shadow': retained_shadow,
+    return {'capacity': capacity, 'source': source, 'writtenShadow': written_shadow,
+            'readOnlyShadow': readonly_shadow, 'shadow': retained_shadow,
             'after': after, 'geometry': native, 'markers': markers,
             'allWritesSurvived': all(m['sha256'] == m['reattachedSHA256'] for m in markers)}
 

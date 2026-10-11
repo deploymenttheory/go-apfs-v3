@@ -139,7 +139,7 @@ jobs:
 
   replay:
     name: Compare Go with macOS reference data (${{ matrix.platform }})
-    needs: produce
+    needs: [produce, hfs_reference]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -163,6 +163,11 @@ jobs:
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hfs-header-growth-*
+          path: artifacts/hfs-references
+          merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
         run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance
         env:
@@ -174,6 +179,7 @@ jobs:
           APFS_NATIVE_ENCRYPTED_DMG: ../artifacts/native/encrypted-dmg
           APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
+          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation
           APFS_WORKSPACE_OUTPUT: ../artifacts/preservation
           APFS_NATIVE_REPLACEMENT: ../artifacts/native/replacement
@@ -350,7 +356,7 @@ jobs:
   complete:
     name: Require all filesystem compatibility checks
     if: ${{ always() && !inputs.hfs_reference_capture }}
-    needs: [produce, replay, readback]
+    needs: [produce, hfs_reference, replay, readback]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -358,6 +364,7 @@ jobs:
           PRODUCERS: ${{ needs.produce.result }}
           CONSUMERS: ${{ needs.replay.result }}
           READBACK: ${{ needs.readback.result }}
+          HFS_REFERENCES: ${{ needs.hfs_reference.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
           if [ -n "$REUSED_RUN" ]; then
@@ -365,11 +372,11 @@ jobs:
             # successful replays and unchanged Go code/inputs before downloading.
             test "$READBACK" = success
           else
-            test "$PRODUCERS" = success && test "$CONSUMERS" = success && test "$READBACK" = success
+            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$READBACK" = success
           fi
 
   hfs_reference:
-    if: ${{ inputs.hfs_reference_capture }}
+    if: ${{ inputs.readback_run == '' }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
