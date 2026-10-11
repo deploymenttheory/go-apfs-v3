@@ -201,8 +201,12 @@ func (t *buildTree) nodeBytes(n *buildTreeNode, root bool) []byte {
 }
 
 func sealBuildObject(b []byte, oid uint64, kind, subtype uint32) {
+	sealObject(b, oid, 1, kind, subtype)
+}
+
+func sealObject(b []byte, oid, xid uint64, kind, subtype uint32) {
 	le.PutUint64(b[8:], oid)
-	le.PutUint64(b[16:], 1)
+	le.PutUint64(b[16:], xid)
 	le.PutUint32(b[24:], kind)
 	le.PutUint32(b[28:], subtype)
 	const mod = uint64(0xffffffff)

@@ -77,7 +77,9 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 		if e != nil {
 			return report, e
 		}
-		report.Changed = append(report.Changed, id)
+		if id != 0 {
+			report.Changed = append(report.Changed, id)
+		}
 	}
 	if e = m.commit(stamp); e != nil {
 		return report, e
@@ -263,18 +265,9 @@ func (m *mutation) loadEphemeral() error {
 	return nil
 }
 func sealMutationObject(b []byte, oid, xid uint64, kind, subtype uint32) {
-	sealBuildObject(b, oid, kind, subtype)
-	le.PutUint64(b[16:], xid)
-	const mod = uint64(0xffffffff)
-	var a, s uint64
-	for at := 8; at < len(b); at += 4 {
-		a = (a + uint64(le.Uint32(b[at:]))) % mod
-		s = (s + a) % mod
-	}
-	x := mod - (a+s)%mod
-	y := mod - (a+x)%mod
-	le.PutUint64(b, y<<32|x)
+	sealObject(b, oid, xid, kind, subtype)
 }
+
 func (m *mutation) write(b []byte, offset uint64) error {
 	if e := m.ctx.Err(); e != nil {
 		return e

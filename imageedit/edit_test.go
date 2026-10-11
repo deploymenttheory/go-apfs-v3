@@ -24,11 +24,15 @@ import (
 
 var clock = time.Date(2025, 6, 7, 8, 9, 10, 0, time.UTC)
 
-func fixture(t *testing.T) string {
+func fixture(t *testing.T, formats ...string) string {
 	t.Helper()
 	ctx := context.Background()
 	root := t.TempDir()
-	s, e := session.Create(ctx, filepath.Join(root, "session"), session.Options{Names: filesystem.NameRules{Format: "HFS+", NormalizationInsensitive: true}, Time: &clock})
+	format := "HFS+"
+	if len(formats) != 0 {
+		format = formats[0]
+	}
+	s, e := session.Create(ctx, filepath.Join(root, "session"), session.Options{Names: filesystem.NameRules{Format: format, NormalizationInsensitive: true}, Time: &clock})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -182,26 +186,34 @@ func (hugeInput) Size() int64 { return 1 << 40 }
 // It intentionally leaves only private scratch, which the parent removes.
 func TestInterruptedImageTransaction(t *testing.T) {
 	if os.Getenv("APFS_EDIT_INTERRUPT_CHILD") == "1" {
-		_, _ = imageedit.Apply(context.Background(), os.Getenv("APFS_EDIT_SOURCE"), os.Getenv("APFS_EDIT_DESTINATION"), imageedit.Options{Time: clock}, []hfsplus.Change{{Operation: "mkdir", Path: "/created"}, {Path: "/created/payload", Data: interruptedInput{}}})
+		changes := []imageedit.Change{{Operation: "mkdir", Path: "/created"}, {Path: "/created/payload", Data: interruptedInput{}}}
+		if os.Getenv("APFS_EDIT_FILESYSTEM") == "APFS" {
+			changes = []imageedit.Change{{Path: "/file", Data: interruptedInput{}}}
+		}
+		_, _ = imageedit.Apply(context.Background(), os.Getenv("APFS_EDIT_SOURCE"), os.Getenv("APFS_EDIT_DESTINATION"), imageedit.Options{Time: clock}, changes)
 		os.Exit(99)
 	}
-	source := fixture(t)
-	before, _ := os.ReadFile(source)
-	root := t.TempDir()
-	out := filepath.Join(root, "edited.dmg")
-	command := exec.Command(os.Args[0], "-test.run=^TestInterruptedImageTransaction$")
-	command.Env = append(os.Environ(), "APFS_EDIT_INTERRUPT_CHILD=1", "APFS_EDIT_SOURCE="+source, "APFS_EDIT_DESTINATION="+out, "TMPDIR="+root, "TMP="+root, "TEMP="+root)
-	err := command.Run()
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
-		t.Fatal("child did not stop in mutation", err)
-	}
-	if _, e := os.Lstat(out); !errors.Is(e, fs.ErrNotExist) {
-		t.Fatal("interrupted transaction published", e)
-	}
-	after, _ := os.ReadFile(source)
-	if !bytes.Equal(before, after) {
-		t.Fatal("interruption changed source")
+	for _, format := range []string{"HFS+", "APFS"} {
+		t.Run(format, func(t *testing.T) {
+			source := fixture(t, format)
+			before, _ := os.ReadFile(source)
+			root := t.TempDir()
+			out := filepath.Join(root, "edited.dmg")
+			command := exec.Command(os.Args[0], "-test.run=^TestInterruptedImageTransaction$")
+			command.Env = append(os.Environ(), "APFS_EDIT_INTERRUPT_CHILD=1", "APFS_EDIT_FILESYSTEM="+format, "APFS_EDIT_SOURCE="+source, "APFS_EDIT_DESTINATION="+out, "TMPDIR="+root, "TMP="+root, "TEMP="+root)
+			err := command.Run()
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 17 {
+				t.Fatal("child did not stop in mutation", err)
+			}
+			if _, e := os.Lstat(out); !errors.Is(e, fs.ErrNotExist) {
+				t.Fatal("interrupted transaction published", e)
+			}
+			after, _ := os.ReadFile(source)
+			if !bytes.Equal(before, after) {
+				t.Fatal("interruption changed source")
+			}
+		})
 	}
 }
 

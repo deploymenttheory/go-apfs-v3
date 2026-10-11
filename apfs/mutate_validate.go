@@ -69,6 +69,30 @@ func (m *mutation) validateOwnership() error {
 			return e
 		}
 	}
+
+	// With no snapshots, every map record must describe exactly one reachable
+	// current virtual object. An extra/stale pointer cannot qualify ownership.
+	if len(m.cmap.all()) != 1 {
+		return fmt.Errorf("container map inventory: %w", filesystem.ErrUnsupported)
+	}
+	current := map[uint64]uint64{}
+	for _, n := range m.fs.nodes {
+		current[n.oid] = n.address
+	}
+	if len(m.vmap.all()) != len(current) {
+		return fmt.Errorf("volume map inventory: %w", filesystem.ErrUnsupported)
+	}
+	for _, r := range m.vmap.all() {
+		id, xid := le.Uint64(r.key), le.Uint64(r.key[8:])
+		if le.Uint32(r.value) != 0 || le.Uint32(r.value[4:]) != 4096 || xid > uint64(m.c.XID) || current[id] != le.Uint64(r.value[8:]) {
+			return corrupt("current object map ownership", 0)
+		}
+		delete(current, id)
+	}
+	if len(current) != 0 {
+		return corrupt("missing object map ownership", 0)
+	}
+
 	var volumeBlocks uint64 = 1
 	for _, t := range []*cowTree{m.fs, m.extents, m.vmap, m.cmap} {
 		for _, n := range t.nodes {

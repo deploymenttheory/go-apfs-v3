@@ -10,7 +10,7 @@ and harness were not imported.
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Journal replay, physical power-loss qualification and APFS mutation pending |
+| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode edits and copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; journal replay, physical power-loss qualification and broader APFS mutation pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
 | 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -621,3 +621,21 @@ extends the existing HFS scenario family, including both admitted journal profil
 - Full macOS process-authorization emulation, signing algorithms, notarization,
   installer-package formats, and bootable sealed-system construction are outside
   this library. Preserve their metadata without claiming their behavior.
+
+## Existing APFS regular-file editing increment
+
+Existing-image cp/fork/chmod now dispatches through `filesystem.Change` to APFS
+or HFS. APFS owns copy-on-write tree paths, object-map versions, physical extent
+references, device/internal-pool allocation, deferred free queues and checkpoint
+publication. The node encoder is shared with fresh construction; existing inode,
+volume and container identities are retained. Admission accounts all allocated
+blocks and refuses snapshots, clones, encryption, Fusion and other unqualified
+write profiles. The first profile is bounded to 1 GiB and one ordinary volume.
+
+[Editing semantics and evidence](apfs-editing.md) records the implementation,
+limits, ownership capture correction and native qualification contract. Retained
+Apple sources cover both name policies on macOS 15/26/27. The focused `apfs-edit`
+family requires fresh independent captures, source-version jobs on every portable
+host and all three native checker/readback/continued-allocation jobs. Fault
+injection covers each write boundary, cancellation, short writes and exhausted
+space. Forty successive transactions check identity, contents and actual reuse.

@@ -299,6 +299,9 @@ func (t *cowTree) put(key, value []byte) error {
 		root.children = []*buildTreeNode{left, right}
 		root.records = []buildRecord{{left.records[0].key, buildUint64(left.oid)}, {right.records[0].key, buildUint64(right.oid)}}
 	}
+	if t.rootNode.level > 0 && len(t.rootNode.children) == 0 {
+		t.rootNode.level = 0
+	}
 	for t.rootNode.level > 0 && len(t.rootNode.children) == 1 {
 		child := t.rootNode.children[0]
 		t.rootNode.level = child.level

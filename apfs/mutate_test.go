@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
 type mutationDisk struct {
@@ -160,7 +161,7 @@ func TestAPFSMutationFailuresRequireDiscardAndRetainLastCheckpoint(t *testing.T)
 	if _, e := apfs.Modify(canceled, newMutationDisk(original), changes, when); !errors.Is(e, context.Canceled) {
 		t.Fatal(e)
 	}
-	if _, e := apfs.Modify(context.Background(), newMutationDisk(original), []apfs.Change{{Path: "/file", Data: bytes.NewReader(make([]byte, 8<<20))}}, when); !errors.Is(e, fs.ErrInvalid) && e == nil {
+	if _, e := apfs.Modify(context.Background(), newMutationDisk(original), []apfs.Change{{Path: "/file", Data: bytes.NewReader(make([]byte, 8<<20))}}, when); !errors.Is(e, filesystem.ErrLimit) {
 		t.Fatal("disk full admitted")
 	}
 	if sha256.Sum256(original) != before {
