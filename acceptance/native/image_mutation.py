@@ -6,6 +6,14 @@ from capture import sha256
 from verify_preservation import require
 
 
+def raw_command(command, image):
+    def attached(*argv, **kwargs):
+        if tuple(map(str, argv[:2])) == ('hdiutil', 'attach') and str(image) in tuple(map(str, argv)):
+            argv = (*argv[:2], '-imagekey', 'diskimage-class=CRawDiskImage', *argv[2:])
+        return command(*argv, **kwargs)
+    return attached
+
+
 def copy_disk(source, destination, command):
     from container_building import require_disposable_host
     from image_repacking import attach, info
@@ -32,7 +40,7 @@ def copy_disk(source, destination, command):
 def writable_copy(source, destination, command, disk_hash, copy_device=copy_disk):
     before = sha256(source)
     sectors = copy_device(source, destination, command)
-    require(disk_hash(destination, command) == sectors,
+    require(disk_hash(destination, raw_command(command, destination)) == sectors,
             'native writable copy changed disk size or sectors')
     require(sha256(source) == before, 'native writable copy changed original image')
     return destination

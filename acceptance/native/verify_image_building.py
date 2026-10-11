@@ -137,6 +137,7 @@ def verify_native_allocation(image, command, empty=False, apfs=True, file_compre
                 # equality before modifying it. Conversion changed sectors.
                 image = image_mutation.writable_copy(image, work / 'native-writable.raw',
                                                     command, encrypted_output.disk_hash)
+                command = image_mutation.raw_command(command, image)
         storage = ['-shadow', shadow] if use_shadow else []
         def mount_image(readonly=False):
             result = plistlib.loads(command('hdiutil', 'attach', '-plist', '-nobrowse', '-owners', 'off',
