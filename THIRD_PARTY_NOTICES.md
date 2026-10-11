@@ -24,6 +24,15 @@ journal code.
 APSL-2.0, preserving regular-file hard-link identity and metadata while using
 bounded Go tree readers instead of kernel structures.
 
+`hfsplus/mutate_allocation.go` and `hfsplus/mutate_tree.go` adapt portions of
+Apple's `VolumeAllocation.c`, `hfs_extents.c`, `BTreeTreeOps.c`,
+`BTreeNodeOps.c` and `BTreeAllocate.c` under APSL-2.0. The original notices and
+modification descriptions are retained in the supplied Go source. Private
+unpublished disk copies replace mounted buffer-cache blocks, locks and journal
+callbacks. Deterministic allocation and splits are explicitly documented
+adaptations. Exact upstream file hashes and the pinned revision are in
+[the source inventory](docs/sources.json). Journal recovery is not ported.
+
 `internal/names/hfs_tables.go` derives comparison/decomposition tables from
 Apple's `UCStringCompareData.h` and XNU `vfs_utfconvdata.h`, copyright 1997–2005
 Apple Inc. `internal/names/apfs_tables.go` materializes the pinned Apple XNU

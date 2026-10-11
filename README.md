@@ -269,3 +269,15 @@ Codesigning remains a consumer; signature construction is outside this library.
 
 Original code is MIT licensed. Derived codecs, FinderInfo and comparison data retain
 their upstream notices; see [third-party notices](THIRD_PARTY_NOTICES.md) and the source inventory.
+
+Existing clean nonjournaled HFS+/HFSX images can also be edited without reformatting:
+
+```sh
+apfs cp --image Original.dmg --output Edited.dmg --from-host ./replacement.bin /Payload/file
+apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
+```
+
+Volume/file identities, aliases, unrelated metadata and unrelated disk sectors
+are retained. Scratch is managed internally, and a complete flushed output is
+published at a new path. See [the HFS image-editing contract](docs/hfs-editing.md)
+for resource forks, compression cleanup, admission limits and durability.

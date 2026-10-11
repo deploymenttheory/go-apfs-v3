@@ -65,6 +65,31 @@ native raw-copy gate to succeed. See [the investigation](../docs/hfs-header-grow
 go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
 ```
 
+
+## Editing existing HFS+/HFSX filesystems
+
+Purpose: modify existing image contents while preserving their original volume,
+file identities, aliases and unrelated data. Sources are Apple-created volumes;
+a successful Go self-read does not qualify an output.
+
+| Cases | Native expectation | Portable operation and proof |
+| --- | --- | --- |
+| HFS+/HFSX with fragmented data/resource forks and hard-link aliases | Native before/peak/final contents, IDs, metadata and clean fsck | Real allocation, extent-tree growth, replacement/shrink/truncation, shared inode identity, matching headers |
+| Attribute/resource compression and independent forks | Native replacement clears active compression and retains independent storage | Exact raw attribute sets/hashes, compression storage freed, unrelated metadata retained |
+| Signed application and unchanged entries | Native codesign and complete filesystem observations | Original identities and untouched signature/content/metadata retained |
+| Continued native writes and Go re-edits | Native append, catalog growth, deletion/reuse, fsck and remount | Original volume remains usable after alternating implementations |
+
+`native.yml` calls the focused `hfs-edit.yml` scenario subworkflow, and its required
+aggregate includes the result. Capture uses no Go. Linux/Windows/macOS generate
+actual output images; every Mac verifies the identical triples using exact raw
+copies rather than shadows. Explicit offline ctime is compared to the requested
+clock, while the original native wall-clock observations remain retained.
+Native commands run only on disposable VMs. Local regression tests read files.
+
+```sh
+go test -count=1 -run '^TestNativeHFSImageEditing$' ./acceptance
+```
+
 ## File reading
 
 Purpose: give packaging and forensic consumers the same names, file bytes, forks

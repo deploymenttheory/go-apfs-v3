@@ -49,6 +49,11 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	f := flag.NewFlagSet(verb, flag.ContinueOnError)
 	f.SetOutput(diagnostics)
 	common := addSessionFlags(f)
+	imagePath := f.String("image", "", "edit an existing clean nonjournaled HFS+/HFSX image")
+	imageOutput := f.String("output", "", "publish the completed edited image at a new path")
+	imagePartition := f.Int("partition", 0, "on-disk partition index to edit")
+	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
+	f.String("time", "", "image-edit modification time (RFC3339, whole seconds); default current UTC time")
 	var walk *session.WalkOptions
 	var cp session.CopyOptions
 	var mkdir session.MkdirOptions
@@ -107,6 +112,12 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	operands, err := parseCommandFlags(f, args[1:])
 	if err != nil {
 		return err
+	}
+	if *imagePath != "" {
+		return editImageCommand(ctx, verb, f, common, *imagePath, *imageOutput, *imagePartition, *imageFormat, operands, out)
+	}
+	if *imageOutput != "" {
+		return fmt.Errorf("--output requires --image")
 	}
 	if common.name == "" {
 		return fmt.Errorf("%s requires --session NAME", verb)

@@ -964,13 +964,35 @@
       "kind": "source-study",
       "url": "https://github.com/apple-oss-distributions/hfs",
       "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
-      "components": ["acceptance/native/verify_image_building.py", "acceptance/native/diagnose_hfs_headers.py", "docs/native-hfs-writes.md", "acceptance/native/hfs_header_growth.py", "acceptance/hfs_header_growth_test.go", "docs/hfs-header-growth.md"],
+      "components": [
+        "acceptance/native/verify_image_building.py",
+        "acceptance/native/diagnose_hfs_headers.py",
+        "docs/native-hfs-writes.md",
+        "acceptance/native/hfs_header_growth.py",
+        "acceptance/hfs_header_growth_test.go",
+        "docs/hfs-header-growth.md"
+      ],
       "files": [
-        {"path": "core/hfs_btreeio.c", "sha256": "a31b4e9e1e88f9be39abb93d9cfb5cc833db6098452e8d918a041f32b3c6df16"},
-        {"path": "lib_fsck_hfs/dfalib/SVerify1.c", "sha256": "1387dbfacc1120e78b514491130393d721bb2fce4739df290dc38d7ba11543d8"},
-        {"path": "lib_fsck_hfs/dfalib/SVerify2.c", "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"},
-        {"path": "core/hfs.h", "sha256": "931731027ac0a9dfb1254a36aea47dfb4c2af843d7c4093c7806b56454a7d1f1"},
-        {"path": "lib_fsck_hfs/dfalib/SUtils.c", "sha256": "fa03e4c21a28a8434245746750733857cc415a56d8e28061215bbd735729a958"}
+        {
+          "path": "core/hfs_btreeio.c",
+          "sha256": "a31b4e9e1e88f9be39abb93d9cfb5cc833db6098452e8d918a041f32b3c6df16"
+        },
+        {
+          "path": "lib_fsck_hfs/dfalib/SVerify1.c",
+          "sha256": "1387dbfacc1120e78b514491130393d721bb2fce4739df290dc38d7ba11543d8"
+        },
+        {
+          "path": "lib_fsck_hfs/dfalib/SVerify2.c",
+          "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"
+        },
+        {
+          "path": "core/hfs.h",
+          "sha256": "931731027ac0a9dfb1254a36aea47dfb4c2af843d7c4093c7806b56454a7d1f1"
+        },
+        {
+          "path": "lib_fsck_hfs/dfalib/SUtils.c",
+          "sha256": "fa03e4c21a28a8434245746750733857cc415a56d8e28061215bbd735729a958"
+        }
       ],
       "basis": "ExtendBTreeFile requests synchronous primary/alternate header flushing after system-file growth. The separately inventoried hfs_vfsops writer copies updated metadata to the alternate header. Checker debug output identifies catalog total-block disagreement and invalidates the alternate header. No kernel/checker code copied; native route controls and exact raw-sector copying qualify the original Go filesystem independently. The alternate-header addressing macros are studied against captured logical/physical geometry. Storage-only writes isolate shadow replay without mounting HFS; the public source is not used to invent private DiskImages internals."
     },
@@ -979,7 +1001,12 @@
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38120009221",
       "evidence": "docs/native-hfs-writes.md",
-      "components": ["acceptance/native/image_mutation.py", "acceptance/native/test_image_mutation.py", "acceptance/native/verify_image_building.py", "acceptance/native/diagnose_hfs_headers.py"],
+      "components": [
+        "acceptance/native/image_mutation.py",
+        "acceptance/native/test_image_mutation.py",
+        "acceptance/native/verify_image_building.py",
+        "acceptance/native/diagnose_hfs_headers.py"
+      ],
       "basis": "The Go HFS+ filesystem, its Apple UDRO rewrap, and an Apple UDRW conversion receive the identical mutation/check/remount workload. Apple-rewrapped shadow writes leave stale 92-block alternate headers after the primary catalog grows to 100 on all three Macs; converted direct writes pass with matching headers. One original shadow control passes on macOS 15, recording variability. Stronger admission in run 38120590877 rejects UDRW conversion because sector hashes change despite equal device capacity; those successful converted controls cannot independently qualify the original disk. Acceptance instead streams exact Apple-attached sectors to private raw copies and requires native full device size/hash equality plus original image preservation before writes. No repair or failed-checker exception is admitted. Private DiskImages internals are not inferred from this evidence."
     },
     {
@@ -994,6 +1021,51 @@
         "docs/hfs-header-growth.md"
       ],
       "basis": "Complete captures at macOS 15.7.9/24G830, 26.6.2/25G83 and 27.0.1/26A434 retain all 48 matched Apple/Go HFS+/HFSX growth controls and 21 unmounted native sector probes. Direct raw writes and 16 MiB shadows pass; 10,936,320-byte Apple and Go shadows expose a stale ten-block alternate catalog after primary growth to 34. Blank Apple UDRO probes reproduce acknowledged tail writes present in the detached shadow but absent from read-only reopened device sectors. The size ends 8192 bytes into a 16384-byte native VM page; independently chosen 16 KiB-aligned controls pass without 32/64 KiB alignment. Writable reopen outcomes remain separate and can alter the actual shadow bytes. This isolates the observed failure below HFS and Go construction, but does not claim private DiskImages internal code or a universal OS-specific rule. Compressed original manifests, complete disks, source envelopes, actual shadows, tool/recipe provenance and native failed checker verdicts are committed; file-only replay checks exact hashes, metadata/forks and unchanged native expectations after archive deduplication."
+    },
+    {
+      "id": "apple-hfs-existing-file-mutation",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/hfs/tree/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "components": [
+        "hfsplus/mutate_allocation.go",
+        "hfsplus/mutate_tree.go",
+        "hfsplus/mutate.go",
+        "imageedit/edit.go"
+      ],
+      "files": [
+        {
+          "path": "core/BTree.c",
+          "sha256": "ad5fbd095ef649f77ed080a39494c8d672a98bbc53b802ef3851ae528190ce0b"
+        },
+        {
+          "path": "core/BTreeAllocate.c",
+          "sha256": "7e93323baaf2a6fa15d20769f86096b475fc95ce425ec2745a4eb7531b7c1892"
+        },
+        {
+          "path": "core/BTreeNodeOps.c",
+          "sha256": "1e3ca5eff3499f03e1c963e29975d7a4ec04452d4235965796915ad89cf90815"
+        },
+        {
+          "path": "core/BTreeTreeOps.c",
+          "sha256": "0a070c14c0032dbe6da854b67515a0dd9deff0e7eb83e7d3d3e60b37e4d20fe8"
+        },
+        {
+          "path": "core/VolumeAllocation.c",
+          "sha256": "7432017a062974b79e250d3b85854e1ad0b426dd3e7d17033bdc3f0b76c606b1"
+        },
+        {
+          "path": "core/hfs_extents.c",
+          "sha256": "26dcef3c47b4cda7c8b0a5b8dd8dac0eb5cd1ba6808eedc51835ac9ac6adc249"
+        },
+        {
+          "path": "core/hfs_readwrite.c",
+          "sha256": "f9d361c0d8ee6ae09ec7c4ea3f7630cc77165295146d8965216aa1f07c4d8ac8"
+        }
+      ],
+      "basis": "Go adaptations of VolumeAllocation bitmap marking/accounting, hfs_extents grouping/coalescing, BTreeTreeOps SearchTree/SplitLeft/DeleteTree/CollapseTree, BTreeNodeOps record offsets, and BTreeAllocate AllocateNode/FreeNode. Exclusive unpublished regular-file copies replace mounted vnodes, tree path tables, locks and journal callbacks. Deterministic first-fit allocation and byte-balanced splits omit kernel allocation caches and optional sibling redistribution. Original Go admission verifies complete allocation ownership, native keys, node maps/reachability, and both structural headers. Catalog changes patch original fixed-size records, retaining CNIDs and opaque bytes. Nonjournaled volume-header signature follows hfs_flushvolumeheader. Active compression removal shares existing decmpfs ownership policy. Explicit offline timestamps and no-overwrite completed-image publication are project policy, not kernel credential emulation, HFS journal recovery or universal power-loss durability. Native evidence is supplied by the existing-hfs-file-edits family on disposable macOS 15/26/27 VMs; its producer never invokes Go."
     }
   ]
 }

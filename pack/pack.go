@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
+	"github.com/deploymenttheory/go-apfs-v3/internal/completeoutput"
 	"github.com/deploymenttheory/go-apfs-v3/internal/filecompression"
 )
 
@@ -254,46 +253,8 @@ func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (r
 }
 
 // publish is shared by fresh filesystem builds and sector-preserving repacks.
-func publish(ctx context.Context, path string, write func(io.Writer) error) (err error) {
-	if _, e := os.Lstat(path); e == nil {
-		return fs.ErrExist
-	} else if !errors.Is(e, fs.ErrNotExist) {
-		return e
-	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".apfs-pack-*")
-	if err != nil {
-		return err
-	}
-	temporary := f.Name()
-	closed := false
-	published := false
-	defer func() {
-		if !closed {
-			err = errors.Join(err, f.Close())
-		}
-		removeErr := os.Remove(temporary)
-		if !published && !errors.Is(removeErr, fs.ErrNotExist) {
-			err = errors.Join(err, removeErr)
-		}
-	}()
-	err = write(f)
-	if err != nil {
-		return err
-	}
-	if err = f.Sync(); err != nil {
-		return err
-	}
-	err = f.Close()
-	closed = true
-	if err != nil {
-		return err
-	}
-	if err = ctx.Err(); err != nil {
-		return err
-	}
-	err = os.Link(temporary, path)
-	published = err == nil
-	return err
+func publish(ctx context.Context, path string, write func(io.Writer) error) error {
+	return completeoutput.Publish(ctx, path, write)
 }
 
 func encryptionInfo(o *diskimage.EncryptionOptions) *diskimage.Encryption {
