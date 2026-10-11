@@ -2,6 +2,7 @@
 """Apple qualification of APFS directory edits from every portable producer."""
 import argparse
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -47,6 +48,10 @@ def check(raw, case, phase, command, work, modify=False):
             # proves that Apple's driver can extend and shrink that link set.
             native('/bin/ln', directory / 'Fixture/third', created / 'native-link')
             native('/bin/rm', created / 'native-link')
+            retained = directory / 'Fixture/Catalog/native-retained'
+            retained.mkdir()
+            (retained / 'contents').write_bytes(b'Untouched symlink target\n')
+            os.symlink('native-retained', directory / 'Fixture/Catalog/native-dir-link')
     finally:
         native('hdiutil', 'detach', cleanup)
         shutil.rmtree(directory)
@@ -114,6 +119,9 @@ def verify_continued(directory, major):
                 require((root / 'Catalog/continued-go/renamed').read_bytes() == payload('continued-catalog', 8193), 'continued Go create/move bytes')
                 require(not (root / 'Catalog/native-created').exists(), 'Go recursive removal survives native remount')
                 require(not (root / 'third').exists(), 'last hard link removed by Go')
+                require(not (root / 'Catalog/native-dir-link').is_symlink(), 'Go removed native directory symlink entry')
+                require((root / 'Catalog/native-retained/contents').read_bytes() == b'Untouched symlink target\n',
+                        'recursive symlink removal preserves a live target and its contents')
                 require((root / 'guards').is_dir(), 'symlink removal never traverses its target')
                 require(len(list((root / 'Catalog/other/Moved').iterdir())) == 47, 'namespace preserved across continued edits')
                 native('codesign', '--verify', '--deep', '--strict', root / 'Example.app')

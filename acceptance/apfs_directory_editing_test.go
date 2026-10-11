@@ -160,7 +160,7 @@ func TestNativeAPFSImageDirectoryEditing(t *testing.T) {
 					compareFiles(t, &native.Volumes[0], state.Files)
 					compareAPFSEditAttributes(t, &native.Volumes[0], state.Files)
 				}
-				for _, change := range []imageedit.Change{{Operation: "mv", Path: "/Fixture", Destination: "/Fixture/Catalog/cycle"}, {Operation: "mkdir", Path: "/Fixture"}, {Operation: "rm", Path: "/Fixture"}, {Path: "/Fixture/new-full", Data: editPattern{"full", 1 << 30}}, {Operation: "cp", Path: "/Fixture/small", NoClobber: true, Data: editPattern{"copy", 1}}} {
+				for _, change := range []imageedit.Change{{Operation: "mv", Path: "/Fixture", Destination: "/Fixture/guards/cycle"}, {Operation: "mkdir", Path: "/Fixture"}, {Operation: "rm", Path: "/Fixture"}, {Path: "/Fixture/new-full", Data: editPattern{"full", 1 << 30}}, {Operation: "cp", Path: "/Fixture/small", NoClobber: true, Data: editPattern{"copy", 1}}} {
 					destination := filepath.Join(t.TempDir(), "failed.dmg")
 					if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: when}, []imageedit.Change{change}); e == nil {
 						t.Fatal("unsafe directory edit admitted", change.Operation)
@@ -200,7 +200,7 @@ func TestNativeAPFSImageDirectoryEditingContinuation(t *testing.T) {
 	}
 	for _, source := range paths {
 		destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
-		changes := []imageedit.Change{{Operation: "mkdir", Path: "/Fixture/Catalog/continued-go"}, {Path: "/Fixture/Catalog/continued-go/payload", Data: editPattern{"continued-catalog", 8193}}, {Operation: "mv", Path: "/Fixture/Catalog/continued-go/payload", Destination: "/Fixture/Catalog/continued-go/renamed"}, {Operation: "rm", Path: "/Fixture/Catalog/native-created", Recursive: true}, {Operation: "rm", Path: "/Fixture/third"}}
+		changes := []imageedit.Change{{Operation: "mkdir", Path: "/Fixture/Catalog/continued-go"}, {Path: "/Fixture/Catalog/continued-go/payload", Data: editPattern{"continued-catalog", 8193}}, {Operation: "mv", Path: "/Fixture/Catalog/continued-go/payload", Destination: "/Fixture/Catalog/continued-go/renamed"}, {Operation: "rm", Path: "/Fixture/Catalog/native-dir-link", Recursive: true}, {Operation: "rm", Path: "/Fixture/Catalog/native-created", Recursive: true}, {Operation: "rm", Path: "/Fixture/third"}}
 		if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, changes); e != nil {
 			t.Fatal(e)
 		}
