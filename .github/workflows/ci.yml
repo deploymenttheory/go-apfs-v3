@@ -95,7 +95,7 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(HFS(Journaled)?ImageEditing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+            skip: '^TestNative(HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
             skip: '^$'

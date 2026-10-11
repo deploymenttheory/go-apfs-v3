@@ -737,3 +737,14 @@ Source hashes must remain unchanged. This proves
 continued native use of freshly built images. Existing-filesystem Go mutation
 has its own HFS family above; physical power-loss durability remains a separate
 capability. All native operations run on disposable hosted VMs.
+
+## Existing HFS catalog operations
+
+The HFS editing family now separately replays file/directory creation, moves,
+overwrite, unlink and recursive removal. Both clean journal profiles and HFS+/HFSX
+run on Linux/Windows/macOS; independent macOS 15/26/27 checkers, mounted comparisons
+and native/Go/native continued catalog edits qualify the actual outputs. Catalog
+and file-content replay use separate bounded jobs within `.github/workflows/hfs-edit.yml`.
+The retained `hfs-catalog-editing` and `hfs-journaled-catalog-editing` corpora provide
+file-only local regression evidence. Capture-only dispatch records Apple fixtures
+without claiming portable/native qualification and never changes retained inputs.

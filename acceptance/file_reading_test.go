@@ -54,6 +54,7 @@ type nativeFile struct {
 	SHA256                string                 `json:"sha256"`
 	Target                string                 `json:"target"`
 	Attributes            map[string]nativeValue `json:"attributes"`
+	RawAttributes         map[string]nativeValue `json:"rawAttributes,omitempty"`
 }
 type nativeValue struct {
 	Size   int64  `json:"size"`

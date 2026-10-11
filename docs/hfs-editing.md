@@ -31,8 +31,9 @@ reachability before writing. Unsupported or inconsistent state is refused.
 Dirty volumes, pending/external/uninitialized journals, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
 Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 requested
-operations. Metadata-file growth must stay within eight inline extents and the
-existing node-map capacity; exceeding a bound fails without publishing output.
+operations. Catalog growth uses inline and overflow extents. Extents/attribute metadata-file
+growth remains limited to eight inline extents; every tree must remain within
+the existing node-map capacity; exceeding a bound fails without publishing output.
 
 Replacement retains inode IDs, birth/access times, owner/group, destination
 permissions, ordinary flags, FinderInfo and unrelated attributes. Data/fork
@@ -119,7 +120,8 @@ byte-balanced splits supply deterministic offline allocation; optional kernel
 allocation caches and sibling redistribution are omitted.
 
 `hfsplus/mutate.go` coordinates admission, catalog patches, compression cleanup
-and fork replacement. `mutate_allocation.go` accounts blocks and streams payloads;
+and fork replacement. `mutate_catalog.go` owns catalog records/threads, directory operations and unlink;
+`mutate_allocation.go` accounts blocks and streams payloads;
 `mutate_tree.go` changes original extent/attribute trees. `imageedit.Apply` owns
 the complete input/scratch/output lifecycle. `block.Staging` creates regular-file
 scratch; the shared completed-output publisher also serves pack/repack.

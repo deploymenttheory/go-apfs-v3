@@ -105,6 +105,9 @@ func (m *mutation) loadCatalog() error {
 	}
 	var files, directories uint32
 	for id, r := range m.catalog {
+		if err := m.ctx.Err(); err != nil {
+			return err
+		}
 		if r.directory() {
 			if id != 2 {
 				directories++
@@ -808,6 +811,9 @@ func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
 		id := r.id()
 		return id, m.removeCatalog(r, c.Recursive, stamp)
 	case "cp", "chmod":
+		if op == "chmod" && c.Mode == "" {
+			return 0, fs.ErrInvalid
+		}
 		if op == "cp" && (c.Data == nil || c.Data.Size() < 0) {
 			return 0, fs.ErrInvalid
 		}

@@ -29,7 +29,7 @@ func TestCatalogMutationGrowthMoveRemovalAndLinkLifetime(t *testing.T) {
 				t.Fatal(e)
 			}
 			changes := []Change{{Operation: "mkdir", Path: "/A/B", Parents: true, Mode: "0750"}}
-			for i := range 32 {
+			for i := range 180 {
 				changes = append(changes, Change{Path: fmt.Sprintf("/A/B/%03d-%s", i, string(bytes.Repeat([]byte("x"), 110))), Data: bytes.NewReader([]byte("created"))})
 			}
 			changes = append(changes, Change{Operation: "mv", Path: "/A/B", Destination: "/Moved"}, Change{Operation: "mv", Path: "/small", Destination: "/Moved/Small"}, Change{Operation: "mv", Path: "/Moved/Small", Destination: "/Moved/SMALL"}, Change{Operation: "rm", Path: "/large"})
@@ -42,6 +42,9 @@ func TestCatalogMutationGrowthMoveRemovalAndLinkLifetime(t *testing.T) {
 			}
 			if e = ValidateMutation(ctx, disk); e != nil {
 				t.Fatal(e)
+			}
+			if len(v.catalog.fork.extents) <= 8 {
+				t.Fatal("catalog overflow storage not exercised")
 			}
 			alias, e := filesystem.Lookup(ctx, v, "/alias")
 			if e != nil || alias != inode {

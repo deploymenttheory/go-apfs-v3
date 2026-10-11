@@ -429,15 +429,6 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 	if err != nil {
 		return err
 	}
-	var oldKeys [][]byte
-	if err = m.v.overflow.records(m.ctx, id, func(r treeRecord) error {
-		if r.key[2] == kind {
-			oldKeys = append(oldKeys, bytes.Clone(r.key))
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
 	blocks := (uint64(data.Size()) + uint64(m.v.BlockSize) - 1) / uint64(m.v.BlockSize)
 	if blocks > math.MaxUint32 {
 		return filesystem.ErrLimit
@@ -449,6 +440,22 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 	if err = m.writePayload(forkFromRuns(m.disk, m.v.BlockSize, blocks*uint64(m.v.BlockSize), runs), data); err != nil {
 		return err
 	}
+	return m.storeExtentRuns(id, kind, descriptor, uint64(data.Size()), runs)
+}
+
+// storeExtentRuns applies the same inline/overflow format to ordinary forks
+// and the catalog file. The extents file itself remains self-describing.
+func (m *mutation) storeExtentRuns(id uint32, kind byte, descriptor []byte, size uint64, runs []allocationRun) error {
+	var oldKeys [][]byte
+	if err := m.v.overflow.records(m.ctx, id, func(r treeRecord) error {
+		if r.key[2] == kind {
+			oldKeys = append(oldKeys, bytes.Clone(r.key))
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	var err error
 	t := m.trees[3]
 	for _, key := range oldKeys {
 		if err = t.set(key, nil, true); err != nil {
@@ -469,7 +476,7 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 		}
 		logical += r.count
 	}
-	encodeRuns(descriptor, uint64(data.Size()), runs)
+	encodeRuns(descriptor, size, runs)
 	return nil
 }
 
