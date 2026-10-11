@@ -149,3 +149,31 @@ func TestAPFSDirectoryFailureRetainsPreviousCheckpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestAPFSConstructedResourceForksRemainEditable(t *testing.T) {
+	ctx := context.Background()
+	source, options, _ := buildInput(t)
+	options.Time = options.Time.Truncate(time.Second)
+	options.Capacity = 8 << 20
+	if _, e := source.ReplaceResourceFork(ctx, "/file", bytes.NewReader(bytes.Repeat([]byte("fork"), 2049))); e != nil {
+		t.Fatal(e)
+	}
+	plan, e := apfs.Plan(ctx, source, options)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var encoded bytes.Buffer
+	if e = plan.Write(ctx, &encoded); e != nil {
+		t.Fatal(e)
+	}
+	if e = apfs.ValidateMutation(ctx, bytes.NewReader(encoded.Bytes())); e != nil {
+		t.Fatal("Go-constructed ordinary fork image is not editable", e)
+	}
+	disk := newMutationDisk(encoded.Bytes())
+	if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Operation: "mkdir", Path: "/Moved"}, {Operation: "mv", Path: "/file", Destination: "/Moved"}, {Operation: "rm", Path: "/Moved", Recursive: true}}, options.Time); e != nil {
+		t.Fatal(e)
+	}
+	if e = apfs.ValidateMutation(ctx, disk); e != nil {
+		t.Fatal(e)
+	}
+}

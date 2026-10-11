@@ -257,11 +257,8 @@ func (m *mutation) replaceStream(id, owner uint64, data block.Source) (uint64, e
 		if e = m.fs.put(key, value); e != nil {
 			return 0, e
 		}
-		ref := make([]byte, 20)
-		le.PutUint64(ref, 1<<60|count)
-		le.PutUint64(ref[8:], owner)
-		le.PutUint32(ref[16:], 1)
-		if e = m.extents.put(buildKey(address, 2, 0), ref); e != nil {
+		ref := buildExtentReference(address, count, owner)
+		if e = m.extents.put(ref.key, ref.value); e != nil {
 			return 0, e
 		}
 		logical += count * 4096

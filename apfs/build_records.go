@@ -15,6 +15,16 @@ func buildKey(id uint64, kind uint64, extra int) []byte {
 	return b
 }
 func buildUint64(v uint64) []byte { b := make([]byte, 8); le.PutUint64(b, v); return b }
+
+// The extent owner identifies its inode/private ID or attribute record, not
+// the separate stream ID stored in an attribute's value (Apple Reference p.103).
+func buildExtentReference(address, blocks, owner uint64) buildRecord {
+	v := make([]byte, 20)
+	le.PutUint64(v, 1<<60|blocks)
+	le.PutUint64(v[8:], owner)
+	le.PutUint32(v[16:], 1)
+	return buildRecord{buildKey(address, 2, 0), v}
+}
 func buildStreamValue(s *buildStream) []byte {
 	b := make([]byte, 40)
 	le.PutUint64(b, uint64(s.size))
@@ -190,11 +200,7 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 		le.PutUint64(value, s.blocks*4096)
 		le.PutUint64(value[8:], s.start)
 		records = append(records, buildRecord{buildKey(s.id, 8, 8), value})
-		value = make([]byte, 20)
-		le.PutUint64(value, 1<<60|s.blocks)
-		le.PutUint64(value[8:], s.id)
-		le.PutUint32(value[16:], 1)
-		extents = append(extents, buildRecord{buildKey(s.start, 2, 0), value})
+		extents = append(extents, buildExtentReference(s.start, s.blocks, s.owner))
 	}
 	sort.Slice(records, func(i, j int) bool { return p.recordLess(records[i].key, records[j].key) })
 	return records, extents, documentID

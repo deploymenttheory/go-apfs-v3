@@ -647,6 +647,9 @@ The layer owns the mutable directory index, inode primary links, sibling links a
 maps, parent child counts, volume file counts and file-identifier high-water mark.
 Ordered operations resolve against current records. Creation and rename reuse the
 construction record encoders; stream lookup visits only intersecting tree paths.
+Shared physical extent encoding fixes attribute ownership in fresh construction
+(the attribute record ID, rather than its stream ID), as specified by Apple and
+observed in native captures. Build/move/remove controls cover independent forks.
 Final unlink retires data, resource forks and attributes through the existing
 transaction-tagged free queues. Adjacent ranges from the same transaction are
 coalesced without changing retained-checkpoint lifetimes.

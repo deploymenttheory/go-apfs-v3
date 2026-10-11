@@ -83,7 +83,10 @@ stream/attribute. Filesystem-owned private and service directories are protected
 child counts, primary inode links and matching sibling entry/link/map inventory.
 Its mutable index makes later operations see earlier edits in a batch. Both
 construction and mutation use `apfs/build_records.go` for inode, directory and
-sibling encoding. Mutation paths use the existing APFS name bounds (255 UTF-16
+sibling encoding. Physical extent references also share one encoder: attribute
+streams retain the owning attribute record ID, independently of their stream ID.
+A build/move/remove regression keeps Go-constructed resource forks editable.
+Mutation paths use the existing APFS name bounds (255 UTF-16
 units), at most 256 components, at most 2^20 indexed records and 4,096 operations.
 The existing tree, checkpoint and free-queue capacity limits continue to apply.
 
