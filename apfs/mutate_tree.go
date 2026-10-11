@@ -21,6 +21,34 @@ type cowTree struct {
 	newOID   func() (uint64, error)
 }
 
+// records visits only paths intersecting an object/type prefix. Data replacement
+// and unlink use the current tree, not a full-volume scan for every stream.
+func (t *cowTree) records(id uint64, kind uint8) []buildRecord {
+	target := recordPrefix{id, kind}
+	var result []buildRecord
+	var visit func(*buildTreeNode)
+	visit = func(n *buildTreeNode) {
+		for i, r := range n.records {
+			cmp := prefix(r.key).compare(target)
+			if cmp > 0 {
+				break
+			}
+			if n.level == 0 {
+				if cmp == 0 {
+					result = append(result, r)
+				}
+			} else {
+				if i+1 < len(n.records) && prefix(n.records[i+1].key).compare(target) < 0 {
+					continue
+				}
+				visit(n.children[i])
+			}
+		}
+	}
+	visit(t.rootNode)
+	return result
+}
+
 func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read func(uint64) ([]byte, uint64, error), less func([]byte, []byte) bool, newOID func() (uint64, error)) (*cowTree, error) {
 	t := &cowTree{buildTree: &buildTree{subtype: subtype, storage: storage}, dirty: map[*buildTreeNode]bool{}, less: less, newOID: newOID}
 	seen := map[uint64]bool{}

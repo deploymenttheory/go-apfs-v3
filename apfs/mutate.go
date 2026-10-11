@@ -41,6 +41,8 @@ type mutation struct {
 	retired                 map[uint64]bool
 	mappings                map[uint64]uint64
 	allocated, freed        uint64
+	entries                 map[uint64]map[string]*mutationEntry
+	links                   map[uint64]map[*mutationEntry]bool
 }
 type readOnlyMutation struct{ block.Source }
 
@@ -66,6 +68,7 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 		return report, e
 	}
 	report.VolumeID = m.v.UUID
+	initialFree := m.space.free
 	if e = m.space.reclaim(); e != nil {
 		return report, e
 	}
@@ -80,6 +83,10 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 		if id != 0 {
 			report.Changed = append(report.Changed, id)
 		}
+	}
+	if len(report.Changed) == 0 {
+		report.FreeBlocks, report.Transaction = initialFree, uint64(m.c.XID)
+		return report, nil
 	}
 	if e = m.commit(stamp); e != nil {
 		return report, e
@@ -184,6 +191,9 @@ func openMutation(ctx context.Context, disk MutableSource) (*mutation, error) {
 	}
 	if e = m.validateOwnership(); e != nil {
 		return nil, fmt.Errorf("ownership: %w", e)
+	}
+	if e = m.loadEntries(); e != nil {
+		return nil, fmt.Errorf("directory graph: %w", e)
 	}
 	return m, nil
 }

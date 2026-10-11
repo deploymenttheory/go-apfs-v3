@@ -34,7 +34,7 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImageEditing(Continuation)?|HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage(Directory)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
       - run: go vet ./...
 
   portable_acceptance:
@@ -52,7 +52,7 @@ jobs:
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
           - family: existing APFS edits
-            tests: '^TestNativeAPFSImageEditing(Continuation)?$'
+            tests: '^TestNativeAPFSImage(Directory)?Editing(Continuation)?$'
           - family: existing HFS edits
             tests: '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
     steps:
@@ -124,7 +124,7 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImageEditing(Continuation)?|HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+            skip: '^TestNative(APFSImage(Directory)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
             skip: '^$'

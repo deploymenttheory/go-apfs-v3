@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -12,47 +11,21 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
-func (m *mutation) lookup(path string) (uint64, error) {
-	if !strings.HasPrefix(path, "/") {
-		return 0, fs.ErrInvalid
-	}
-	id := uint64(2)
-	for _, name := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
-		if name == "" || name == "." || name == ".." {
-			return 0, fs.ErrInvalid
-		}
-		entry, e := m.v.Lookup(m.ctx, id, name)
-		if e != nil {
-			return 0, e
-		}
-		id = entry.Object
-		r, ok := m.fs.get(buildKey(id, 3, 0))
-		if !ok {
-			return 0, corrupt("missing change inode", 0)
-		}
-		if le.Uint16(r.value[80:])&0170000 == 0120000 {
-			return 0, filesystem.ErrUnsupported
-		}
-	}
-	return id, nil
-}
-func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
-	if c.Operation != "" && c.Operation != "cp" && c.Operation != "chmod" || c.Parents || c.Recursive || c.Force || c.Destination != "" {
-		return 0, filesystem.ErrUnsupported
-	}
-	id, e := m.lookup(c.Path)
-	if e != nil {
-		return 0, e
-	}
+func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
+	var e error
 	r, ok := m.fs.get(buildKey(id, 3, 0))
 	if !ok {
 		return 0, corrupt("change inode", 0)
 	}
 	value := bytes.Clone(r.value)
-	if le.Uint16(value[80:])&0170000 != 0100000 || le.Uint32(value[68:])&0x60006 != 0 || le.Uint64(value[48:])&(1|0x80|0x200000|0x400000) != 0 {
-		return 0, fmt.Errorf("APFS change requires an ordinary mutable regular file: %w", filesystem.ErrUnsupported)
+	kind := le.Uint16(value[80:]) & 0170000
+	if (kind != 0100000 && (kind != 0040000 || c.Data != nil)) || le.Uint32(value[68:])&0x60006 != 0 || le.Uint64(value[48:])&(1|0x80|0x200000|0x400000) != 0 {
+		return 0, fmt.Errorf("APFS change requires an ordinary mutable file or directory: %w", filesystem.ErrUnsupported)
 	}
 	if c.Data == nil {
+		if le.Uint64(value[48:])&0x40 != 0 {
+			return 0, fmt.Errorf("ACL mode interaction requires credential policy: %w", filesystem.ErrUnsupported)
+		}
 		if c.Operation == "cp" || c.ResourceFork {
 			return 0, fs.ErrInvalid
 		}
@@ -62,11 +35,11 @@ func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
 		}
 		le.PutUint16(value[80:], uint16(p.Apply(uint32(le.Uint16(value[80:])))))
 	} else {
+		if le.Uint16(value[80:])&06000 != 0 {
+			return 0, fmt.Errorf("set-ID replacement requires credential policy: %w", filesystem.ErrUnsupported)
+		}
 		if c.Operation == "chmod" || c.Mode != "" || c.Data.Size() < 0 {
 			return 0, fs.ErrInvalid
-		}
-		if c.NoClobber {
-			return 0, nil
 		}
 		if c.ResourceFork {
 			if le.Uint32(value[68:])&0x20 != 0 {
@@ -224,11 +197,7 @@ func (m *mutation) removeAttributeStream(attr buildRecord) error {
 	return m.removeStream(le.Uint64(attr.value[4:]))
 }
 func (m *mutation) removeStream(id uint64) error {
-	for _, r := range m.fs.all() {
-		p := prefix(r.key)
-		if p.id != id || p.kind != 8 {
-			continue
-		}
+	for _, r := range m.fs.records(id, 8) {
 		address := le.Uint64(r.value[8:])
 		blocks := (le.Uint64(r.value) & ((1 << 56) - 1)) / 4096
 		if address != 0 {

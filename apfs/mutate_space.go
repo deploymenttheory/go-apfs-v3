@@ -277,11 +277,32 @@ func (s *mutationSpace) retire(pool bool, address, count uint64) error {
 	if pool {
 		i = 0
 	}
-	key := append(buildUint64(s.owner.xid), buildUint64(address)...)
-	if _, ok := s.queues[i].get(key); ok {
-		return corrupt("duplicate retired extent", 0)
+	if address >= s.owner.c.BlockCount || count > s.owner.c.BlockCount-address {
+		return corrupt("retired extent bounds", 0)
 	}
-	return s.queues[i].put(key, buildUint64(count))
+	// Free-queue values describe ranges, not individual release events. Join
+	// adjacent ranges only within this transaction and this allocation domain;
+	// selected-checkpoint lifetimes remain unchanged. Namespace removal otherwise
+	// consumes a queue node for every small file despite contiguous allocations.
+	q := s.queues[i]
+	end := address + count
+	for _, r := range q.all() {
+		if le.Uint64(r.key) != s.owner.xid {
+			continue
+		}
+		start, stop := le.Uint64(r.key[8:]), le.Uint64(r.key[8:])+le.Uint64(r.value)
+		if start < end && address < stop {
+			return corrupt("overlapping retired extent", 0)
+		}
+		if stop == address || end == start {
+			address, end = min(address, start), max(end, stop)
+			if e := q.put(r.key, nil); e != nil {
+				return e
+			}
+		}
+	}
+	key := append(buildUint64(s.owner.xid), buildUint64(address)...)
+	return q.put(key, buildUint64(end-address))
 }
 func (s *mutationSpace) prepare() error {
 	// Allocate each changed CIB and bitmap from the internal pool; their old
