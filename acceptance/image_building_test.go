@@ -144,6 +144,7 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 			t.Logf("built %d native entries as %s; %d bytes; deterministic output", len(want.Entries), format, report.ImageBytes)
 		})
 	}
+	buildCompressionOutputs(t, s, want, output, clock)
 }
 
 func buildEmptyAPFS(t *testing.T, r filesystem.Reader, want fileObservation, output string, clock time.Time) {

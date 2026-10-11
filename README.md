@@ -36,6 +36,8 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs chmod --session build 0755 /Example.app/Contents/MacOS/Example
 ./bin/apfs session export build ./edited-workspace
 ./bin/apfs pack --filesystem apfs --volume-name Example ./source Example.dmg
+./bin/apfs pack --filesystem apfs --file-compression zlib ./source CompressedFiles.dmg
+./bin/apfs pack --session build --file-compression none DecompressedFiles.dmg
 ./bin/apfs pack --volume Apps --directory ./apps --volume Resources --directory ./resources Bundle.dmg
 ./bin/apfs pack --format UDZO original.dmg repacked.dmg
 ./bin/apfs pack --session build --encryption AES-256 --output-password-file ./new-password.bin Encrypted.dmg
@@ -84,6 +86,9 @@ Currently implemented:
   APFS snapshots and encrypted APFS volume sectors; strict container admission.
 - Fresh AES-128/256 DMG encryption, explicit password changes and decryption during repacking;
   randomized ciphertext with reproducible decoded disk bytes.
+- Shared zlib transparent file-compression writing for APFS/HFS+/HFSX builds;
+  explicit preservation/decompression policies, bounded encoded scratch and
+  per-file reports for skipped compression.
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 

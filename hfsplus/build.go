@@ -43,6 +43,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/buildsize"
 	"github.com/deploymenttheory/go-apfs-v3/internal/finderinfo"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -440,17 +441,26 @@ func (p *Layout) arrange(ctx context.Context) error {
 	needed := payloadBlocks + metadataBlocks + 2
 	total := (uint64(p.options.Capacity) + 4095) / 4096
 	if total == 0 {
-		total = max(uint64(2048), needed+needed/8+32)
+		total = max(uint64(2048), buildsize.AutomaticBlocks(needed, 0, buildsize.HFSPaddingBlocks))
 	}
-	bitmapBlocks := ((total+7)/8 + 4095) / 4096
-	if total < 2048 {
-		return fmt.Errorf("HFS build capacity must be at least 8 MiB: %w", filesystem.ErrLimit)
-	}
-	if total < needed+bitmapBlocks {
-		return fmt.Errorf("capacity requires at least %d bytes: %w", (needed+bitmapBlocks)*4096, filesystem.ErrLimit)
-	}
-	if total > 1<<28 {
-		return filesystem.ErrLimit
+	var bitmapBlocks uint64
+	for {
+		if total < 2048 || total > 1<<28 {
+			return fmt.Errorf("HFS build capacity must be between 8 MiB and 1 TiB: %w", filesystem.ErrLimit)
+		}
+		bitmapBlocks = ((total+7)/8 + 4095) / 4096
+		required := needed + bitmapBlocks
+		if p.options.Capacity == 0 {
+			required = buildsize.AutomaticBlocks(required, 0, buildsize.HFSPaddingBlocks)
+		}
+		if required <= total {
+			break
+		}
+		if p.options.Capacity != 0 {
+			return fmt.Errorf("capacity requires at least %d bytes: %w", required*4096, filesystem.ErrLimit)
+		}
+		// The bitmap grows with capacity too. Retain all padding on each retry.
+		total = required
 	}
 	p.size = int64(total * 4096)
 	next := uint32(1 + bitmapBlocks)
@@ -496,10 +506,8 @@ func (p *Layout) arrange(ctx context.Context) error {
 		bitmap[i/8] |= 0x80 >> (i % 8)
 	}
 	bitmap[(total-1)/8] |= 0x80 >> ((total - 1) % 8)
-	// Bits beyond the volume are allocated, following makehfs's bitmap convention.
-	for i := total; i < uint64(len(bitmap))*8; i++ {
-		bitmap[i/8] |= 0x80 >> (i % 8)
-	}
+	// makehfs leaves bitmap padding clear. CheckVolumeBitMap compares the
+	// complete final 1024-bit segment, including bits beyond totalBlocks.
 	header := make([]byte, 512)
 	copy(header, "H+")
 	be.PutUint16(header[2:], 4)
@@ -592,17 +600,28 @@ func (p *Layout) records() ([]treeRecord, []treeRecord, uint32, uint32, error) {
 			}
 		}
 		if len(o.aliases) > 0 {
+			aliases := append([]buildAlias{{o.parent, o.name, o.firstAlias}}, o.aliases...)
+			// Follow hfs_makelink/createindirectlink and cat_createlink:
+			// the inode owns a chain head; each alias stores sibling CNIDs in
+			// its BSD owner/group fields, independently of the inode's UID/GID.
+			be.PutUint16(b[2:], be.Uint16(b[2:])|0x20)
+			be.PutUint32(b[4:], aliases[0].id)
 			be.PutUint32(b[44:], uint32(len(o.aliases)+1))
 			add(o.id, private, fmt.Sprintf("iNode%d", o.id), b)
-			aliases := append([]buildAlias{{o.parent, o.name, o.firstAlias}}, o.aliases...)
 			// Alias catalog records use their own CNIDs; the private inode owns data.
-			for _, a := range aliases {
+			for i, a := range aliases {
 				link := make([]byte, 248)
 				be.PutUint16(link, 2)
-				be.PutUint16(link[2:], 2)
+				be.PutUint16(link[2:], 0x22)
 				be.PutUint32(link[8:], a.id)
 				stamp, _ := buildDate(p.options.Time)
 				be.PutUint32(link[12:], stamp)
+				if i > 0 {
+					be.PutUint32(link[32:], aliases[i-1].id)
+				}
+				if i+1 < len(aliases) {
+					be.PutUint32(link[36:], aliases[i+1].id)
+				}
 				link[41] = 2
 				be.PutUint16(link[42:], 0100444)
 				be.PutUint32(link[44:], o.id)

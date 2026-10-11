@@ -55,6 +55,7 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 	f.SetOutput(diagnostics)
 	encryption := addPackEncryptionFlags(f, false)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
+	fileCompression := addPackCompressionFlag(f)
 	capacity := f.String("capacity", "", "shared container capacity; default automatic")
 	fixed := f.String("time", "", "fixed RFC3339 construction clock")
 	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived")
@@ -158,6 +159,9 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 	if err != nil {
 		return err
 	}
+	if err = validatePackCompression(*fileCompression); err != nil {
+		return err
+	}
 	if len(operands) != 1 || len(volumes) == 0 {
 		return fmt.Errorf("usage: apfs pack [container options] --volume NAME [--session NAME | --directory PATH] [volume options] [--volume ...] NEW_DMG")
 	}
@@ -181,7 +185,7 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 			return err
 		}
 	}
-	options := pack.ContainerOptions{Format: *format, Encryption: crypt.Encryption, APFS: apfs.ContainerBuildOptions{Time: clock}}
+	options := pack.ContainerOptions{Format: *format, Encryption: crypt.Encryption, FileCompression: *fileCompression, ScratchDir: *scratch, APFS: apfs.ContainerBuildOptions{Time: clock}}
 	if *capacity != "" {
 		options.APFS.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -307,6 +311,9 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 		}{1, report, imports})
 	}
 	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\nImage encryption: %s\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes, packEncryptionLabel(report.Encryption))
+	if err == nil {
+		err = writePackCompressionReport(out, report.FileCompression, report.Compression)
+	}
 	return err
 }
 

@@ -300,7 +300,8 @@
         "internal/decmpfs",
         "apfs/reader.go",
         "hfsplus/reader.go",
-        "workspace/replace.go"
+        "workspace/replace.go",
+        "internal/filecompression/prepare.go"
       ],
       "files": [
         {
@@ -312,7 +313,7 @@
           "sha256": "18dc3ff96bf71c686a45297e3c218aea21ee0ba6786527c0599e7111f157eb3e"
         }
       ],
-      "basis": "Original bounded reader using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied. Replacement also studies decmpfs_decompress_file, unset_compressed_flag and decmpfs_free_compressed_data: zero truncation clears UF_COMPRESSED and frees codec-owned storage plus the decmpfs attribute. No kernel code translated; original Go storage transitions are independently checked by native O_TRUNC writes. Unlike native writes, the preservation API keeps recorded source timestamps and marks modified contents explicitly."
+      "basis": "Original bounded reader and zlib writer using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Fresh type-3/type-4 storage uses Go standard-library zlib and independently observed Resource Manager framing; no Apple encoder implementation is copied. Native public-codec decoding, kernel reads, continued writes, fsck and signatures independently qualify output. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied. Replacement also studies decmpfs_decompress_file, unset_compressed_flag and decmpfs_free_compressed_data: zero truncation clears UF_COMPRESSED and frees codec-owned storage plus the decmpfs attribute. No kernel code translated; original Go storage transitions are independently checked by native O_TRUNC writes. Unlike native writes, the preservation API keeps recorded source timestamps and marks modified contents explicitly. Compression admission also follows decmpfs_hides_rsrc/decmpfs_hides_xattr: all active compressed files hide their resource fork, independent of compression type. Fresh zlib construction therefore refuses compression for files with independent forks, including small type-3 candidates, preserving ordinary native fork visibility as well as raw bytes. macOS 15/26/27 readbacks in run 38111101888 independently exposed the earlier incorrect type-3 exception."
     },
     {
       "id": "native-file-compression-27",
@@ -683,6 +684,41 @@
       "basis": "Immutable macOS 15 CI reference with actual UID/GID reassignment to 60001/60002. Native capture passed on all three Macs; the first portable replay exposed that physical recursive chown changes symlink ownership while chmod skips symlinks. The corrected implementation passes these saved native observations. This reference prevents same-owner local capture from hiding the difference."
     },
     {
+      "id": "apple-hfs-free-space-study",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "internal/buildsize/capacity.go",
+        "acceptance/native/image_capacity.py",
+        "docs/image-sizing.md"
+      ],
+      "files": [
+        {
+          "path": "core/hfs_vfsops.c",
+          "sha256": "070d63b5defcfc32c074197d85eb6c1913f894f5d453f923b07bc03bd0c15b15"
+        },
+        {
+          "path": "core/hfs_vfsutils.c",
+          "sha256": "85916866504e2db3ad8784129c588af8e375c3631de5d01cb28f13c4c8426c27"
+        }
+      ],
+      "basis": "Study of reserveBlocks, f_bfree/f_bavail and hfs_freeblks explains physical versus caller-available block accounting, including loaned/locked blocks and sparse-device backing-store limits. No kernel allocation implementation is copied. The formatter's InitVH accounting remains separately inventoried. Automatic padding is original Go policy, not a port of Apple's private DiskImages or APFS formatter sizing formula."
+    },
+    {
+      "id": "native-image-capacity-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38110647183",
+      "evidence": "docs/image-sizing.md",
+      "components": [
+        "internal/buildsize/capacity.go",
+        "apfs/build_container.go",
+        "hfsplus/build.go",
+        "acceptance/native/image_capacity.py"
+      ],
+      "basis": "All three disposable native VMs build the same macOS 15 APFS/HFS+/case-sensitive sources using Apple automatic sizing and explicit Go capacity. Apple cannot populate the old 9,052,160-byte APFS capacity; its 18,337,792-byte automatic image admits at least 8 MiB of new native data. Old Go APFS allocation stops at 192 KiB despite reporting 314 free/available blocks. Native HFS automatic sizing leaves substantially more usable room than old Go sizing. Measurements establish underprovisioning without claiming an exact private Apple formula or universal reserve constant. Fresh output qualification retains complete native modification/fsck/remount workloads."
+    },
+    {
       "id": "apple-hfs-formatter",
       "kind": "source-port",
       "url": "https://github.com/apple-oss-distributions/hfs",
@@ -709,9 +745,13 @@
         {
           "path": "core/hfs_xattr.c",
           "sha256": "22413ad83654198946ad26797c074fc9c64500a9fe75abbfcff426731ddce117"
+        },
+        {
+          "path": "core/hfs_catalog.c",
+          "sha256": "a459793a5f38d05ad3b5a8e6f9761aefb3d9dfeb077962a7a190b6812bd37dd6"
         }
       ],
-      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, legacy regular-file indirection and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output."
+      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, current regular-file hard-link chains and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output. Allocation bitmap initialization follows makehfs zeroing and MarkExtentUsed: only real allocated extents and the header blocks are marked; padding beyond totalBlocks stays clear. The independently studied CheckVolumeBitMap compares the entire final 1024-bit segment, exposing the old incorrect all-ones padding when automatic capacities end within a segment. Fresh hard links follow hfs_makelink/createindirectlink and cat_createlink: kHFSHasLinkChainMask is set on inode and aliases; inode reserved1 stores hl_firstLinkID, and alias BSD owner/group fields store hl_prevLinkID/hl_nextLinkID. Actual UID/GID remain on the inode. Legacy flagless construction was readable, but cat_lookup marks resolved inodes as chained and subsequent native writes persist an incomplete chain. CheckHardLinks exposed that transition during compression replacement in run 38114955455. Stored-record regressions inspect complete three-alias chains in plain/compressed HFS+/HFSX output; native continued modification remains the independent verdict."
     },
     {
       "id": "native-hfs-image-building-27",
@@ -879,6 +919,63 @@
       ],
       "evidence": "acceptance/testdata/image-building/macos-27/containers/manifest.json",
       "basis": "Independent Apple-created shared and grouped containers provide UUIDs, per-volume reserves/quotas/case/roles, group inventories, signed application trees and inode namespaces. Native shadow writes establish bounded quota/reserve enforcement, protected-volume allocation, independent writes and reuse after remount. Original references and copied capture sources remain immutable. Full macOS 15/26/27 capture, portable replay and VM-isolated native readback qualify output; fsck alone is insufficient."
+    },
+    {
+      "id": "apple-hfs-bitmap-checker",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "hfsplus/build.go",
+        "pack/capacity_test.go",
+        "docs/image-sizing.md"
+      ],
+      "files": [
+        {
+          "path": "lib_fsck_hfs/dfalib/VolumeBitmapCheck.c",
+          "sha256": "cfe2207cc8fb3ff890d6567222c9ef619fc5c4cdf29065bcadd16a76f2ea2c15"
+        }
+      ],
+      "basis": "BitMapCheckBegin captures real volume headers and initializes all other bits clear. CheckVolumeBitMap compares complete 1024-bit segments with memcmp, including final padding, and reports extra set bits as orphaned allocation. No checker code is copied. macOS 15/26/27 run 38113498604 rejected the old bitmap in a 2631-block volume, whose final segment incorrectly marked 441 nonexistent blocks. Portable regressions fail on the old output and independently check clear tail bits and consistent free counts; fresh native fsck remains required."
+    },
+    {
+      "id": "apple-hfs-hardlink-checker",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "hfsplus/build.go",
+        "hfsplus/build_links_test.go"
+      ],
+      "files": [
+        {
+          "path": "lib_fsck_hfs/dfalib/HardLinkCheck.c",
+          "sha256": "92a4dd19a2a55368b523ec5038e862c97ff868ac93e9f8c15af5946c8b5f08af"
+        }
+      ],
+      "basis": "CaptureHardLink, inode_check and CheckHardLinks distinguish legacy flagless links from current kHFSHasLinkChainMask records and validate chain heads, reciprocal pointers and counts. No checker code is copied. Native compression writes exposed the mismatch between legacy constructed aliases and inodes whose chain flag the kernel persists during an update."
+    },
+    {
+      "id": "apple-hfs-native-header-growth",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": ["acceptance/native/verify_image_building.py", "acceptance/native/diagnose_hfs_headers.py", "docs/native-hfs-writes.md"],
+      "files": [
+        {"path": "core/hfs_btreeio.c", "sha256": "a31b4e9e1e88f9be39abb93d9cfb5cc833db6098452e8d918a041f32b3c6df16"},
+        {"path": "lib_fsck_hfs/dfalib/SVerify1.c", "sha256": "1387dbfacc1120e78b514491130393d721bb2fce4739df290dc38d7ba11543d8"},
+        {"path": "lib_fsck_hfs/dfalib/SVerify2.c", "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"},
+        {"path": "lib_fsck_hfs/dfalib/SUtils.c", "sha256": "fa03e4c21a28a8434245746750733857cc415a56d8e28061215bbd735729a958"}
+      ],
+      "basis": "ExtendBTreeFile requests synchronous primary/alternate header flushing after system-file growth. The separately inventoried hfs_vfsops writer copies updated metadata to the alternate header. Checker debug output identifies catalog total-block disagreement and invalidates the alternate header. No kernel/checker code copied; native route controls and exact raw-sector copying qualify the original Go filesystem independently."
+    },
+    {
+      "id": "native-hfs-header-route-controls",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38120009221",
+      "evidence": "docs/native-hfs-writes.md",
+      "components": ["acceptance/native/image_mutation.py", "acceptance/native/test_image_mutation.py", "acceptance/native/verify_image_building.py", "acceptance/native/diagnose_hfs_headers.py"],
+      "basis": "The Go HFS+ filesystem, its Apple UDRO rewrap, and an Apple UDRW conversion receive the identical mutation/check/remount workload. Apple-rewrapped shadow writes leave stale 92-block alternate headers after the primary catalog grows to 100 on all three Macs; converted direct writes pass with matching headers. One original shadow control passes on macOS 15, recording variability. Stronger admission in run 38120590877 rejects UDRW conversion because sector hashes change despite equal device capacity; those successful converted controls cannot independently qualify the original disk. Acceptance instead streams exact Apple-attached sectors to private raw copies and requires native full device size/hash equality plus original image preservation before writes. No repair or failed-checker exception is admitted. Private DiskImages internals are not inferred from this evidence."
     }
   ]
 }
