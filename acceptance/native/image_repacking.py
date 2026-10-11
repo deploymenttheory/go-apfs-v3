@@ -7,6 +7,7 @@ no Go encoder or decoder supplies expected bytes or filesystem observations.
 """
 import argparse
 from contextlib import ExitStack
+import errno
 import gzip
 import hashlib
 import json
@@ -19,6 +20,7 @@ import stat
 import struct
 import subprocess
 import tempfile
+import time
 
 from capture import create_files, native_xattrs, observe_files, sha256
 from snapshot_reading import MOUNT_APFS
@@ -34,19 +36,26 @@ class Commands:
 
     def __call__(self, *argv, fixture_input=None, expected_success=True):
         display = [str(a) if len(str(a)) <= 256 else f'<{len(str(a))} characters>' for a in argv]
-        print('native:', *display, flush=True)
-        record = {'argv': list(map(str, argv)), 'status': 'started', 'expectedSuccess': expected_success}
-        self.records.append(record)
-        self.save()
-        try:
-            r = subprocess.run(list(map(str, argv)), input=fixture_input, capture_output=True, timeout=120)
-        except BaseException as error:
-            record.update(status='failed', error=str(error)); self.save(); raise
-        record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace'))
-        self.save()
-        if (r.returncode == 0) != expected_success:
-            raise RuntimeError(f'command failed: {argv}: {record["stdout"]} {record["stderr"]}')
-        return r.stdout
+        for attempt in range(6):
+            print('native:', *display, flush=True)
+            record = {'argv': list(map(str, argv)), 'status': 'started', 'expectedSuccess': expected_success}
+            self.records.append(record)
+            self.save()
+            try:
+                r = subprocess.run(list(map(str, argv)), input=fixture_input, capture_output=True, timeout=120)
+            except BaseException as error:
+                record.update(status='failed', error=str(error)); self.save(); raise
+            record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace'))
+            self.save()
+            # DiskImages can retain a disposable image briefly after unmount.
+            # Match capture.py: retry only detach's EBUSY, retain each attempt,
+            # and require normal detachment before hashing or publication.
+            if expected_success and argv[:2] == ('hdiutil', 'detach') and r.returncode == errno.EBUSY and attempt < 5:
+                time.sleep(1)
+                continue
+            if (r.returncode == 0) != expected_success:
+                raise RuntimeError(f'command failed: {argv}: {record["stdout"]} {record["stderr"]}')
+            return r.stdout
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)

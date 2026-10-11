@@ -1,8 +1,48 @@
 """File-only checks for native device selection; no Apple command is executed."""
+import errno
+import json
+from pathlib import Path
 import plistlib
+import subprocess
+import tempfile
 import unittest
+from unittest.mock import patch
 
-from image_repacking import attach
+from image_repacking import Commands, attach
+
+
+class Detachment(unittest.TestCase):
+    def run_commands(self, argv, statuses, expected_success=True):
+        with tempfile.TemporaryDirectory() as temporary:
+            diagnostics = Path(temporary) / 'commands.json'
+            command = Commands(diagnostics)
+            results = [subprocess.CompletedProcess(argv, status, b'', b'Resource busy' if status == errno.EBUSY else b'')
+                       for status in statuses]
+            with patch('image_repacking.subprocess.run', side_effect=results) as native, \
+                 patch('image_repacking.time.sleep') as delay:
+                if statuses[-1] == 0 or not expected_success:
+                    command(*argv, expected_success=expected_success)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        command(*argv, expected_success=expected_success)
+            records = json.loads(diagnostics.read_text())
+            self.assertEqual([record['status'] for record in records], statuses)
+            self.assertEqual(native.call_count, len(statuses))
+            self.assertTrue(all(record['argv'] == list(argv) for record in records))
+            return delay.call_count
+
+    def test_busy_detach_retries_and_retains_every_attempt(self):
+        self.assertEqual(self.run_commands(('hdiutil', 'detach', '/dev/disk5'), [errno.EBUSY, errno.EBUSY, 0]), 2)
+
+    def test_persistently_busy_detach_fails_after_six_attempts(self):
+        self.assertEqual(self.run_commands(('hdiutil', 'detach', '/dev/disk5'), [errno.EBUSY] * 6), 5)
+
+    def test_other_failures_and_expected_failure_are_not_retried(self):
+        for argv, status, expected in [(('hdiutil', 'detach', '/dev/disk5'), errno.EIO, True),
+                                       (('hdiutil', 'attach', 'fixture.dmg'), errno.EBUSY, True),
+                                       (('hdiutil', 'detach', '/dev/disk5'), errno.EBUSY, False)]:
+            with self.subTest(argv=argv, status=status, expected=expected):
+                self.assertEqual(self.run_commands(argv, [status], expected), 0)
 
 
 class DeviceSelection(unittest.TestCase):
