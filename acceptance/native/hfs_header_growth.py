@@ -175,6 +175,8 @@ def workload(mount):
     payload = bytes(range(256)) * 2048
     original = root / 'grow'
     original.write_bytes(payload)
+    os.setxattr(original, 'org.go-apfs.header-growth', b'catalog growth keeps attributes')
+    os.setxattr(original, 'com.apple.ResourceFork', b'independent growth-control resource fork')
     os.link(original, root / 'alias')
     with original.open('ab') as stream:
         stream.write(payload)
@@ -215,7 +217,10 @@ def main():
     # Retain exact shipped tool bytes' hashes, SDK ioctl definitions and versions.
     producer['tools'] = {path: sha256(path) for path in ('/sbin/newfs_hfs', '/sbin/fsck_hfs', '/usr/bin/hdiutil')}
     producer['uname'] = command('uname', '-a').decode().strip()
-    producer['diskImagesVersion'] = command('hdiutil', 'version').decode().strip()
+    disk_images = plistlib.loads(command('hdiutil', 'info', '-plist'))
+    producer['diskImagesVersion'] = {key: value for key, value in disk_images.items() if key != 'images'}
+    sdk = Path(command('xcrun', '--show-sdk-path').decode().strip())
+    producer['sdkDiskHeaderSHA256'] = sha256(sdk / 'usr/include/sys/disk.h')
     result = {'schema': 1, 'scenario': 'hfs-header-growth', 'producer': producer, 'cases': []}
     def save():
         (args.output / 'manifest.json').write_text(json.dumps(result, indent=2) + '\n')
@@ -228,8 +233,12 @@ def main():
                 before_go = snapshot(go, args.output / f'{profile}-{capacity}-go-before.raw.gz', command)
                 require(before_go['checker']['status'] == 0, 'Go control initially passes native checker')
                 initial = before_go['headers']['primary']['forks']
-                apple = work / f'{profile}-{capacity}-apple.raw'
-                create_apple(apple, capacity, profile == 'hfsx', initial, command)
+                apple_raw = work / f'{profile}-{capacity}-apple.raw'
+                create_apple(apple_raw, capacity, profile == 'hfsx', initial, command)
+                # Both shadow controls use UDRO: raw-vs-UDIF driver selection
+                # would otherwise confound the Apple/Go construction comparison.
+                apple = work / f'{profile}-{capacity}-apple.dmg'
+                command('hdiutil', 'convert', apple_raw, '-format', 'UDRO', '-o', apple)
                 before_apple = snapshot(apple, args.output / f'{profile}-{capacity}-apple-before.raw.gz', command)
                 require(before_apple['checker']['status'] == 0, 'Apple control initially passes native checker')
                 for before in (before_go, before_apple):
