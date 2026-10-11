@@ -94,9 +94,9 @@ Currently implemented:
 - Existing clean HFS+/HFSX image edits (nonjournaled or with a valid empty internal journal) through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
   retaining volume/file IDs, aliases, geometry, independent forks and unrelated
   sectors in a completed output transaction; see [editing semantics](docs/hfs-editing.md).
-- Existing APFS regular-file edits through `cp` and `chmod`, retaining original
-  identities, hard links, metadata and independent forks through copy-on-write
-  allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
+- Existing APFS file and directory edits through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
+  retaining original identities, hard-link siblings, metadata and independent forks
+  through copy-on-write allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 

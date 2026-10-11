@@ -10,7 +10,7 @@ and harness were not imported.
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode edits and copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; journal replay, physical power-loss qualification and broader APFS mutation pending |
+| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; journal replay, physical power-loss qualification and broader APFS mutation pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
 | 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -639,3 +639,26 @@ family requires fresh independent captures, source-version jobs on every portabl
 host and all three native checker/readback/continued-allocation jobs. Fault
 injection covers each write boundary, cancellation, short writes and exhausted
 space. Forty successive transactions check identity, contents and actual reuse.
+
+## Existing APFS directory editing increment
+
+Ordinary image cp/mkdir/mv/rm and directory chmod share `apfs/mutate_entries.go`.
+The layer owns the mutable directory index, inode primary links, sibling links and
+maps, parent child counts, volume file counts and file-identifier high-water mark.
+Ordered operations resolve against current records. Creation and rename reuse the
+construction record encoders; stream lookup visits only intersecting tree paths.
+Final unlink retires data, resource forks and attributes through the existing
+transaction-tagged free queues. Adjacent ranges from the same transaction are
+coalesced without changing retained-checkpoint lifetimes.
+
+Apple before/create-move-unlink/removal-reuse captures qualify both name policies
+on macOS 15/26/27. Immutable references live in `acceptance/testdata/apfs-directory-editing`.
+The existing APFS family also refreshes these controls, compares Linux/Windows/macOS
+outputs, checks them with Apple fsck, mounted reads and codesign, and exercises
+native/Go/native creation, link changes and final removal. Source identity and
+contents remain unchanged on disk-full and interrupted-output failures. Bounded
+synthetic stress covers fourteen growth/removal cycles and every write boundary.
+
+The single ordinary volume/1 GiB profile remains. Directory-stat maintenance,
+ACL/set-ID inheritance, snapshots, clones, encrypted mutation and physical
+power-loss qualification require later independently proven increments.
