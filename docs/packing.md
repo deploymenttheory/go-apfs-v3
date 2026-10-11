@@ -59,7 +59,7 @@ their own volume. Volume order is retained.
 Session inputs retain their case policy and ownership; use ordinary session
 commands to change metadata. Case and ownership-default flags apply only to
 directory or empty inputs. `--capacity`, `--time`, `--container-uuid`, `--format`,
-`--scratch-dir`, `--encryption`, `--output-password-file` and `--json` apply to the complete build. JSON reports import
+`--scratch-dir`, `--file-compression`, `--encryption`, `--output-password-file` and `--json` apply to the complete build. JSON reports import
 defaults and unavailable attributes separately for each volume.
 
 Reserves guarantee available bytes; quotas cap a volume's allocation. Both round
@@ -220,7 +220,8 @@ inside this build; references outside a captured subtree cannot exist in its out
 
 Unchanged decmpfs types 1, 3, 4, 7 and 8 can retain their stored representation.
 Native build acceptance covers each admitted type, including native LZVN resource
-storage and the type-7 stored marker. Other compression types fail explicitly. The builder does not introduce new decmpfs encoding.
+storage and the type-7 stored marker. Other preserved compression types fail explicitly.
+`--file-compression` can explicitly replace file storage as described below.
 Sparse input has identical logical bytes but is allocated contiguously.
 
 Uncaptured required metadata, subsecond or out-of-range HFS timestamps, unsupported
@@ -233,7 +234,7 @@ packing cannot recreate metadata the host did not provide.
 APFS preserves nanosecond times in the supported 1970–2262 signed-nanosecond
 range, including exact epoch zero. Tracked documents receive fresh document IDs.
 Active compressed inputs must have consistent decmpfs headers, sizes, flags and
-decodable storage; stored compression remains unchanged. Unknown BSD flag bits,
+decodable storage; the default preserves stored compression. Unknown BSD flag bits,
 reserved filesystem-owned attributes and unsupported object kinds are refused.
 APFS symbolic-link targets are literal, with a current 1023-byte construction limit.
 
@@ -241,6 +242,65 @@ APFS symbolic-link targets are literal, with a current 1023-byte construction li
 observed ownership is preserved. Use session `chown`, `chmod`, `touch` and the other
 file commands for deliberate changes before packing. Flags accept ordinary operands;
 JSON is an optional output report only.
+
+## Transparent file compression
+
+```sh
+apfs pack --filesystem apfs --file-compression zlib ./payload App.dmg
+apfs pack --session build --file-compression none App.dmg
+```
+
+The same policy applies to APFS, case-sensitive APFS, HFS+ and HFSX, and to every
+volume in a multi-volume build. `--file-compression preserve` is the default:
+existing qualified compression storage remains byte-exact, and ordinary files
+remain ordinary. `zlib` reads logical contents and requests fresh native decmpfs
+type 3 (attribute storage) or type 4 (resource-fork storage). `none` writes logical
+data without active compression, removing its decmpfs attribute and only the
+resource fork owned by that compression type. Inactive decmpfs metadata stays
+opaque. These options apply to fresh filesystem builds; sector-preserving image
+repacking refuses an explicitly supplied file-compression option.
+
+File compression is independent of `--format UDRO|UDZO`, which describes the DMG
+envelope. Both DMG encodings and encrypted output can contain compressed files.
+The shared storage preparation runs before either filesystem engine plans its
+layout, so compressed sizes drive automatic capacity and allocation. It keeps
+names, logical contents, hard-link relationships, ordinary attributes, independent
+forks and recorded timestamps. Only compression-owned storage and UF_COMPRESSED
+change. Existing application signatures continue to cover the same logical bytes.
+
+An attribute can contain at most 3802 bytes including the 16-byte decmpfs header.
+Larger representations use a Resource Manager `cmpf` resource with independently
+encoded 64 KiB blocks; incompressible blocks use Apple's stored marker. Compression
+is used only when its complete attribute/resource representation is smaller than
+the logical data fork. Empty and tiny files, incompressible files, an independent
+fork that would conflict with required resource storage, and inactive decmpfs
+attributes are reported with explicit reasons. An independent resource fork can
+coexist with attribute-based compression and is never overwritten. Under `zlib`,
+an existing active representation is decoded first; a skipped file becomes
+ordinary storage with its logical bytes and independent metadata preserved.
+
+JSON reports include `fileCompression` and one `compression` outcome per regular
+file identity considered by an explicit policy. Each outcome carries its first
+byte-sorted path, source object, optional volume, action, reason, native type,
+logical bytes and stored bytes. Text output lists skipped files and reasons;
+hard-link aliases share one outcome. With `none`, outcomes identify files whose
+active compression was removed. Default `preserve` adds no per-file outcomes.
+
+The encoder uses one 64 KiB input buffer plus codec scratch. Resource descriptors
+are patched in managed, private temporary files; their index and encoded data
+must fit Resource Manager's 32-bit ranges. Scratch contains encoded file bytes,
+can consume disk space proportional to the encoded files, and is removed before
+return, including after cancellation or I/O failure. `--scratch-dir` selects its
+parent; callers never configure internal paths. The complete preparation has a
+shared 64 MiB metadata budget across container volumes and the builders' existing
+entry/depth limits. Rechecking logical source hashes after writing prevents staged
+compressed bytes from hiding changed input. Sources remain borrowed and immutable.
+Destination publication still requires successful writing and scratch cleanup.
+
+Fixed inputs/options and the pinned Go encoder produce byte-identical plaintext
+output across hosts. Apple and Go compressed streams may differ; native codec and
+filesystem readback establish equal logical bytes, rather than matching encoder
+bytes. Fresh native qualification is described in the acceptance documentation.
 
 ## Capacity and reproducibility
 

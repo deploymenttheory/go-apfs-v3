@@ -283,7 +283,7 @@ jobs:
         run: python3 acceptance/native/verify_metadata_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/metadata-edits --outputs artifacts/outputs
       - name: Verify exported command sessions against Apple command observations
         run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
-      - name: Check built filesystems, encrypted DMGs, native APFS writes and signatures with Apple tools
+      - name: Check built filesystems, file compression, encrypted DMGs, native writes and signatures with Apple tools
         run: python3 acceptance/native/verify_image_building.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-building --outputs artifacts/outputs
       - name: Check repacked sectors, snapshots, encrypted DMGs and password changes with Apple tools
         run: python3 acceptance/native/verify_image_repacking.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-repacking --outputs artifacts/outputs
@@ -315,10 +315,15 @@ jobs:
           including actual UID/GID changes, FinderInfo rules and complete fork replacement.
           File commands verify 36 session exports against 828 native commands,
           including directory import, mode parsing, aliases and native timestamp effects.
-          Image building requires 117 host DMGs to agree in triples, then checks
-          all 39 distinct images with Apple checksums, fsck, mounted readback and
-          codesign. All 27 APFS images also undergo native writes and remount checks;
+          Image building requires 189 plaintext host DMGs to agree in triples, then checks
+          all 63 distinct images with Apple checksums, fsck, mounted readback and
+          codesign. All 27 baseline APFS images and 24 compression-policy images also undergo native writes and remount checks;
           multi-volume controls exercise reserves, quotas and System/Data groups.
+          File-compression policies cover attribute/resource storage, exact block
+          boundaries, incompressible/stored blocks, independent forks, inactive
+          metadata and hard links. Kernel reads and Apple codec decoding must
+          match native source contents; native writes and remounts retain forks
+          and update aliases without stale compression storage.
           Native tests run in disposable GitHub-hosted VMs. Identical bytes from
           the three portable hosts are verified once per macOS version.
           Image repacking requires 90 plaintext DMGs to agree in triples, then checks

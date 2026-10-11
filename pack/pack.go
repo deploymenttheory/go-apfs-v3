@@ -16,13 +16,22 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filecompression"
 )
 
 type Options struct {
 	Volume     VolumeOptions
 	Format     string
 	Encryption *diskimage.EncryptionOptions
+	// FileCompression is preserve (default), zlib or none. ScratchDir is an
+	// optional parent for managed encoded-file scratch, removed before return.
+	FileCompression string
+	ScratchDir      string
 }
+
+// CompressionOutcome records one regular-file identity, including all aliases.
+// Path is its first byte-sorted source path; storage changes preserve logical data.
+type CompressionOutcome = filecompression.Outcome
 
 // VolumeOptions supplies fresh construction choices. The reader's native format
 // selects the engine; filesystem conversion is not implicit. VolumeID belongs to
@@ -41,18 +50,19 @@ type layout interface {
 	Write(context.Context, io.Writer) error
 }
 type Report struct {
-	Format      string                `json:"format"`
-	Filesystem  string                `json:"filesystem"`
-	VolumeBytes int64                 `json:"volumeBytes"`
-	ImageBytes  int64                 `json:"imageBytes"`
-	Encryption  *diskimage.Encryption `json:"encryption,omitempty"`
+	Format          string                `json:"format"`
+	Filesystem      string                `json:"filesystem"`
+	VolumeBytes     int64                 `json:"volumeBytes"`
+	ImageBytes      int64                 `json:"imageBytes"`
+	Encryption      *diskimage.Encryption `json:"encryption,omitempty"`
+	FileCompression string                `json:"fileCompression"`
+	Compression     []CompressionOutcome  `json:"compression,omitempty"`
 }
 
 // Write streams a fresh volume through the DMG encoder. The caller owns the
 // output and discards it on error. The reader is borrowed and must remain fixed.
 // Encrypted output requires an empty io.WriteSeeker and uses fresh randomness.
-func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (Report, error) {
-	var report Report
+func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (report Report, err error) {
 	if out == nil || r == nil {
 		return report, fs.ErrInvalid
 	}
@@ -67,8 +77,14 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if o.Format != "UDRO" && o.Format != "UDZO" {
 		return report, filesystem.ErrUnsupported
 	}
+	var compressionBudget int64
+	prepared, err := filecompression.Prepare(ctx, r, o.FileCompression, o.ScratchDir, &compressionBudget)
+	if err != nil {
+		return report, err
+	}
+	defer func() { err = errors.Join(err, prepared.Close()) }()
+	r = prepared
 	var plan layout
-	var err error
 	hint := "Apple_HFS"
 	v := o.Volume
 	switch r.NameRules().Format {
@@ -93,7 +109,11 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if err != nil {
 		return report, err
 	}
+	if err = prepared.Verify(ctx); err != nil {
+		return report, err
+	}
 	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes, Encryption: encryptionInfo(o.Encryption)}
+	report.FileCompression, report.Compression = compressionPolicy(o.FileCompression), prepared.Outcomes()
 	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
@@ -102,25 +122,28 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 
 // ContainerOptions packages a fresh APFS container with one or more volumes.
 type ContainerOptions struct {
-	APFS       apfs.ContainerBuildOptions
-	Format     string
-	Encryption *diskimage.EncryptionOptions
+	APFS            apfs.ContainerBuildOptions
+	Format          string
+	Encryption      *diskimage.EncryptionOptions
+	FileCompression string
+	ScratchDir      string
 }
 
 type ContainerReport struct {
-	Format         string                `json:"format"`
-	VolumeCount    int                   `json:"volumeCount"`
-	ContainerBytes int64                 `json:"containerBytes"`
-	ImageBytes     int64                 `json:"imageBytes"`
-	Encryption     *diskimage.Encryption `json:"encryption,omitempty"`
+	Format          string                `json:"format"`
+	VolumeCount     int                   `json:"volumeCount"`
+	ContainerBytes  int64                 `json:"containerBytes"`
+	ImageBytes      int64                 `json:"imageBytes"`
+	Encryption      *diskimage.Encryption `json:"encryption,omitempty"`
+	FileCompression string                `json:"fileCompression"`
+	Compression     []CompressionOutcome  `json:"compression,omitempty"`
 }
 
 // WriteContainer streams one fresh APFS container through the DMG encoder.
 // It borrows every immutable reader through completion. Discard output on error.
 // Encrypted output requires an empty io.WriteSeeker and uses fresh randomness.
-func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpec, o ContainerOptions) (ContainerReport, error) {
-	var report ContainerReport
-	if out == nil {
+func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpec, o ContainerOptions) (report ContainerReport, err error) {
+	if out == nil || len(volumes) == 0 || len(volumes) > 100 {
 		return report, fs.ErrInvalid
 	}
 	if o.Encryption != nil {
@@ -134,6 +157,30 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 	if o.Format != "UDRO" && o.Format != "UDZO" {
 		return report, filesystem.ErrUnsupported
 	}
+	if err = filecompression.Validate(o.FileCompression); err != nil {
+		return report, err
+	}
+	volumes = append([]apfs.VolumeSpec(nil), volumes...)
+	var compressionBudget int64
+	var prepared []*filecompression.Reader
+	defer func() {
+		for _, r := range prepared {
+			err = errors.Join(err, r.Close())
+		}
+	}()
+	var outcomes []CompressionOutcome
+	for i := range volumes {
+		r, e := filecompression.Prepare(ctx, volumes[i].Reader, o.FileCompression, o.ScratchDir, &compressionBudget)
+		if e != nil {
+			return report, e
+		}
+		prepared = append(prepared, r)
+		volumes[i].Reader = r
+		for _, outcome := range r.Outcomes() {
+			outcome.Volume = volumes[i].Name
+			outcomes = append(outcomes, outcome)
+		}
+	}
 	plan, err := apfs.PlanContainer(ctx, volumes, o.APFS)
 	if err != nil {
 		return report, err
@@ -142,7 +189,19 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 	if err != nil {
 		return report, err
 	}
-	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption)}, nil
+	for _, r := range prepared {
+		if err = r.Verify(ctx); err != nil {
+			return report, err
+		}
+	}
+	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes}, nil
+}
+
+func compressionPolicy(policy string) string {
+	if policy == "" {
+		return "preserve"
+	}
+	return policy
 }
 
 // CreateContainer uses the same no-overwrite publication contract as Create.

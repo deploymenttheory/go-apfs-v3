@@ -635,3 +635,28 @@ native helpers, documentation and the two CI workflows require fresh capture and
 replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
 this admission. Every native readback still runs on all three macOS versions.
 Ordinary PR runs continue to capture and replay fresh data.
+
+
+Transparent file-compression writing extends the existing `file-compression` and
+`image-building` families. Native source inputs include empty/tiny files, attribute
+capacity controls, exact 64 KiB boundaries, a multi-megabyte file, incompressible
+and mixed blocks, inactive metadata, independent resource forks and hard links.
+Older retained references remain immutable; fresh required CI captures must include
+the complete new input inventory. Local codec/CLI/failure tests supplement those
+references without invoking native tools.
+
+Image-building replay emits `file-compression/zlib` and `file-compression/none`
+outputs and diagnostic reports inside its existing output archives. Each policy
+is built twice from each of the four filesystem profiles from each source Mac.
+The 72 host outputs must agree in triples, then each verifier checks the 24 distinct
+images with Apple's image/fsck tools, kernel reads, public compression codec,
+metadata and signature checks. Compression-owned storage may change; independent
+forks, inactive attributes and all ordinary metadata must remain exact. Required
+controls independently prove actual attribute/resource compression, native stored
+blocks and explicit refusal to replace unrelated fork/attribute storage.
+
+Each policy output also receives native shadow-file writes, hard-link replacement,
+independent-fork preservation and allocation/reuse, followed by unmounted fsck and
+read-only remount verification. Source hashes must remain unchanged. This proves
+continued native use without claiming Go existing-filesystem mutation or power-loss
+durability. All native operations run on disposable hosted VMs.

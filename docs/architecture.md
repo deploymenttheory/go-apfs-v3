@@ -455,3 +455,23 @@ qualified plaintext outputs. Identical plaintext host copies are checked once
 per macOS version after byte equality is established. Every randomized encrypted
 copy needs its own native unlock and full-device hash, including the original
 APFS ciphertext and snapshot sectors preserved by repacking.
+
+## File-compression construction
+
+`pack` prepares one shared reader view before APFS/HFS layout planning. Explicit
+zlib policy encodes logical values through `internal/decmpfs`; explicit none policy
+exposes logical values as raw data and removes only active codec-owned attributes.
+The default delegates every operation to the original immutable reader. Hard-link
+identity selects one prepared object, regardless of its alias count.
+
+Attribute storage stays within Apple's 3802-byte ceiling. Resource-backed storage
+uses bounded 64 KiB codec blocks and patches descriptor ranges directly in managed
+scratch. The two filesystem engines consume the same prepared values, preserving
+ordinary metadata and attributes. Per-file outcomes distinguish smaller encoded
+storage from conflicts, inactive metadata and unhelpful compression. Preparation
+shares its 64 MiB metadata budget across container volumes.
+
+The builders hash prepared payloads before and during output as usual. A final
+logical-source hash recheck detects input changes that encoded scratch could
+otherwise hide. Scratch cleanup completes before fresh-image publication. Source
+readers and opened source values retain their established ownership contracts.
