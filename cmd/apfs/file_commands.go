@@ -119,6 +119,14 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if *imageOutput != "" {
 		return fmt.Errorf("--output requires --image")
 	}
+	f.Visit(func(option *flag.Flag) {
+		if option.Name == "partition" || option.Name == "format" || option.Name == "time" {
+			err = fmt.Errorf("--%s requires --image", option.Name)
+		}
+	})
+	if err != nil {
+		return err
+	}
 	if common.name == "" {
 		return fmt.Errorf("%s requires --session NAME", verb)
 	}

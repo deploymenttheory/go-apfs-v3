@@ -63,6 +63,7 @@ type mutation struct {
 	bitmap, claimed []byte
 	allocation      *fork
 	trees           map[uint32]*mutableTree
+	overflowUsed    map[string]bool
 }
 
 func (m *mutation) write(p []byte, off uint64) error {

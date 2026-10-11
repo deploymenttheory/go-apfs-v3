@@ -94,6 +94,9 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 		if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
 			return report, fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
 		}
+		if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
+			return report, fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
+		}
 		flags := uint32(b[40])<<16 | uint32(b[41])
 		if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
 			return report, fmt.Errorf("locked, immutable, append-only or dataless target: %w", filesystem.ErrUnsupported)
@@ -304,7 +307,7 @@ func (m *mutation) admit() error {
 		if e != nil {
 			return e
 		}
-		if e = m.claim(f); e != nil {
+		if e = m.claimFileFork(special.id, 0, f); e != nil {
 			return e
 		}
 	}
@@ -319,6 +322,7 @@ func (m *mutation) admit() error {
 			return err
 		}
 	}
+	objects := map[uint32]bool{}
 	if err = v.catalog.visitLeaves(m.ctx, func(_ uint32, _ []byte, records []treeRecord) error {
 		for _, r := range records {
 			if len(r.value) < 2 {
@@ -329,10 +333,20 @@ func (m *mutation) admit() error {
 				if len(r.value) != 88 {
 					return bad("catalog folder admission")
 				}
+				id := be.Uint32(r.value[8:])
+				if (id != 2 && id < 16) || objects[id] {
+					return bad("catalog folder identity")
+				}
+				objects[id] = true
 			case 2:
 				if len(r.value) != 248 {
 					return bad("catalog file admission")
 				}
+				id := be.Uint32(r.value[8:])
+				if id < 16 || objects[id] {
+					return bad("catalog file identity")
+				}
+				objects[id] = true
 				if string(r.value[48:56]) == "fdrpMACS" {
 					return fmt.Errorf("directory hard links: %w", filesystem.ErrUnsupported)
 				}
@@ -345,7 +359,7 @@ func (m *mutation) admit() error {
 					if e != nil {
 						return e
 					}
-					if e = m.claim(f); e != nil {
+					if e = m.claimFileFork(id, kind, f); e != nil {
 						return e
 					}
 				}
@@ -361,12 +375,34 @@ func (m *mutation) admit() error {
 	if err = m.claimAttributes(); err != nil {
 		return err
 	}
+	if err = v.overflow.visitLeaves(m.ctx, func(_ uint32, _ []byte, records []treeRecord) error {
+		for _, r := range records {
+			if len(r.value) != 64 || !m.overflowUsed[string(r.key)] {
+				return bad("unreachable overflow extent record")
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
 	for i := uint32(0); i < v.BlockCount; i++ {
 		if bitmapBit(m.bitmap, i) != bitmapBit(m.claimed, i) {
 			return fmt.Errorf("unaccounted HFS allocation block %d: %w", i, filesystem.ErrUnsupported)
 		}
 	}
 	return m.ctx.Err()
+}
+
+func (m *mutation) claimFileFork(id uint32, kind byte, f *fork) error {
+	if m.overflowUsed == nil {
+		m.overflowUsed = map[string]bool{}
+	}
+	for i, e := range f.extents {
+		if i >= 8 && i%8 == 0 {
+			m.overflowUsed[string(extentKey(id, kind, uint32(e.logical/uint64(m.v.BlockSize))))] = true
+		}
+	}
+	return m.claim(f)
 }
 
 func (m *mutation) claimAttributes() error {

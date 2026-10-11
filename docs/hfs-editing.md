@@ -37,7 +37,8 @@ Replacement retains inode IDs, birth/access times, owner/group, destination
 permissions, ordinary flags, FinderInfo and unrelated attributes. Data/fork
 changes set modification and change times; chmod changes the mode and change
 time. The volume modification time and write count advance once per transaction.
-Immutable, append-only, locked and dataless targets are refused. Chmod of a file
+Immutable, append-only, locked and dataless targets are refused. Replacement of
+set-ID files awaits a qualified credential policy. Chmod of a file
 with stored ACL security is refused until the ACL interaction is qualified.
 This offline policy does not emulate the executing host's macOS credentials.
 

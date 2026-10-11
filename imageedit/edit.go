@@ -38,6 +38,9 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	if sourcePath == "" || destination == "" || len(changes) == 0 {
 		return report, fs.ErrInvalid
 	}
+	if o.Time.IsZero() || o.Time.Nanosecond() != 0 {
+		return report, fs.ErrInvalid
+	}
 	if _, e := os.Lstat(destination); e == nil {
 		return report, fs.ErrExist
 	} else if !errors.Is(e, fs.ErrNotExist) {
@@ -70,6 +73,13 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	if err != nil {
 		return report, err
 	}
+	var signature [2]byte
+	if err = block.ReadFull(input, signature[:], 1024); err != nil {
+		return report, err
+	}
+	if string(signature[:]) != "H+" && string(signature[:]) != "HX" {
+		return report, fmt.Errorf("image edits require HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	}
 	// Fail unsupported filesystem/profile admission before copying disk bytes.
 	volume, err := hfsplus.Open(input)
 	if err != nil {
@@ -77,6 +87,9 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	}
 	if volume.Journaled || !volume.Clean {
 		return report, fmt.Errorf("image edits require clean nonjournaled HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	}
+	if err = hfsplus.ValidateMutation(ctx, input); err != nil {
+		return report, err
 	}
 	if o.Format == "" {
 		o.Format = "UDZO"

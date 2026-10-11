@@ -233,7 +233,11 @@ func (t *mutableTree) keyValid(key []byte) bool {
 	if t.id == 3 {
 		return len(key) == 12 && be.Uint16(key) == 10 && key[3] == 0 && (key[2] == 0 || key[2] == 255)
 	}
-	return len(key) >= 14 && int(be.Uint16(key))+2 == len(key) && key[2] == 0 && key[3] == 0 && int(be.Uint16(key[12:]))*2+14 == len(key) && be.Uint16(key[12:]) <= 255
+	if len(key) < 14 || int(be.Uint16(key))+2 != len(key) || key[2] != 0 || key[3] != 0 {
+		return false
+	}
+	_, err := unicodeName(key[12:])
+	return err == nil
 }
 
 func (t *mutableTree) node(id uint32, height int) ([]byte, []treeRecord, error) {
@@ -257,6 +261,9 @@ func (t *mutableTree) node(id uint32, height int) ([]byte, []treeRecord, error) 
 	for i, record := range r {
 		if !t.keyValid(record.key) || (i > 0 && t.compare(r[i-1].key, record.key) >= 0) || (height > 1 && len(record.value) != 4) {
 			return nil, nil, bad("mutable tree record order or key")
+		}
+		if height == 1 && t.id == 3 && len(record.value) != 64 {
+			return nil, nil, bad("extent leaf value length")
 		}
 	}
 	return b, r, nil

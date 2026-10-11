@@ -36,6 +36,7 @@ type nativeEditState struct {
 type nativeEditManifest struct {
 	Schema, Major       int
 	Contract            string
+	CommandsSHA256      string
 	ModificationSeconds int64
 	CapacityBytes       int64
 	Producer            struct {
@@ -85,6 +86,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 		}
 		majors[manifest.Major] = true
 		dir := filepath.Dir(manifestPath)
+		verifyDigest(t, dir, "commands.json", manifest.CommandsSHA256)
 		for name, digest := range manifest.Producer.Sources {
 			verifyDigest(t, dir, name, digest)
 		}

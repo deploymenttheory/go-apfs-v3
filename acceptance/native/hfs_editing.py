@@ -14,7 +14,7 @@ import shutil
 import struct
 import tempfile
 
-from capture import native_extents, native_xattrs
+from capture import native_extents
 from container_building import require_disposable_host
 import file_compression as compression
 from hfs_header_growth import Commands, attach, read_headers, retain_file
@@ -69,8 +69,8 @@ def create(root, command):
     guards.mkdir()
     count = 0
     while os.statvfs(root).f_bavail * os.statvfs(root).f_frsize > 1 << 20:
-        require(count < 512, 'bounded fragmentation guard count')
-        (guards / str(count)).write_bytes(bytes(128 << 10))
+        require(count < 2048, 'bounded fragmentation guard count')
+        (guards / str(count)).write_bytes(bytes(32 << 10))
         count += 1
     for n in range(0, count, 2):
         (guards / str(n)).unlink()
@@ -131,7 +131,7 @@ def capture(expected_major, output):
             device = attach(image, command, writable=True)
             try:
                 command('sudo', '/sbin/newfs_hfs', *(['-s'] if filesystem == 'hfsx' else []),
-                        '-b', '4096', '-n', 'c=4096,e=512,a=4096',
+                        '-b', '4096', '-n', 'c=4096,e=1024,a=4096',
                         '-c', 'c=8,e=1,a=8,d=1,r=1', '-I', 'c=10,e=1,a=10',
                         '-v', 'Existing', device.replace('/dev/disk', '/dev/rdisk'))
                 mount = work / (filesystem + '-write')
@@ -167,7 +167,8 @@ def capture(expected_major, output):
         shutil.copyfile(Path(__file__).with_name(name), output / name)
     manifest = {'schema': 1, 'major': expected_major, 'producer': producer, 'cases': cases,
                 'contract': 'existing-hfs-file-edits', 'modificationSeconds': STAMP,
-                'capacityBytes': CAPACITY}
+                'capacityBytes': CAPACITY,
+                'commandsSHA256': hashlib.sha256((output / 'commands.json').read_bytes()).hexdigest()}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
 

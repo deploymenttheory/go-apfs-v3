@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Independent native qualification of portable edits to existing HFS images."""
 import argparse
-import gzip
 import json
 import os
 from pathlib import Path
