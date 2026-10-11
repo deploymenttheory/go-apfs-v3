@@ -272,7 +272,10 @@ func (m *mutation) admit() error {
 	if !bytes.Equal(m.header[:4], alt[:4]) || !bytes.Equal(m.header[40:48], alt[40:48]) || !bytes.Equal(m.header[112:], alt[112:]) {
 		return bad("primary/alternate structural disagreement")
 	}
-	if v.Journaled && (!bytes.Equal(m.header[4:8], alt[4:8]) || !bytes.Equal(m.header[12:16], alt[12:16])) {
+	// hfs_flushvolumeheader writes the alternate only with HFS_FVH_WRITE_ALT.
+	// Clean native journaled detaches leave its unmounted bit clear. The primary
+	// and actual journal determine cleanliness; all other flags must agree.
+	if v.Journaled && ((be.Uint32(m.header[4:])^be.Uint32(alt[4:])) & ^uint32(0x100) != 0 || !bytes.Equal(m.header[12:16], alt[12:16])) {
 		return bad("primary/alternate journal disagreement")
 	}
 	f, err := v.fileFork(m.ctx, 6, 0, m.header[112:192])

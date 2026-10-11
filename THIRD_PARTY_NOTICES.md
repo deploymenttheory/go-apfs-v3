@@ -33,6 +33,13 @@ callbacks. Deterministic allocation and splits are explicitly documented
 adaptations. Exact upstream file hashes and the pinned revision are in
 [the source inventory](docs/sources.json). Journal recovery is not ported.
 
+`hfsplus/journal.go` adapts Apple's `calc_checksum`, `journal_is_clean`,
+`journal_open` geometry and HFS journal backing-file checks under APSL-2.0.
+Original notices, modification description and exact source hashes are retained.
+It admits valid empty internal journals on unpublished copies, preserves their
+storage, and follows the journaled volume-header identifier. Journal replay,
+reinitialization and live journal transactions are not ported.
+
 `internal/names/hfs_tables.go` derives comparison/decomposition tables from
 Apple's `UCStringCompareData.h` and XNU `vfs_utfconvdata.h`, copyright 1997–2005
 Apple Inc. `internal/names/apfs_tables.go` materializes the pinned Apple XNU

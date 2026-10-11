@@ -561,6 +561,25 @@ each macOS version under `acceptance/testdata/hfs-editing`; local replay takes
 about 19 seconds without native operations. Fresh captures remain an independent
 required CI gate and never automatically replace the retained evidence.
 
+## Journal-aware HFS+/HFSX image editing increment
+
+The existing writer now admits clean journaled sources with a current, valid,
+empty internal journal. Apple checksum/cleanliness and mount-header behavior are
+translated from pinned C sources. Catalog backing files and allocations must
+agree with the JournalInfoBlock; there is no relocation/reinitialization fallback.
+Complete journal/JIB bytes and backing identities are preserved, and attempts to
+edit them are refused by CNID. The ordinary cp/fork/chmod interface and managed
+completed-output transaction remain the same.
+
+The existing HFS acceptance family captures journaled and nonjournaled controls
+separately, with bounded source-version Linux race jobs and portable replay on
+all three hosts. Every distinct output returns to macOS 15/26/27 for native
+checker, mounted metadata/content/signature checks and actual subsequent journal
+writes. Go re-edits that native state and Apple verifies it again. Retained
+journaled references provide file-only regression replay. Pending-transaction
+replay, external/old journal profiles, in-place transactions and physical
+power-loss qualification remain separate work.
+
 ## Required phase gates
 
 1. Independent native fixtures/observations, readable portable comparisons, and

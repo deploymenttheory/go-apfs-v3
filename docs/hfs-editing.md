@@ -23,11 +23,11 @@ The CLI has no edit-recipe configuration file.
 
 ## Admitted profile and metadata
 
-The first engine admits clean, nonjournaled, unlocked HFS+/HFSX volumes with
+The engine admits clean, unlocked HFS+/HFSX volumes with
 complete allocation-block geometry. It verifies both structural headers, all
 allocation ownership, catalog/extent/attribute keys, node allocation maps and tree
 reachability before writing. Unsupported or inconsistent state is refused.
-Journaled/dirty volumes, expanded timestamps, content protection, directory hard
+Dirty volumes, pending/external/uninitialized journals, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
 Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 requested
 operations. Metadata-file growth must stay within eight inline extents and the
@@ -48,6 +48,26 @@ Replacing a fork used by active compression is refused; an inactive decmpfs
 attribute remains opaque metadata. Empty independent forks have no allocated
 storage. Untouched application signatures are retained; editing signed contents
 requires the consumer's signing operation.
+
+## Journaled sources
+
+Journaled input must contain a valid, empty, initialized internal journal using
+Apple's current `JNLx` header. Admission checks the packed JournalInfoBlock,
+stored byte order, 44-byte header checksum, cursor and block geometry, both
+volume headers, catalog backing-file CNIDs/contiguous extents and complete
+allocation ownership. Native alternate headers may retain a clear unmounted bit;
+primary cleanliness and the actual empty journal determine admission. Other
+attribute bits and the journal pointer must agree. Journals from 256 KiB through 1 GiB are admitted. Backing
+file mismatches fail; the engine never relocates, recreates, disables or resets
+a journal to make input acceptable. Both journal backing files are protected by
+CNID against data/fork/mode edits, including alternate path spellings.
+
+The complete journal and info allocation block stay byte-identical, including
+history bytes, cursor, checksum, sequence and reserved bytes. Updated volume
+headers retain the journaled bit and info-block pointer and use Apple's `HFSJ`
+mount identifier. The same ordinary CLI commands apply; no recovery flag or
+configuration file is needed. Private-copy publication provides the transaction;
+this capability does not write live journal transactions or replay pending ones.
 
 ## Source translation
 
@@ -86,7 +106,7 @@ already present. Physical power-loss qualification requires a separate gate.
 ## Independent acceptance
 
 The existing-HFS-editing family is a bounded subworkflow of the required native
-compatibility gate. Apple creates fragmented nonjournaled HFS+/HFSX volumes on
+compatibility gate. Apple creates separate fragmented nonjournaled and journaled HFS+/HFSX volumes on
 macOS 15, 26 and 27, with hard links, compressed files, independent forks,
 attributes and a signed application. Native operations supply before/peak/final
 observations and clean native checker verdicts. Complete raw disks, producer
@@ -121,3 +141,15 @@ their outputs combine for the same native checks. The other five-minute race
 groups avoid duplicating that full-disk work; the required quality aggregate
 checks library, reader/workspace, construction and repacking results. Portable CI continues to replay
 every retained case on all three hosts.
+
+Journaled references additionally record native journal/JIB hashes, byte order,
+cursors, sequence and raw catalog backing CNIDs. macOS hides those backing files
+from ordinary pathname lookup; capture reads the bounded root catalog leaf chain
+from the Apple-created raw bytes. Each portable output must preserve their
+complete storage and identities. Native continued writes must actually change
+the journal and leave it empty on unmount; Go then re-edits that native state and
+Apple qualifies it again. Profiles have separate bounded jobs in the same family.
+
+The journaled baseline is retained separately under
+`acceptance/testdata/hfs-journaled-editing` (about 2 MiB). All six sources replay
+in about 21 seconds locally. Fresh native verification remains a required gate.

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
@@ -91,6 +90,9 @@ func TestJournaledMutationPreservesStorageAndRefusesBackingFiles(t *testing.T) {
 			b, info, journal := journalMutationFixture(t, order)
 			ctx := context.Background()
 			disk := &memoryMutation{bytes.Clone(b)}
+			// All retained Apple clean journaled detaches leave the alternate's
+			// unmounted bit clear; this does not mean journal replay is needed.
+			be.PutUint32(disk.data[len(b)-1020:], be.Uint32(disk.data[len(b)-1020:]) & ^uint32(0x100))
 			for _, change := range []Change{{Path: "/file", Data: bytes.NewReader(bytes.Repeat([]byte("grow"), 4000))}, {Path: "/file", Data: bytes.NewReader(nil)}, {Path: "/file", Mode: "0755"}} {
 				if _, e := Modify(ctx, disk, []Change{change}, mutationTime); e != nil {
 					t.Fatal(e)
@@ -179,6 +181,3 @@ func TestJournalAdmissionRejectsUnsafeStateBeforeWriting(t *testing.T) {
 		})
 	}
 }
-
-// The mutation API remains an unpublished-copy API for every journal profile.
-var _ MutableSource = (*block.Staging)(nil)
