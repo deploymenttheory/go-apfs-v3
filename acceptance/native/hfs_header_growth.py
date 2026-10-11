@@ -148,6 +148,9 @@ def sector_probe(capacity, work, output, command):
     # Mark the first band, the preceding full 64 KiB band, and the tail sectors
     # where HFS's alternate header/reserved trailer normally live.
     offsets = sorted({0, (capacity // 65536 - 1) * 65536, capacity - 1024, capacity - 512})
+    if capacity % 65536:
+        offsets.append(capacity // 65536 * 65536)
+        offsets.sort()
     markers = []
     device = attach(image, command, shadow, writable=True)
     try:
@@ -188,6 +191,22 @@ def sector_probe(capacity, work, output, command):
     finally:
         command('hdiutil', 'detach', device)
     require(sha256(image) == source['uncompressedSHA256'], 'sector probe preserved original image')
+    device = attach(image, command, shadow, writable=True)
+    try:
+        with open(device.replace('/dev/disk', '/dev/rdisk'), 'rb', buffering=0) as stream:
+            for marker in markers:
+                stream.seek(marker['offset'])
+                marker['writableReattachedSHA256'] = hashlib.sha256(stream.read(512)).hexdigest()
+    finally:
+        command('hdiutil', 'detach', device)
+    # Keep the actual shadow, then independently locate every acknowledged write
+    # in its bytes. Presence here distinguishes lost writes from replay omission.
+    require(shadow.stat().st_size <= 32 << 20, 'bounded storage-only probe shadow')
+    shadow_bytes = shadow.read_bytes()
+    for marker in markers:
+        data = hashlib.sha256(f'sector probe {capacity} {marker["offset"]}'.encode()).digest() * 16
+        marker['storedShadowOffset'] = shadow_bytes.find(data)
+        require(marker['storedShadowOffset'] >= 0, 'acknowledged sector write absent from shadow file')
     retained_shadow = retain_file(shadow, output / f'sector-{capacity}.shadow.gz')
     return {'capacity': capacity, 'source': source, 'shadow': retained_shadow,
             'after': after, 'geometry': native, 'markers': markers,
@@ -361,6 +380,12 @@ def main():
                         require(after['headers']['primary']['forks']['catalog']['totalBlocks'] > initial['catalog']['totalBlocks'],
                                 'catalog actually grew')
                         require(sha256(source) == source_digest, 'native writes preserved original source')
+                        if after['checker']['status'] != 0:
+                            primary = after['headers']['primary']['forks']['catalog']['totalBlocks']
+                            alternate = after['headers']['alternate']['forks']['catalog']['totalBlocks']
+                            require(route == 'shadow' and primary > alternate and
+                                    'total blocks' in after['checker']['stdout'],
+                                    'unexpected checker failure in native growth control')
                         case = {'id': case_id, 'origin': origin, 'route': route, 'filesystem': profile,
                                 'capacity': capacity, 'sourceImageSHA256': source_digest,
                                 'sourceImage': envelope.name, 'sourceGzipSHA256': sha256(envelope),
