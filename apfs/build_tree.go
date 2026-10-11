@@ -129,74 +129,84 @@ func (t *buildTree) place(start, firstOID uint64) uint64 {
 func (t *buildTree) blocks() []buildPart {
 	parts := make([]buildPart, 0, len(t.nodes))
 	for _, n := range t.nodes {
-		b := make([]byte, buildBlockSize)
-		root := n == t.root()
-		var flags uint16
-		if root {
-			flags |= 1
-		}
-		if n.level == 0 {
-			flags |= 2
-		}
-		if t.keySize != 0 {
-			flags |= 4
-		}
-		le.PutUint16(b[32:], flags)
-		le.PutUint16(b[34:], n.level)
-		le.PutUint32(b[36:], uint32(len(n.records)))
-		toc := t.tocSize(len(n.records), n.level)
-		le.PutUint16(b[42:], uint16(toc))
-		le.PutUint16(b[48:], 0xffff)
-		le.PutUint16(b[52:], 0xffff)
-		keyBase := 56 + toc
-		keyEnd, valueEnd := keyBase, buildBlockSize
-		if root {
-			valueEnd -= 40
-		}
-		valueBase := valueEnd
-		for i, r := range n.records {
-			value := r.value
-			if n.level != 0 {
-				value = make([]byte, 8)
-				le.PutUint64(value, n.children[i].oid)
-			}
-			valueEnd -= len(value)
-			copy(b[keyEnd:], r.key)
-			copy(b[valueEnd:], value)
-			if t.keySize != 0 {
-				at := 56 + i*4
-				le.PutUint16(b[at:], uint16(keyEnd-keyBase))
-				le.PutUint16(b[at+2:], uint16(valueBase-valueEnd))
-			} else {
-				at := 56 + i*8
-				le.PutUint16(b[at:], uint16(keyEnd-keyBase))
-				le.PutUint16(b[at+2:], uint16(len(r.key)))
-				le.PutUint16(b[at+4:], uint16(valueBase-valueEnd))
-				le.PutUint16(b[at+6:], uint16(len(value)))
-			}
-			keyEnd += len(r.key)
-		}
-		le.PutUint16(b[44:], uint16(keyEnd-keyBase))
-		le.PutUint16(b[46:], uint16(valueEnd-keyEnd))
-		kind := uint32(3)
-		if root {
-			kind = 2
-			info := b[buildBlockSize-40:]
-			for i, v := range []uint32{t.flags, buildBlockSize, uint32(t.keySize), uint32(t.valueSize), uint32(t.longestKey), uint32(t.longestValue)} {
-				le.PutUint32(info[4*i:], v)
-			}
-			le.PutUint64(info[24:], t.keyCount)
-			le.PutUint64(info[32:], uint64(len(t.nodes)))
-		}
-		sealBuildObject(b, n.oid, t.storage|kind, t.subtype)
+		b := t.nodeBytes(n, n == t.root())
 		parts = append(parts, buildPart{offset: int64(n.address) * buildBlockSize, data: b})
 	}
 	return parts
 }
 
+// nodeBytes is the common APFS node codec; allocation and transaction ownership
+// belong to the caller, not to this encoder.
+func (t *buildTree) nodeBytes(n *buildTreeNode, root bool) []byte {
+	b := make([]byte, buildBlockSize)
+	var flags uint16
+	if root {
+		flags |= 1
+	}
+	if n.level == 0 {
+		flags |= 2
+	}
+	if t.keySize != 0 {
+		flags |= 4
+	}
+	le.PutUint16(b[32:], flags)
+	le.PutUint16(b[34:], n.level)
+	le.PutUint32(b[36:], uint32(len(n.records)))
+	toc := t.tocSize(len(n.records), n.level)
+	le.PutUint16(b[42:], uint16(toc))
+	le.PutUint16(b[48:], 0xffff)
+	le.PutUint16(b[52:], 0xffff)
+	keyBase := 56 + toc
+	keyEnd, valueEnd := keyBase, buildBlockSize
+	if root {
+		valueEnd -= 40
+	}
+	valueBase := valueEnd
+	for i, r := range n.records {
+		value := r.value
+		if n.level != 0 {
+			value = make([]byte, 8)
+			le.PutUint64(value, n.children[i].oid)
+		}
+		valueEnd -= len(value)
+		copy(b[keyEnd:], r.key)
+		copy(b[valueEnd:], value)
+		if t.keySize != 0 {
+			at := 56 + i*4
+			le.PutUint16(b[at:], uint16(keyEnd-keyBase))
+			le.PutUint16(b[at+2:], uint16(valueBase-valueEnd))
+		} else {
+			at := 56 + i*8
+			le.PutUint16(b[at:], uint16(keyEnd-keyBase))
+			le.PutUint16(b[at+2:], uint16(len(r.key)))
+			le.PutUint16(b[at+4:], uint16(valueBase-valueEnd))
+			le.PutUint16(b[at+6:], uint16(len(value)))
+		}
+		keyEnd += len(r.key)
+	}
+	le.PutUint16(b[44:], uint16(keyEnd-keyBase))
+	le.PutUint16(b[46:], uint16(valueEnd-keyEnd))
+	kind := uint32(3)
+	if root {
+		kind = 2
+		info := b[buildBlockSize-40:]
+		for i, v := range []uint32{t.flags, buildBlockSize, uint32(t.keySize), uint32(t.valueSize), uint32(t.longestKey), uint32(t.longestValue)} {
+			le.PutUint32(info[4*i:], v)
+		}
+		le.PutUint64(info[24:], t.keyCount)
+		le.PutUint64(info[32:], uint64(len(t.nodes)))
+	}
+	sealBuildObject(b, n.oid, t.storage|kind, t.subtype)
+	return b
+}
+
 func sealBuildObject(b []byte, oid uint64, kind, subtype uint32) {
+	sealObject(b, oid, 1, kind, subtype)
+}
+
+func sealObject(b []byte, oid, xid uint64, kind, subtype uint32) {
 	le.PutUint64(b[8:], oid)
-	le.PutUint64(b[16:], 1)
+	le.PutUint64(b[16:], xid)
 	le.PutUint32(b[24:], kind)
 	le.PutUint32(b[28:], subtype)
 	const mod = uint64(0xffffffff)

@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -23,18 +24,23 @@ type Options struct {
 	Format    string    // UDRO or UDZO; default UDZO
 	Time      time.Time // whole seconds; required for the library API
 }
+type Change = filesystem.Change
+
 type Report struct {
-	hfsplus.ChangeReport
+	VolumeID    string   `json:"volumeId"`
+	Changed     []uint64 `json:"changed"`
+	FreeBlocks  uint64   `json:"freeBlocks"`
+	Transaction uint64   `json:"transaction,omitempty"`
 	diskimage.RepackReport
 }
 
 // Apply streams the complete decoded disk into managed scratch, retaining all
-// partitions and unrelated sectors. Changes address one selected HFS partition.
+// partitions and unrelated sectors. Changes address one selected filesystem partition.
 // The new image is flushed and closed before atomic, no-overwrite publication.
 // An error before publication leaves the destination absent and source intact.
 // Abrupt process death may leave private scratch; source/destination remain safe.
 // This is not HFS journal recovery or a universal power-loss durability promise.
-func Apply(ctx context.Context, sourcePath, destination string, o Options, changes []hfsplus.Change) (report Report, err error) {
+func Apply(ctx context.Context, sourcePath, destination string, o Options, changes []Change) (report Report, err error) {
 	if sourcePath == "" || destination == "" || len(changes) == 0 {
 		return report, fs.ErrInvalid
 	}
@@ -73,24 +79,20 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	if err != nil {
 		return report, err
 	}
-	var signature [2]byte
-	if err = block.ReadFull(input, signature[:], 1024); err != nil {
+	var signature [36]byte
+	if err = block.ReadFull(input, signature[:], 0); err != nil {
 		return report, err
 	}
-	if string(signature[:]) != "H+" && string(signature[:]) != "HX" {
-		return report, fmt.Errorf("image edits require HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	isAPFS := string(signature[32:36]) == "NXSB"
+	validate := hfsplus.ValidateMutation
+	if isAPFS {
+		validate = apfs.ValidateMutation
 	}
-	// Fail unsupported filesystem/profile admission before copying disk bytes.
-	volume, err := hfsplus.Open(input)
-	if err != nil {
+	// Admit supported ownership before staging the complete decoded disk.
+	if err = validate(ctx, input); err != nil {
 		return report, err
 	}
-	if !volume.Clean {
-		return report, fmt.Errorf("image edits require clean HFS+/HFSX: %w", filesystem.ErrUnsupported)
-	}
-	if err = hfsplus.ValidateMutation(ctx, input); err != nil {
-		return report, err
-	}
+
 	if o.Format == "" {
 		o.Format = "UDZO"
 	}
@@ -108,14 +110,23 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	}
 	defer func() { err = errors.Join(err, disk.Close()) }()
 	view := &mutablePartition{disk: disk, offset: partition.Offset, size: partition.Size}
-	report.ChangeReport, err = hfsplus.Modify(ctx, view, changes, o.Time)
+	if isAPFS {
+		changed, e := apfs.Modify(ctx, view, changes, o.Time)
+		err = e
+		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
+	} else {
+		changed, e := hfsplus.Modify(ctx, view, changes, o.Time)
+		err = e
+		report.VolumeID, report.Changed, report.FreeBlocks = changed.VolumeID, changed.Changed, uint64(changed.FreeBlocks)
+	}
 	if err != nil {
 		return report, err
 	}
-	// Reopen and account every referenced block after mutation, before output.
-	if err = hfsplus.ValidateMutation(ctx, view); err != nil {
+	// Reopen and account all current and pending-free blocks before publication.
+	if err = validate(ctx, view); err != nil {
 		return report, err
 	}
+
 	if err = disk.Sync(); err != nil {
 		return report, err
 	}

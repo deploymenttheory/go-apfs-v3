@@ -66,6 +66,32 @@ go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
 ```
 
 
+## Editing existing APFS filesystems
+
+Purpose: replace data/resource forks or permissions in an existing APFS image
+while retaining its container, volume and file identities. Apple formats sources
+and supplies independent before/peak/final observations on macOS 15, 26 and 27.
+Both APFS name policies, fragmented forks, regular hard links, compressed files,
+independent forks, opaque attributes and a signed application are covered.
+
+`TestNativeAPFSImageEditing` runs the same contract against immutable references
+under `testdata/apfs-editing` and fresh `APFS_NATIVE_APFS_EDITS` captures. It checks
+native contents/metadata/raw attributes, original identity, source preservation,
+complete ownership and byte-identical repeated UDRO/UDZO outputs. The retained
+six-source family takes about 21 seconds locally and performs no native operations.
+
+`native.yml` requires the `apfs-edit.yml` family: three Apple captures, nine bounded
+source-version/portable-host editing jobs (Linux race instrumentation), and three
+independent Apple qualification jobs. Every Mac checks all 24 distinct images,
+compares output triples across hosts, mounts exact raw copies, verifies signatures,
+performs further native allocation/tree changes, and qualifies Go re-edits of that
+state. Missing source versions or outputs fail. Native commands require disposable
+VMs; the working-host guard and verifier comparisons have file-only Python checks.
+
+```sh
+go test -count=1 -run '^TestNativeAPFSImageEditing$' ./acceptance
+```
+
 ## Editing existing HFS+/HFSX filesystems
 
 Purpose: modify existing image contents while preserving their original volume,
@@ -701,7 +727,7 @@ Go replay; native attachment and filesystem mutations remain sequential within
 each disposable macOS job.
 
 Retained-corpus portable CI uses the same family boundaries on all three hosts.
-Image construction, image repacking and existing HFS edits run in separate jobs;
+Image construction, image repacking and existing HFS/APFS edits run in separate jobs;
 the default portable job tests every library plus readers, workspaces and future
 acceptance families. This prevents full-disk writing workloads from consuming a
 shared package deadline on Windows. Each family retains a five-minute deadline,

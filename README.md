@@ -4,13 +4,13 @@ Portable macOS filesystem operations in Go for forensics, application packaging,
 and codesigning on Linux and Windows. APFS and HFS+/HFSX share preservation
 contracts while retaining separate filesystem engines.
 
-**Status: readers, preservation, file-command sessions, image building/repacking and existing HFS file edits.** The executable inspects images,
+**Status: readers, preservation, file-command sessions, image building/repacking and existing APFS/HFS file edits.** The executable inspects images,
 lists directories, reads ordinary and transparently compressed files, and unlocks
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
-writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. APFS mutation, journal recovery and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
+writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. Existing APFS files now support data/resource-fork replacement and chmod through copy-on-write transactions for the admitted single-volume plaintext profile. Journal recovery, broader APFS mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -94,6 +94,9 @@ Currently implemented:
 - Existing clean HFS+/HFSX image edits (nonjournaled or with a valid empty internal journal) through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
   retaining volume/file IDs, aliases, geometry, independent forks and unrelated
   sectors in a completed output transaction; see [editing semantics](docs/hfs-editing.md).
+- Existing APFS regular-file edits through `cp` and `chmod`, retaining original
+  identities, hard links, metadata and independent forks through copy-on-write
+  allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
