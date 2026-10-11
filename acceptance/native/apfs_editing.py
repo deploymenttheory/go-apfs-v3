@@ -127,7 +127,7 @@ def capture(expected_major, output):
         for filesystem, native_fs in (('apfs', 'APFS'), ('apfs-case-sensitive', 'APFSX')):
             dmg = work / (filesystem + '.dmg')
             command('hdiutil', 'create', '-size', str(CAPACITY), '-layout', 'NONE',
-                    '-fs', native_fs, '-volname', 'Existing', '-format', 'UDRW', dmg)
+                    '-fs', native_fs, '-volname', 'Existing', dmg)
             cleanup, _, inventory = attached(dmg, command)
             try:
                 directory = work / (filesystem + '-write')
