@@ -176,7 +176,9 @@ jobs:
       - name: Verify Go results against macOS 15, 26 and 27 observations
         # The required hfs_edits subworkflow separately replays fresh HFS edit
         # controls on all hosts; ordinary CI covers their retained corpus.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNativeHFS(Journaled)?Image(Catalog)?Editing'
+        # Image construction has separate source-version jobs below; this job
+        # retains every other acceptance family, including future additions.
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(HFS(Journaled)?Image(Catalog)?Editing|ImageBuilding$|ContainerBuilding$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -197,8 +199,6 @@ jobs:
           APFS_METADATA_EDIT_OUTPUT: ../artifacts/metadata-edits
           APFS_NATIVE_COMMANDS: ../artifacts/native/file-commands
           APFS_COMMAND_OUTPUT: ../artifacts/file-commands
-          APFS_NATIVE_IMAGE_BUILDING: ../artifacts/native/image-building
-          APFS_IMAGE_BUILDING_OUTPUT: ../artifacts/image-building
           APFS_NATIVE_REPACKING: ../artifacts/native/image-repacking
           APFS_REPACKING_OUTPUT: ../artifacts/image-repacking
       - name: Archive complete workspaces and output images
@@ -209,7 +209,7 @@ jobs:
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          for family in preservation replacement tree-edits metadata-edits file-commands image-building image-repacking; do
+          for family in preservation replacement tree-edits metadata-edits file-commands image-repacking; do
             tar -czf "artifacts/workspace-outputs/${family}-${{ matrix.platform }}.tar.gz" "${archive_options[@]}" -C "artifacts/${family}" .
           done
       - name: Retain archived workspaces and output images
@@ -244,10 +244,59 @@ jobs:
           comparison uses the native codec result in those cases.
           EOF
 
+  image_building_replay:
+    name: Build images from macOS ${{ matrix.major }} references (${{ matrix.platform }})
+    needs: produce
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [15, 26, 27]
+        platform: [Linux, Windows, macOS]
+        include:
+          - os: ubuntu-24.04
+            platform: Linux
+          - os: windows-2025
+            platform: Windows
+          - os: macos-26
+            platform: macOS
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-corpus-${{ matrix.major }}
+          path: artifacts/native
+      - name: Build and compare filesystems, containers, compression and encrypted images
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNative(Image|Container)Building$'
+        env:
+          APFS_NATIVE_IMAGE_BUILDING: ../artifacts/native/image-building
+          APFS_IMAGE_BUILDING_OUTPUT: ../artifacts/image-building
+          APFS_REQUIRED_NATIVE_MAJORS: '${{ matrix.major }}'
+      - name: Archive images for independent Apple verification
+        shell: bash
+        run: |
+          mkdir -p artifacts/workspace-outputs
+          archive_options=()
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            archive_options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf "artifacts/workspace-outputs/image-building-${{ matrix.platform }}.tar.gz" "${archive_options[@]}" -C artifacts/image-building .
+      - name: Retain all constructed images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: workspace-outputs-image-building-${{ matrix.platform }}-macos-${{ matrix.major }}
+          path: artifacts/workspace-outputs/*.tar.gz
+          if-no-files-found: error
+
   readback:
-    if: ${{ always() && !inputs.hfs_reference_capture && (needs.replay.result == 'success' || inputs.readback_run != '') }}
+    if: ${{ always() && !inputs.hfs_reference_capture && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
-    needs: replay
+    needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
     # Qualify 63 distinct images, including native modification of the 24 new
     # file-compression outputs. The previous 39-image gate used up to 14 minutes.
@@ -290,7 +339,9 @@ jobs:
         run: |
           for archive_file in artifacts/outputs/workspace-outputs-*/*.tar.gz; do
             output_dir="artifacts/outputs/$(basename "$archive_file" .tar.gz)"
-            mkdir "$output_dir"
+            # Construction archives share a host root, with disjoint macOS
+            # source-version directories. Preserve the verifier's full tree.
+            mkdir -p "$output_dir"
             tar -xzf "$archive_file" --no-mac-metadata --no-xattrs --no-acls --options '!mac-ext' -C "$output_dir"
           done
       - name: Verify preserved values and native AppleDouble unpack independently of Go
@@ -363,13 +414,14 @@ jobs:
   complete:
     name: Require all filesystem compatibility checks
     if: ${{ always() && !inputs.hfs_reference_capture }}
-    needs: [produce, hfs_reference, replay, readback, hfs_edits]
+    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
         env:
           PRODUCERS: ${{ needs.produce.result }}
           CONSUMERS: ${{ needs.replay.result }}
+          BUILDERS: ${{ needs.image_building_replay.result }}
           READBACK: ${{ needs.readback.result }}
           HFS_REFERENCES: ${{ needs.hfs_reference.result }}
           HFS_EDITS: ${{ needs.hfs_edits.result }}
@@ -381,7 +433,7 @@ jobs:
             # successful replays and unchanged Go code/inputs before downloading.
             test "$READBACK" = success
           else
-            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$READBACK" = success
+            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$BUILDERS" = success && test "$READBACK" = success
           fi
 
   hfs_reference:

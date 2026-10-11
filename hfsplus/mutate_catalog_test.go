@@ -116,3 +116,39 @@ func TestCatalogMutationRefusesUnsafeNamespaceOperations(t *testing.T) {
 		t.Fatal("directory cycle admitted", e)
 	}
 }
+
+func TestCatalogMutationRefusesExpandedTimestampRecords(t *testing.T) {
+	ctx := context.Background()
+	for _, path := range []string{"/", "/small"} {
+		t.Run(path, func(t *testing.T) {
+			disk := &memoryMutation{bytes.Clone(mutationFixture(t, false, "preserve"))}
+			v, e := Open(disk)
+			if e != nil {
+				t.Fatal(e)
+			}
+			m := &mutation{ctx: ctx, disk: disk, v: v, header: bytes.Clone(disk.data[1024:1536]), trees: map[uint32]*mutableTree{}}
+			if e = m.admit(); e != nil {
+				t.Fatal(e)
+			}
+			id, e := filesystem.Lookup(ctx, v, path)
+			if e != nil {
+				t.Fatal(e)
+			}
+			record, e := v.catalogRecord(ctx, id)
+			if e != nil {
+				t.Fatal(e)
+			}
+			be.PutUint16(record[2:], be.Uint16(record[2:])|0x1000)
+			if e = m.patchCatalog(uint32(id), record); e != nil {
+				t.Fatal(e)
+			}
+			before := bytes.Clone(disk.data)
+			if _, e = Modify(ctx, disk, []Change{{Operation: "mkdir", Path: "/new"}}, mutationTime); !errors.Is(e, filesystem.ErrUnsupported) {
+				t.Fatal("expanded timestamps admitted", e)
+			}
+			if !bytes.Equal(before, disk.data) {
+				t.Fatal("unsupported timestamp profile changed before refusal")
+			}
+		})
+	}
+}

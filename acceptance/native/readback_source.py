@@ -38,6 +38,8 @@ def main():
     jobs = get(f'/actions/runs/{run_id}/jobs?filter=latest&per_page=100')
     required = {f'Record Apple filesystem reference data (macOS {major})' for major in (15, 26, 27)}
     required |= {f'Compare Go with macOS reference data ({host})' for host in ('Linux', 'Windows', 'macOS')}
+    required |= {f'Build images from macOS {major} references ({host})'
+                 for major in (15, 26, 27) for host in ('Linux', 'Windows', 'macOS')}
     passed = {job['name'] for job in jobs['jobs'] if job['conclusion'] == 'success'}
     if not required <= passed:
         raise ValueError(f'source run is missing successful captures/replays: {sorted(required - passed)}')

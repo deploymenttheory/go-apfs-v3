@@ -271,7 +271,15 @@ func (m *mutation) admit() error {
 			if len(r.value) < 2 {
 				return bad("catalog admission record")
 			}
-			switch be.Uint16(r.value) {
+			// cat_create/cat_update select a different timestamp conversion
+			// when kHFSCatExpandedTimesMask is set. This writer emits the
+			// ordinary 1904-epoch representation; retaining that flag would
+			// reinterpret every newly written timestamp on native mount.
+			kind := be.Uint16(r.value)
+			if (kind == 1 || kind == 2) && len(r.value) >= 4 && be.Uint16(r.value[2:])&0x1000 != 0 {
+				return fmt.Errorf("expanded HFS catalog timestamps: %w", filesystem.ErrUnsupported)
+			}
+			switch kind {
 			case 1:
 				if len(r.value) != 88 {
 					return bad("catalog folder admission")

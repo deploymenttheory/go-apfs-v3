@@ -700,10 +700,19 @@ acceptance groups retain five-minute deadlines. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
 each disposable macOS job.
 
+Fresh native replay also schedules image and container construction separately
+for each source macOS version on Linux, Windows and macOS. The Windows
+construction family across all three sources nearly consumed the six-minute test
+deadline by itself. The nine construction jobs retain that
+deadline, require their selected source, and archive all outputs under disjoint
+source-version directories. Every job is required; Apple readback merges those
+directories and still verifies each host's actual images on macOS 15, 26 and 27.
+
 For a native-verifier-only correction, dispatch the existing compatibility
-workflow with `readback_run` set to a prior run whose three captures and three
-portable replays succeeded. Each Mac validates that evidence and compares source
-commits before downloading the archived references and outputs. Changes outside
+workflow with `readback_run` set to a prior run whose three captures, three
+portable comparisons and nine construction jobs succeeded. Each Mac validates
+that evidence and compares source commits before downloading the archived
+references and outputs. Changes outside
 native helpers, documentation and the two CI workflows require fresh capture and
 replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
 this admission. Every native readback still runs on all three macOS versions.
