@@ -92,9 +92,8 @@ separate required check. Missing retained references fail rather than skip.
 Linux instruments the fresh-corpus editing replay with the race detector, split
 by native source version into three bounded jobs with four-minute deadlines.
 Each covers HFS+ and HFSX; their archives combine into the same 24 Linux outputs.
-The combined quality race job excludes that
-duplicate family, while retaining race coverage for its engine, transaction and
-CLI unit tests. Ordinary portable CI still replays the full retained corpus on
+The ordinary race groups exclude that duplicate family, while retaining race
+coverage for its engine, transaction and CLI unit tests. Ordinary portable CI still replays the full retained corpus on
 all three hosts. No native scenario or output check is removed.
 
 ```sh
@@ -690,12 +689,16 @@ and signatures, credential policies, publication cleanup and interrupted output.
 
 The portable acceptance families read immutable references and own separate
 scratch/output paths. They can run concurrently; CI uses `-parallel 2` to bound
-active families and memory. Race CI also uses `-p 1`, giving each package the
-runner CPU budget instead of competing with other instrumented packages.
-Each family retains its sequential scenario checks,
-required inventories and before/after hashes. This scheduling applies only to
+active families and memory. Race checks schedule library packages, readers and
+workspaces, image construction, and image repacking independently, with the
+required `quality` check aggregating every result. The default readers/workspaces
+group includes future acceptance tests automatically. The separate required HFS
+subworkflow instruments fresh edits from each native source version on Linux.
+Every case remains covered; each family retains its sequential scenario checks,
+required inventories and before/after hashes. Library race checks use `-p 1`;
+acceptance groups retain five-minute deadlines. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
-each disposable macOS job. The race timeout stays at five minutes.
+each disposable macOS job.
 
 For a native-verifier-only correction, dispatch the existing compatibility
 workflow with `readback_run` set to a prior run whose three captures and three

@@ -55,7 +55,65 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
 
+  race_library:
+    name: Library race checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Race-check every package outside the separately scheduled acceptance suite
+        shell: bash
+        run: |
+          go list ./... > "$RUNNER_TEMP/race-packages.txt"
+          mapfile -t packages < "$RUNNER_TEMP/race-packages.txt"
+          library_packages=()
+          for package in "${packages[@]}"; do
+            if [[ "$package" != github.com/deploymenttheory/go-apfs-v3/acceptance ]]; then
+              library_packages+=("$package")
+            fi
+          done
+          test "${#library_packages[@]}" -gt 0
+          go test -race -p 1 -timeout 5m "${library_packages[@]}"
+
+  race_acceptance:
+    name: Acceptance race checks (${{ matrix.family }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CGO_ENABLED: '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The default group includes future acceptance tests automatically.
+          # Fresh HFS edits have their own required, source-version race jobs.
+          - family: readers and workspaces
+            tests: '.'
+            skip: '^TestNative(HFSImageEditing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+          - family: image construction
+            tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
+            skip: '^$'
+          - family: image repacking
+            tests: '^TestNativeImageRepacking$'
+            skip: '^$'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compare the complete family with retained native observations under race instrumentation
+        run: go test -race -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
+
   quality:
+    needs: [race_library, race_acceptance]
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -71,12 +129,9 @@ jobs:
           version: v2.14.0
       - name: Check native verifier logic without running native tools
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
-      # Give each race-instrumented package the runner CPU budget; acceptance
-      # runs at most two independent families inside that package.
-      # Existing HFS image-edit replay is race-instrumented against fresh native
-      # sources by the required hfs_edits subworkflow. Do not repeat its full-disk
-      # writes inside this combined race deadline; portable tests above still
-      # replay every retained case on all three hosts.
-      - run: go test -race -p 1 -parallel 2 -timeout 5m ./... -skip '^TestNativeHFSImageEditing$'
+      - name: Require every library and acceptance race group
+        if: always()
+        run: test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
-          CGO_ENABLED: "1"
+          LIBRARY_RACES: ${{ needs.race_library.result }}
+          ACCEPTANCE_RACES: ${{ needs.race_acceptance.result }}
