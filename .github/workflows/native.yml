@@ -9,12 +9,18 @@ on:
       - 'acceptance/**'
       - '.github/workflows/native.yml'
       - '.github/workflows/hfs-edit.yml'
+      - '.github/workflows/apfs-edit.yml'
   push:
     branches: [main]
   schedule:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      apfs_reference_capture:
+        description: 'Capture Apple-created existing APFS file edit controls only'
+        required: false
+        type: boolean
+        default: false
       hfs_reference_capture:
         description: 'Capture matched HFS header-growth disks and checker outcomes only'
         required: false
@@ -38,12 +44,18 @@ env:
   CGO_ENABLED: "0"
 
 jobs:
+  apfs_edits:
+    if: ${{ !inputs.hfs_reference_capture && inputs.readback_run == '' }}
+    uses: ./.github/workflows/apfs-edit.yml
+    with:
+      capture_only: ${{ inputs.apfs_reference_capture || false }}
+
   hfs_edits:
-    if: ${{ !inputs.hfs_reference_capture }}
+    if: ${{ !inputs.hfs_reference_capture && !inputs.apfs_reference_capture }}
     uses: ./.github/workflows/hfs-edit.yml
 
   produce:
-    if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture }}
+    if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -294,7 +306,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ always() && !inputs.hfs_reference_capture && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
+    if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
@@ -413,7 +425,7 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: ${{ always() && !inputs.hfs_reference_capture }}
+    if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture }}
     needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits]
     runs-on: ubuntu-24.04
     steps:
@@ -437,7 +449,7 @@ jobs:
           fi
 
   hfs_reference:
-    if: ${{ inputs.readback_run == '' || inputs.hfs_reference_capture }}
+    if: ${{ !inputs.apfs_reference_capture && (inputs.readback_run == '' || inputs.hfs_reference_capture) }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
