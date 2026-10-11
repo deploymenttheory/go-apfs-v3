@@ -226,6 +226,9 @@ func testCatalogEditing(t *testing.T, journaled bool) {
 						t.Fatal("failed namespace edit published output", e)
 					}
 				}
+				if fileDigest(t, source) != originalHash {
+					t.Fatal("failed catalog editing changed original")
+				}
 			})
 		}
 	}
@@ -254,6 +257,7 @@ func TestNativeHFSImageCatalogEditingContinuation(t *testing.T) {
 	}
 	for _, source := range paths {
 		t.Run(filepath.Base(source), func(t *testing.T) {
+			originalHash := fileDigest(t, source)
 			destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
 			changes := []hfsplus.Change{{Operation: "mkdir", Path: "/Fixture/Catalog/continued-go"}, {Path: "/Fixture/Catalog/continued-go/payload", Data: editPattern{"continued-catalog", 8193}}, {Operation: "mv", Path: "/Fixture/Catalog/continued-go/payload", Destination: "/Fixture/Catalog/continued-go/renamed"}, {Operation: "rm", Path: "/Fixture/Catalog/native-created", Recursive: true}}
 			if _, e := imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, changes); e != nil {
