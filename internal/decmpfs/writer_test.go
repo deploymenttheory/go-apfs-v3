@@ -31,7 +31,7 @@ func TestEncodedBoundariesAndRandomReads(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer file.Close()
-			encoded, err := Encode(context.Background(), bytes.NewReader(plain), file, true)
+			encoded, err := Encode(context.Background(), bytes.NewReader(plain), file)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -82,20 +82,13 @@ func TestEncodingAdmissionAndWriteFailures(t *testing.T) {
 	}
 	defer f.Close()
 	source := bytes.NewReader(bytes.Repeat([]byte("data"), 40000))
-	encoded, err := Encode(context.Background(), source, f, false)
-	if err != nil || encoded.Reason != "independent-resource-fork" {
-		t.Fatal(encoded, err)
-	}
-	if info, _ := f.Stat(); info.Size() != 0 {
-		t.Fatal("independent fork overwritten")
-	}
 	sentinel := errors.New("resource disk full")
-	if _, err = Encode(context.Background(), source, failedResource{f, sentinel}, true); !errors.Is(err, sentinel) {
+	if _, err = Encode(context.Background(), source, failedResource{f, sentinel}); !errors.Is(err, sentinel) {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err = Encode(ctx, source, f, true); !errors.Is(err, context.Canceled) {
+	if _, err = Encode(ctx, source, f); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	v, err := fork.Bytes(context.Background(), nil)
@@ -103,17 +96,17 @@ func TestEncodingAdmissionAndWriteFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer v.Close()
-	encoded, err = Encode(context.Background(), v, f, true)
+	encoded, err := Encode(context.Background(), v, f)
 	if err != nil || encoded.Reason != "empty-file" {
 		t.Fatal(encoded, err)
 	}
-	if _, err = Encode(context.Background(), nil, f, true); err == nil {
+	if _, err = Encode(context.Background(), nil, f); err == nil {
 		t.Fatal("nil source admitted")
 	}
 	if _, err = f.WriteAt([]byte{1}, 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = Encode(context.Background(), source, f, true); err == nil {
+	if _, err = Encode(context.Background(), source, f); err == nil {
 		t.Fatal("nonempty destination admitted")
 	}
 }
@@ -128,10 +121,10 @@ func TestEncodingRejectsShortSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	if _, err = Encode(context.Background(), shortSource{}, f, true); !errors.Is(err, io.ErrUnexpectedEOF) {
+	if _, err = Encode(context.Background(), shortSource{}, f); !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatal(err)
 	}
-	if _, err = Encode(context.Background(), bytes.NewReader(nil), nil, true); !errors.Is(err, os.ErrInvalid) {
+	if _, err = Encode(context.Background(), bytes.NewReader(nil), nil); !errors.Is(err, os.ErrInvalid) {
 		t.Fatal(err)
 	}
 }
@@ -154,7 +147,7 @@ func TestAttributeCapacityTransition(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		encoded, err := Encode(context.Background(), bytes.NewReader(data), f, true)
+		encoded, err := Encode(context.Background(), bytes.NewReader(data), f)
 		f.Close()
 		if err != nil || encoded.Reason != "" || binary.LittleEndian.Uint32(encoded.Attribute[4:]) != tc.kind {
 			t.Fatal(tc, encoded, err)

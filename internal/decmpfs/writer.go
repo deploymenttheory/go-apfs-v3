@@ -27,8 +27,9 @@ type Encoded struct {
 // Encode writes a deterministic zlib decmpfs representation. Memory is bounded
 // by one 64 KiB input block and codec scratch; descriptors are patched directly
 // in an empty seekable resource destination. No logical-data staging is needed.
-// allowResource must be false when a file has an independent resource fork.
-func Encode(ctx context.Context, source block.Source, resource io.WriteSeeker, allowResource bool) (Encoded, error) {
+// The caller must exclude files with independent resource forks: macOS hides
+// those forks under UF_COMPRESSED, including with attribute-only compression.
+func Encode(ctx context.Context, source block.Source, resource io.WriteSeeker) (Encoded, error) {
 	var result Encoded
 	if source == nil || resource == nil {
 		return result, fs.ErrInvalid
@@ -90,10 +91,6 @@ func Encode(ctx context.Context, source block.Source, resource io.WriteSeeker, a
 			result.LogicalSHA256 = sum(digest)
 			return result, nil
 		}
-	}
-	if !allowResource {
-		result.Reason = "independent-resource-fork"
-		return result, nil
 	}
 	if end, err := resource.Seek(0, io.SeekEnd); err != nil {
 		return result, err

@@ -113,7 +113,7 @@ func TestCompressionPreservesLinksMetadataAndIndependentForks(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if (node.Compression.State == filesystem.Present) != (name == "small") {
+				if node.Compression.State != filesystem.Absent || node.Metadata.BSDFlags.Value&32 != 0 {
 					t.Fatal("fork admission", name, node)
 				}
 				value, err := got.OpenAttribute(ctx, id, filesystem.ResourceFork)
@@ -131,7 +131,7 @@ func TestCompressionPreservesLinksMetadataAndIndependentForks(t *testing.T) {
 			for _, result := range report.Compression {
 				seen[result.Path] = result.Reason
 			}
-			if seen["/large"] != "independent-resource-fork" || seen["/empty"] != "empty-file" || len(report.Compression) != 5 {
+			if seen["/small"] != "independent-resource-fork" || seen["/large"] != "independent-resource-fork" || seen["/empty"] != "empty-file" || len(report.Compression) != 5 {
 				t.Fatal(report.Compression)
 			}
 			var repeat bytes.Buffer

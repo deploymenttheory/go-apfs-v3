@@ -300,7 +300,8 @@
         "internal/decmpfs",
         "apfs/reader.go",
         "hfsplus/reader.go",
-        "workspace/replace.go"
+        "workspace/replace.go",
+        "internal/filecompression/prepare.go"
       ],
       "files": [
         {
@@ -312,7 +313,7 @@
           "sha256": "18dc3ff96bf71c686a45297e3c218aea21ee0ba6786527c0599e7111f157eb3e"
         }
       ],
-      "basis": "Original bounded reader and zlib writer using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Fresh type-3/type-4 storage uses Go standard-library zlib and independently observed Resource Manager framing; no Apple encoder implementation is copied. Native public-codec decoding, kernel reads, continued writes, fsck and signatures independently qualify output. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied. Replacement also studies decmpfs_decompress_file, unset_compressed_flag and decmpfs_free_compressed_data: zero truncation clears UF_COMPRESSED and frees codec-owned storage plus the decmpfs attribute. No kernel code translated; original Go storage transitions are independently checked by native O_TRUNC writes. Unlike native writes, the preservation API keeps recorded source timestamps and marks modified contents explicitly."
+      "basis": "Original bounded reader and zlib writer using the documented decmpfs_disk_header layout, maximum attribute size and UF_COMPRESSED admission behavior. Fresh type-3/type-4 storage uses Go standard-library zlib and independently observed Resource Manager framing; no Apple encoder implementation is copied. Native public-codec decoding, kernel reads, continued writes, fsck and signatures independently qualify output. Codec storage framing was studied from v2 production and independently installed/read on native volumes. XNU dispatch and kernel cnode implementation are not copied. Replacement also studies decmpfs_decompress_file, unset_compressed_flag and decmpfs_free_compressed_data: zero truncation clears UF_COMPRESSED and frees codec-owned storage plus the decmpfs attribute. No kernel code translated; original Go storage transitions are independently checked by native O_TRUNC writes. Unlike native writes, the preservation API keeps recorded source timestamps and marks modified contents explicitly. Compression admission also follows decmpfs_hides_rsrc/decmpfs_hides_xattr: all active compressed files hide their resource fork, independent of compression type. Fresh zlib construction therefore refuses compression for files with independent forks, including small type-3 candidates, preserving ordinary native fork visibility as well as raw bytes. macOS 15/26/27 readbacks in run 38111101888 independently exposed the earlier incorrect type-3 exception."
     },
     {
       "id": "native-file-compression-27",

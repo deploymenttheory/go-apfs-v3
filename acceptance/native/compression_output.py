@@ -12,10 +12,10 @@ def ordinary_attributes(entry, raw):
     result = dict(raw)
     if entry['flags'] & stat.UF_COMPRESSED:
         result.pop(compression.ATTRIBUTE, None)
-        # Native ordinary listxattr hides codec-owned resource storage. An
-        # independent fork on an attribute-compressed file remains visible.
-        if compression.RESOURCE not in entry['attributes']:
-            result.pop(compression.RESOURCE, None)
+        # Apple's decmpfs_hides_rsrc hides every compressed file's fork,
+        # including type-3 storage. New compression must exclude independent
+        # forks rather than accepting a change in ordinary native visibility.
+        result.pop(compression.RESOURCE, None)
     return result
 
 
@@ -52,13 +52,13 @@ def verify(path, expected, actual, raw_expected, policy):
     if path.parent.name == 'compression-writing':
         name = path.name
         force_compressed = name.startswith('size-') and expected['size'] > 1 or name in (
-            'hardlink', 'mixed-blocks', 'attribute-edge-3300', 'attribute-edge-3900', 'independent-inline')
+            'hardlink', 'mixed-blocks', 'attribute-edge-3300', 'attribute-edge-3900')
         if policy == 'zlib':
             require(bool(actual['flags'] & stat.UF_COMPRESSED) == force_compressed,
                     f'{path}: required compression or refusal control')
         if force_compressed and policy == 'zlib':
             kind = struct.unpack_from('<I', raw(path, compression.ATTRIBUTE), 4)[0]
-            if name in ('attribute-edge-3300', 'independent-inline') or name.startswith('size-') and expected['size'] <= compression.BLOCK:
+            if name == 'attribute-edge-3300' or name.startswith('size-') and expected['size'] <= compression.BLOCK:
                 require(kind == 3, f'{path}: required attribute storage')
             elif name != 'attribute-edge-3300':
                 require(kind == 4, f'{path}: required resource storage')
@@ -72,19 +72,21 @@ def mutate(mount):
     path.write_bytes(payload)
     require((directory / 'hardlink').read_bytes() == payload, 'native compressed hard-link replacement')
     require(not path.stat().st_flags & stat.UF_COMPRESSED, 'native write clears compression')
-    # Native decompression on write must preserve independent forks too.
-    inline = directory / 'independent-inline'
-    before = compression.xattr(inline, compression.RESOURCE)
-    inline.write_bytes(payload)
-    require(compression.xattr(inline, compression.RESOURCE) == before, 'native write retains independent fork')
+    # Refused compression retains native fork visibility and subsequent writes.
+    for name in ('independent-inline', 'independent-resource'):
+        path = directory / name
+        before = compression.xattr(path, compression.RESOURCE)
+        path.write_bytes(payload)
+        require(compression.xattr(path, compression.RESOURCE) == before, 'native write retains independent fork')
     return payload
 
 
 def verify_mutated(mount, payload):
     directory = mount / 'compression-writing'
-    for name in ('size-65537', 'hardlink', 'independent-inline'):
+    for name in ('size-65537', 'hardlink', 'independent-inline', 'independent-resource'):
         path = directory / name
         require(path.read_bytes() == payload and not path.stat().st_flags & stat.UF_COMPRESSED,
                 f'{path}: native write survives remount')
-    require(compression.xattr(directory / 'independent-inline', compression.RESOURCE) ==
-            b'Independent fork must remain byte-exact.\x00\xff', 'independent fork survives remount')
+    for name in ('independent-inline', 'independent-resource'):
+        require(compression.xattr(directory / name, compression.RESOURCE) ==
+                b'Independent fork must remain byte-exact.\x00\xff', 'independent fork survives remount')

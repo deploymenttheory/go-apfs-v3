@@ -193,6 +193,14 @@ func (r *Reader) prepareFile(ctx context.Context, id uint64, path string, n file
 		r.outcomes = append(r.outcomes, outcome)
 		return nil
 	}
+	if hasResource && !o.removeResource {
+		// Apple's decmpfs_hides_rsrc hides every compressed file's resource
+		// fork, even with type-3 attribute storage. Keeping its raw bytes
+		// would still remove the independent fork from native applications.
+		outcome.Reason = "independent-resource-fork"
+		r.outcomes = append(r.outcomes, outcome)
+		return nil
+	}
 	if r.directory == "" {
 		r.directory, err = os.MkdirTemp(scratch, "apfs-file-compression-")
 		if err != nil {
@@ -211,7 +219,7 @@ func (r *Reader) prepareFile(ctx context.Context, id uint64, path string, n file
 	if v.Size() < 0 || uint64(v.Size()) != n.Size {
 		return errors.Join(filesystem.ErrCorrupt, v.Close(), resource.Close())
 	}
-	encoded, encodeErr := decmpfs.Encode(ctx, v, resource, !hasResource || o.removeResource)
+	encoded, encodeErr := decmpfs.Encode(ctx, v, resource)
 	err = errors.Join(encodeErr, v.Close(), resource.Close())
 	if err != nil {
 		return err

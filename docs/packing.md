@@ -273,10 +273,12 @@ Larger representations use a Resource Manager `cmpf` resource with independently
 encoded 64 KiB blocks; incompressible blocks use Apple's stored marker. Compression
 is used only when its complete attribute/resource representation is smaller than
 the logical data fork. Empty and tiny files, incompressible files, representations
-exceeding Resource Manager's 32-bit range, an independent
-fork that would conflict with required resource storage, and inactive decmpfs
-attributes are reported with explicit reasons. An independent resource fork can
-coexist with attribute-based compression and is never overwritten. Under `zlib`,
+exceeding Resource Manager's 32-bit range, files with independent resource forks,
+and inactive decmpfs attributes are reported with explicit reasons. Files with
+independent resource forks stay uncompressed, even if their compressed data would
+fit an attribute: Apple's `decmpfs_hides_rsrc` hides every compressed file's resource
+fork from ordinary native access. Preserving the raw fork alone would change what
+applications can see. Under `zlib`,
 an existing active representation is decoded first; a skipped file becomes
 ordinary storage with its logical bytes and independent metadata preserved.
 
