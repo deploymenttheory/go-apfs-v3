@@ -22,6 +22,7 @@ from metadata_edits import birth_ns
 import container_building as containers
 import encrypted_output
 import compression_output
+import image_capacity
 from image_outputs import verify_identical_outputs
 
 
@@ -286,8 +287,11 @@ def main():
         except BaseException as error:
             record.update(status='failed', error=str(error)); save(); raise
         record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace')); save()
-        require((r.returncode == 0) == expected_success, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
+        require(expected_success is None or (r.returncode == 0) == expected_success, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
+        if expected_success is None and r.returncode:
+            return None
         return r.stdout
+    image_capacity.compare(args.corpus, args.outputs, command, args.expected_major)
     total = 0
     for major in args.producers.split(','):
         corpus = args.corpus / f'macos-{major}'

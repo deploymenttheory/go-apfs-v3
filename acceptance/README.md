@@ -537,6 +537,13 @@ older single-volume observations and source provenance remain unchanged.
 The original HFS-only capture is retained under `testdata/image-building/history`;
 its files and expectations were not rewritten for APFS construction.
 
+`native/image_capacity.py` records Apple automatic sizing of the same four input
+trees and attempts Apple construction at the Go images' capacities. Private
+shadows measure bounded native allocation alongside `statvfs` physical free and
+caller-available blocks. These controls explain sizing and reserve behaviour;
+their diagnostic reports do not invent expected capacity values from Go output.
+The full native modification journeys above remain the output acceptance gate.
+
 Native image-building capture and verification require GitHub-hosted VMs, or
 `APFS_NATIVE_DISPOSABLE_VM=1` explicitly set inside another isolated disposable VM.
 Normal local invocation is refused. The [kernel-panic incident](../docs/native-testing-incident.md)

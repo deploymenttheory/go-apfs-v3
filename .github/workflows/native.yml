@@ -296,6 +296,7 @@ jobs:
           name: image-building-verification-${{ matrix.major }}
           path: |
             artifacts/outputs/image-building-*.diagnostics.json
+            artifacts/outputs/image-capacity-*.diagnostics.json
             artifacts/outputs/image-repacking-*.diagnostics.json
           if-no-files-found: warn
       - name: Explain the native output verification
