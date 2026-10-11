@@ -28,6 +28,7 @@ type nativeEditState struct {
 	Files         fileObservation
 	Archive       hfsGrowthArchive
 	CheckerStatus int
+	Journal       *nativeEditJournal
 	Headers       struct {
 		Primary, Alternate hfsGrowthHeader
 		ExtentsTree        struct{ NodeSize, TotalNodes uint32 }
@@ -51,16 +52,89 @@ type nativeEditManifest struct {
 	}
 }
 
+type nativeEditJournal struct {
+	InfoBlock          uint32
+	Offset, Size       uint64
+	SHA256, InfoSHA256 string
+	BackingFiles       map[string]struct {
+		Object uint64
+		Size   int64
+	}
+}
+
+func verifyEditJournal(t *testing.T, source block.Source, want *nativeEditJournal) {
+	t.Helper()
+	if want == nil {
+		return
+	}
+	ctx := context.Background()
+	v, e := hfsplus.Open(source)
+	if e != nil {
+		t.Fatal(e)
+	}
+	h := make([]byte, 512)
+	if e = block.ReadFull(source, h, 1024); e != nil {
+		t.Fatal(e)
+	}
+	if !v.Journaled || !v.Clean || string(h[8:12]) != "HFSJ" || binary.BigEndian.Uint32(h[12:]) != want.InfoBlock {
+		t.Fatal("journaled volume state lost")
+	}
+	for _, region := range []struct {
+		offset, size uint64
+		digest       string
+	}{
+		{uint64(want.InfoBlock) * uint64(v.BlockSize), uint64(v.BlockSize), want.InfoSHA256},
+		{want.Offset, want.Size, want.SHA256},
+	} {
+		hash := sha256.New()
+		if _, e = io.Copy(hash, io.NewSectionReader(source, int64(region.offset), int64(region.size))); e != nil {
+			t.Fatal(e)
+		}
+		if hex.EncodeToString(hash.Sum(nil)) != region.digest {
+			t.Fatal("journal storage changed")
+		}
+	}
+	if len(want.BackingFiles) != 2 {
+		t.Fatal("native journal backing observations absent")
+	}
+	for name, file := range want.BackingFiles {
+		id, e := filesystem.Lookup(ctx, v, "/"+name)
+		if e != nil || id != file.Object {
+			t.Fatal("journal backing identity changed", name, e)
+		}
+		node, e := v.Stat(ctx, id)
+		if e != nil || int64(node.Size) != file.Size {
+			t.Fatal("journal backing size changed", name, e)
+		}
+	}
+}
+
 // TestNativeHFSImageEditing modifies Apple-created fragmented volumes. It
 // compares original identities and native final contents/metadata/forks, forces
 // overflow-tree allocation, verifies both headers, and emits actual images for
 // independent Apple fsck, mounted readback and further native/Go editing.
 func TestNativeHFSImageEditing(t *testing.T) {
 	t.Parallel()
+	testNativeHFSImageEditing(t, false)
+}
+
+// Journaled references independently prove that journal storage and backing
+// identities survive offline edits and subsequent native journaling.
+func TestNativeHFSJournaledImageEditing(t *testing.T) {
+	t.Parallel()
+	testNativeHFSImageEditing(t, true)
+}
+
+func testNativeHFSImageEditing(t *testing.T, journaled bool) {
+	t.Helper()
+	contract, rootEnv, outputEnv, retained := "existing-hfs-file-edits", "APFS_NATIVE_HFS_EDITS", "APFS_HFS_EDIT_OUTPUT", "testdata/hfs-editing"
+	if journaled {
+		contract, rootEnv, outputEnv, retained = "journaled-hfs-file-edits", "APFS_NATIVE_HFS_JOURNALED_EDITS", "APFS_HFS_JOURNALED_EDIT_OUTPUT", "testdata/hfs-journaled-editing"
+	}
 	ctx := context.Background()
-	root := os.Getenv("APFS_NATIVE_HFS_EDITS")
+	root := os.Getenv(rootEnv)
 	if root == "" {
-		root = "testdata/hfs-editing"
+		root = retained
 	}
 	paths, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
@@ -79,7 +153,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 		if e = json.Unmarshal(b, &manifest); e != nil {
 			t.Fatal(e)
 		}
-		if manifest.Schema != 1 || manifest.Contract != "existing-hfs-file-edits" || manifest.CapacityBytes != 64<<20 || len(manifest.Cases) != 2 || len(manifest.Producer.Sources) != 10 || majors[manifest.Major] {
+		if manifest.Schema != 1 || manifest.Contract != contract || manifest.CapacityBytes != 64<<20 || len(manifest.Cases) != 2 || len(manifest.Producer.Sources) != 10 || majors[manifest.Major] {
 			t.Fatal("invalid native HFS edit inventory")
 		}
 		majors[manifest.Major] = true
@@ -105,9 +179,13 @@ func TestNativeHFSImageEditing(t *testing.T) {
 					t.Fatal(e)
 				}
 				defer input.Close()
+				if original.Journaled != journaled || (c.Before.Journal != nil) != journaled {
+					t.Fatal("native journal profile differs")
+				}
+				verifyEditJournal(t, p, c.Before.Journal)
 				compareFiles(t, original, c.Before.Files)
 				compareEditRawAttributes(t, original, c.Before.Files)
-				output := os.Getenv("APFS_HFS_EDIT_OUTPUT")
+				output := os.Getenv(outputEnv)
 				if output == "" {
 					output = t.TempDir()
 				}
@@ -147,7 +225,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 						if e != nil {
 							t.Fatal(e)
 						}
-						if v.VolumeID != original.VolumeID || v.Name != original.Name || v.BlockCount != original.BlockCount || v.BlockSize != original.BlockSize {
+						if v.VolumeID != original.VolumeID || v.Name != original.Name || v.BlockCount != original.BlockCount || v.BlockSize != original.BlockSize || v.Journaled != original.Journaled {
 							t.Fatal("existing volume identity or geometry changed")
 						}
 						if e = hfsplus.ValidateMutation(ctx, part); e != nil {
@@ -185,6 +263,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 								t.Fatal("native file identity lost", entry.Path, e)
 							}
 						}
+						verifyEditJournal(t, part, c.Before.Journal)
 						verifyEditHeaders(t, part, c.Before.Headers.ExtentsTree.TotalNodes, phase)
 						img.Close()
 						current = destination

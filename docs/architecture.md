@@ -301,7 +301,9 @@ separate implementations. HFS+ metadata journaling is not atomic file-content
 replacement. Existing-image edits decode into project-owned private regular-file copies and
 explicitly publish new DMGs. Native shadow replay is not the transaction engine.
 `Sync` must describe exactly what becomes durable. The first HFS engine flushes
-a completed output before publication; in-place journal recovery and physical
+a completed output before publication. Valid empty internal HFS journals retain
+their complete storage, backing identities and journaled headers; pending journals
+are refused rather than reset. In-place journal recovery and physical
 power-loss directory durability remain separate capabilities. See [HFS editing](hfs-editing.md).
 
 Recovery records source locations and distinguishes intact, partial, and inferred

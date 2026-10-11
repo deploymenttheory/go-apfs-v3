@@ -62,6 +62,7 @@ type mutation struct {
 	header          []byte
 	bitmap, claimed []byte
 	allocation      *fork
+	journal         *mutationJournal
 	trees           map[uint32]*mutableTree
 	overflowUsed    map[string]bool
 }

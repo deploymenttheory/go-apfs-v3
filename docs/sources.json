@@ -586,7 +586,7 @@
         "acceptance/native/verify_preservation.py"
       ],
       "evidence": "acceptance/testdata/preservation/macos-27/manifest.json",
-      "basis": "Four native APFS/HFS+/HFSX images, 125–126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
+      "basis": "Four native APFS/HFS+/HFSX images, 125\u2013126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
     },
     {
       "id": "native-content-replacement-27",
@@ -1070,6 +1070,62 @@
         }
       ],
       "basis": "Go adaptations of VolumeAllocation bitmap marking/accounting, hfs_extents grouping/coalescing, BTreeTreeOps SearchTree/SplitLeft/DeleteTree/CollapseTree, BTreeNodeOps record offsets, and BTreeAllocate AllocateNode/FreeNode. Exclusive unpublished regular-file copies replace mounted vnodes, tree path tables, locks and journal callbacks. Deterministic first-fit allocation and byte-balanced splits omit kernel allocation caches and optional sibling redistribution. Original Go admission verifies complete allocation ownership, native keys, node maps/reachability, and both structural headers. Catalog changes patch original fixed-size records, retaining CNIDs and opaque bytes. Nonjournaled volume-header signature follows hfs_flushvolumeheader. Active compression removal shares existing decmpfs ownership policy. Explicit offline timestamps and no-overwrite completed-image publication are project policy, not kernel credential emulation, HFS journal recovery or universal power-loss durability. Native evidence is supplied by the existing-hfs-file-edits family on disposable macOS 15/26/27 VMs; its producer never invokes Go. The native preservation control supplies birth/access times explicitly with mtime: hfs_vnop_setattr otherwise clamps HFS+ creation time to an older new modification time. Guard allocation records actual ENOSPC instead of assuming statfs availability is synchronously current."
+    },
+    {
+      "id": "apple-hfs-empty-journal-admission",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/hfs/tree/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "components": [
+        "hfsplus/journal.go",
+        "hfsplus/mutate.go",
+        "imageedit/edit.go"
+      ],
+      "files": [
+        {
+          "path": "core/hfs_journal.c",
+          "sha256": "eac32a0de4fb36d2cbe391ebc31c5917ba058c342c5997bb464eb772b75e6d9c"
+        },
+        {
+          "path": "core/hfs_journal.h",
+          "sha256": "1de7e23acb743775d99970ce83ddad68d2f56200ab52f5dfd7aafa8038b4aa40"
+        },
+        {
+          "path": "core/hfs_format.h",
+          "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+        },
+        {
+          "path": "core/hfs_vfsutils.c",
+          "sha256": "85916866504e2db3ad8784129c588af8e375c3631de5d01cb28f13c4c8426c27"
+        },
+        {
+          "path": "core/hfs_vfsops.c",
+          "sha256": "070d63b5defcfc32c074197d85eb6c1913f894f5d453f923b07bc03bd0c15b15"
+        },
+        {
+          "path": "core/hfs_vnops.c",
+          "sha256": "a07a8cd9bad0e485a6c7248facac3edcf66736727777715f8cf6a86fb77f3f44"
+        },
+        {
+          "path": "lib_fsck_hfs/fsck_journal.c",
+          "sha256": "3c70c6a87a7bca185c7ba9b7ef6b16bbb365dbc5a1c443ac5496ed41926bc722"
+        }
+      ],
+      "basis": "Adapted calc_checksum, journal_is_clean and current journal_open header/geometry checks to bounded byte slices. Checksums cover the original 44 bytes before sequence_num, with the checksum field zeroed in stored byte order. hfs_late_journal_init supplies backing-file location/size checks; disagreement is refused rather than relocating, recreating or disabling a journal. hfs_flushvolumeheader supplies HFSJ versus 10.0 mount identifiers. hfs_is_journal_file supplies CNID-based protection for both journal backing files. Admission requires a clean volume and current, empty, initialized internal journal with contiguous catalog-backed allocation; size is bounded from 256 KiB to 1 GiB. Exclusive unpublished copies preserve complete journal/JIB storage and sequence numbers, with no live journal transactions. Old headers, external journals, need-init profiles and pending transactions remain unsupported. No journal replay, repair, reset, cache flushing or mounted vnode implementation is ported. Kernel journal_open only logs checksum mismatch; the offline engine deliberately follows journal_is_clean strict refusal. The fsck_journal replay behavior was studied separately and is not translated. hfs_flushvolumeheader updates the alternate only with HFS_FVH_WRITE_ALT: all six retained clean journaled captures leave its unmounted bit clear. Admission requires primary cleanliness and an empty journal, permits that alternate-bit difference, and checks all other attribute bits and the journal pointer. Native raw backing-file records supply identities because ordinary mounted pathname lookup hides them."
+    },
+    {
+      "id": "native-hfs-journaled-editing-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38150364332",
+      "evidence": "acceptance/testdata/hfs-journaled-editing",
+      "components": [
+        "acceptance/hfs_editing_test.go",
+        "acceptance/native/hfs_editing.py",
+        "acceptance/native/verify_hfs_editing.py"
+      ],
+      "basis": "Unchanged Apple-created HFS+/HFSX source/peak/final raw disks captured at 3431004 on macOS 15/26/27, with native contents, identity, metadata, forks, Apple checker verdicts and signed application. Manifests retain current empty little-endian internal journals, their full storage/JIB hashes, cursors/sequence and raw catalog backing CNIDs 16/17. All sources show primary attributes 0x80002100 and alternate 0x80002000, with agreeing journal pointers and structural geometry. Exact producer/command and compressed/uncompressed hashes are retained. Portable replay must preserve journal bytes and identities; the separate fresh gate must prove continued native journal writes and subsequent Go/native cycles. No Go-generated native expectations."
     }
   ]
 }

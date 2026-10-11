@@ -176,7 +176,7 @@ jobs:
       - name: Verify Go results against macOS 15, 26 and 27 observations
         # The required hfs_edits subworkflow separately replays fresh HFS edit
         # controls on all hosts; ordinary CI covers their retained corpus.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNativeHFSImageEditing'
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNativeHFS(Journaled)?ImageEditing'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files

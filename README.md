@@ -10,7 +10,7 @@ software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
-writes now support regular-file data/resource-fork replacement and chmod on clean nonjournaled HFS+/HFSX, preserving original identities in a new output image. APFS mutation, journal recovery and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
+writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. APFS mutation, journal recovery and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -91,7 +91,7 @@ Currently implemented:
 - Shared zlib transparent file-compression writing for APFS/HFS+/HFSX builds;
   explicit preservation/decompression policies, bounded encoded scratch and
   per-file reports for skipped compression.
-- Existing clean nonjournaled HFS+/HFSX image edits through `cp` and `chmod`,
+- Existing clean HFS+/HFSX image edits (nonjournaled or with a valid empty internal journal) through `cp` and `chmod`,
   retaining volume/file IDs, aliases, geometry, independent forks and unrelated
   sectors in a completed output transaction; see [editing semantics](docs/hfs-editing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.

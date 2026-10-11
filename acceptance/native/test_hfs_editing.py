@@ -12,11 +12,12 @@ import verify_hfs_editing
 
 class ExistingHFSEvidence(unittest.TestCase):
     def test_working_host_is_refused_before_native_commands(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            output = Path(temporary) / 'capture'
-            with patch.dict(os.environ, {}, clear=True), self.assertRaises(RuntimeError):
-                hfs_editing.capture(27, output)
-            self.assertFalse(output.exists())
+        for journaled in (False, True):
+            with tempfile.TemporaryDirectory() as temporary:
+                output = Path(temporary) / 'capture'
+                with patch.dict(os.environ, {}, clear=True), self.assertRaises(RuntimeError):
+                    hfs_editing.capture(27, output, journaled)
+                self.assertFalse(output.exists())
 
     def test_raw_attributes_identity_and_unchanged_times_are_independent_checks(self):
         expected = {'entries': [{'path': 'Fixture/independent', 'object': 42, 'mode': 0o100644,

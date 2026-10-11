@@ -110,6 +110,88 @@ def apply_native(root, phase, command):
         os.chmod(root / 'small', 0o755)
 
 
+def journal_backing_files(stream, volume):
+    """Observe raw native CNIDs: mounted pathname lookup hides journal files.
+
+    Root records precede later parents in the catalog. This bounded observer
+    reads their leaf chain through the header's inline catalog extents only;
+    it is a capture tool, not another general filesystem implementation.
+    """
+    block_size = struct.unpack_from('>I', volume, 40)[0]
+    extents = [struct.unpack_from('>II', volume, 288 + n * 8) for n in range(8)]
+    def read_fork(offset, size):
+        result = bytearray()
+        for start, count in extents:
+            length = count * block_size
+            if offset >= length:
+                offset -= length
+                continue
+            take = min(size - len(result), length - offset)
+            stream.seek(start * block_size + offset)
+            result.extend(stream.read(take))
+            offset = 0
+            if len(result) == size:
+                return bytes(result)
+        raise ValueError('capture catalog root outside inline extents')
+    header = read_fork(0, 512)
+    node_size, leaf = struct.unpack_from('>H', header, 32)[0], struct.unpack_from('>I', header, 24)[0]
+    result, seen = {}, set()
+    while leaf:
+        require(leaf not in seen and len(seen) < 64, 'bounded journal catalog observation')
+        seen.add(leaf)
+        node = read_fork(leaf * node_size, node_size)
+        require(node[8] == 255, 'native catalog leaf')
+        for n in range(struct.unpack_from('>H', node, 10)[0]):
+            off = struct.unpack_from('>H', node, node_size - 2 * (n + 1))[0]
+            key_size, parent, name_size = struct.unpack_from('>HIH', node, off)
+            if parent > 2:
+                require(len(result) == 2, 'both native journal backing files observed')
+                return result
+            name = node[off + 8:off + 8 + 2 * name_size].decode('utf-16-be')
+            if parent == 2 and name in ('.journal', '.journal_info_block'):
+                value = off + 2 + key_size
+                require(struct.unpack_from('>H', node, value)[0] == 2, 'journal catalog file')
+                result[name] = {'object': struct.unpack_from('>I', node, value + 8)[0],
+                                'size': struct.unpack_from('>Q', node, value + 88)[0]}
+        leaf = struct.unpack_from('>I', node)[0]
+    require(len(result) == 2, 'native journal backing inventory')
+    return result
+
+
+def read_journal(image):
+    """File-only observations of native journal bytes, independent of Go."""
+    with image.open('rb') as stream:
+        stream.seek(1024)
+        volume = stream.read(512)
+        if not struct.unpack_from('>I', volume, 4)[0] & 0x2000:
+            return None
+        block_size, info_block = struct.unpack_from('>I', volume, 40)[0], struct.unpack_from('>I', volume, 12)[0]
+        require(0 < info_block < image.stat().st_size // block_size, 'native journal info location')
+        stream.seek(info_block * block_size)
+        info = stream.read(block_size)
+        flags, offset, size = struct.unpack_from('>I', info)[0], *struct.unpack_from('>QQ', info, 36)
+        require(flags == 1 and 0 < size <= image.stat().st_size - offset, 'initialized internal journal')
+        stream.seek(offset)
+        header = stream.read(48)
+        order = '<' if header[:4] == b'xLNJ' else '>'
+        magic, endian, start, end, stored_size, list_size, checksum, header_size, sequence = struct.unpack(order + 'IIQQQIIII', header)
+        require(magic == 0x4a4e4c78 and endian == 0x12345678 and stored_size == size and start == end,
+                'clean native journal header')
+        stream.seek(offset)
+        digest = hashlib.sha256()
+        remaining = size
+        while remaining:
+            data = stream.read(min(remaining, 128 << 10))
+            require(bool(data), 'complete journal bytes')
+            digest.update(data)
+            remaining -= len(data)
+        return {'infoBlock': info_block, 'flags': flags, 'offset': offset, 'size': size,
+                'start': start, 'end': end, 'headerSize': header_size, 'blockListSize': list_size,
+                'checksum': checksum, 'sequence': sequence, 'byteOrder': order,
+                'sha256': digest.hexdigest(), 'infoSHA256': hashlib.sha256(info).hexdigest(),
+                'backingFiles': journal_backing_files(stream, volume)}
+
+
 def observe(image, work, command):
     mount = work / ('read-' + image.stem)
     device = attach(image, command, readonly=True)
@@ -130,12 +212,16 @@ def observe(image, work, command):
         ranges = {name: native_extents(str(mount / 'Fixture' / name) +
                   ('/..namedfork/rsrc' if name == 'fragmented-resource' else ''))
                   for name in ('fragmented-data', 'fragmented-resource')}
-        return {'files': observed, 'headers': headers, 'nativeExtents': ranges, 'checkerStatus': 0}
+        result = {'files': observed, 'headers': headers, 'nativeExtents': ranges, 'checkerStatus': 0}
+        journal = read_journal(image)
+        if journal is not None:
+            result['journal'] = journal
+        return result
     finally:
         command('hdiutil', 'detach', device)
 
 
-def capture(expected_major, output):
+def capture(expected_major, output, journaled=False):
     require_disposable_host()
     producer = version(expected_major)
     output.mkdir(parents=True)
@@ -150,6 +236,7 @@ def capture(expected_major, output):
             device = attach(image, command, writable=True)
             try:
                 command('sudo', '/sbin/newfs_hfs', *(['-s'] if filesystem == 'hfsx' else []),
+                        *(['-J', '1m'] if journaled else []),
                         '-b', '4096', '-n', 'c=4096,e=1024,a=4096',
                         '-c', 'c=8,e=1,a=8,d=1,r=1', '-I', 'c=10,e=1,a=10',
                         '-v', 'Existing', device.replace('/dev/disk', '/dev/rdisk'))
@@ -160,6 +247,7 @@ def capture(expected_major, output):
             finally:
                 command('hdiutil', 'detach', device)
             before = observe(image, work, command)
+            require(('journal' in before) == journaled, 'requested journal profile captured')
             source = retain_file(image, output / (filesystem + '-source.raw.gz'))
             case = {'id': filesystem, 'source': source, 'before': before, 'states': {},
                     'allocationPressure': pressure}
@@ -186,7 +274,7 @@ def capture(expected_major, output):
     for name in SOURCES:
         shutil.copyfile(Path(__file__).with_name(name), output / name)
     manifest = {'schema': 1, 'major': expected_major, 'producer': producer, 'cases': cases,
-                'contract': 'existing-hfs-file-edits', 'modificationSeconds': STAMP,
+                'contract': 'journaled-hfs-file-edits' if journaled else 'existing-hfs-file-edits', 'modificationSeconds': STAMP,
                 'capacityBytes': CAPACITY,
                 'commandsSHA256': hashlib.sha256((output / 'commands.json').read_bytes()).hexdigest()}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -196,5 +284,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--expected-major', required=True, type=int)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--journaled', action='store_true')
     args = parser.parse_args()
-    capture(args.expected_major, args.output)
+    capture(args.expected_major, args.output, args.journaled)

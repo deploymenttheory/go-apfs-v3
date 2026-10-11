@@ -226,7 +226,10 @@ func TestMutationRejectsUnsafeProfilesAndWriteFailures(t *testing.T) {
 			if kind == "cancel" && !errors.Is(e, context.Canceled) {
 				t.Fatal(e)
 			}
-			if kind == "journal" || kind == "dirty" {
+			if kind == "journal" && !errors.Is(e, filesystem.ErrCorrupt) {
+				t.Fatal(e)
+			}
+			if kind == "dirty" {
 				if !errors.Is(e, filesystem.ErrUnsupported) {
 					t.Fatal(e)
 				}
