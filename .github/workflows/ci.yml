@@ -73,6 +73,10 @@ jobs:
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
       # Give each race-instrumented package the runner CPU budget; acceptance
       # runs at most two independent families inside that package.
-      - run: go test -race -p 1 -parallel 2 -timeout 5m ./...
+      # Existing HFS image-edit replay is race-instrumented against fresh native
+      # sources by the required hfs_edits subworkflow. Do not repeat its full-disk
+      # writes inside this combined race deadline; portable tests above still
+      # replay every retained case on all three hosts.
+      - run: go test -race -p 1 -parallel 2 -timeout 5m ./... -skip '^TestNativeHFSImageEditing$'
         env:
           CGO_ENABLED: "1"

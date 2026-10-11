@@ -89,6 +89,11 @@ The unchanged baseline for macOS 15, 26 and 27 is committed under
 `testdata/hfs-editing` with source/peak/final disks, recipes, commands and hashes.
 All six sources replay in about 19 seconds locally; fresh CI capture remains a
 separate required check. Missing retained references fail rather than skip.
+Linux instruments the fresh-corpus editing replay with the race detector under
+its own four-minute test deadline. The combined quality race job excludes that
+duplicate family, while retaining race coverage for its engine, transaction and
+CLI unit tests. Ordinary portable CI still replays the full retained corpus on
+all three hosts. No native scenario or output check is removed.
 
 ```sh
 go test -count=1 -run '^TestNativeHFSImageEditing$' ./acceptance

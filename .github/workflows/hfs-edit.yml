@@ -50,9 +50,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04, platform: Linux}
-          - {runner: windows-2025, platform: Windows}
-          - {runner: macos-26, platform: macOS}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race'}
+          - {runner: windows-2025, platform: Windows, race: ''}
+          - {runner: macos-26, platform: macOS, race: ''}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -65,8 +65,11 @@ jobs:
           path: artifacts/hfs-editing
           merge-multiple: true
       - name: Verify existing identities, forks, compression cleanup, allocation and reproducibility
-        run: go test -v -count=1 -timeout 4m ./acceptance -run '^TestNativeHFSImageEditing$'
+        # Race coverage owns this bounded family on Linux, instead of repeating
+        # its full-disk I/O and compression in the combined quality job.
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '^TestNativeHFSImageEditing$'
         env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           APFS_NATIVE_HFS_EDITS: ../artifacts/hfs-editing
           APFS_HFS_EDIT_OUTPUT: ../artifacts/hfs-edits-${{ matrix.platform }}
       - name: Archive actual portable output images
@@ -137,6 +140,7 @@ jobs:
           Apple created six fragmented source volumes across macOS 15, 26 and 27.
           Linux, Windows and macOS updated their original records and allocated
           existing free space. Each host produced 24 images with identical bytes.
+          Linux also race-instrumented the same fresh-corpus editing operations.
           This Mac qualified every distinct image using exact raw copies, native
           fsck, mounted contents/identity/metadata/fork checks and codesign.
 

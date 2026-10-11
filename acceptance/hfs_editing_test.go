@@ -56,6 +56,7 @@ type nativeEditManifest struct {
 // overflow-tree allocation, verifies both headers, and emits actual images for
 // independent Apple fsck, mounted readback and further native/Go editing.
 func TestNativeHFSImageEditing(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root := os.Getenv("APFS_NATIVE_HFS_EDITS")
 	if root == "" {
