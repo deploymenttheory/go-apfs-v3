@@ -9,7 +9,7 @@ lists directories, reads ordinary and transparently compressed files, and unlock
 software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
-remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Existing-filesystem
+remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
 writes, recovery and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
@@ -38,6 +38,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs pack --filesystem apfs --volume-name Example ./source Example.dmg
 ./bin/apfs pack --volume Apps --directory ./apps --volume Resources --directory ./resources Bundle.dmg
 ./bin/apfs pack --format UDZO original.dmg repacked.dmg
+./bin/apfs pack --session build --encryption AES-256 --output-password-file ./new-password.bin Encrypted.dmg
 ./bin/apfs session remove build
 ```
 
@@ -81,6 +82,8 @@ Currently implemented:
   see [packing semantics](docs/packing.md).
 - Sector-preserving raw/UDIF repacking to UDRO/UDZO, including partitioned disks,
   APFS snapshots and encrypted APFS volume sectors; strict container admission.
+- Fresh AES-128/256 DMG encryption, explicit password changes and decryption during repacking;
+  randomized ciphertext with reproducible decoded disk bytes.
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
@@ -90,6 +93,10 @@ unlocks a DMG envelope; `--password-file` unlocks the selected APFS volume. Both
 can be supplied, with at most one reading stdin. Passwords are never accepted as
 literal command-line options. Inspecting an encrypted DMG needs its image
 password; APFS volume inspection can report locked volumes without their password.
+`pack --output-password-file` supplies the new DMG password, independently of
+`--image-password-file`. Encrypted input requires an explicit output
+`--encryption AES-128|AES-256|none` policy; omitting it cannot remove encryption.
+See [encrypted packing](docs/packing.md#encrypted-dmg-output).
 
 The qualified encryption profile uses APFS software single-key encryption with
 AES-256 key wrapping and AES-128-XTS sectors. Hardware/per-file keys, legacy key

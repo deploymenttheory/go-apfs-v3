@@ -50,9 +50,10 @@ func packHasVolumes(args []string) bool {
 
 // --volume starts one volume's options. Container options apply to the complete
 // output wherever they occur; scoped options require a preceding --volume.
-func packVolumesCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	f := flag.NewFlagSet("pack", flag.ContinueOnError)
 	f.SetOutput(diagnostics)
+	encryption := addPackEncryptionFlags(f, false)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	capacity := f.String("capacity", "", "shared container capacity; default automatic")
 	fixed := f.String("time", "", "fixed RFC3339 construction clock")
@@ -168,6 +169,11 @@ func packVolumesCommand(ctx context.Context, args []string, out, diagnostics io.
 	} else if !errors.Is(e, fs.ErrNotExist) {
 		return e
 	}
+	crypt, err := encryption.options(input, false)
+	if err != nil {
+		return err
+	}
+	defer clearPackPasswords(crypt)
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {
 		clock, err = time.Parse(time.RFC3339Nano, *fixed)
@@ -175,7 +181,7 @@ func packVolumesCommand(ctx context.Context, args []string, out, diagnostics io.
 			return err
 		}
 	}
-	options := pack.ContainerOptions{Format: *format, APFS: apfs.ContainerBuildOptions{Time: clock}}
+	options := pack.ContainerOptions{Format: *format, Encryption: crypt.Encryption, APFS: apfs.ContainerBuildOptions{Time: clock}}
 	if *capacity != "" {
 		options.APFS.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -300,7 +306,7 @@ func packVolumesCommand(ctx context.Context, args []string, out, diagnostics io.
 			Volumes []provenance `json:"volumes"`
 		}{1, report, imports})
 	}
-	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes)
+	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\nImage encryption: %s\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes, packEncryptionLabel(report.Encryption))
 	return err
 }
 

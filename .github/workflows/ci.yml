@@ -32,7 +32,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - run: go test -v -timeout 5m ./...
+      - run: go test -v -parallel 2 -timeout 5m ./...
       - run: go vet ./...
 
   build:
@@ -69,6 +69,10 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0
-      - run: go test -race -timeout 5m ./...
+      - name: Check native verifier logic without running native tools
+        run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
+      # Give each race-instrumented package the runner CPU budget; acceptance
+      # runs at most two independent families inside that package.
+      - run: go test -race -p 1 -parallel 2 -timeout 5m ./...
         env:
           CGO_ENABLED: "1"

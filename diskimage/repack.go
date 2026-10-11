@@ -17,10 +17,12 @@ import (
 
 // RepackReport describes preserved logical disk bytes, not a rebuilt filesystem.
 type RepackReport struct {
-	Format       string `json:"format"`
-	SourceFormat string `json:"sourceFormat"`
-	DiskBytes    int64  `json:"diskBytes"`
-	DiskSHA256   string `json:"diskSHA256"`
+	Format           string      `json:"format"`
+	SourceFormat     string      `json:"sourceFormat"`
+	DiskBytes        int64       `json:"diskBytes"`
+	DiskSHA256       string      `json:"diskSHA256"`
+	SourceEncryption *Encryption `json:"sourceEncryption,omitempty"`
+	Encryption       *Encryption `json:"encryption,omitempty"`
 }
 
 // Repack borrows immutable, complete image storage and writes a new UDRO/UDZO
@@ -30,10 +32,41 @@ type RepackReport struct {
 // complete block coverage are checked before output. The caller discards all
 // output on error and keeps source open and unchanged until this call returns.
 func Repack(ctx context.Context, out io.Writer, source block.Source, format string) (RepackReport, error) {
+	report, err := RepackWithOptions(ctx, out, source, RepackOptions{Format: format})
+	if errors.Is(err, filesystem.ErrAuthentication) {
+		return report, fmt.Errorf("encrypted DMG repacking requires explicit credentials and output policy: %w", filesystem.ErrUnsupported)
+	}
+	return report, err
+}
+
+// RepackOptions keeps image passwords separate from APFS volume credentials.
+// A nil SourcePassword means none supplied; a non-nil empty slice explicitly
+// requests an empty password. Decrypt must be true to remove source encryption.
+// Passwords are borrowed, never modified, and never included in reports.
+type RepackOptions struct {
+	Format         string
+	SourcePassword []byte `json:"-"`
+	Encryption     *EncryptionOptions
+	Decrypt        bool
+}
+
+// RepackWithOptions preserves every decoded sector while replacing the image
+// envelope. Encrypted output requires an empty io.WriteSeeker. No APFS password
+// is used and separately encrypted APFS sectors remain opaque and unchanged.
+func RepackWithOptions(ctx context.Context, out io.Writer, source block.Source, o RepackOptions) (RepackReport, error) {
 	var report RepackReport
 	if out == nil || source == nil {
 		return report, fs.ErrInvalid
 	}
+	if o.Encryption != nil {
+		if err := o.Encryption.Validate(); err != nil {
+			return report, err
+		}
+		if o.Decrypt {
+			return report, fs.ErrInvalid
+		}
+	}
+	format := o.Format
 	if format == "" {
 		format = "UDZO"
 	}
@@ -43,14 +76,26 @@ func Repack(ctx context.Context, out io.Writer, source block.Source, format stri
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	image, err := New(source)
-	if errors.Is(err, filesystem.ErrAuthentication) {
-		return report, fmt.Errorf("encrypted DMG repacking: %w", filesystem.ErrUnsupported)
+	var image *Image
+	var err error
+	if o.SourcePassword != nil {
+		image, err = NewWithPassword(ctx, source, o.SourcePassword)
+	} else {
+		image, err = New(source)
 	}
 	if err != nil {
 		return report, err
 	}
 	defer func() { _ = image.Close() }()
+	if image.envelope != nil {
+		if o.Encryption == nil && !o.Decrypt {
+			return report, fmt.Errorf("encrypted source requires an explicit output encryption policy: %w", fs.ErrInvalid)
+		}
+		if err = admitRepackEnvelope(source, image.envelope); err != nil {
+			return report, err
+		}
+		source = image.envelope
+	}
 	layout, err := repackLayout(source, image)
 	if err != nil {
 		return report, err
@@ -68,18 +113,64 @@ func Repack(ctx context.Context, out io.Writer, source block.Source, format stri
 	want := hex.EncodeToString(hash.Sum(nil))
 	hash.Reset()
 	reader.source = io.NewSectionReader(image.source, 0, image.Size())
-	if err = encode(ctx, out, io.TeeReader(reader, hash), image.Size(), format, layout); err != nil {
+	produce := func(w io.Writer) error {
+		return encode(ctx, w, io.TeeReader(reader, hash), image.Size(), format, layout)
+	}
+	if o.Encryption != nil {
+		seeker, ok := out.(io.WriteSeeker)
+		if !ok {
+			return report, fmt.Errorf("encrypted output requires a seekable destination: %w", fs.ErrInvalid)
+		}
+		_, err = Encrypt(ctx, seeker, *o.Encryption, produce)
+	} else {
+		err = produce(out)
+	}
+	if err != nil {
 		return report, err
 	}
 	if hex.EncodeToString(hash.Sum(nil)) != want {
 		return report, corrupt("repack source changed")
 	}
-	return RepackReport{Format: format, SourceFormat: image.Format, DiskBytes: image.Size(), DiskSHA256: want}, nil
+	report = RepackReport{Format: format, SourceFormat: image.Format, DiskBytes: image.Size(), DiskSHA256: want, SourceEncryption: image.Encryption}
+	if o.Encryption != nil {
+		report.Encryption = &Encryption{Version: 2, Cipher: "AES-CBC", KeyBits: o.Encryption.KeyBits, BlockSize: 512}
+	}
+	return report, nil
 }
 
 type contextReader struct {
 	ctx    context.Context
 	source io.Reader
+}
+
+// Password rewrapping admits only the independently observed password-only
+// envelope. Refuse certificate/keybag records and unknown nonzero header data
+// instead of silently dropping credentials or other resources during repacking.
+func admitRepackEnvelope(source block.Source, envelope *encryptedImage) error {
+	if envelope.offset > 1<<20 {
+		return filesystem.ErrLimit
+	}
+	b := make([]byte, envelope.offset)
+	if err := block.ReadFull(source, b, 0); err != nil {
+		return err
+	}
+	be := binary.BigEndian
+	if be.Uint32(b[72:]) != 1 || be.Uint32(b[76:]) != 1 {
+		return fmt.Errorf("repacking requires one password record: %w", filesystem.ErrUnsupported)
+	}
+	start, length := be.Uint64(b[80:]), be.Uint64(b[88:])
+	// readEnvelope already validated all ranges and the password record.
+	r := b[start : start+length]
+	salt, iv, wrapped := be.Uint32(r[12:]), be.Uint32(r[48:]), be.Uint32(r[100:])
+	if !allZero(b[96:start]) || !allZero(b[start+length:]) ||
+		!allZero(r[16+salt:48]) || !allZero(r[52+iv:84]) || !allZero(r[104+wrapped:]) {
+		return fmt.Errorf("unaccounted encrypted image header bytes: %w", filesystem.ErrUnsupported)
+	}
+	blockSize := int64(envelope.info.BlockSize)
+	if source.Size() != envelope.offset+(envelope.size+blockSize-1)/blockSize*blockSize {
+		return fmt.Errorf("unaccounted encrypted image trailing bytes: %w", filesystem.ErrUnsupported)
+	}
+	return nil
 }
 
 func (r *contextReader) Read(p []byte) (int, error) {

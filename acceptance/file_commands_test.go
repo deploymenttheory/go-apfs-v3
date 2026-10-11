@@ -57,6 +57,7 @@ type nativeFileCommands struct {
 var fileCommandsCLI string
 
 func TestNativeFileCommands(t *testing.T) {
+	t.Parallel()
 	fileCommandsCLI = filepath.Join(t.TempDir(), "apfs")
 	if runtime.GOOS == "windows" {
 		fileCommandsCLI += ".exe"

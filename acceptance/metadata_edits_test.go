@@ -44,6 +44,7 @@ type nativeMetadataEdits struct {
 }
 
 func TestNativeMetadataEdits(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "metadata-edits", "APFS_NATIVE_METADATA_EDITS", "testdata/metadata-edits", 16, nil)
 }
 func metadataChange(t *testing.T, op nativeMetadataOperation, dir string) workspace.Change {

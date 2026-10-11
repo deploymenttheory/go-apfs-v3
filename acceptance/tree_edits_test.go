@@ -44,6 +44,7 @@ type nativeTreeEdits struct {
 }
 
 func TestNativeTreeEdits(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "tree-edits", "APFS_NATIVE_TREE_EDITS", "testdata/tree-edits", 18, nil)
 }
 func treeChange(t *testing.T, op nativeTreeOperation, dir string) workspace.Change {

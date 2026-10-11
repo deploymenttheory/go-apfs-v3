@@ -467,7 +467,8 @@
       "url": "https://github.com/apple-oss-distributions/Security",
       "revision": "db15acbe6a7f257a859ad9a3bb86097bfe0679d9",
       "components": [
-        "diskimage/encryption.go"
+        "diskimage/encryption.go",
+        "diskimage/encrypt.go"
       ],
       "files": [
         {
@@ -488,7 +489,8 @@
       "revision": "626dac30710140ac488ea199cd14b5c450f2760b",
       "license": "MIT",
       "components": [
-        "diskimage/encryption.go"
+        "diskimage/encryption.go",
+        "diskimage/encrypt.go"
       ],
       "files": [
         {
@@ -532,10 +534,11 @@
       "kind": "native-observation",
       "components": [
         "diskimage/encryption.go",
-        "acceptance/native/disk_image_encryption.py"
+        "acceptance/native/disk_image_encryption.py",
+        "diskimage/encrypt.go"
       ],
       "evidence": "acceptance/testdata/encrypted-dmg/macos-27/manifest.json",
-      "basis": "Six Apple-created AES-128/256 encrcdsa v2 images cover APFS, case-sensitive APFS, HFS+, HFSX, UDZO and raw UDRW, Unicode/changed/rejected passwords and an independently encrypted APFS volume. Each has 107 observed objects from a final read-only mount. Current native password records wrap with AES-192-CBC, declare an 8-byte IV and use a zero-extended 16-byte AES IV. Retained capture and file/source hashes are immutable; older wrapping profiles require their own native CI evidence."
+      "basis": "Six Apple-created AES-128/256 encrcdsa v2 images cover APFS, case-sensitive APFS, HFS+, HFSX, UDZO and raw UDRW, Unicode/changed/rejected passwords and an independently encrypted APFS volume. Each has 107 observed objects from a final read-only mount. Current native password records wrap with AES-192-CBC, declare an 8-byte IV and use a zero-extended 16-byte AES IV. Retained capture and file/source hashes are immutable; older wrapping profiles require their own native CI evidence. Writer layout follows the observed 616-byte password slot, 122368-byte reserved header, 512-byte encrypted blocks and AES-192 password wrapping. It generates fresh cryptographic randomness and uses a fixed 600000-iteration derivation within the captured native range. Native output acceptance is required separately; the reader round trip is not its compatibility verdict."
     },
     {
       "id": "apple-xnu-snapshot-api",

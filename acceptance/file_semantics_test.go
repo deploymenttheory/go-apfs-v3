@@ -30,6 +30,7 @@ type nativeFragmentedFork struct {
 // aliases must share identity and all file/fork metadata. Darwin extent maps
 // prove that the HFS+ cases actually require records beyond the inline eight.
 func TestNativeFileSemantics(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "file-semantics", "APFS_NATIVE_SEMANTICS", "testdata/semantics", 30, compareSemantics)
 }
 

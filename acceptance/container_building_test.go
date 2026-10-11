@@ -38,6 +38,7 @@ type containerObservation struct {
 // TestNativeContainerBuilding extends the image-building family with shared
 // allocation, mixed case policies and native System/Data group identities.
 func TestNativeContainerBuilding(t *testing.T) {
+	t.Parallel()
 	root := os.Getenv("APFS_NATIVE_IMAGE_BUILDING")
 	if root == "" {
 		root = "testdata/image-building"
@@ -221,6 +222,12 @@ func buildNativeContainer(t *testing.T, image string, want containerObservation,
 			if _, err = pack.CreateContainer(ctx, repeat, inputs, options); err != nil {
 				t.Fatal(err)
 			}
+			buildEncryptedOutput(t, destination, encryptedBuildBits(caseID, encoding), func(path string, encryption *diskimage.EncryptionOptions) error {
+				encryptedOptions := options
+				encryptedOptions.Encryption = encryption
+				_, err := pack.CreateContainer(ctx, path, inputs, encryptedOptions)
+				return err
+			})
 			digest := fileDigest(t, destination)
 			if digest != fileDigest(t, repeat) {
 				t.Fatal("nondeterministic container output")

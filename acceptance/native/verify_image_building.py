@@ -20,6 +20,8 @@ from preservation import digest_values
 from verify_preservation import require
 from metadata_edits import birth_ns
 import container_building as containers
+import encrypted_output
+from image_outputs import verify_identical_outputs
 
 
 def built_devices(attached, apfs, command):
@@ -213,16 +215,6 @@ def verify_container(image, expected, case_id, command):
     return before, total
 
 
-def verify_identical_outputs(images, verify_one):
-    # The host outputs must be byte-identical before native verification. One
-    # Apple check then qualifies those exact bytes for every portable producer.
-    digests = [sha256(image) for image in images]
-    require(images and len(set(digests)) == 1, 'hosts produced different image bytes')
-    digest, entries = verify_one(images[0])
-    require(digest == digests[0], 'image changed between host comparison and native check')
-    print(f'Qualified {len(images)} identical host outputs via {images[0]}', flush=True)
-    return entries
-
 
 def verify_containers(corpus, outputs, major, consumers, command):
     corpus = corpus / 'containers'
@@ -240,6 +232,9 @@ def verify_containers(corpus, outputs, major, consumers, command):
             images = [outputs / f'image-building-{consumer}' / f'macos-{major}' / 'containers' / case['id'] / (encoding + '.dmg')
                       for consumer in consumers]
             total += verify_identical_outputs(images, lambda image: verify_container(image, expected, case['id'], command))
+            bits = encrypted_output.BUILD_PROFILES.get((case['id'], encoding))
+            if bits:
+                encrypted_output.verify(images, bits, command)
     return total
 
 
@@ -256,19 +251,19 @@ def main():
     require(int(subprocess.check_output(['sw_vers', '-productVersion'], text=True).split('.')[0]) == args.expected_major, 'wrong macOS verifier')
     transcript = []
     args.outputs.mkdir(parents=True, exist_ok=True)
-    def command(*argv):
+    def command(*argv, fixture_input=None, expected_success=True):
         print('verify:', *map(str, argv), flush=True)
-        record = {'argv': list(map(str, argv)), 'status': 'started'}
+        record = {'argv': list(map(str, argv)), 'status': 'started', 'expectedSuccess': expected_success}
         transcript.append(record)
         def save():
             (args.outputs / f'image-building-{args.expected_major}.diagnostics.json').write_text(json.dumps(transcript, indent=2) + '\n')
         save()
         try:
-            r = subprocess.run(list(map(str, argv)), capture_output=True, timeout=120)
+            r = subprocess.run(list(map(str, argv)), input=fixture_input, capture_output=True, timeout=120)
         except BaseException as error:
             record.update(status='failed', error=str(error)); save(); raise
         record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace')); save()
-        require(r.returncode == 0, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
+        require((r.returncode == 0) == expected_success, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
         return r.stdout
     total = 0
     for major in args.producers.split(','):
@@ -286,6 +281,9 @@ def main():
                 images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / (encoding + '.dmg')
                           for consumer in args.consumers.split(',')]
                 total += verify_identical_outputs(images, lambda image: verify(image, expected, case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS'))
+                bits = encrypted_output.BUILD_PROFILES.get((case_id, encoding))
+                if bits:
+                    encrypted_output.verify(images, bits, command)
             if case_id == 'apfs':
                 entry = next(e for e in expected['entries'] if e['path'] == 'Fixture/empty-build-root')
                 empty = {'entries': [dict(entry, path='Fixture')],

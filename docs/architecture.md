@@ -378,7 +378,10 @@ output writer. It opens the existing image decoder, applies stricter envelope
 admission than file reading, verifies native CRCs and hashes all logical sectors.
 The shared UDIF encoder then streams every source block range and checks the disk
 hash again. The operation never opens an APFS/HFS+ tree or changes allocation.
-APFS encrypted sectors remain ciphertext. Encrypted DMG envelopes are refused.
+APFS encrypted sectors remain ciphertext. `RepackWithOptions` can unwrap a
+password-only encrypted DMG, preserving the strict admission of its inner image,
+and requires either fresh output encryption or explicit decryption. The original
+credential-free `Repack` continues to refuse encrypted input.
 
 Strict XML resource admission is local to repacking: duplicate keys, unsupported
 resources and unexplained bytes cannot be silently dropped by re-encoding. Native
@@ -428,3 +431,27 @@ Grouped System user objects and the next-object allocator use the observed
 Native continued allocation is an essential gate: fsck alone did not catch an
 incorrect allocator namespace that panicked the kernel. Native qualification
 runs only in disposable macOS VMs; ordinary Go replay never mounts an image.
+
+## Encrypted image construction
+
+`diskimage.Encrypt` is the envelope layer shared by fresh filesystem builds and
+complete-disk repacking. A bounded sector buffer performs encryption while the
+existing UDIF encoder streams into it; a bounded ciphertext buffer amortizes
+writes. The destination must be empty and seekable. The encoder patches the
+plaintext length after the producer and final ciphertext flush succeed. The
+publication layer then flushes/closes the file and applies its existing
+no-overwrite contract. There is no plaintext image staging file.
+
+The public encryption options contain only key size and a borrowed password.
+Fresh random material comes from `crypto/rand`; keys, salt, IV and image identity
+cannot be supplied to make deterministic ciphertext. Passwords are omitted from
+JSON and reports expose only the source/output cipher profiles. Repacking needs
+an explicit output encryption or decryption policy, preventing credential supply
+from implicitly publishing plaintext. Derived temporary key buffers are cleared;
+Go's cipher schedules retain the same erasure limitations as the reader.
+
+Native qualification compares independently decrypted whole devices with already
+qualified plaintext outputs. Identical plaintext host copies are checked once
+per macOS version after byte equality is established. Every randomized encrypted
+copy needs its own native unlock and full-device hash, including the original
+APFS ciphertext and snapshot sectors preserved by repacking.

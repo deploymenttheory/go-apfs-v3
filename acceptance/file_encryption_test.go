@@ -25,6 +25,7 @@ type nativeEncryption struct {
 // comparison used for plain volumes covers decrypted trees, streams, attributes,
 // resource forks, compression, clone modifications and sparse ranges.
 func TestNativeEncryptedReading(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "file-encryption", "APFS_NATIVE_ENCRYPTION", "testdata/encryption", 108, nil)
 }
 

@@ -20,9 +20,9 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
-func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+func packCommand(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if packHasVolumes(args) {
-		return packVolumesCommand(ctx, args, out, diagnostics)
+		return packVolumesCommand(ctx, args, input, out, diagnostics)
 	}
 	f := flag.NewFlagSet("pack", flag.ContinueOnError)
 	f.SetOutput(diagnostics)
@@ -30,6 +30,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		_, _ = fmt.Fprintln(diagnostics, "Usage: apfs pack [options] SOURCE NEW_DMG\n       apfs pack --session NAME [options] NEW_DMG\n       apfs pack --volume NAME [--session NAME | --directory PATH] [volume options] [--volume ...] NEW_DMG\nUse pack --volume NAME --help for APFS container options.")
 		f.PrintDefaults()
 	}
+	encryption := addPackEncryptionFlags(f, true)
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	filesystemName := f.String("filesystem", "", "directory target: apfs, hfsplus or hfsx; sessions retain their format")
@@ -72,7 +73,13 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
 			}
-			report, e := pack.Repack(ctx, operands[0], operands[1], *format)
+			crypt, e := encryption.options(input, true)
+			if e != nil {
+				return e
+			}
+			defer clearPackPasswords(crypt)
+			crypt.Format = *format
+			report, e := pack.RepackWithOptions(ctx, operands[0], operands[1], crypt)
 			if e != nil {
 				return e
 			}
@@ -82,10 +89,15 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 					pack.RepackReport
 				}{1, report})
 			}
-			_, e = fmt.Fprintf(out, "Repacked %s image: %d bytes (%d-byte disk)\nDisk SHA-256: %s\n", report.Format, report.ImageBytes, report.DiskBytes, report.DiskSHA256)
+			_, e = fmt.Fprintf(out, "Repacked %s image: %d bytes (%d-byte disk)\nDisk SHA-256: %s\nImage encryption: %s\n", report.Format, report.ImageBytes, report.DiskBytes, report.DiskSHA256, packEncryptionLabel(report.Encryption))
 			return e
 		}
 	}
+	crypt, err := encryption.options(input, false)
+	if err != nil {
+		return err
+	}
+	defer clearPackPasswords(crypt)
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {
 		clock, err = time.Parse(time.RFC3339, *fixed)
@@ -93,7 +105,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			return err
 		}
 	}
-	options := pack.Options{Format: *format, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
+	options := pack.Options{Format: *format, Encryption: crypt.Encryption, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -207,7 +219,7 @@ func packCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 			AttributesUnavailable []uint64          `json:"attributesUnavailable,omitempty"`
 		}{1, report, provenance.Defaulted, provenance.AttributesUnavailable})
 	}
-	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes)
+	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\nImage encryption: %s\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes, packEncryptionLabel(report.Encryption))
 	if err == nil && (len(provenance.Defaulted) > 0 || len(provenance.AttributesUnavailable) > 0) {
 		_, err = fmt.Fprintf(out, "Host metadata defaults on %d objects; attributes unavailable on %d objects.\n", len(provenance.Defaulted), len(provenance.AttributesUnavailable))
 	}

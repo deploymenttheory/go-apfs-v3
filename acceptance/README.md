@@ -558,20 +558,21 @@ The larger container admits two native volumes; its retained encoded file is
 small. Raw, UDRO, UDZO and UDBZ input profiles remain distinct. Apple-attached raw
 devices supply complete disk SHA-256 values. Native filesystem APIs record files,
 raw attributes/forks, identities and snapshot history; Apple verifies signatures.
-Native signed and encrypted DMGs supply refusal controls.
+Native signed DMGs and encrypted DMGs without credentials supply refusal controls.
 
 `TestNativeImageRepacking` checks provenance, required producers/profiles and
 refusal outcomes. It builds UDRO and UDZO twice, compares native whole-disk hashes,
 checks deterministic output and leaves source hashes unchanged. Raw input is
 retained gzip-compressed solely to keep the repository small and is expanded to
 a test temporary directory before invoking the production API. Production
-repacking does not need raw scratch. Local positive replay takes about 7 seconds.
+repacking does not need raw scratch.
 
 `native/verify_image_repacking.py` independently verifies every host output on
 macOS 15, 26 and 27: `hdiutil verify`, whole raw-device hashes, native partition and
 volume inventories, filesystem checks, exact mounted files/raw attributes,
 snapshot historical contents, native APFS unlocking and signed-app verification.
-All 90 outputs are checked on each Mac; cross-host image hashes must match. It
+All 90 plaintext outputs must agree in triples before each Mac checks the 30
+distinct images. It
 never invokes Go. Source references and diagnostics are retained with hashes.
 
 ```sh
@@ -585,5 +586,52 @@ CI sets `APFS_REQUIRED_NATIVE_MAJORS=15,26,27`. Missing cases, negative controls
 producers or returned output images fail; unsupported input never counts as a
 successful positive case. Corrupt CRCs, missing/overlapping runs, unknown resources,
 publication refusal, streaming failure and cancellation also have focused unit
-controls. This increment does not qualify image decryption/re-encryption,
-filesystem repair, damaged-image salvage or signing implementations.
+controls. Filesystem repair, damaged-image salvage and signing implementations
+remain outside this family.
+
+### Encrypted image output in the existing build/repack families
+
+These are output checks, using the same capture/replay/readback workflow above.
+They establish that Go-produced encrypted images are usable by Apple tools and
+that changing or removing a DMG password preserves the complete disk.
+
+| Case | Independent verdict | Value |
+| --- | --- | --- |
+| APFS, case-sensitive APFS, HFS+, HFSX and System/Data builds; AES-128/256 and UDRO/UDZO | Apple unlock, cipher report, wrong-password rejection, UDIF verification and complete device hash against the already qualified plaintext build | Every builder can publish a native-readable encrypted image |
+| All five repacking disk profiles inside fresh encryption | Exact native decrypted device hash, including unused sectors, retained snapshots and opaque encrypted APFS sectors | Envelope encryption does not rebuild or lose filesystem state |
+| Apple-encrypted signed-app image with a new password | New password unlocks, old password fails, full native disk hash stays equal | Password replacement preserves data and application signatures |
+| Explicit decryption of the same source | Apple reports no image encryption; same complete native disk bytes | Removing encryption is an intentional output policy |
+| Existing AES-256 UDRW source, decrypted and re-encrypted as AES-128 UDZO | Compare Apple's attached source device directly with the output devices | Raw and compressed encrypted sources use the same preservation contract |
+
+There are 108 distinct randomized encrypted outputs and 18 additional decrypted
+outputs across the three source versions and three portable hosts. Every Mac
+checks every encrypted output; their hashes must differ across hosts while their
+decrypted device hashes match. Decrypted outputs must agree across hosts. This
+is a bounded selection of cipher/format/profile combinations, not a repeated
+Cartesian product of all file cases. The native verifier never uses Go to derive
+the final expected bytes. `native/encrypted_output.py` shares only encryption
+readback between the existing two families, and `native/image_outputs.py` checks
+host equality before running native verification once on identical bytes.
+
+The same pure-Go acceptance tests run locally against retained Apple fixtures;
+only hosted disposable VMs run the native output verifiers. Unit tests isolate
+streaming boundaries, randomness, malformed headers, encrypted inner checksums
+and signatures, credential policies, publication cleanup and interrupted output.
+
+The portable acceptance families read immutable references and own separate
+scratch/output paths. They can run concurrently; CI uses `-parallel 2` to bound
+active families and memory. Race CI also uses `-p 1`, giving each package the
+runner CPU budget instead of competing with other instrumented packages.
+Each family retains its sequential scenario checks,
+required inventories and before/after hashes. This scheduling applies only to
+Go replay; native attachment and filesystem mutations remain sequential within
+each disposable macOS job. The race timeout stays at five minutes.
+
+For a native-verifier-only correction, dispatch the existing compatibility
+workflow with `readback_run` set to a prior run whose three captures and three
+portable replays succeeded. Each Mac validates that evidence and compares source
+commits before downloading the archived references and outputs. Changes outside
+native helpers, documentation and the two CI workflows require fresh capture and
+replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
+this admission. Every native readback still runs on all three macOS versions.
+Ordinary PR runs continue to capture and replay fresh data.

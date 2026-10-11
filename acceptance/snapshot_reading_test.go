@@ -47,6 +47,7 @@ type nativeSnapshotPasswords struct {
 // the final image. The source-writing recipe and Go-created snapshots cannot
 // substitute for this independent evidence. An absent corpus fails the gate.
 func TestNativeSnapshotReading(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "snapshot-reading", "APFS_NATIVE_SNAPSHOTS", "testdata/snapshots", 105, nil)
 }
 

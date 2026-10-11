@@ -24,6 +24,7 @@ import (
 // persistent session, and builds both UDIF encodings twice. CI returns every
 // host's actual images to every Mac for fsck, mounted readback and codesign.
 func TestNativeImageBuilding(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "image-building", "APFS_NATIVE_IMAGE_BUILDING", "testdata/image-building", 420, nil)
 }
 
@@ -91,6 +92,12 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 			if _, err = pack.Create(ctx, repeat, s, options); err != nil {
 				t.Fatal(err)
 			}
+			buildEncryptedOutput(t, destination, encryptedBuildBits(strings.TrimPrefix(caseID, "image-building/"), format), func(path string, encryption *diskimage.EncryptionOptions) error {
+				encryptedOptions := options
+				encryptedOptions.Encryption = encryption
+				_, err := pack.Create(ctx, path, s, encryptedOptions)
+				return err
+			})
 			sum := fileDigest(t, destination)
 			if sum != fileDigest(t, repeat) {
 				t.Fatal("identical build inputs produced different bytes")

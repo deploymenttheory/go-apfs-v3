@@ -26,6 +26,7 @@ type nativeDiskImage struct {
 // independently encrypted APFS volume. File comparisons use native mounted
 // results; no image or expected bytes are produced by Go.
 func TestNativeEncryptedDiskImages(t *testing.T) {
+	t.Parallel()
 	testFileCorpus(t, "disk-image-encryption", "APFS_NATIVE_ENCRYPTED_DMG", "testdata/encrypted-dmg", 107, nil)
 }
 
