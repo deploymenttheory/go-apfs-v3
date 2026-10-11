@@ -12,7 +12,7 @@ import shutil
 import tempfile
 
 from capture import native_extents, sha256
-from container_building import attached, mount, check_filesystem, require_disposable_host
+from container_building import attached, check_filesystem, require_disposable_host
 import file_compression as compression
 from hfs_header_growth import retain_file
 from image_building import create_signed_app
@@ -32,6 +32,13 @@ PEAK = (('alias', 'grow', 20 << 20, False), ('small', 'small', 7000, False),
 FINAL = (('fragmented-data', 'shrink', 513, False),
          ('fragmented-resource', 'fork', 131073, True), ('empty', 'empty', 0, False),
          ('independent', 'independent', 65537, False))
+
+
+def mount(volume, directory, command, readonly=False):
+    require_disposable_host()
+    directory.mkdir()
+    command('diskutil', 'mount', *(['readOnly'] if readonly else []),
+            '-mountOptions', 'owners,noatime', '-mountPoint', directory, volume['DeviceIdentifier'])
 
 
 def payload(label, size):
