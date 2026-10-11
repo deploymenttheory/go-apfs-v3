@@ -104,7 +104,7 @@ func TestJournaledMutationPreservesStorageAndRefusesBackingFiles(t *testing.T) {
 					t.Fatal("journal storage changed")
 				}
 			}
-			for _, name := range []string{".journal", ".journal_info_block"} {
+			for _, name := range []string{".journal", ".journal_info_block", ".JOURNAL"} {
 				for _, change := range []Change{{Path: "/" + name, Mode: "0755"}, {Path: "/" + name, Data: bytes.NewReader(nil)}, {Path: "/" + name, Data: bytes.NewReader([]byte("fork")), ResourceFork: true}} {
 					before := bytes.Clone(disk.data)
 					if _, e := Modify(ctx, disk, []Change{change}, mutationTime); !errors.Is(e, filesystem.ErrUnsupported) {
@@ -124,7 +124,7 @@ func TestJournaledMutationPreservesStorageAndRefusesBackingFiles(t *testing.T) {
 
 func TestJournalAdmissionRejectsUnsafeStateBeforeWriting(t *testing.T) {
 	b, info, journal := journalMutationFixture(t, binary.LittleEndian)
-	for _, kind := range []string{"external", "need-init", "unknown-flags", "info-range", "journal-range", "overlap", "checksum", "magic", "endian", "size", "header-size", "list-size", "cursor-range", "cursor-alignment", "pending", "alternate"} {
+	for _, kind := range []string{"external", "need-init", "unknown-flags", "info-range", "journal-range", "overlap", "checksum", "magic", "old-header", "endian", "size", "header-size", "list-size", "cursor-range", "cursor-alignment", "pending", "alternate"} {
 		t.Run(kind, func(t *testing.T) {
 			badDisk := bytes.Clone(b)
 			h := badDisk[journal : journal+48]
@@ -147,6 +147,8 @@ func TestJournalAdmissionRejectsUnsafeStateBeforeWriting(t *testing.T) {
 				h[36] ^= 1
 			case "magic":
 				h[0] ^= 1
+			case "old-header":
+				le.PutUint32(h, 0x4a484452)
 			case "endian":
 				h[4] ^= 1
 			case "size":
@@ -172,8 +174,15 @@ func TestJournalAdmissionRejectsUnsafeStateBeforeWriting(t *testing.T) {
 			}
 			disk := &memoryMutation{badDisk}
 			before := bytes.Clone(badDisk)
-			if _, e := Modify(context.Background(), disk, []Change{{Path: "/file", Data: bytes.NewReader([]byte("new"))}}, mutationTime); e == nil {
+			_, e := Modify(context.Background(), disk, []Change{{Path: "/file", Data: bytes.NewReader([]byte("new"))}}, mutationTime)
+			if e == nil {
 				t.Fatal("unsafe journal admitted")
+			}
+			if (kind == "pending" || kind == "old-header") && !errors.Is(e, filesystem.ErrUnsupported) {
+				t.Fatal("unsupported journal classification", e)
+			}
+			if (kind == "magic" || kind == "checksum") && !errors.Is(e, filesystem.ErrCorrupt) {
+				t.Fatal("corrupt journal classification", e)
 			}
 			if !bytes.Equal(before, badDisk) {
 				t.Fatal("journal admission changed bytes")

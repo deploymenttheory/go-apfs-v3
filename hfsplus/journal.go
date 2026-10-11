@@ -100,8 +100,10 @@ func (m *mutation) admitJournal() error {
 		order = be
 	case binary.LittleEndian.Uint32(h) == journalHeaderMagic:
 		order = binary.LittleEndian
+	case be.Uint32(h) == 0x4a484452 || binary.LittleEndian.Uint32(h) == 0x4a484452: // OLD_JOURNAL_HEADER_MAGIC
+		return fmt.Errorf("old journal header: %w", filesystem.ErrUnsupported)
 	default:
-		return fmt.Errorf("unsupported journal header magic: %w", filesystem.ErrUnsupported)
+		return bad("journal header magic")
 	}
 	if order.Uint32(h[4:]) != journalEndianMagic {
 		return bad("journal byte order")
@@ -128,13 +130,13 @@ func (m *mutation) admitJournal() error {
 func (m *mutation) journalFile(name string, offset, size uint64) (uint64, error) {
 	entry, err := m.v.Lookup(m.ctx, 2, name)
 	if err != nil {
-		return 0, bad("missing journal backing file")
+		return 0, fmt.Errorf("journal backing file %s: %w", name, err)
 	}
 	b, err := m.v.catalogRecord(m.ctx, entry.Object)
 	if err != nil {
 		return 0, err
 	}
-	if len(b) != 248 || be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 || be.Uint64(b[168:]) != 0 {
+	if len(b) != 248 || be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 || uint64(be.Uint32(b[8:])) != entry.Object || b[41]&0x20 != 0 || be.Uint64(b[168:]) != 0 {
 		return 0, bad("journal backing file type")
 	}
 	f, err := m.v.fileFork(m.ctx, be.Uint32(b[8:]), 0, b[88:168])

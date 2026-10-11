@@ -151,5 +151,5 @@ the journal and leave it empty on unmount; Go then re-edits that native state an
 Apple qualifies it again. Profiles have separate bounded jobs in the same family.
 
 The journaled baseline is retained separately under
-`acceptance/testdata/hfs-journaled-editing` (about 2 MiB). All six sources replay
+`acceptance/testdata/hfs-journaled-editing` (about 11 MiB). All six sources replay
 in about 21 seconds locally. Fresh native verification remains a required gate.

@@ -10,7 +10,7 @@ and harness were not imported.
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean nonjournaled HFS+/HFSX regular-file edits and completed-output transactions qualified through portable/native/Go/native cycles on macOS 15/26/27; retained native references committed. Journaling, physical power-loss qualification and APFS mutation pending |
+| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX regular-file edits (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Journal replay, physical power-loss qualification and APFS mutation pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
 | 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -531,9 +531,9 @@ capture/replay stays in the existing compatibility workflow; the compact retaine
 family runs locally without native operations. Exact native raw-copy admission
 continues to qualify HFS output modification. Caller capacities are preserved.
 
-This closes the reference/research increment before phase 5. The next bounded
-implementation increment is HFS+/HFSX existing-filesystem edits and durable
-transactions; this reference family does not claim that capability is implemented.
+This reference/research increment supplies the native foundation for the phase 5
+HFS+/HFSX existing-filesystem editor below. The reference family itself does not
+implement writes or transactions.
 
 
 ## Existing HFS+/HFSX file editing increment

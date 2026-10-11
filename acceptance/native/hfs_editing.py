@@ -111,7 +111,7 @@ def apply_native(root, phase, command):
 
 
 def journal_backing_files(stream, volume):
-    """Observe raw native CNIDs: hfs_lookup deliberately hides journal vnodes.
+    """Observe raw native CNIDs: mounted pathname lookup hides journal files.
 
     Root records precede later parents in the catalog. This bounded observer
     reads their leaf chain through the header's inline catalog extents only;
