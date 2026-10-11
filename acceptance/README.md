@@ -700,6 +700,13 @@ acceptance groups retain five-minute deadlines. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
 each disposable macOS job.
 
+Retained-corpus portable CI uses the same family boundaries on all three hosts.
+Image construction, image repacking and existing HFS edits run in separate jobs;
+the default portable job tests every library plus readers, workspaces and future
+acceptance families. This prevents full-disk writing workloads from consuming a
+shared package deadline on Windows. Each family retains a five-minute deadline,
+and the required quality check requires every portable and race job to pass.
+
 Fresh native replay also schedules image and container construction separately
 for each source macOS version on Linux, Windows and macOS. The Windows
 construction family across all three sources nearly consumed the six-minute test

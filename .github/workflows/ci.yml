@@ -32,8 +32,35 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - run: go test -v -parallel 2 -timeout 5m ./...
+      - name: Test libraries, readers, workspaces and future acceptance families
+        # Full-disk writers have separate required retained-corpus jobs below.
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(HFS(Journaled)?Image(Catalog)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
       - run: go vet ./...
+
+  portable_acceptance:
+    name: Retained acceptance (${{ matrix.family }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-26]
+        family: [image construction, image repacking, existing HFS edits]
+        include:
+          - family: image construction
+            tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
+          - family: image repacking
+            tests: '^TestNativeImageRepacking$'
+          - family: existing HFS edits
+            tests: '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compare the complete family with retained Apple observations
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -112,7 +139,7 @@ jobs:
         run: go test -race -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
 
   quality:
-    needs: [race_library, race_acceptance]
+    needs: [portable, portable_acceptance, race_library, race_acceptance]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -129,9 +156,11 @@ jobs:
           version: v2.14.0
       - name: Check native verifier logic without running native tools
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
-      - name: Require every library and acceptance race group
+      - name: Require every portable and race group
         if: always()
-        run: test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
+        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
+          PORTABLE: ${{ needs.portable.result }}
+          RETAINED_ACCEPTANCE: ${{ needs.portable_acceptance.result }}
           LIBRARY_RACES: ${{ needs.race_library.result }}
           ACCEPTANCE_RACES: ${{ needs.race_acceptance.result }}
