@@ -132,9 +132,10 @@ def verify_native_allocation(image, command, empty=False, apfs=True, file_compre
             if not apfs:
                 # HFS shadow-backed catalog growth left a stale alternate
                 # header even in an Apple-rewrapped UDRO. Direct native writes
-                # passed. Admit the private UDRW only after whole-device SHA
-                # and capacity equality prove conversion changed no sectors.
-                image = image_mutation.writable_copy(image, work / 'native-writable.dmg',
+                # passed. Stream the exact Apple-attached sectors to a private
+                # raw image, then require native whole-device SHA/capacity
+                # equality before modifying it. Conversion changed sectors.
+                image = image_mutation.writable_copy(image, work / 'native-writable.raw',
                                                     command, encrypted_output.disk_hash)
         storage = ['-shadow', shadow] if use_shadow else []
         def mount_image(readonly=False):

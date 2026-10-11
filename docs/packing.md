@@ -395,7 +395,7 @@ original image hash must remain unchanged. Fresh builds qualify native continued
 use, not Go transactions or power-loss durability.
 
 HFS file-compression outputs undergo the same native modification workload on a
-private Apple-converted UDRW copy. Native device size and complete sector SHA-256
+private raw copy streamed from an Apple-attached device. Native device size and complete sector SHA-256
 must match the original output before any write. The
 [HFS source study and route controls](native-hfs-writes.md) explain why mutation
 uses direct writable copies. Published read-only DMGs retain independent image,

@@ -2,11 +2,11 @@
 
 HFS+/HFSX outputs first pass Apple image verification, unmounted filesystem
 checks, read-only kernel observations, metadata/fork comparisons and codesign.
-Subsequent modification uses a private Apple-converted UDRW image. Before any
-write, Apple-attached device size and complete sector SHA-256 must match the
-original Go output. The conversion must also leave the original image hash
-unchanged. This admits the exact constructed filesystem for direct native writes.
-It does not admit an Apple reformatted or repaired filesystem.
+Subsequent modification uses a private raw image streamed from the Apple-attached
+device. Before any write, its native device size and complete sector SHA-256 must
+match the copied source sectors. Copying must also leave the original image hash
+unchanged. This admits the exact constructed filesystem for direct native writes,
+including unused sectors.
 
 The full workload remains: compression replacement through an alias, writes to
 independent forks, file growth, hard linking, rename, unlink, 96 new entries,
@@ -46,8 +46,13 @@ unchanged. This experiment isolates a difference in the shadow-backed native
 write route; it does not establish the private DiskImages driver's internal
 cause or claim that all shadow writes fail. Rewrapping alone did not resolve it.
 
-Acceptance therefore qualifies native continued use through the direct writable
-route, adding full device equality before modification. Failed checker results
+The stronger admission check in
+[run 38120590877](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38120590877)
+then rejected Apple's UDRW conversion: the device capacity stayed at 10,936,320
+bytes, but sector hashes differed. A successful converted-image control therefore
+does not prove that the original disk sectors support modification. Acceptance
+uses a streamed raw copy instead, requiring full device equality before writing.
+Failed checker results
 remain failures; no repair or checker-error exception is used. The original
 read-only DMG is independently qualified in its published encoding too.
 

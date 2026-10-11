@@ -967,7 +967,7 @@
         {"path": "lib_fsck_hfs/dfalib/SVerify2.c", "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"},
         {"path": "lib_fsck_hfs/dfalib/SUtils.c", "sha256": "fa03e4c21a28a8434245746750733857cc415a56d8e28061215bbd735729a958"}
       ],
-      "basis": "ExtendBTreeFile requests synchronous primary/alternate header flushing after system-file growth. The separately inventoried hfs_vfsops writer copies updated metadata to the alternate header. Checker debug output identifies catalog total-block disagreement and invalidates the alternate header. No kernel/checker code copied; native route controls and sector-preserving writable conversion qualify the original Go filesystem independently."
+      "basis": "ExtendBTreeFile requests synchronous primary/alternate header flushing after system-file growth. The separately inventoried hfs_vfsops writer copies updated metadata to the alternate header. Checker debug output identifies catalog total-block disagreement and invalidates the alternate header. No kernel/checker code copied; native route controls and exact raw-sector copying qualify the original Go filesystem independently."
     },
     {
       "id": "native-hfs-header-route-controls",
@@ -975,7 +975,7 @@
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38120009221",
       "evidence": "docs/native-hfs-writes.md",
       "components": ["acceptance/native/image_mutation.py", "acceptance/native/test_image_mutation.py", "acceptance/native/verify_image_building.py", "acceptance/native/diagnose_hfs_headers.py"],
-      "basis": "The same Go HFS+ filesystem, its Apple UDRO rewrap, and an Apple UDRW conversion receive the identical mutation/check/remount workload. Apple-rewrapped shadow writes leave stale 92-block alternate headers after the primary catalog grows to 100 on all three Macs; direct writable copies pass with matching headers on all three. One original shadow control passes on macOS 15, recording variability rather than claiming universal failure. Acceptance uses private UDRW copies only after exact native device size/full sector hash and original image preservation checks; no repair or failed-checker exception is admitted. Private DiskImages internals are not inferred from this evidence."
+      "basis": "The Go HFS+ filesystem, its Apple UDRO rewrap, and an Apple UDRW conversion receive the identical mutation/check/remount workload. Apple-rewrapped shadow writes leave stale 92-block alternate headers after the primary catalog grows to 100 on all three Macs; converted direct writes pass with matching headers. One original shadow control passes on macOS 15, recording variability. Stronger admission in run 38120590877 rejects UDRW conversion because sector hashes change despite equal device capacity; those successful converted controls cannot independently qualify the original disk. Acceptance instead streams exact Apple-attached sectors to private raw copies and requires native full device size/hash equality plus original image preservation before writes. No repair or failed-checker exception is admitted. Private DiskImages internals are not inferred from this evidence."
     }
   ]
 }
