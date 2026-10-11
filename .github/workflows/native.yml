@@ -14,6 +14,11 @@ on:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      hfs_reference_capture:
+        description: 'Capture matched HFS header-growth disks and checker outcomes only'
+        required: false
+        type: boolean
+        default: false
       readback_run:
         description: 'Prior run with successful captures/replays; verifier-only changes permitted'
         required: false
@@ -33,7 +38,7 @@ env:
 
 jobs:
   produce:
-    if: ${{ inputs.readback_run == '' }}
+    if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -227,7 +232,7 @@ jobs:
           EOF
 
   readback:
-    if: ${{ always() && (needs.replay.result == 'success' || inputs.readback_run != '') }}
+    if: ${{ always() && !inputs.hfs_reference_capture && (needs.replay.result == 'success' || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
@@ -344,7 +349,7 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: always()
+    if: ${{ always() && !inputs.hfs_reference_capture }}
     needs: [produce, replay, readback]
     runs-on: ubuntu-24.04
     steps:
@@ -362,3 +367,47 @@ jobs:
           else
             test "$PRODUCERS" = success && test "$CONSUMERS" = success && test "$READBACK" = success
           fi
+
+  hfs_reference:
+    if: ${{ inputs.hfs_reference_capture }}
+    name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            major: 15
+          - runner: macos-26
+            major: 26
+          - runner: xcode-27
+            major: 27
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build explicitly labelled Go construction controls
+        run: |
+          mkdir -p artifacts/hfs-empty artifacts/hfs-go
+          go build -o artifacts/apfs ./cmd/apfs
+          for filesystem in hfsplus hfsx; do
+            for capacity in 10936320 16777216; do
+              artifacts/apfs pack --filesystem "$filesystem" --capacity "$capacity" --format UDRO --file-compression none --volume-name Growth --time 2025-06-07T08:09:10Z artifacts/hfs-empty "artifacts/hfs-go/$filesystem-$capacity.dmg"
+            done
+          done
+      - name: Capture freshly Apple-formatted controls, exact disks and native outcomes
+        run: python3 acceptance/native/hfs_header_growth.py --expected-major "${{ matrix.major }}" --go-images artifacts/hfs-go --output artifacts/hfs-header-growth/macos-${{ matrix.major }}
+      - name: Retain complete and interrupted captures for analysis
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-header-growth-${{ matrix.major }}
+          path: |
+            artifacts/hfs-header-growth/
+            artifacts/hfs-go/
+          if-no-files-found: error
