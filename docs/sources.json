@@ -747,7 +747,7 @@
           "sha256": "22413ad83654198946ad26797c074fc9c64500a9fe75abbfcff426731ddce117"
         }
       ],
-      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, legacy regular-file indirection and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output."
+      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, legacy regular-file indirection and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output. Allocation bitmap initialization follows makehfs zeroing and MarkExtentUsed: only real allocated extents and the header blocks are marked; padding beyond totalBlocks stays clear. The independently studied CheckVolumeBitMap compares the entire final 1024-bit segment, exposing the old incorrect all-ones padding when automatic capacities end within a segment."
     },
     {
       "id": "native-hfs-image-building-27",
@@ -915,6 +915,24 @@
       ],
       "evidence": "acceptance/testdata/image-building/macos-27/containers/manifest.json",
       "basis": "Independent Apple-created shared and grouped containers provide UUIDs, per-volume reserves/quotas/case/roles, group inventories, signed application trees and inode namespaces. Native shadow writes establish bounded quota/reserve enforcement, protected-volume allocation, independent writes and reuse after remount. Original references and copied capture sources remain immutable. Full macOS 15/26/27 capture, portable replay and VM-isolated native readback qualify output; fsck alone is insufficient."
+    },
+    {
+      "id": "apple-hfs-bitmap-checker",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "hfsplus/build.go",
+        "pack/capacity_test.go",
+        "docs/image-sizing.md"
+      ],
+      "files": [
+        {
+          "path": "lib_fsck_hfs/dfalib/VolumeBitmapCheck.c",
+          "sha256": "cfe2207cc8fb3ff890d6567222c9ef619fc5c4cdf29065bcadd16a76f2ea2c15"
+        }
+      ],
+      "basis": "BitMapCheckBegin captures real volume headers and initializes all other bits clear. CheckVolumeBitMap compares complete 1024-bit segments with memcmp, including final padding, and reports extra set bits as orphaned allocation. No checker code is copied. macOS 15/26/27 run 38113498604 rejected the old bitmap in a 2631-block volume, whose final segment incorrectly marked 441 nonexistent blocks. Portable regressions fail on the old output and independently check clear tail bits and consistent free counts; fresh native fsck remains required."
     }
   ]
 }

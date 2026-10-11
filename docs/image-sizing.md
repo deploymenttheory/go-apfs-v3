@@ -70,3 +70,11 @@ acceptance requires Apple to construct the same source at the Go capacity and
 retains the full growth, hard-link, rename, unlink, metadata growth, reuse,
 compression replacement, filesystem-check and remount workloads. All native
 operations run on disposable CI VMs.
+
+HFS+ allocation bitmap padding stays clear, following `makehfs` initialization.
+Apple's [`CheckVolumeBitMap`](https://github.com/apple-oss-distributions/hfs/blob/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/lib_fsck_hfs/dfalib/VolumeBitmapCheck.c)
+compares complete 1024-bit segments, including the padding after the last volume
+block. Marking that padding allocated produces the native orphaned-block error
+when the volume ends partway through a segment. Earlier fixed 64/160 MiB volumes
+masked that mistake. Regression tests require partial final segments, clear
+padding, and agreement between the bitmap and header free counts.

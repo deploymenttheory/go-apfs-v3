@@ -69,6 +69,33 @@ func TestAutomaticCapacityRetainsPaddingAfterLayout(t *testing.T) {
 					}
 					free = uint64(volume.FreeBlocks) * uint64(volume.BlockSize)
 					padding = 2 << 20
+					header := make([]byte, 512)
+					if _, err = section.ReadAt(header, 1024); err != nil {
+						t.Fatal(err)
+					}
+					bitmap := make([]byte, binary.BigEndian.Uint64(header[112:]))
+					start := binary.BigEndian.Uint32(header[128:])
+					if _, err = section.ReadAt(bitmap, int64(start)*int64(volume.BlockSize)); err != nil {
+						t.Fatal(err)
+					}
+					if volume.BlockCount%1024 == 0 {
+						t.Fatal("regression requires a partial final bitmap segment")
+					}
+					// Apple CheckVolumeBitMap compares complete 1024-bit segments.
+					// The formatter leaves padding beyond totalBlocks clear.
+					var bitmapFree uint32
+					for i := uint32(0); i < uint32(len(bitmap))*8; i++ {
+						set := bitmap[i/8]&(0x80>>(i%8)) != 0
+						if i >= volume.BlockCount && set {
+							t.Fatalf("bitmap padding claims nonexistent allocation block %d", i)
+						}
+						if i < volume.BlockCount && !set {
+							bitmapFree++
+						}
+					}
+					if bitmapFree != volume.FreeBlocks {
+						t.Fatal("bitmap and header free counts differ", bitmapFree, volume.FreeBlocks)
+					}
 				}
 				if minimum := padding + uint64(payload)/8; free < minimum {
 					t.Fatalf("final layout lost padding: free %d, require at least %d", free, minimum)

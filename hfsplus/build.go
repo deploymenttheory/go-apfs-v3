@@ -506,10 +506,8 @@ func (p *Layout) arrange(ctx context.Context) error {
 		bitmap[i/8] |= 0x80 >> (i % 8)
 	}
 	bitmap[(total-1)/8] |= 0x80 >> ((total - 1) % 8)
-	// Bits beyond the volume are allocated, following makehfs's bitmap convention.
-	for i := total; i < uint64(len(bitmap))*8; i++ {
-		bitmap[i/8] |= 0x80 >> (i % 8)
-	}
+	// makehfs leaves bitmap padding clear. CheckVolumeBitMap compares the
+	// complete final 1024-bit segment, including bits beyond totalBlocks.
 	header := make([]byte, 512)
 	copy(header, "H+")
 	be.PutUint16(header[2:], 4)
