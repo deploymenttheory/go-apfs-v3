@@ -231,7 +231,9 @@ jobs:
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    # Qualify 63 distinct images, including native modification of the 24 new
+    # file-compression outputs. The previous 39-image gate used up to 14 minutes.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
