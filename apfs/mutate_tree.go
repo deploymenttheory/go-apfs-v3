@@ -108,6 +108,22 @@ func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read
 		}
 		n := &buildTreeNode{level: uint16(level), address: address, oid: id}
 		for i, r := range records {
+			// Suffix ordering reads typed fields. Validate their bounds before
+			// comparing even the first key of an untrusted filesystem node.
+			if subtype == 14 {
+				minimum := 8
+				switch prefix(r.key).kind {
+				case 4:
+					minimum = 11
+				case 5, 8:
+					minimum = 16
+				case 9:
+					minimum = 13
+				}
+				if len(r.key) < minimum {
+					return nil, corrupt("mutation filesystem key bounds", 0)
+				}
+			}
 			if i > 0 && !less(records[i-1].key, r.key) {
 				return nil, corrupt("mutation tree key order", 0)
 			}
