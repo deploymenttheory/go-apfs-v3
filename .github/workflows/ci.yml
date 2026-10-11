@@ -62,7 +62,16 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained Apple observations
+        if: matrix.family != 'existing APFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+      # Both APFS groups replay all three source versions. Separate invocations
+      # keep a bounded deadline per group on Windows without adding more jobs.
+      - name: Compare APFS file edits with retained Apple observations
+        if: matrix.family == 'existing APFS edits'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$'
+      - name: Compare APFS directory edits with retained Apple observations
+        if: matrix.family == 'existing APFS edits'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
