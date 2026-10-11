@@ -227,6 +227,7 @@ def capture(expected_major, output, journaled=False):
     output.mkdir(parents=True)
     command = Commands(output / 'commands.json')
     cases = []
+    catalog_cases = []
     with tempfile.TemporaryDirectory(prefix='hfs-existing-edits-') as tmp:
         work = Path(tmp)
         for filesystem in ('hfsplus', 'hfsx'):
@@ -251,6 +252,10 @@ def capture(expected_major, output, journaled=False):
             source = retain_file(image, output / (filesystem + '-source.raw.gz'))
             case = {'id': filesystem, 'source': source, 'before': before, 'states': {},
                     'allocationPressure': pressure}
+            from hfs_catalog_editing import capture_case
+            catalog_case = capture_case(image, before, filesystem, work, output, command)
+            catalog_case['source'] = source
+            catalog_cases.append(catalog_case)
             for phase in ('peak', 'final'):
                 edited = work / (filesystem + '-' + phase + '.raw')
                 shutil.copyfile(image, edited)
@@ -278,6 +283,8 @@ def capture(expected_major, output, journaled=False):
                 'capacityBytes': CAPACITY,
                 'commandsSHA256': hashlib.sha256((output / 'commands.json').read_bytes()).hexdigest()}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    from hfs_catalog_editing import write_manifest
+    write_manifest(output, producer, catalog_cases, expected_major, journaled)
 
 
 if __name__ == '__main__':

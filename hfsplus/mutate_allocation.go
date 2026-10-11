@@ -65,6 +65,9 @@ type mutation struct {
 	journal         *mutationJournal
 	trees           map[uint32]*mutableTree
 	overflowUsed    map[string]bool
+	catalog         map[uint32]*catalogItem
+	children        map[uint32]map[string]*catalogItem
+	reservedIDs     map[uint32]bool
 }
 
 func (m *mutation) write(p []byte, off uint64) error {
@@ -301,7 +304,7 @@ func (m *mutation) growTree(t *mutableTree) error {
 	if err != nil {
 		return err
 	}
-	if len(runs) > 8 {
+	if len(runs) > 8 && t.id != 4 {
 		return fmt.Errorf("fragmented metadata-file extension: %w", filesystem.ErrUnsupported)
 	}
 	size := uint64(blocks+uint32(add)) * uint64(m.v.BlockSize)
@@ -316,7 +319,13 @@ func (m *mutation) growTree(t *mutableTree) error {
 			return err
 		}
 	}
-	encodeRuns(m.header[t.descriptor:t.descriptor+80], size, runs)
+	if t.id == 4 {
+		if err = m.storeExtentRuns(4, 0, m.header[t.descriptor:t.descriptor+80], size, runs); err != nil {
+			return err
+		}
+	} else {
+		encodeRuns(m.header[t.descriptor:t.descriptor+80], size, runs)
+	}
 	be.PutUint32(t.header[40:], be.Uint32(t.header[40:])+newTotal-t.total)
 	t.total = newTotal
 	be.PutUint32(t.header[36:], newTotal)
@@ -324,6 +333,10 @@ func (m *mutation) growTree(t *mutableTree) error {
 	if t.id == 3 {
 		m.v.overflow.fork = f
 		m.v.overflow.total = newTotal
+	}
+	if t.id == 4 {
+		m.v.catalog.fork = f
+		m.v.catalog.total = newTotal
 	}
 	if t.id == 8 {
 		m.v.attributeFork = bytesCopy(m.header[352:432])

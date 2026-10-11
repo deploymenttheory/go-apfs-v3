@@ -98,7 +98,7 @@ func TestExistingImageOutputPreservesSourceAndIsReproducible(t *testing.T) {
 	if e != nil || !bytes.Equal(after, original) {
 		t.Fatal("source changed", e)
 	}
-	for _, change := range []hfsplus.Change{{Path: "/absent", Mode: "0755"}, {Path: "/file", Data: brokenInput{}}, {Path: "/file", Data: hugeInput{}}} {
+	for _, change := range []hfsplus.Change{{Path: "/absent", Mode: "0755"}, {Path: "/file", Data: brokenInput{}}, {Path: "/file", Data: hugeInput{}}, {Path: "/created-failure", Data: brokenInput{}}, {Path: "/created-full", Data: hugeInput{}}} {
 		out := filepath.Join(t.TempDir(), "failed.dmg")
 		if _, e = imageedit.Apply(ctx, source, out, imageedit.Options{Time: clock}, []hfsplus.Change{change}); e == nil {
 			t.Fatal("bad transaction succeeded")
@@ -182,7 +182,7 @@ func (hugeInput) Size() int64 { return 1 << 40 }
 // It intentionally leaves only private scratch, which the parent removes.
 func TestInterruptedImageTransaction(t *testing.T) {
 	if os.Getenv("APFS_EDIT_INTERRUPT_CHILD") == "1" {
-		_, _ = imageedit.Apply(context.Background(), os.Getenv("APFS_EDIT_SOURCE"), os.Getenv("APFS_EDIT_DESTINATION"), imageedit.Options{Time: clock}, []hfsplus.Change{{Path: "/file", Data: interruptedInput{}}})
+		_, _ = imageedit.Apply(context.Background(), os.Getenv("APFS_EDIT_SOURCE"), os.Getenv("APFS_EDIT_DESTINATION"), imageedit.Options{Time: clock}, []hfsplus.Change{{Operation: "mkdir", Path: "/created"}, {Path: "/created/payload", Data: interruptedInput{}}})
 		os.Exit(99)
 	}
 	source := fixture(t)

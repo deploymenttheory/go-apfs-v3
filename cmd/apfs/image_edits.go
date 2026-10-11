@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
@@ -17,7 +18,7 @@ import (
 )
 
 func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
-	if verb != "cp" && verb != "chmod" {
+	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" {
 		return fmt.Errorf("existing-image %s: %w", verb, filesystem.ErrUnsupported)
 	}
 	if common.name != "" || destination == "" || partition < 0 {
@@ -27,6 +28,19 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
+		allowed["n"] = true
+	}
+	if verb == "mkdir" {
+		allowed["p"] = true
+		allowed["m"] = true
+	}
+	if verb == "mv" {
+		allowed["n"] = true
+	}
+	if verb == "rm" {
+		allowed["r"] = true
+		allowed["R"] = true
+		allowed["f"] = true
 	}
 	f.Visit(func(option *flag.Flag) {
 		if !allowed[option.Name] {
@@ -44,23 +58,44 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		}
 	}
 	var changes []hfsplus.Change
-	if verb == "chmod" {
+	switch verb {
+	case "chmod":
 		if len(operands) < 2 {
 			return fmt.Errorf("usage: apfs chmod --image IMAGE --output NEW_DMG MODE PATH [PATH]")
 		}
 		for _, path := range operands[1:] {
-			changes = append(changes, hfsplus.Change{Path: path, Mode: operands[0]})
+			changes = append(changes, hfsplus.Change{Operation: verb, Path: path, Mode: operands[0]})
 		}
-	} else {
+	case "mkdir", "rm":
+		if len(operands) == 0 {
+			return fs.ErrInvalid
+		}
+		for _, path := range operands {
+			c := hfsplus.Change{Operation: verb, Path: path}
+			if verb == "mkdir" {
+				c.Parents = f.Lookup("p").Value.String() == "true"
+				c.Mode = f.Lookup("m").Value.String()
+			} else {
+				c.Recursive = f.Lookup("r").Value.String() == "true"
+				c.Force = f.Lookup("f").Value.String() == "true"
+			}
+			changes = append(changes, c)
+		}
+	case "mv":
+		if len(operands) != 2 {
+			return fs.ErrInvalid
+		}
+		changes = []hfsplus.Change{{Operation: verb, Path: operands[0], Destination: operands[1], NoClobber: f.Lookup("n").Value.String() == "true"}}
+	case "cp":
 		if len(operands) != 2 || f.Lookup("from-host").Value.String() != "true" {
-			return fmt.Errorf("usage: apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE EXISTING_PATH")
+			return fmt.Errorf("usage: apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE PATH")
 		}
 		data, e := block.Open(operands[0])
 		if e != nil {
 			return e
 		}
 		defer func() { err = errors.Join(err, data.Close()) }()
-		changes = []hfsplus.Change{{Path: operands[1], Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true"}}
+		changes = []hfsplus.Change{{Operation: verb, Path: operands[1], Name: filepath.Base(operands[0]), Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true"}}
 	}
 	report, err := imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, changes)
 	if err != nil {

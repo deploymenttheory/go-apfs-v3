@@ -91,7 +91,7 @@ Currently implemented:
 - Shared zlib transparent file-compression writing for APFS/HFS+/HFSX builds;
   explicit preservation/decompression policies, bounded encoded scratch and
   per-file reports for skipped compression.
-- Existing clean HFS+/HFSX image edits (nonjournaled or with a valid empty internal journal) through `cp` and `chmod`,
+- Existing clean HFS+/HFSX image edits (nonjournaled or with a valid empty internal journal) through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
   retaining volume/file IDs, aliases, geometry, independent forks and unrelated
   sectors in a completed output transaction; see [editing semantics](docs/hfs-editing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.

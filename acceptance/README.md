@@ -700,10 +700,26 @@ acceptance groups retain five-minute deadlines. This scheduling applies only to
 Go replay; native attachment and filesystem mutations remain sequential within
 each disposable macOS job.
 
+Retained-corpus portable CI uses the same family boundaries on all three hosts.
+Image construction, image repacking and existing HFS edits run in separate jobs;
+the default portable job tests every library plus readers, workspaces and future
+acceptance families. This prevents full-disk writing workloads from consuming a
+shared package deadline on Windows. Each family retains a five-minute deadline,
+and the required quality check requires every portable and race job to pass.
+
+Fresh native replay also schedules image and container construction separately
+for each source macOS version on Linux, Windows and macOS. The Windows
+construction family across all three sources nearly consumed the six-minute test
+deadline by itself. The nine construction jobs retain that
+deadline, require their selected source, and archive all outputs under disjoint
+source-version directories. Every job is required; Apple readback merges those
+directories and still verifies each host's actual images on macOS 15, 26 and 27.
+
 For a native-verifier-only correction, dispatch the existing compatibility
-workflow with `readback_run` set to a prior run whose three captures and three
-portable replays succeeded. Each Mac validates that evidence and compares source
-commits before downloading the archived references and outputs. Changes outside
+workflow with `readback_run` set to a prior run whose three captures, three
+portable comparisons and nine construction jobs succeeded. Each Mac validates
+that evidence and compares source commits before downloading the archived
+references and outputs. Changes outside
 native helpers, documentation and the two CI workflows require fresh capture and
 replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
 this admission. Every native readback still runs on all three macOS versions.
@@ -737,3 +753,14 @@ Source hashes must remain unchanged. This proves
 continued native use of freshly built images. Existing-filesystem Go mutation
 has its own HFS family above; physical power-loss durability remains a separate
 capability. All native operations run on disposable hosted VMs.
+
+## Existing HFS catalog operations
+
+The HFS editing family now separately replays file/directory creation, moves,
+overwrite, unlink and recursive removal. Both clean journal profiles and HFS+/HFSX
+run on Linux/Windows/macOS; independent macOS 15/26/27 checkers, mounted comparisons
+and native/Go/native continued catalog edits qualify the actual outputs. Catalog
+and file-content replay use separate bounded jobs within `.github/workflows/hfs-edit.yml`.
+The retained `hfs-catalog-editing` and `hfs-journaled-catalog-editing` corpora provide
+file-only local regression evidence. Capture-only dispatch records Apple fixtures
+without claiming portable/native qualification and never changes retained inputs.

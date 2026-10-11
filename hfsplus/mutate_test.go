@@ -196,7 +196,10 @@ func TestMutationRejectsUnsafeProfilesAndWriteFailures(t *testing.T) {
 				}
 				be.PutUint32(record[104:], be.Uint32(other[104:]))
 				copyAt := &memoryMutation{b}
-				m := &mutation{ctx: ctx, disk: copyAt, v: v}
+				m := &mutation{ctx: ctx, disk: copyAt, v: v, header: bytes.Clone(b[1024:1536]), trees: map[uint32]*mutableTree{}}
+				if e = m.admit(); e != nil {
+					t.Fatal(e)
+				}
 				if e = m.patchCatalog(uint32(id), record); e != nil {
 					t.Fatal(e)
 				}

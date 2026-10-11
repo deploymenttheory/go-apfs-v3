@@ -14,16 +14,21 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
-// Change modifies an existing regular-file inode. Paths are looked up with
-// native HFS name rules, without following symlinks. Hard-link aliases address
-// their shared inode. Data is borrowed for the call; nil leaves contents alone.
-// Mode uses the same Apple setmode grammar as session chmod. ResourceFork
-// selects a complete independent resource-fork replacement instead of data.
+// Change applies an ordinary file operation in unpublished scratch. Empty
+// Operation retains the cp/chmod convenience: non-nil Data copies a fork,
+// otherwise Mode changes permissions. Explicit operations are ordered; later
+// paths can name earlier creations. Paths never follow symlinks. Hard-link
+// aliases address shared contents; moves/removals address their named records.
+// Data is borrowed for the call; mode strings use Apple's setmode grammar.
 type Change struct {
-	Path         string
-	Data         block.Source
-	ResourceFork bool
-	Mode         string
+	Name                                 string // cp source basename when the destination is a directory
+	Operation                            string // cp (default), chmod, mkdir, mv or rm
+	Destination                          string // mv destination
+	Parents, Recursive, Force, NoClobber bool
+	Path                                 string
+	Data                                 block.Source
+	ResourceFork                         bool
+	Mode                                 string
 }
 type ChangeReport struct {
 	VolumeID   string   `json:"volumeId"`
@@ -43,7 +48,10 @@ func ValidateMutation(ctx context.Context, source block.Source) error {
 	if err = block.ReadFull(source, m.header, 1024); err != nil {
 		return err
 	}
-	return m.admit()
+	if err := m.admit(); err != nil {
+		return err
+	}
+	return m.loadCatalog()
 }
 
 type readOnlyMutation struct{ block.Source }
@@ -76,105 +84,24 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 	if err = m.admit(); err != nil {
 		return report, err
 	}
-	// Validate every requested target, mode and compression policy before the
-	// first write. A later input/read/allocation failure still discards scratch.
-	targets := make([]uint64, len(changes))
-	for i, c := range changes {
-		if c.Path == "" || (c.Data == nil && c.Mode == "") || (c.ResourceFork && c.Data == nil) || (c.Data != nil && c.Data.Size() < 0) {
-			return report, fs.ErrInvalid
-		}
-		id, e := filesystem.Lookup(ctx, v, c.Path)
-		if e != nil {
-			return report, e
-		}
-		targets[i] = id
-		if m.journal != nil && (id == m.journal.infoID || id == m.journal.fileID) {
-			return report, fmt.Errorf("journal backing files cannot be edited: %w", filesystem.ErrUnsupported)
-		}
-		b, e := v.catalogRecord(ctx, id)
-		if e != nil {
-			return report, e
-		}
-		if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
-			return report, fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
-		}
-		if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
-			return report, fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
-		}
-		flags := uint32(b[40])<<16 | uint32(b[41])
-		if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
-			return report, fmt.Errorf("locked, immutable, append-only or dataless target: %w", filesystem.ErrUnsupported)
-		}
-		if c.Mode != "" {
-			if _, e = mode.Parse(c.Mode, 022); e != nil {
-				return report, e
-			}
-			if be.Uint16(b[2:])&8 != 0 {
-				return report, fmt.Errorf("chmod of ACL-bearing file: %w", filesystem.ErrUnsupported)
-			}
-		}
-		if b[41]&0x20 != 0 && c.Data != nil {
-			h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, id, name) })
-			if e != nil {
-				return report, e
-			}
-			uses, e := decmpfs.UsesResourceFork(h.Type)
-			if e != nil {
-				return report, e
-			}
-			if uses && c.ResourceFork {
-				return report, fmt.Errorf("resource fork belongs to active compression: %w", filesystem.ErrUnsupported)
-			}
-		}
+	if err = m.loadCatalog(); err != nil {
+		return report, err
 	}
-	for i, c := range changes {
+	for _, c := range changes {
 		if err = ctx.Err(); err != nil {
 			return report, err
 		}
-		b, e := v.catalogRecord(ctx, targets[i])
+		id, e := m.applyChange(c, uint32(stamp))
 		if e != nil {
 			return report, e
 		}
-		b = bytes.Clone(b)
-		id := be.Uint32(b[8:])
-		if c.Data != nil {
-			if !c.ResourceFork && b[41]&0x20 != 0 {
-				h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return v.OpenAttribute(ctx, uint64(id), name) })
-				if e != nil {
-					return report, e
-				}
-				uses, e := decmpfs.UsesResourceFork(h.Type)
-				if e != nil {
-					return report, e
-				}
-				if e = m.removeCompression(id, b); e != nil {
-					return report, e
-				}
-				if uses {
-					if e = m.replaceFork(id, 255, b[168:248], emptySource{}); e != nil {
-						return report, e
-					}
-				}
-				b[41] &^= 0x20
-			}
-			kind, descriptor := byte(0), b[88:168]
-			if c.ResourceFork {
-				kind, descriptor = 255, b[168:248]
-			}
-			if e = m.replaceFork(id, kind, descriptor, c.Data); e != nil {
-				return report, e
-			}
-			be.PutUint32(b[16:], uint32(stamp))
+		if id != 0 {
+			report.Changed = append(report.Changed, uint64(id))
 		}
-		if c.Mode != "" {
-			p, _ := mode.Parse(c.Mode, 022)
-			be.PutUint16(b[42:], uint16(p.Apply(uint32(be.Uint16(b[42:])))))
-		}
-		be.PutUint32(b[20:], uint32(stamp))
-		if e = m.patchCatalog(id, b); e != nil {
-			return report, e
-		}
-		report.Changed = append(report.Changed, uint64(id))
+	}
+	if len(report.Changed) == 0 {
+		report.VolumeID, report.FreeBlocks = v.VolumeID, be.Uint32(m.header[48:])
+		return report, nil
 	}
 	if err = m.writeFork(m.allocation, m.bitmap, 0); err != nil {
 		return report, err
@@ -344,7 +271,15 @@ func (m *mutation) admit() error {
 			if len(r.value) < 2 {
 				return bad("catalog admission record")
 			}
-			switch be.Uint16(r.value) {
+			// cat_create/cat_update select a different timestamp conversion
+			// when kHFSCatExpandedTimesMask is set. This writer emits the
+			// ordinary 1904-epoch representation; retaining that flag would
+			// reinterpret every newly written timestamp on native mount.
+			kind := be.Uint16(r.value)
+			if (kind == 1 || kind == 2) && len(r.value) >= 4 && be.Uint16(r.value[2:])&0x1000 != 0 {
+				return fmt.Errorf("expanded HFS catalog timestamps: %w", filesystem.ErrUnsupported)
+			}
+			switch kind {
 			case 1:
 				if len(r.value) != 88 {
 					return bad("catalog folder admission")
@@ -502,15 +437,6 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 	if err != nil {
 		return err
 	}
-	var oldKeys [][]byte
-	if err = m.v.overflow.records(m.ctx, id, func(r treeRecord) error {
-		if r.key[2] == kind {
-			oldKeys = append(oldKeys, bytes.Clone(r.key))
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
 	blocks := (uint64(data.Size()) + uint64(m.v.BlockSize) - 1) / uint64(m.v.BlockSize)
 	if blocks > math.MaxUint32 {
 		return filesystem.ErrLimit
@@ -522,6 +448,22 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 	if err = m.writePayload(forkFromRuns(m.disk, m.v.BlockSize, blocks*uint64(m.v.BlockSize), runs), data); err != nil {
 		return err
 	}
+	return m.storeExtentRuns(id, kind, descriptor, uint64(data.Size()), runs)
+}
+
+// storeExtentRuns applies the same inline/overflow format to ordinary forks
+// and the catalog file. The extents file itself remains self-describing.
+func (m *mutation) storeExtentRuns(id uint32, kind byte, descriptor []byte, size uint64, runs []allocationRun) error {
+	var oldKeys [][]byte
+	if err := m.v.overflow.records(m.ctx, id, func(r treeRecord) error {
+		if r.key[2] == kind {
+			oldKeys = append(oldKeys, bytes.Clone(r.key))
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	var err error
 	t := m.trees[3]
 	for _, key := range oldKeys {
 		if err = t.set(key, nil, true); err != nil {
@@ -542,37 +484,25 @@ func (m *mutation) replaceFork(id uint32, kind byte, descriptor []byte, data blo
 		}
 		logical += r.count
 	}
-	encodeRuns(descriptor, uint64(data.Size()), runs)
+	encodeRuns(descriptor, size, runs)
 	return nil
 }
 
 func (m *mutation) patchCatalog(id uint32, value []byte) error {
-	_, parent, err := m.v.rawCatalogRecord(m.ctx, uint64(id))
-	if err != nil {
+	if m.catalog == nil {
+		if err := m.loadCatalog(); err != nil {
+			return err
+		}
+	}
+	r := m.catalog[id]
+	if r == nil || len(r.value) != len(value) {
+		return bad("catalog mutation target")
+	}
+	if err := m.trees[4].set(r.key, value, false); err != nil {
 		return err
 	}
-	found := false
-	err = m.v.catalog.visitLeaves(m.ctx, func(node uint32, b []byte, r []treeRecord) error {
-		for i, item := range r {
-			if be.Uint32(item.key[2:]) != parent || len(item.value) < 12 || (be.Uint16(item.value) != 2 && be.Uint16(item.value) != 1) || be.Uint32(item.value[8:]) != id {
-				continue
-			}
-			if found || len(item.value) != len(value) {
-				return bad("catalog mutation target")
-			}
-			found = true
-			start := int(be.Uint16(b[len(b)-2*(i+1):])) + len(item.key)
-			copy(b[start:start+len(value)], value)
-			if e := m.writeFork(m.v.catalog.fork, b, uint64(node)*uint64(m.v.catalog.nodeSize)); e != nil {
-				return e
-			}
-		}
-		return nil
-	})
-	if err == nil && !found {
-		return bad("catalog mutation record missing")
-	}
-	return err
+	r.value = bytes.Clone(value)
+	return nil
 }
 
 func (m *mutation) removeCompression(id uint32, catalog []byte) error {
@@ -635,4 +565,90 @@ func (m *mutation) removeCompression(id uint32, catalog []byte) error {
 		be.PutUint16(catalog[2:], be.Uint16(catalog[2:])&^4)
 	}
 	return nil
+}
+
+func (m *mutation) validateFile(c Change, id uint64) error {
+	b, e := m.v.catalogRecord(m.ctx, id)
+	if e != nil {
+		return e
+	}
+	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
+		return fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
+	}
+	if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
+		return fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
+	}
+	flags := uint32(b[40])<<16 | uint32(b[41])
+	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
+		return fmt.Errorf("locked, immutable, append-only or dataless target: %w", filesystem.ErrUnsupported)
+	}
+	if c.Mode != "" {
+		if _, e = mode.Parse(c.Mode, 022); e != nil {
+			return e
+		}
+		if be.Uint16(b[2:])&8 != 0 {
+			return fmt.Errorf("chmod of ACL-bearing file: %w", filesystem.ErrUnsupported)
+		}
+	}
+	if b[41]&0x20 != 0 && c.Data != nil {
+		h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, id, name) })
+		if e != nil {
+			return e
+		}
+		uses, e := decmpfs.UsesResourceFork(h.Type)
+		if e != nil {
+			return e
+		}
+		if uses && c.ResourceFork {
+			return fmt.Errorf("resource fork belongs to active compression: %w", filesystem.ErrUnsupported)
+		}
+	}
+	return nil
+}
+
+func (m *mutation) modifyFile(c Change, target uint64, stamp uint32) (uint32, error) {
+	b, e := m.v.catalogRecord(m.ctx, target)
+	if e != nil {
+		return 0, e
+	}
+	b = bytes.Clone(b)
+	id := be.Uint32(b[8:])
+	if c.Data != nil {
+		if !c.ResourceFork && b[41]&0x20 != 0 {
+			h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, uint64(id), name) })
+			if e != nil {
+				return 0, e
+			}
+			uses, e := decmpfs.UsesResourceFork(h.Type)
+			if e != nil {
+				return 0, e
+			}
+			if e = m.removeCompression(id, b); e != nil {
+				return 0, e
+			}
+			if uses {
+				if e = m.replaceFork(id, 255, b[168:248], emptySource{}); e != nil {
+					return 0, e
+				}
+			}
+			b[41] &^= 0x20
+		}
+		kind, descriptor := byte(0), b[88:168]
+		if c.ResourceFork {
+			kind, descriptor = 255, b[168:248]
+		}
+		if e = m.replaceFork(id, kind, descriptor, c.Data); e != nil {
+			return 0, e
+		}
+		be.PutUint32(b[16:], stamp)
+	}
+	if c.Mode != "" {
+		p, _ := mode.Parse(c.Mode, 022)
+		be.PutUint16(b[42:], uint16(p.Apply(uint32(be.Uint16(b[42:])))))
+	}
+	be.PutUint32(b[20:], stamp)
+	if e = m.patchCatalog(id, b); e != nil {
+		return 0, e
+	}
+	return id, nil
 }
