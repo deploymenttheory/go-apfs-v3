@@ -85,8 +85,8 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	if err != nil {
 		return report, err
 	}
-	if volume.Journaled || !volume.Clean {
-		return report, fmt.Errorf("image edits require clean nonjournaled HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	if !volume.Clean {
+		return report, fmt.Errorf("image edits require clean HFS+/HFSX: %w", filesystem.ErrUnsupported)
 	}
 	if err = hfsplus.ValidateMutation(ctx, input); err != nil {
 		return report, err

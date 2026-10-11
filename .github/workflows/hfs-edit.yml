@@ -17,32 +17,35 @@ env:
 
 jobs:
   capture:
-    name: Record Apple-created fragmented HFS edit controls (macOS ${{ matrix.major }})
+    name: Record Apple-created ${{ matrix.profile }} HFS edit controls (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {runner: macos-15, major: 15}
-          - {runner: macos-26, major: 26}
-          - {runner: xcode-27, major: 27}
+          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Capture original identities, fragmented forks and native changes
-        run: python3 acceptance/native/hfs_editing.py --expected-major "${{ matrix.major }}" --output artifacts/hfs-editing/macos-${{ matrix.major }}
+        run: python3 acceptance/native/hfs_editing.py --expected-major "${{ matrix.major }}" --output artifacts/${{ matrix.prefix }}-editing/macos-${{ matrix.major }} ${{ matrix.journal }}
       - name: Retain original raw disks, native states, observations and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: hfs-edit-reference-${{ matrix.major }}
-          path: artifacts/hfs-editing
+          name: ${{ matrix.prefix }}-edit-reference-${{ matrix.major }}
+          path: artifacts/${{ matrix.prefix }}-editing
           if-no-files-found: error
 
   replay:
-    name: Edit existing Apple HFS filesystems (${{ matrix.platform }}, ${{ matrix.scope }})
+    name: Edit existing Apple HFS filesystems (${{ matrix.profile }}, ${{ matrix.platform }}, ${{ matrix.scope }})
     needs: capture
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -50,11 +53,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageEditing$/macos-15', artifact: Linux-15}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageEditing$/macos-26', artifact: Linux-26}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageEditing$/macos-27', artifact: Linux-27}
-          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: Windows}
-          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageEditing$/macos-15', artifact: Linux-15, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-15', artifact: Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageEditing$/macos-26', artifact: Linux-26, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-26', artifact: Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageEditing$/macos-27', artifact: Linux-27, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-27', artifact: Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: Windows, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: macOS, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -63,8 +71,8 @@ jobs:
           cache: false
       - uses: actions/download-artifact@v7
         with:
-          pattern: hfs-edit-reference-*
-          path: artifacts/hfs-editing
+          pattern: ${{ matrix.prefix }}-edit-reference-*
+          path: artifacts/${{ matrix.prefix }}-editing
           merge-multiple: true
       - name: Verify existing identities, forks, compression cleanup, allocation and reproducibility
         # Race coverage owns this bounded family on Linux, instead of repeating
@@ -73,8 +81,10 @@ jobs:
         run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '${{ matrix.tests }}'
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
-          APFS_NATIVE_HFS_EDITS: ../artifacts/hfs-editing
-          APFS_HFS_EDIT_OUTPUT: ../artifacts/hfs-edits-${{ matrix.platform }}
+          APFS_NATIVE_HFS_EDITS: ../artifacts/${{ matrix.prefix }}-editing
+          APFS_NATIVE_HFS_JOURNALED_EDITS: ../artifacts/${{ matrix.prefix }}-editing
+          APFS_HFS_EDIT_OUTPUT: ../artifacts/${{ matrix.prefix }}-edits-${{ matrix.platform }}
+          APFS_HFS_JOURNALED_EDIT_OUTPUT: ../artifacts/${{ matrix.prefix }}-edits-${{ matrix.platform }}
       - name: Archive actual portable output images
         shell: bash
         run: |
@@ -82,15 +92,15 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf "artifacts/hfs-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "hfs-edits-${{ matrix.platform }}"
+          tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${{ matrix.prefix }}-edits-${{ matrix.platform }}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: hfs-edits-${{ matrix.artifact }}
-          path: artifacts/hfs-edits-*.tar.gz
+          name: ${{ matrix.prefix }}-edits-${{ matrix.artifact }}
+          path: artifacts/${{ matrix.prefix }}-edits-*.tar.gz
           if-no-files-found: error
 
   readback:
-    name: Qualify portable HFS edits and continued writes (macOS ${{ matrix.major }})
+    name: Qualify ${{ matrix.profile }} HFS edits and continued writes (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -98,9 +108,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: macos-15, major: 15}
-          - {runner: macos-26, major: 26}
-          - {runner: xcode-27, major: 27}
+          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
+          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: ''}
+          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
@@ -111,12 +124,12 @@ jobs:
           cache: false
       - uses: actions/download-artifact@v7
         with:
-          pattern: hfs-edit-reference-*
-          path: artifacts/hfs-editing
+          pattern: ${{ matrix.prefix }}-edit-reference-*
+          path: artifacts/${{ matrix.prefix }}-editing
           merge-multiple: true
       - uses: actions/download-artifact@v7
         with:
-          pattern: hfs-edits-*
+          pattern: ${{ matrix.prefix }}-edits-*
           path: artifacts/outputs
           merge-multiple: true
       - name: Unpack complete portable images
@@ -125,7 +138,7 @@ jobs:
             tar -xzf "$archive_file" --no-mac-metadata --no-xattrs --no-acls --options '!mac-ext' -C artifacts/outputs
           done
       - name: Check exact raw copies with Apple fsck, mounted readback, signatures and native edits
-        run: python3 acceptance/native/verify_hfs_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/hfs-editing --outputs artifacts/outputs --continuation artifacts/continued-native
+        run: python3 acceptance/native/verify_hfs_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/${{ matrix.prefix }}-editing --outputs artifacts/outputs --continuation artifacts/continued-native ${{ matrix.journal }}
       - name: Read native allocation and tree changes, then modify the same filesystems again with Go
         run: |
           mkdir -p artifacts/continued-go
@@ -134,13 +147,13 @@ jobs:
           APFS_HFS_EDIT_CONTINUATION: ../artifacts/continued-native
           APFS_HFS_EDIT_CONTINUED_OUTPUT: ../artifacts/continued-go
       - name: Qualify Go re-edits with another Apple checker and native remount
-        run: python3 acceptance/native/verify_hfs_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/continued-go
+        run: python3 acceptance/native/verify_hfs_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/continued-go ${{ matrix.journal }}
       - name: Explain the independently verified capability
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Existing HFS+/HFSX editing verified
 
-          Apple created six fragmented source volumes across macOS 15, 26 and 27.
+          Apple created six ${{ matrix.profile }} fragmented source volumes across macOS 15, 26 and 27.
           Linux, Windows and macOS updated their original records and allocated
           existing free space. Each host produced 24 images with identical bytes.
           Linux also race-instrumented the same fresh-corpus editing operations.
@@ -150,13 +163,15 @@ jobs:
           Six final images also underwent native append, directory-tree growth,
           deletion and allocation reuse. Go read those results and edited the
           same filesystems again; Apple fsck and remount qualified that output.
-          Sources remained immutable. Native tooling ran only in disposable VMs.
+          Journaled controls also require unchanged journal storage and backing identities,
+          and actual subsequent native journal writes. Sources remained immutable.
+          Native tooling ran only in disposable VMs.
           EOF
       - name: Retain failed or successful native verification diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: hfs-edit-verification-${{ matrix.major }}
+          name: ${{ matrix.prefix }}-edit-verification-${{ matrix.major }}
           path: |
             artifacts/outputs/*.diagnostics.json
             artifacts/continued-go/*.diagnostics.json

@@ -53,7 +53,8 @@ func (readOnlyMutation) WriteAt([]byte, int64) (int, error) { return 0, fs.ErrPe
 // Modify updates an exclusively owned UNPUBLISHED copy. It does not provide
 // in-place crash recovery: discard the entire copy after any error. imageedit
 // supplies managed scratch and completed-file publication. Sources must be
-// clean, nonjournaled, fully accounted HFS+/HFSX volumes. Modification time is
+// clean, fully accounted HFS+/HFSX volumes; internal journals must be valid and
+// empty. Journal storage is retained unchanged. Modification time is
 // explicit so identical source bytes, changes and time are reproducible.
 func Modify(ctx context.Context, disk MutableSource, changes []Change, when time.Time) (ChangeReport, error) {
 	var report ChangeReport
@@ -87,6 +88,9 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 			return report, e
 		}
 		targets[i] = id
+		if m.journal != nil && (id == m.journal.infoID || id == m.journal.fileID) {
+			return report, fmt.Errorf("journal backing files cannot be edited: %w", filesystem.ErrUnsupported)
+		}
 		b, e := v.catalogRecord(ctx, id)
 		if e != nil {
 			return report, e
@@ -177,8 +181,11 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 	}
 	be.PutUint32(m.header[20:], uint32(stamp))
 	be.PutUint32(m.header[68:], be.Uint32(m.header[68:])+1)
-	// Public TN1150 and hfs_flushvolumeheader: nonjournaled mount signature.
+	// hfs_flushvolumeheader distinguishes journaled and nonjournaled mounts.
 	copy(m.header[8:12], "10.0")
+	if v.Journaled {
+		copy(m.header[8:12], "HFSJ")
+	}
 	if err = m.write(m.header, 1024); err != nil {
 		return report, err
 	}
@@ -249,8 +256,8 @@ func (m *mutation) admit() error {
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
-	if !v.Clean || v.Journaled || v.Attributes & ^uint32(0x80001500) != 0 || be.Uint32(m.header[12:]) != 0 {
-		return fmt.Errorf("mutation requires a clean, unlocked, nonjournaled HFS+/HFSX profile: %w", filesystem.ErrUnsupported)
+	if !v.Clean || v.Attributes & ^uint32(0x80003500) != 0 || (!v.Journaled && be.Uint32(m.header[12:]) != 0) {
+		return fmt.Errorf("mutation requires a clean, unlocked HFS+/HFSX profile: %w", filesystem.ErrUnsupported)
 	}
 	if uint64(v.BlockCount)*uint64(v.BlockSize) != uint64(m.disk.Size()) {
 		return fmt.Errorf("mutation requires complete allocation-block geometry: %w", filesystem.ErrUnsupported)
@@ -264,6 +271,9 @@ func (m *mutation) admit() error {
 	}
 	if !bytes.Equal(m.header[:4], alt[:4]) || !bytes.Equal(m.header[40:48], alt[40:48]) || !bytes.Equal(m.header[112:], alt[112:]) {
 		return bad("primary/alternate structural disagreement")
+	}
+	if v.Journaled && (!bytes.Equal(m.header[4:8], alt[4:8]) || !bytes.Equal(m.header[12:16], alt[12:16])) {
+		return bad("primary/alternate journal disagreement")
 	}
 	f, err := v.fileFork(m.ctx, 6, 0, m.header[112:192])
 	if err != nil {
@@ -377,6 +387,11 @@ func (m *mutation) admit() error {
 	}
 	if err = m.claimAttributes(); err != nil {
 		return err
+	}
+	if v.Journaled {
+		if err = m.admitJournal(); err != nil {
+			return err
+		}
 	}
 	if err = v.overflow.visitLeaves(m.ctx, func(_ uint32, _ []byte, records []treeRecord) error {
 		for _, r := range records {

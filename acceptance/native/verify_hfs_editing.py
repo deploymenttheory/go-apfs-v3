@@ -9,7 +9,7 @@ import tempfile
 
 from capture import sha256
 from container_building import require_disposable_host
-from hfs_editing import STAMP
+from hfs_editing import STAMP, read_journal
 from hfs_header_growth import Commands, attach, read_headers
 from image_repacking import files, version
 from image_mutation import writable_copy
@@ -40,8 +40,13 @@ def native_hash(image, command):
     return disk_hash(image, command)
 
 
-def check_raw(raw, expected, phase, command, work, modify=False):
+def check_raw(raw, expected, phase, command, work, modify=False, journal=None):
     before = sha256(raw)
+    if journal is not None:
+        observed = read_journal(raw)
+        require(observed is not None, 'journaling retained')
+        for key in ('infoBlock', 'offset', 'size', 'sha256', 'infoSHA256'):
+            require(observed[key] == journal[key], 'journal storage preserved: ' + key)
     device = attach(raw, command, readonly=not modify, writable=modify)
     try:
         command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
@@ -52,6 +57,10 @@ def check_raw(raw, expected, phase, command, work, modify=False):
         command('diskutil', 'mount', *([] if modify else ['readOnly']), '-mountOptions',
                 'owners,noatime', '-mountPoint', mount, device)
         compare(files(mount / 'Fixture'), expected, phase)
+        if journal is not None:
+            for name, file in journal['backingFiles'].items():
+                st = os.lstat(mount / name)
+                require(st.st_ino == file['object'] and st.st_size == file['size'], 'journal backing identity')
         command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
         if modify:
             with (mount / 'Fixture/alias').open('ab') as stream:
@@ -70,12 +79,17 @@ def check_raw(raw, expected, phase, command, work, modify=False):
             (directory / 'reused').write_bytes(bytes(65537))
     finally:
         command('hdiutil', 'detach', device)
+    if journal is not None:
+        observed = read_journal(raw)
+        require(observed is not None and observed['start'] == observed['end'], 'journaling survives native unmount')
+        if modify:
+            require(observed['sha256'] != journal['sha256'], 'native continuation actually updates journal')
     if not modify:
         require(sha256(raw) == before, 'native read-only verification changed raw copy')
     shutil.rmtree(work / 'mount')
 
 
-def verify(corpus, outputs, continuation, expected_major):
+def verify(corpus, outputs, continuation, expected_major, journaled=False):
     require_disposable_host()
     version(expected_major)
     continuation.mkdir(parents=True)
@@ -85,11 +99,13 @@ def verify(corpus, outputs, continuation, expected_major):
         count = 0
         for manifest_path in sorted(corpus.glob('macos-*/manifest.json')):
             manifest = json.loads(manifest_path.read_text())
+            require(manifest['contract'] == ('journaled-hfs-file-edits' if journaled else 'existing-hfs-file-edits'),
+                    'native corpus journal profile')
             for case in manifest['cases']:
                 for phase in ('peak', 'final'):
                     for format_name in ('UDRO', 'UDZO'):
                         relative = Path(manifest_path.parent.name, case['id'], phase + '-' + format_name + '.dmg')
-                        images = [outputs / ('hfs-edits-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
+                        images = [outputs / (('hfs-journaled-edits-' if journaled else 'hfs-edits-') + host) / relative for host in ('Linux', 'Windows', 'macOS')]
                         require(all(image.is_file() for image in images), 'every portable host supplies edited images')
                         require(len({sha256(image) for image in images}) == 1, 'host-independent deterministic image bytes')
                         image = images[0]
@@ -97,9 +113,9 @@ def verify(corpus, outputs, continuation, expected_major):
                         command('hdiutil', 'verify', image)
                         raw = work / 'output.raw'
                         writable_copy(image, raw, command, native_hash)
-                        check_raw(raw, case['states'][phase]['files'], phase, command, work)
+                        check_raw(raw, case['states'][phase]['files'], phase, command, work, journal=case['before'].get('journal'))
                         if phase == 'final' and format_name == 'UDZO':
-                            check_raw(raw, case['states'][phase]['files'], phase, command, work, modify=True)
+                            check_raw(raw, case['states'][phase]['files'], phase, command, work, modify=True, journal=case['before'].get('journal'))
                             device = attach(raw, command, readonly=True)
                             try:
                                 command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
@@ -119,7 +135,7 @@ def verify(corpus, outputs, continuation, expected_major):
         require(count == 24, 'complete native edit readback inventory')
 
 
-def verify_continued(directory, expected_major):
+def verify_continued(directory, expected_major, journaled=False):
     require_disposable_host()
     version(expected_major)
     command = Commands(directory / f'continued-{expected_major}.diagnostics.json')
@@ -130,6 +146,7 @@ def verify_continued(directory, expected_major):
         for image in images:
             raw = work / 'continued.raw'
             writable_copy(image, raw, command, native_hash)
+            require((read_journal(raw) is not None) == journaled, 'Go re-edit retains journal profile')
             device = attach(raw, command, readonly=True)
             try:
                 command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
@@ -154,8 +171,9 @@ if __name__ == '__main__':
     parser.add_argument('--outputs', type=Path)
     parser.add_argument('--continuation', type=Path)
     parser.add_argument('--continued', type=Path)
+    parser.add_argument('--journaled', action='store_true')
     args = parser.parse_args()
     if args.continued:
-        verify_continued(args.continued, args.expected_major)
+        verify_continued(args.continued, args.expected_major, args.journaled)
     else:
-        verify(args.corpus, args.outputs, args.continuation, args.expected_major)
+        verify(args.corpus, args.outputs, args.continuation, args.expected_major, args.journaled)
