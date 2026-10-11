@@ -119,16 +119,17 @@ def verify_mounted(mount, expected, command, empty=False, lookup_count=0, file_c
     return len(want)
 
 
-def verify_native_allocation(image, command, empty=False, apfs=True, file_compression=None):
-    """Apple writes only a disposable shadow, then checks and remounts that state."""
+def verify_native_allocation(image, command, empty=False, apfs=True, file_compression=None, use_shadow=True):
+    """Apple modifies a disposable shadow/copy, then checks and remounts it."""
     containers.require_disposable_host()
     with tempfile.TemporaryDirectory(prefix='apfs-build-allocation-') as work:
         work = Path(work)
         mount = work / 'mount'; mount.mkdir()
         shadow = work / 'writes.shadow'
+        storage = ['-shadow', shadow] if use_shadow else []
         def mount_image(readonly=False):
             result = plistlib.loads(command('hdiutil', 'attach', '-plist', '-nobrowse', '-owners', 'off',
-                                            *(['-readonly'] if readonly else []), '-shadow', shadow,
+                                            *(['-readonly'] if readonly else []), *storage,
                                             '-mountpoint', mount, image))
             return built_devices(result, apfs, command)[0]
         device = mount_image()
@@ -156,7 +157,7 @@ def verify_native_allocation(image, command, empty=False, apfs=True, file_compre
         finally:
             command('hdiutil', 'detach', device)
         # Check the shadow's new checkpoint while unmounted, before final readback.
-        attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-nomount', '-plist', '-shadow', shadow, image))
+        attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-nomount', '-plist', *storage, image))
         device, _ = built_devices(attached, apfs, command)
         try:
             if apfs:
