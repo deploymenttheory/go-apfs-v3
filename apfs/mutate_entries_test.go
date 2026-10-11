@@ -155,7 +155,8 @@ func TestAPFSConstructedResourceForksRemainEditable(t *testing.T) {
 	source, options, _ := buildInput(t)
 	options.Time = options.Time.Truncate(time.Second)
 	options.Capacity = 8 << 20
-	if _, e := source.ReplaceResourceFork(ctx, "/file", bytes.NewReader(bytes.Repeat([]byte("fork"), 2049))); e != nil {
+	fork := bytes.Repeat([]byte("fork"), 2049)
+	if _, e := source.ReplaceResourceFork(ctx, "/file", bytes.NewReader(fork)); e != nil {
 		t.Fatal(e)
 	}
 	plan, e := apfs.Plan(ctx, source, options)
@@ -170,7 +171,35 @@ func TestAPFSConstructedResourceForksRemainEditable(t *testing.T) {
 		t.Fatal("Go-constructed ordinary fork image is not editable", e)
 	}
 	disk := newMutationDisk(encoded.Bytes())
-	if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Operation: "mkdir", Path: "/Moved"}, {Operation: "mv", Path: "/file", Destination: "/Moved"}, {Operation: "rm", Path: "/Moved", Recursive: true}}, options.Time); e != nil {
+	before, e := apfs.Open(disk)
+	if e != nil {
+		t.Fatal(e)
+	}
+	identity, e := filesystem.LookupExact(ctx, &before.Volumes[0], "/file")
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Operation: "mkdir", Path: "/Moved"}, {Operation: "mv", Path: "/file", Destination: "/Moved"}}, options.Time); e != nil {
+		t.Fatal(e)
+	}
+	after, e := apfs.Open(disk)
+	if e != nil {
+		t.Fatal(e)
+	}
+	gotID, e := filesystem.LookupExact(ctx, &after.Volumes[0], "/Moved/file")
+	if e != nil || gotID != identity {
+		t.Fatal("moving a constructed fork file changed identity", e)
+	}
+	value, e := after.Volumes[0].OpenAttribute(ctx, gotID, filesystem.ResourceFork)
+	if e != nil {
+		t.Fatal(e)
+	}
+	got, e := io.ReadAll(io.NewSectionReader(value, 0, value.Size()))
+	value.Close()
+	if e != nil || !bytes.Equal(got, fork) {
+		t.Fatal("moving a constructed file changed its fork", e)
+	}
+	if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Operation: "rm", Path: "/Moved", Recursive: true}}, options.Time); e != nil {
 		t.Fatal(e)
 	}
 	if e = apfs.ValidateMutation(ctx, disk); e != nil {
