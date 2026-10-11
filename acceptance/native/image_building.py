@@ -16,6 +16,7 @@ from capture import NAME_CASES
 
 def create(root, command, sensitive, create_files, apfs=False):
     create_files(root, command)
+    compression.writing_inputs(root)
     if apfs:
         (root / 'empty-build-root').mkdir()
         (root / 'names').mkdir()

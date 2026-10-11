@@ -33,6 +33,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 	encryption := addPackEncryptionFlags(f, true)
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
+	fileCompression := addPackCompressionFlag(f)
 	filesystemName := f.String("filesystem", "", "directory target: apfs, hfsplus or hfsx; sessions retain their format")
 	sensitive := f.Bool("case-sensitive", false, "use case-sensitive APFS names for directory input")
 	name := f.String("volume-name", "Untitled", "volume name")
@@ -45,6 +46,9 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 	gid := f.Uint("gid", 0, "group for metadata unavailable on the source host")
 	operands, err := parseCommandFlags(f, args)
 	if err != nil {
+		return err
+	}
+	if err = validatePackCompression(*fileCompression); err != nil {
 		return err
 	}
 	if *format != "UDRO" && *format != "UDZO" {
@@ -68,7 +72,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			return e
 		}
 		if !info.IsDir() {
-			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir"} {
+			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir", "file-compression"} {
 				if flagWasSet(f, option) {
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
@@ -105,7 +109,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			return err
 		}
 	}
-	options := pack.Options{Format: *format, Encryption: crypt.Encryption, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
+	options := pack.Options{Format: *format, Encryption: crypt.Encryption, FileCompression: *fileCompression, ScratchDir: common.scratch, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -220,6 +224,9 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 		}{1, report, provenance.Defaulted, provenance.AttributesUnavailable})
 	}
 	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\nImage encryption: %s\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes, packEncryptionLabel(report.Encryption))
+	if err == nil {
+		err = writePackCompressionReport(out, report.FileCompression, report.Compression)
+	}
 	if err == nil && (len(provenance.Defaulted) > 0 || len(provenance.AttributesUnavailable) > 0) {
 		_, err = fmt.Fprintf(out, "Host metadata defaults on %d objects; attributes unavailable on %d objects.\n", len(provenance.Defaulted), len(provenance.AttributesUnavailable))
 	}

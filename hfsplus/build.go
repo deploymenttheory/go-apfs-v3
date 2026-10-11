@@ -43,6 +43,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/buildsize"
 	"github.com/deploymenttheory/go-apfs-v3/internal/finderinfo"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -440,17 +441,26 @@ func (p *Layout) arrange(ctx context.Context) error {
 	needed := payloadBlocks + metadataBlocks + 2
 	total := (uint64(p.options.Capacity) + 4095) / 4096
 	if total == 0 {
-		total = max(uint64(2048), needed+needed/8+32)
+		total = max(uint64(2048), buildsize.AutomaticBlocks(needed, 0, buildsize.HFSPaddingBlocks))
 	}
-	bitmapBlocks := ((total+7)/8 + 4095) / 4096
-	if total < 2048 {
-		return fmt.Errorf("HFS build capacity must be at least 8 MiB: %w", filesystem.ErrLimit)
-	}
-	if total < needed+bitmapBlocks {
-		return fmt.Errorf("capacity requires at least %d bytes: %w", (needed+bitmapBlocks)*4096, filesystem.ErrLimit)
-	}
-	if total > 1<<28 {
-		return filesystem.ErrLimit
+	var bitmapBlocks uint64
+	for {
+		if total < 2048 || total > 1<<28 {
+			return fmt.Errorf("HFS build capacity must be between 8 MiB and 1 TiB: %w", filesystem.ErrLimit)
+		}
+		bitmapBlocks = ((total+7)/8 + 4095) / 4096
+		required := needed + bitmapBlocks
+		if p.options.Capacity == 0 {
+			required = buildsize.AutomaticBlocks(required, 0, buildsize.HFSPaddingBlocks)
+		}
+		if required <= total {
+			break
+		}
+		if p.options.Capacity != 0 {
+			return fmt.Errorf("capacity requires at least %d bytes: %w", required*4096, filesystem.ErrLimit)
+		}
+		// The bitmap grows with capacity too. Retain all padding on each retry.
+		total = required
 	}
 	p.size = int64(total * 4096)
 	next := uint32(1 + bitmapBlocks)
@@ -496,10 +506,8 @@ func (p *Layout) arrange(ctx context.Context) error {
 		bitmap[i/8] |= 0x80 >> (i % 8)
 	}
 	bitmap[(total-1)/8] |= 0x80 >> ((total - 1) % 8)
-	// Bits beyond the volume are allocated, following makehfs's bitmap convention.
-	for i := total; i < uint64(len(bitmap))*8; i++ {
-		bitmap[i/8] |= 0x80 >> (i % 8)
-	}
+	// makehfs leaves bitmap padding clear. CheckVolumeBitMap compares the
+	// complete final 1024-bit segment, including bits beyond totalBlocks.
 	header := make([]byte, 512)
 	copy(header, "H+")
 	be.PutUint16(header[2:], 4)

@@ -9,7 +9,7 @@ and harness were not imported.
 | 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; full native build/repack/encryption qualification required |
+| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
 | 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
@@ -487,6 +487,33 @@ race checks supplement that independent evidence; Go roundtrips alone do not
 qualify the format. PBKDF2 uses Go’s constant-time bulk XOR to reduce repeated
 byte-loop overhead, with the same derivation, iteration count and cancellation
 checks. A focused benchmark records the password-work cost.
+
+## Transparent file-compression writing increment
+
+Fresh directory, session and multi-volume builds accept `--file-compression
+preserve|zlib|none`. One shared decmpfs encoder generates type-3 attribute or
+type-4 resource storage for both filesystem engines. The default preserves existing
+qualified stored bytes. Explicit policies retain logical contents, links, ordinary
+attributes, independent forks and recorded metadata while changing only active
+compression storage and UF_COMPRESSED. Skipped compression has per-file reasons.
+See [the packing contract](packing.md#transparent-file-compression).
+
+Resource descriptors and encoded blocks stream through managed private scratch;
+no complete logical file is buffered. Preparation shares a bounded metadata budget
+and rechecks source hashes before successful publication. Cancellation, short reads,
+failed scratch/output writes and changed input must leave no published image.
+
+The existing compression and image-building families add native ordinary inputs
+at attribute/block boundaries, incompressible and mixed blocks, independent-fork
+conflicts, inactive metadata and hard links. Every portable host builds both
+policies twice; same-input outputs must match byte-for-byte. Every Mac checks all
+24 distinct policy outputs from the three producers using fsck, read-only mounted
+metadata/contents, public codec decoding and application signatures. Native writes
+replace compressed contents through aliases and retain independent forks, followed
+by filesystem checks and remount/readback. Native operations remain confined to
+disposable CI VMs. The full macOS 15/26/27 capture, Linux/Windows/macOS replay and
+native readback must pass before merging. Existing-filesystem modification and
+durable transactions follow this increment.
 
 ## Required phase gates
 

@@ -21,6 +21,8 @@ from verify_preservation import require
 from metadata_edits import birth_ns
 import container_building as containers
 import encrypted_output
+import compression_output
+import image_capacity
 from image_outputs import verify_identical_outputs
 
 
@@ -39,7 +41,7 @@ def built_devices(attached, apfs, command):
     return device, volumes[0]
 
 
-def verify(image, expected, sensitive, command, apfs=False, empty=False):
+def verify(image, expected, sensitive, command, apfs=False, empty=False, file_compression=None):
     containers.require_disposable_host()
     before = sha256(image)
     image_info = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', image))
@@ -59,24 +61,24 @@ def verify(image, expected, sensitive, command, apfs=False, empty=False):
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, volume)
         info = plistlib.loads(command('diskutil', 'info', '-plist', volume))
         require(info['VolumeName'] == 'Example', 'volume name')
-        require(info['TotalSize'] == (64 if empty else 160 if sensitive else 8) * 1024 * 1024, 'volume capacity')
+        image_capacity.verify_capacity(info['TotalSize'], sensitive, empty)
         require(('case-sensitive' in info['FilesystemName'].lower()) == sensitive, 'case policy')
         require(info['FilesystemType'] == ('apfs' if apfs else 'hfs'), 'filesystem kind')
         require(not info['WritableVolume'] and os.statvfs(mount).f_flag & os.ST_RDONLY, 'read-only native mount')
-        entries = verify_mounted(mount, expected, command, empty, 53 if apfs and not empty else 0)
+        entries = verify_mounted(mount, expected, command, empty, 53 if apfs and not empty else 0, file_compression)
     finally:
         try:
             command('hdiutil', 'detach', device)
         finally:
             temporary.cleanup()
     require(sha256(image) == before, 'native readback modified output image')
-    if apfs:
-        verify_native_allocation(image, command, empty)
+    if apfs or file_compression:
+        verify_native_allocation(image, command, empty, apfs, file_compression)
         require(sha256(image) == before, 'native allocation changed the original image')
     return before, entries
 
 
-def verify_mounted(mount, expected, command, empty=False, lookup_count=0):
+def verify_mounted(mount, expected, command, empty=False, lookup_count=0, file_compression=None):
     # Capture the root under the same logical spelling as the input tree.
     actual = observe_files(mount)
     for entry in actual['entries']:
@@ -89,6 +91,8 @@ def verify_mounted(mount, expected, command, empty=False, lookup_count=0):
     for path, entry in want.items():
         result = got[path]
         for key in ('mode', 'uid', 'gid', 'flags', 'birthSeconds', 'modifyNS', 'changeNS', 'accessNS', 'attributes'):
+            if file_compression and key in ('flags','attributes') and stat.S_ISREG(entry['mode']):
+                continue
             require(result[key] == entry[key], f'{mount}: {path}: {key}: {result[key]} != {entry[key]}')
         if not stat.S_ISDIR(entry['mode']):
             for key in ('size', 'links', 'sha256', 'target'):
@@ -97,7 +101,10 @@ def verify_mounted(mount, expected, command, empty=False, lookup_count=0):
         require(forward.setdefault(old, new) == new and reverse.setdefault(new, old) == old, f'{path}: link identity')
         source = mount if path == 'Fixture' else mount / path.removeprefix('Fixture/')
         require(birth_ns(source) == entry['birthNS'], f'{path}: exact birth nanoseconds')
-        require(digest_values(native_xattrs(source, 0x21)) == raw[old], f'{path}: raw attributes/forks')
+        if file_compression and stat.S_ISREG(entry['mode']):
+            compression_output.verify(source, entry, result, raw[old], file_compression)
+        else:
+            require(digest_values(native_xattrs(source, 0x21)) == raw[old], f'{path}: raw attributes/forks')
     if lookup_count:
         require(len(expected.get('lookups', [])) == lookup_count, 'native name lookup inventory')
         for query in expected['lookups']:
@@ -112,7 +119,7 @@ def verify_mounted(mount, expected, command, empty=False, lookup_count=0):
     return len(want)
 
 
-def verify_native_allocation(image, command, empty=False):
+def verify_native_allocation(image, command, empty=False, apfs=True, file_compression=None):
     """Apple writes only a disposable shadow, then checks and remounts that state."""
     containers.require_disposable_host()
     with tempfile.TemporaryDirectory(prefix='apfs-build-allocation-') as work:
@@ -123,10 +130,13 @@ def verify_native_allocation(image, command, empty=False):
             result = plistlib.loads(command('hdiutil', 'attach', '-plist', '-nobrowse', '-owners', 'off',
                                             *(['-readonly'] if readonly else []), '-shadow', shadow,
                                             '-mountpoint', mount, image))
-            return built_devices(result, True, command)[0]
+            return built_devices(result, apfs, command)[0]
         device = mount_image()
         payload = bytes(range(256)) * 2048
+        compression_payload = None
         try:
+            if file_compression:
+                compression_payload = compression_output.mutate(mount)
             root = mount / 'native-allocation'; root.mkdir()
             original = root / 'grow'
             original.write_bytes(payload)
@@ -147,13 +157,18 @@ def verify_native_allocation(image, command, empty=False):
             command('hdiutil', 'detach', device)
         # Check the shadow's new checkpoint while unmounted, before final readback.
         attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-nomount', '-plist', '-shadow', shadow, image))
-        device, _ = built_devices(attached, True, command)
+        device, _ = built_devices(attached, apfs, command)
         try:
-            command('/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs', '-n', device.replace('/dev/disk', '/dev/rdisk'))
+            if apfs:
+                command('/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs', '-n', device.replace('/dev/disk', '/dev/rdisk'))
+            else:
+                command('/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
         finally:
             command('hdiutil', 'detach', device)
         device = mount_image(readonly=True)
         try:
+            if compression_payload:
+                compression_output.verify_mutated(mount, compression_payload)
             root = mount / 'native-allocation'
             require((root / 'renamed').read_bytes() == payload * 2, 'native growth survives remount')
             require((root / 'reused').read_bytes() == payload, 'native reuse survives remount')
@@ -263,8 +278,11 @@ def main():
         except BaseException as error:
             record.update(status='failed', error=str(error)); save(); raise
         record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace')); save()
-        require((r.returncode == 0) == expected_success, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
+        require(expected_success is None or (r.returncode == 0) == expected_success, f'command failed: {argv}: {r.stdout.decode(errors="replace")} {r.stderr.decode(errors="replace")}')
+        if expected_success is None and r.returncode:
+            return None
         return r.stdout
+    image_capacity.compare(args.corpus, args.outputs, command, args.expected_major)
     total = 0
     for major in args.producers.split(','):
         corpus = args.corpus / f'macos-{major}'
@@ -284,6 +302,13 @@ def main():
                 bits = encrypted_output.BUILD_PROFILES.get((case_id, encoding))
                 if bits:
                     encrypted_output.verify(images, bits, command)
+            for policy in ('zlib', 'none'):
+                encoding = 'UDZO' if case['expected']['caseSensitive'] else 'UDRO'
+                images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id /
+                          'file-compression' / policy / (encoding + '.dmg') for consumer in args.consumers.split(',')]
+                total += verify_identical_outputs(images, lambda image: verify(image, expected,
+                    case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS',
+                    file_compression=policy))
             if case_id == 'apfs':
                 entry = next(e for e in expected['entries'] if e['path'] == 'Fixture/empty-build-root')
                 empty = {'entries': [dict(entry, path='Fixture')],

@@ -528,14 +528,23 @@ macOS major, following the other independent verification scripts. CI requires
 all four filesystem profiles and both encodings from every producer/consumer combination,
 compares output hashes across hosts and retains failure diagnostics. Native source
 images and observations are immutable; a writer mismatch is fixed in Go. Each Mac
-requires all 117 built DMGs to agree in triples across portable hosts, then checks
-the 39 distinct byte sequences, including 27 native APFS allocation journeys.
+requires all 189 plaintext built DMGs to agree in triples across portable hosts,
+then checks the 63 distinct byte sequences, including 27 baseline APFS allocation
+journeys and 24 compression-policy modification journeys.
 Hash comparison precedes native verification, so identical output is mounted once
 per verifier OS. The two container cases add approximately five seconds to local
 Go replay. Their separately manifested references live in `macos-27/containers`;
 older single-volume observations and source provenance remain unchanged.
 The original HFS-only capture is retained under `testdata/image-building/history`;
 its files and expectations were not rewritten for APFS construction.
+
+`native/image_capacity.py` records Apple automatic sizing of the same four input
+trees and attempts Apple construction at the Go images' capacities. Private
+shadows measure bounded native allocation alongside `statvfs` physical free and
+caller-available blocks. These controls explain sizing and reserve behaviour;
+their diagnostic reports do not invent expected capacity values from Go output.
+Apple must successfully populate the same source at the Go capacity.
+The full native modification journeys above remain the output acceptance gate.
 
 Native image-building capture and verification require GitHub-hosted VMs, or
 `APFS_NATIVE_DISPOSABLE_VM=1` explicitly set inside another isolated disposable VM.
@@ -635,3 +644,28 @@ native helpers, documentation and the two CI workflows require fresh capture and
 replay. Missing artifacts or changed Go code/tests, fixtures or dependencies fail
 this admission. Every native readback still runs on all three macOS versions.
 Ordinary PR runs continue to capture and replay fresh data.
+
+
+Transparent file-compression writing extends the existing `file-compression` and
+`image-building` families. Native source inputs include empty/tiny files, attribute
+capacity controls, exact 64 KiB boundaries, a multi-megabyte file, incompressible
+and mixed blocks, inactive metadata, independent resource forks and hard links.
+Older retained references remain immutable; fresh required CI captures must include
+the complete new input inventory. Local codec/CLI/failure tests supplement those
+references without invoking native tools.
+
+Image-building replay emits `file-compression/zlib` and `file-compression/none`
+outputs and diagnostic reports inside its existing output archives. Each policy
+is built twice from each of the four filesystem profiles from each source Mac.
+The 72 host outputs must agree in triples, then each verifier checks the 24 distinct
+images with Apple's image/fsck tools, kernel reads, public compression codec,
+metadata and signature checks. Compression-owned storage may change; independent
+forks, inactive attributes and all ordinary metadata must remain exact. Required
+controls independently prove actual attribute/resource compression, native stored
+blocks and explicit refusal to replace unrelated fork/attribute storage.
+
+Each policy output also receives native shadow-file writes, hard-link replacement,
+independent-fork preservation and allocation/reuse, followed by unmounted fsck and
+read-only remount verification. Source hashes must remain unchanged. This proves
+continued native use without claiming Go existing-filesystem mutation or power-loss
+durability. All native operations run on disposable hosted VMs.

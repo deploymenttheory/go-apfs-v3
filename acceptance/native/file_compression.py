@@ -62,6 +62,29 @@ def plain(size):
     return (pattern * ((size + len(pattern) - 1) // len(pattern)))[:size]
 
 
+def writing_inputs(root):
+    """Ordinary native files qualify new compression, without a Go recipe."""
+    directory = root / 'compression-writing'
+    directory.mkdir()
+    for size in (0, 1, 3801, 3802, 65535, 65536, 65537, BLOCK * 3 + 17, BLOCK * 32 + 17):
+        (directory / f'size-{size}').write_bytes(plain(size))
+    random = b''.join(hashlib.sha256(struct.pack('<I', i)).digest() for i in range(BLOCK // 32))
+    (directory / 'incompressible').write_bytes(random)
+    (directory / 'mixed-blocks').write_bytes(plain(BLOCK) + random + plain(17))
+    # These straddle attribute capacity with different amounts of random data.
+    for count in (3300, 3900):
+        (directory / f'attribute-edge-{count}').write_bytes(random[:count] + bytes(BLOCK - count))
+    for name, data in (('independent-inline', plain(1200)), ('independent-resource', plain(BLOCK + 17))):
+        path = directory / name
+        path.write_bytes(data)
+        xattr(path, RESOURCE, b'Independent fork must remain byte-exact.\x00\xff')
+        xattr(path, 'org.go-apfs.compression-writing', b'Ordinary attribute retained.')
+    inactive = directory / 'inactive-decmpfs'
+    inactive.write_bytes(plain(BLOCK + 17))
+    xattr(inactive, ATTRIBUTE, b'Inactive opaque metadata must remain unchanged.')
+    os.link(directory / 'size-65537', directory / 'hardlink')
+
+
 def stored(kind, data):
     return bytes([0xcc if kind in (9, 10) else 6 if kind in (7, 8) else 0xff]) + data
 
@@ -121,6 +144,7 @@ def install(path, kind, data, payload=None, blocks=None, gaps=False):
 
 def create(root, command):
     root.mkdir()
+    writing_inputs(root)
     # ditto is the native filesystem producer for LZVN, whose public buffer API
     # has no algorithm constant. Preserve its complete output as its own case.
     source = root.parent / "compression-source"
@@ -178,6 +202,10 @@ def observe(root, observe_files, major):
     details = []
 
     def read(path):
+        if path.relative_to(root).parts[0] == 'compression-writing':
+            # These are ordinary files used as input to the new writer. Their
+            # native attributes are already recorded by observe_files.
+            return {'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
         raw = xattr(path, ATTRIBUTE)
         active = bool(path.lstat().st_flags & stat.UF_COMPRESSED)
         result = {}

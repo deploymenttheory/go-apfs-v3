@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/buildsize"
 )
 
 const (
@@ -122,7 +123,8 @@ func (p *Layout) arrange(ctx context.Context) error {
 	minimum := max(uint64(2048), uint64(len(trees)-1)*131072+1)
 	blocks := uint64(p.options.Capacity+4095) / 4096
 	if blocks == 0 {
-		blocks = max(minimum, payload+nodes+reserved-reserveAllocated+(payload+nodes)/8+128)
+		blocks = max(minimum, buildsize.AutomaticBlocks(payload+nodes,
+			reserved-reserveAllocated, buildsize.APFSPaddingBlocks))
 	}
 	var g buildGeometry
 	var oid uint64
@@ -147,6 +149,10 @@ func (p *Layout) arrange(ctx context.Context) error {
 		g.payloadBase = g.poolBase + g.poolBlocks
 		g.usedEnd = g.payloadBase + payload
 		required := g.usedEnd + reserved - reserveAllocated
+		if p.options.Capacity == 0 {
+			required = buildsize.AutomaticBlocks(g.usedEnd,
+				reserved-reserveAllocated, buildsize.APFSPaddingBlocks)
+		}
 		if required <= blocks {
 			break
 		}
@@ -154,8 +160,9 @@ func (p *Layout) arrange(ctx context.Context) error {
 			return fmt.Errorf("APFS container capacity, including reservations: %w", filesystem.ErrLimit)
 		}
 		// Space-manager overhead itself grows with capacity. Recompute until
-		// automatic sizing covers both that overhead and unused reservations.
-		blocks = required + 128
+		// automatic sizing covers that overhead, unused reservations and the
+		// complete growth allowance. A retry must not discard the padding.
+		blocks = required
 	}
 	if err = p.volumes[0].reserve(int64(nodes+uint64(len(cmap.nodes))+g.cibs+g.spacemanBlocks+g.poolBitmapBlocks+(g.usedEnd+32767)/32768+8) * 4096); err != nil {
 		return err
