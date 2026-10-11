@@ -600,17 +600,28 @@ func (p *Layout) records() ([]treeRecord, []treeRecord, uint32, uint32, error) {
 			}
 		}
 		if len(o.aliases) > 0 {
+			aliases := append([]buildAlias{{o.parent, o.name, o.firstAlias}}, o.aliases...)
+			// Follow hfs_makelink/createindirectlink and cat_createlink:
+			// the inode owns a chain head; each alias stores sibling CNIDs in
+			// its BSD owner/group fields, independently of the inode's UID/GID.
+			be.PutUint16(b[2:], be.Uint16(b[2:])|0x20)
+			be.PutUint32(b[4:], aliases[0].id)
 			be.PutUint32(b[44:], uint32(len(o.aliases)+1))
 			add(o.id, private, fmt.Sprintf("iNode%d", o.id), b)
-			aliases := append([]buildAlias{{o.parent, o.name, o.firstAlias}}, o.aliases...)
 			// Alias catalog records use their own CNIDs; the private inode owns data.
-			for _, a := range aliases {
+			for i, a := range aliases {
 				link := make([]byte, 248)
 				be.PutUint16(link, 2)
-				be.PutUint16(link[2:], 2)
+				be.PutUint16(link[2:], 0x22)
 				be.PutUint32(link[8:], a.id)
 				stamp, _ := buildDate(p.options.Time)
 				be.PutUint32(link[12:], stamp)
+				if i > 0 {
+					be.PutUint32(link[32:], aliases[i-1].id)
+				}
+				if i+1 < len(aliases) {
+					be.PutUint32(link[36:], aliases[i+1].id)
+				}
 				link[41] = 2
 				be.PutUint16(link[42:], 0100444)
 				be.PutUint32(link[44:], o.id)

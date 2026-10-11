@@ -218,6 +218,12 @@ one native inode through APFS sibling records or HFS's private-directory indirec
 and the physical extent layout are newly assigned. Link counts describe the aliases
 inside this build; references outside a captured subtree cannot exist in its output.
 
+HFS+/HFSX construction emits complete native hard-link chains, including the
+inode's head pointer and reciprocal alias pointers. The alias owner/group fields
+carry chain CNIDs while the inode retains actual UID/GID. This follows Apple's
+`hfs_makelink` and `cat_createlink`, so subsequent native updates preserve a valid
+catalog. Legacy flagless links remain readable as source evidence.
+
 Unchanged decmpfs types 1, 3, 4, 7 and 8 can retain their stored representation.
 Native build acceptance covers each admitted type, including native LZVN resource
 storage and the type-7 stored marker. Other preserved compression types fail explicitly.

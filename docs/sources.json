@@ -745,9 +745,13 @@
         {
           "path": "core/hfs_xattr.c",
           "sha256": "22413ad83654198946ad26797c074fc9c64500a9fe75abbfcff426731ddce117"
+        },
+        {
+          "path": "core/hfs_catalog.c",
+          "sha256": "a459793a5f38d05ad3b5a8e6f9761aefb3d9dfeb077962a7a190b6812bd37dd6"
         }
       ],
-      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, legacy regular-file indirection and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output. Allocation bitmap initialization follows makehfs zeroing and MarkExtentUsed: only real allocated extents and the header blocks are marked; padding beyond totalBlocks stays clear. The independently studied CheckVolumeBitMap compares the entire final 1024-bit segment, exposing the old incorrect all-ones padding when automatic capacities end within a segment."
+      "basis": "Adapted InitVH, WriteExtentsFile, WriteAttributesFile and WriteCatalogFile header/map initialization to a fresh-volume Go planner. Core format/link/xattr sources guide catalog, current regular-file hard-link chains and extent-based attributes. No kernel mutation or journal implementation is ported. Contiguous payload allocation, bounded bulk-loaded trees, explicit UTC clock and content-derived identity replace device writes, native defaults and random UUIDs. Native fsck and mounted observations independently qualify output. Allocation bitmap initialization follows makehfs zeroing and MarkExtentUsed: only real allocated extents and the header blocks are marked; padding beyond totalBlocks stays clear. The independently studied CheckVolumeBitMap compares the entire final 1024-bit segment, exposing the old incorrect all-ones padding when automatic capacities end within a segment. Fresh hard links follow hfs_makelink/createindirectlink and cat_createlink: kHFSHasLinkChainMask is set on inode and aliases; inode reserved1 stores hl_firstLinkID, and alias BSD owner/group fields store hl_prevLinkID/hl_nextLinkID. Actual UID/GID remain on the inode. Legacy flagless construction was readable, but cat_lookup marks resolved inodes as chained and subsequent native writes persist an incomplete chain. CheckHardLinks exposed that transition during compression replacement in run 38114955455. Stored-record regressions inspect complete three-alias chains in plain/compressed HFS+/HFSX output; native continued modification remains the independent verdict."
     },
     {
       "id": "native-hfs-image-building-27",
@@ -933,6 +937,23 @@
         }
       ],
       "basis": "BitMapCheckBegin captures real volume headers and initializes all other bits clear. CheckVolumeBitMap compares complete 1024-bit segments with memcmp, including final padding, and reports extra set bits as orphaned allocation. No checker code is copied. macOS 15/26/27 run 38113498604 rejected the old bitmap in a 2631-block volume, whose final segment incorrectly marked 441 nonexistent blocks. Portable regressions fail on the old output and independently check clear tail bits and consistent free counts; fresh native fsck remains required."
+    },
+    {
+      "id": "apple-hfs-hardlink-checker",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "hfsplus/build.go",
+        "hfsplus/build_links_test.go"
+      ],
+      "files": [
+        {
+          "path": "lib_fsck_hfs/dfalib/HardLinkCheck.c",
+          "sha256": "92a4dd19a2a55368b523ec5038e862c97ff868ac93e9f8c15af5946c8b5f08af"
+        }
+      ],
+      "basis": "CaptureHardLink, inode_check and CheckHardLinks distinguish legacy flagless links from current kHFSHasLinkChainMask records and validate chain heads, reciprocal pointers and counts. No checker code is copied. Native compression writes exposed the mismatch between legacy constructed aliases and inodes whose chain flag the kernel persists during an update."
     }
   ]
 }
