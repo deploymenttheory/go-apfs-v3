@@ -11,9 +11,17 @@ from pathlib import Path
 import plistlib
 import tempfile
 
-import container_building as containers
 from capture import sha256
 from verify_preservation import require
+
+
+def verify_capacity(size, sensitive, empty):
+    if empty or sensitive:
+        require(size == (64 if empty else 160) * 1024 * 1024, 'requested volume capacity')
+    else:
+        # Added ordinary input bytes can exceed the shared 8 MiB minimum.
+        require(8 * 1024 * 1024 <= size <= 1 << 40 and size % 4096 == 0,
+                'automatic volume capacity')
 
 
 def space(root):
@@ -24,7 +32,8 @@ def space(root):
 
 def measure(image, command):
     """Bounded native writes to a private shadow; original sectors stay intact."""
-    containers.require_disposable_host()
+    from container_building import require_disposable_host
+    require_disposable_host()
     before = sha256(image)
     with tempfile.TemporaryDirectory(prefix='apfs-capacity-measure-') as work:
         work = Path(work)
@@ -63,7 +72,8 @@ def measure(image, command):
 
 def compare(corpus, outputs, command, major):
     """Use one native source producer for all four filesystem profiles."""
-    containers.require_disposable_host()
+    from container_building import require_disposable_host
+    require_disposable_host()
     source = corpus / 'macos-15'
     manifest = json.loads((source / 'manifest.json').read_text())
     results = []
@@ -102,4 +112,6 @@ def compare(corpus, outputs, command, major):
             finally:
                 command('hdiutil', 'detach', device)
         print('Native capacity control:', json.dumps(result, sort_keys=True), flush=True)
+        require(result['apple-matching-go-capacity'].get('created') is not False,
+                f'{case_id}: Apple cannot build the same source at the Go capacity')
     return results

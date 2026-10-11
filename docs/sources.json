@@ -683,6 +683,41 @@
       "basis": "Immutable macOS 15 CI reference with actual UID/GID reassignment to 60001/60002. Native capture passed on all three Macs; the first portable replay exposed that physical recursive chown changes symlink ownership while chmod skips symlinks. The corrected implementation passes these saved native observations. This reference prevents same-owner local capture from hiding the difference."
     },
     {
+      "id": "apple-hfs-free-space-study",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/hfs",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "components": [
+        "internal/buildsize/capacity.go",
+        "acceptance/native/image_capacity.py",
+        "docs/image-sizing.md"
+      ],
+      "files": [
+        {
+          "path": "core/hfs_vfsops.c",
+          "sha256": "070d63b5defcfc32c074197d85eb6c1913f894f5d453f923b07bc03bd0c15b15"
+        },
+        {
+          "path": "core/hfs_vfsutils.c",
+          "sha256": "85916866504e2db3ad8784129c588af8e375c3631de5d01cb28f13c4c8426c27"
+        }
+      ],
+      "basis": "Study of reserveBlocks, f_bfree/f_bavail and hfs_freeblks explains physical versus caller-available block accounting, including loaned/locked blocks and sparse-device backing-store limits. No kernel allocation implementation is copied. The formatter's InitVH accounting remains separately inventoried. Automatic padding is original Go policy, not a port of Apple's private DiskImages or APFS formatter sizing formula."
+    },
+    {
+      "id": "native-image-capacity-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38110647183",
+      "evidence": "docs/image-sizing.md",
+      "components": [
+        "internal/buildsize/capacity.go",
+        "apfs/build_container.go",
+        "hfsplus/build.go",
+        "acceptance/native/image_capacity.py"
+      ],
+      "basis": "All three disposable native VMs build the same macOS 15 APFS/HFS+/case-sensitive sources using Apple automatic sizing and explicit Go capacity. Apple cannot populate the old 9,052,160-byte APFS capacity; its 18,337,792-byte automatic image admits at least 8 MiB of new native data. Old Go APFS allocation stops at 192 KiB despite reporting 314 free/available blocks. Native HFS automatic sizing leaves substantially more usable room than old Go sizing. Measurements establish underprovisioning without claiming an exact private Apple formula or universal reserve constant. Fresh output qualification retains complete native modification/fsck/remount workloads."
+    },
+    {
       "id": "apple-hfs-formatter",
       "kind": "source-port",
       "url": "https://github.com/apple-oss-distributions/hfs",

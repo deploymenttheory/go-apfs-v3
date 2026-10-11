@@ -10,7 +10,7 @@ import zlib
 import compression_output
 import file_compression
 from preservation import digest_values
-from verify_image_building import verify_capacity
+from image_capacity import verify_capacity
 
 
 class CompressionOutput(unittest.TestCase):

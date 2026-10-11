@@ -528,8 +528,9 @@ macOS major, following the other independent verification scripts. CI requires
 all four filesystem profiles and both encodings from every producer/consumer combination,
 compares output hashes across hosts and retains failure diagnostics. Native source
 images and observations are immutable; a writer mismatch is fixed in Go. Each Mac
-requires all 117 built DMGs to agree in triples across portable hosts, then checks
-the 39 distinct byte sequences, including 27 native APFS allocation journeys.
+requires all 189 plaintext built DMGs to agree in triples across portable hosts,
+then checks the 63 distinct byte sequences, including 27 baseline APFS allocation
+journeys and 24 compression-policy modification journeys.
 Hash comparison precedes native verification, so identical output is mounted once
 per verifier OS. The two container cases add approximately five seconds to local
 Go replay. Their separately manifested references live in `macos-27/containers`;
@@ -542,6 +543,7 @@ trees and attempts Apple construction at the Go images' capacities. Private
 shadows measure bounded native allocation alongside `statvfs` physical free and
 caller-available blocks. These controls explain sizing and reserve behaviour;
 their diagnostic reports do not invent expected capacity values from Go output.
+Apple must successfully populate the same source at the Go capacity.
 The full native modification journeys above remain the output acceptance gate.
 
 Native image-building capture and verification require GitHub-hosted VMs, or

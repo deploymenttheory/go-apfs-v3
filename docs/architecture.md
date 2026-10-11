@@ -424,6 +424,11 @@ identifiers stay explicit; no cross-filesystem metadata conversion is inferred.
 
 Reserves and quotas are accounted before payload hashing. Automatic sizing
 includes unused reservations, metadata overhead and Apple's volume-slot rule.
+Both builders share automatic sizing accounting in `internal/buildsize`, applying
+format-specific free-space padding only after all metadata is placed. Every
+capacity-dependent geometry retry retains that padding. Explicit capacities stay
+exact. [Apple source study and native sizing evidence](image-sizing.md) distinguish
+physical free blocks, successful native allocation and the original Go policy.
 The metadata budget is shared across all volumes. Groups pair explicit System
 and Data indexes with matching case policies and unique member/UUID assignments.
 Grouped System user objects and the next-object allocator use the observed

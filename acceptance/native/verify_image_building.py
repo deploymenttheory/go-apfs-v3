@@ -41,15 +41,6 @@ def built_devices(attached, apfs, command):
     return device, volumes[0]
 
 
-def verify_capacity(size, sensitive, empty):
-    if empty or sensitive:
-        require(size == (64 if empty else 160) * 1024 * 1024, 'requested volume capacity')
-    else:
-        # This profile deliberately exercises automatic sizing. Added ordinary
-        # input bytes can grow it beyond the shared 8 MiB minimum.
-        require(8 * 1024 * 1024 <= size <= 1 << 40 and size % 4096 == 0, 'automatic volume capacity')
-
-
 def verify(image, expected, sensitive, command, apfs=False, empty=False, file_compression=None):
     containers.require_disposable_host()
     before = sha256(image)
@@ -70,7 +61,7 @@ def verify(image, expected, sensitive, command, apfs=False, empty=False, file_co
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, volume)
         info = plistlib.loads(command('diskutil', 'info', '-plist', volume))
         require(info['VolumeName'] == 'Example', 'volume name')
-        verify_capacity(info['TotalSize'], sensitive, empty)
+        image_capacity.verify_capacity(info['TotalSize'], sensitive, empty)
         require(('case-sensitive' in info['FilesystemName'].lower()) == sensitive, 'case policy')
         require(info['FilesystemType'] == ('apfs' if apfs else 'hfs'), 'filesystem kind')
         require(not info['WritableVolume'] and os.statvfs(mount).f_flag & os.ST_RDONLY, 'read-only native mount')

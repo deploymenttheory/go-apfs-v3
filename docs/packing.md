@@ -306,9 +306,13 @@ bytes. Fresh native qualification is described in the acceptance documentation.
 ## Capacity and reproducibility
 
 `--capacity` specifies APFS container or HFS volume bytes, optionally suffixed `KiB`, `MiB` or `GiB`.
-Capacity rounds up to a 4096-byte block and must be at least 8 MiB. Automatic sizing reserves space for every
-payload and metadata tree plus free space, with an 8 MiB minimum. Insufficient
-capacity fails before output publication.
+Capacity rounds up to a 4096-byte block and must be at least 8 MiB. Automatic sizing
+covers the complete payload and metadata layout, unused APFS volume reservations,
+and free-space padding: 8 MiB for APFS or 2 MiB for HFS+, plus 12.5% of allocated
+blocks. Capacity-dependent metadata retains the full padding on every sizing
+retry. Explicit capacity adds no automatic padding. Insufficient capacity fails
+before output publication. [Sizing research and native controls](image-sizing.md)
+explain this policy and its limits.
 
 `--time RFC3339` fixes the construction clock; HFS requires whole seconds while
 APFS accepts nanoseconds. It does not normalize captured file timestamps. Without it the command samples the current UTC clock.
