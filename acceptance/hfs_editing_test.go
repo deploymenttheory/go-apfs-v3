@@ -81,7 +81,7 @@ func TestNativeHFSImageEditing(t *testing.T) {
 		if e = json.Unmarshal(b, &manifest); e != nil {
 			t.Fatal(e)
 		}
-		if manifest.Schema != 1 || manifest.Contract != "existing-hfs-file-edits" || manifest.CapacityBytes != 64<<20 || len(manifest.Cases) != 2 || len(manifest.Producer.Sources) != 8 || majors[manifest.Major] {
+		if manifest.Schema != 1 || manifest.Contract != "existing-hfs-file-edits" || manifest.CapacityBytes != 64<<20 || len(manifest.Cases) != 2 || len(manifest.Producer.Sources) != 10 || majors[manifest.Major] {
 			t.Fatal("invalid native HFS edit inventory")
 		}
 		majors[manifest.Major] = true

@@ -6,6 +6,7 @@ Sources, native before/after states, checker verdicts and exact scripts are kept
 Go never participates in fixture production or supplies native expectations.
 """
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -25,7 +26,7 @@ CAPACITY = 64 << 20
 STAMP = 1749283750  # 2025-06-07T08:09:10Z; explicit offline modification policy.
 SOURCES = ('hfs_editing.py', 'capture.py', 'container_building.py', 'file_compression.py',
            'hfs_header_growth.py', 'image_repacking.py', 'image_building.py',
-           'verify_preservation.py')
+           'verify_preservation.py', 'metadata_edits.py', 'content_replacement.py')
 PEAK = (('alias', 'grow', 20 << 20, False), ('small', 'small', 7000, False),
         ('inline-compressed', 'inline', 7000, False),
         ('resource-compressed', 'resource', 100000, False))
@@ -68,10 +69,25 @@ def create(root, command):
     guards = root.parent / 'allocation-guards'
     guards.mkdir()
     count = 0
-    while os.statvfs(root).f_bavail * os.statvfs(root).f_frsize > 1 << 20:
-        require(count < 2048, 'bounded fragmentation guard count')
-        (guards / str(count)).write_bytes(bytes(32 << 10))
+    pressure = None
+    # Actual allocation, not cached statfs availability, defines exhaustion.
+    # Keep the native ENOSPC outcome; remove the incomplete guard before holes.
+    while count < 2048:
+        path = guards / str(count)
+        try:
+            with path.open('wb') as stream:
+                stream.write(bytes(32 << 10))
+                stream.flush()
+                os.fsync(stream.fileno())
+        except OSError as failure:
+            if failure.errno != errno.ENOSPC:
+                raise
+            pressure = {'errno': failure.errno, 'completeGuardFiles': count,
+                        'reportedAvailableBytes': os.statvfs(root).f_bavail * os.statvfs(root).f_frsize}
+            path.unlink(missing_ok=True)
+            break
         count += 1
+    require(pressure is not None, 'bounded guard workload must reach actual ENOSPC')
     for n in range(0, count, 2):
         (guards / str(n)).unlink()
     write_payload(root / 'fragmented-data', 'original', 8 << 20)
@@ -79,14 +95,17 @@ def create(root, command):
     for name, fork in (('fragmented-data', False), ('fragmented-resource', True)):
         ranges = native_extents(str(root / name) + ('/..namedfork/rsrc' if fork else ''))
         require(len(ranges) > 8, f'{name} requires native overflow records')
+    return pressure
 
 
-def apply_native(root, phase):
+def apply_native(root, phase, command):
+    from metadata_edits import set_metadata
     for name, label, size, resource in PEAK if phase == 'peak' else FINAL:
         path = root / name
-        access = path.stat().st_atime_ns
         write_payload(str(path) + ('/..namedfork/rsrc' if resource else ''), label, size)
-        os.utime(path, ns=(access, STAMP * 1000000000))
+        # Supply birth/access explicitly, matching the preservation policy.
+        # hfs_vnop_setattr otherwise clamps HFS+ birth to an older new mtime.
+        set_metadata(path, {'modifyTime': {'value': '2025-06-07T08:09:10.000000000Z'}}, command)
     if phase == 'peak':
         os.chmod(root / 'small', 0o755)
 
@@ -137,12 +156,13 @@ def capture(expected_major, output):
                 mount = work / (filesystem + '-write')
                 mount.mkdir()
                 command('diskutil', 'mount', '-mountOptions', 'noowners,noatime', '-mountPoint', mount, device)
-                create(mount / 'Fixture', command)
+                pressure = create(mount / 'Fixture', command)
             finally:
                 command('hdiutil', 'detach', device)
             before = observe(image, work, command)
             source = retain_file(image, output / (filesystem + '-source.raw.gz'))
-            case = {'id': filesystem, 'source': source, 'before': before, 'states': {}}
+            case = {'id': filesystem, 'source': source, 'before': before, 'states': {},
+                    'allocationPressure': pressure}
             for phase in ('peak', 'final'):
                 edited = work / (filesystem + '-' + phase + '.raw')
                 shutil.copyfile(image, edited)
@@ -151,7 +171,7 @@ def capture(expected_major, output):
                     mount = work / (filesystem + '-' + phase + '-write')
                     mount.mkdir()
                     command('diskutil', 'mount', '-mountOptions', 'noowners,noatime', '-mountPoint', mount, device)
-                    apply_native(mount / 'Fixture', phase)
+                    apply_native(mount / 'Fixture', phase, command)
                 finally:
                     command('hdiutil', 'detach', device)
                 state = observe(edited, work, command)

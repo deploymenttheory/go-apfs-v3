@@ -95,8 +95,10 @@ scripts, command transcripts and hashes are retained.
 Linux, Windows and macOS independently edit the same source disks in both DMG
 encodings. Comparisons require original identities and geometry, native content,
 metadata and fork outcomes, extent-tree growth, consistent headers and identical
-output bytes. The explicit offline ctime is distinguished from the captured
-native wall clock. Apple-created post-write disks are also read directly.
+output bytes. Native timestamp controls explicitly supply birth/access together with mtime;
+Apple otherwise clamps HFS+ birth time when mtime is backdated. The explicit
+offline ctime is distinguished from the captured native wall clock. Allocation
+pressure records actual ENOSPC and the reported availability at that moment. Apple-created post-write disks are also read directly.
 
 Every distinct portable output returns to every disposable native VM for Apple
 checksums, exact raw-copy admission, fsck, mounted readback and codesign. Final

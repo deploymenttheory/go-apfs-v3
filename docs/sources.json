@@ -586,7 +586,7 @@
         "acceptance/native/verify_preservation.py"
       ],
       "evidence": "acceptance/testdata/preservation/macos-27/manifest.json",
-      "basis": "Four native APFS/HFS+/HFSX images, 125\u2013126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
+      "basis": "Four native APFS/HFS+/HFSX images, 125–126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
     },
     {
       "id": "native-content-replacement-27",
@@ -1063,9 +1063,13 @@
         {
           "path": "core/hfs_readwrite.c",
           "sha256": "f9d361c0d8ee6ae09ec7c4ea3f7630cc77165295146d8965216aa1f07c4d8ac8"
+        },
+        {
+          "path": "core/hfs_vnops.c",
+          "sha256": "a07a8cd9bad0e485a6c7248facac3edcf66736727777715f8cf6a86fb77f3f44"
         }
       ],
-      "basis": "Go adaptations of VolumeAllocation bitmap marking/accounting, hfs_extents grouping/coalescing, BTreeTreeOps SearchTree/SplitLeft/DeleteTree/CollapseTree, BTreeNodeOps record offsets, and BTreeAllocate AllocateNode/FreeNode. Exclusive unpublished regular-file copies replace mounted vnodes, tree path tables, locks and journal callbacks. Deterministic first-fit allocation and byte-balanced splits omit kernel allocation caches and optional sibling redistribution. Original Go admission verifies complete allocation ownership, native keys, node maps/reachability, and both structural headers. Catalog changes patch original fixed-size records, retaining CNIDs and opaque bytes. Nonjournaled volume-header signature follows hfs_flushvolumeheader. Active compression removal shares existing decmpfs ownership policy. Explicit offline timestamps and no-overwrite completed-image publication are project policy, not kernel credential emulation, HFS journal recovery or universal power-loss durability. Native evidence is supplied by the existing-hfs-file-edits family on disposable macOS 15/26/27 VMs; its producer never invokes Go."
+      "basis": "Go adaptations of VolumeAllocation bitmap marking/accounting, hfs_extents grouping/coalescing, BTreeTreeOps SearchTree/SplitLeft/DeleteTree/CollapseTree, BTreeNodeOps record offsets, and BTreeAllocate AllocateNode/FreeNode. Exclusive unpublished regular-file copies replace mounted vnodes, tree path tables, locks and journal callbacks. Deterministic first-fit allocation and byte-balanced splits omit kernel allocation caches and optional sibling redistribution. Original Go admission verifies complete allocation ownership, native keys, node maps/reachability, and both structural headers. Catalog changes patch original fixed-size records, retaining CNIDs and opaque bytes. Nonjournaled volume-header signature follows hfs_flushvolumeheader. Active compression removal shares existing decmpfs ownership policy. Explicit offline timestamps and no-overwrite completed-image publication are project policy, not kernel credential emulation, HFS journal recovery or universal power-loss durability. Native evidence is supplied by the existing-hfs-file-edits family on disposable macOS 15/26/27 VMs; its producer never invokes Go. The native preservation control supplies birth/access times explicitly with mtime: hfs_vnop_setattr otherwise clamps HFS+ creation time to an older new modification time. Guard allocation records actual ENOSPC instead of assuming statfs availability is synchronously current."
     }
   ]
 }
