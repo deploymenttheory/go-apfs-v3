@@ -964,7 +964,8 @@
       "files": [
         {"path": "core/hfs_btreeio.c", "sha256": "a31b4e9e1e88f9be39abb93d9cfb5cc833db6098452e8d918a041f32b3c6df16"},
         {"path": "lib_fsck_hfs/dfalib/SVerify1.c", "sha256": "1387dbfacc1120e78b514491130393d721bb2fce4739df290dc38d7ba11543d8"},
-        {"path": "lib_fsck_hfs/dfalib/SVerify2.c", "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"}
+        {"path": "lib_fsck_hfs/dfalib/SVerify2.c", "sha256": "d0a308a645876f895d3117f838754affc1ff1c943eb457f6f06c3a13266d66d5"},
+        {"path": "lib_fsck_hfs/dfalib/SUtils.c", "sha256": "fa03e4c21a28a8434245746750733857cc415a56d8e28061215bbd735729a958"}
       ],
       "basis": "ExtendBTreeFile requests synchronous primary/alternate header flushing after system-file growth. The separately inventoried hfs_vfsops writer copies updated metadata to the alternate header. Checker debug output identifies catalog total-block disagreement and invalidates the alternate header. No kernel/checker code copied; native route controls and sector-preserving writable conversion qualify the original Go filesystem independently."
     },

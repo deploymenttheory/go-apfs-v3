@@ -22,8 +22,9 @@ marks the grown system file modified and calls `hfs_flushvolumeheader` with
 `HFS_FVH_WAIT | HFS_FVH_WRITE_ALT`. The
 [`volume-header writer`](https://github.com/apple-oss-distributions/hfs/blob/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core/hfs_vfsops.c)
 copies updated metadata to the alternate header. Apple's
-[`checker`](https://github.com/apple-oss-distributions/hfs/blob/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/lib_fsck_hfs/dfalib/SVerify1.c)
-rejects disagreement between the primary and alternate headers. Debug mode
+[`CompareVolHeaderBTreeSizes`](https://github.com/apple-oss-distributions/hfs/blob/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/lib_fsck_hfs/dfalib/SUtils.c)
+prefers the larger catalog fork and invalidates the smaller header; `CheckVolume`
+then rejects that state. Debug mode
 identifies the precise field; plain output only reported a minor header repair.
 
 [Experiment 38120009221](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38120009221)
@@ -51,6 +52,6 @@ remain failures; no repair or checker-error exception is used. The original
 read-only DMG is independently qualified in its published encoding too.
 
 `acceptance/native/diagnose_hfs_headers.py` retains the optional three-route
-diagnostic. It records individual verdicts and header fields rather than
-qualifying product output, and is outside the normal CI path. Its direct writes
+diagnostic. It records individual verdicts and header fields and is outside the
+normal CI qualification path. Its direct writes
 use only private Apple-converted copies on disposable VMs.
