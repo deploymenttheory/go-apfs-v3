@@ -68,7 +68,10 @@ def observe_catalog(image, work, command):
         mount.mkdir()
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
         command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
-        result = {'files': files(mount / 'Fixture'), 'headers': headers, 'checkerStatus': 0}
+        observed = files(mount / 'Fixture')
+        observed['rawAttributes'] = [{'object': item['object'], 'attributes': item['rawAttributes']}
+                                     for item in observed['entries']]
+        result = {'files': observed, 'headers': headers, 'checkerStatus': 0}
         journal = read_journal(image)
         if journal is not None:
             result['journal'] = journal

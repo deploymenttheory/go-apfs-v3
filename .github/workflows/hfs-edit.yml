@@ -2,7 +2,16 @@ name: Existing HFS filesystem editing
 
 on:
   workflow_call:
+    inputs:
+      capture_only:
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      capture_only:
+        description: 'Capture Apple-created HFS editing reference disks only'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -45,6 +54,7 @@ jobs:
           if-no-files-found: error
 
   replay:
+    if: ${{ !inputs.capture_only }}
     name: Edit existing Apple HFS filesystems (${{ matrix.profile }}, ${{ matrix.platform }}, ${{ matrix.scope }})
     needs: capture
     runs-on: ${{ matrix.runner }}
@@ -100,6 +110,7 @@ jobs:
           if-no-files-found: error
 
   readback:
+    if: ${{ !inputs.capture_only }}
     name: Qualify ${{ matrix.profile }} HFS edits and continued writes (macOS ${{ matrix.major }})
     needs: replay
     runs-on: ${{ matrix.runner }}
@@ -179,7 +190,7 @@ jobs:
 
   complete:
     name: Require existing HFS edit qualification
-    if: always()
+    if: ${{ always() && !inputs.capture_only }}
     needs: [capture, replay, readback]
     runs-on: ubuntu-24.04
     steps:

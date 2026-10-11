@@ -14,11 +14,12 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
-// Change modifies an existing regular-file inode. Paths are looked up with
-// native HFS name rules, without following symlinks. Hard-link aliases address
-// their shared inode. Data is borrowed for the call; nil leaves contents alone.
-// Mode uses the same Apple setmode grammar as session chmod. ResourceFork
-// selects a complete independent resource-fork replacement instead of data.
+// Change applies an ordinary file operation in unpublished scratch. Empty
+// Operation retains the cp/chmod convenience: non-nil Data copies a fork,
+// otherwise Mode changes permissions. Explicit operations are ordered; later
+// paths can name earlier creations. Paths never follow symlinks. Hard-link
+// aliases address shared contents; moves/removals address their named records.
+// Data is borrowed for the call; mode strings use Apple's setmode grammar.
 type Change struct {
 	Name                                 string // cp source basename when the destination is a directory
 	Operation                            string // cp (default), chmod, mkdir, mv or rm
@@ -97,6 +98,10 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 		if id != 0 {
 			report.Changed = append(report.Changed, uint64(id))
 		}
+	}
+	if len(report.Changed) == 0 {
+		report.VolumeID, report.FreeBlocks = v.VolumeID, be.Uint32(m.header[48:])
+		return report, nil
 	}
 	if err = m.writeFork(m.allocation, m.bitmap, 0); err != nil {
 		return report, err

@@ -103,7 +103,15 @@ func (m *mutation) loadCatalog() error {
 	if root == nil || !root.directory() || root.parent() != 1 {
 		return bad("catalog root")
 	}
+	var files, directories uint32
 	for id, r := range m.catalog {
+		if r.directory() {
+			if id != 2 {
+				directories++
+			}
+		} else {
+			files++
+		}
 		thread := threads[id]
 		if len(thread) < 10 || be.Uint16(thread) != be.Uint16(r.value)+2 || be.Uint32(thread[4:]) != r.parent() || !bytes.Equal(thread[8:], r.key[6:]) {
 			return bad("catalog thread disagreement")
@@ -137,6 +145,9 @@ func (m *mutation) loadCatalog() error {
 			cursor = parent.parent()
 		}
 		m.reservedIDs[id] = true
+	}
+	if files != be.Uint32(m.header[32:]) || directories != be.Uint32(m.header[36:]) {
+		return bad("volume catalog counts")
 	}
 	if t := m.trees[8]; t != nil {
 		base := &tree{fork: t.fork, root: be.Uint32(t.header[16:]), total: t.total, nodeSize: t.nodeSize, idOffset: 4}
@@ -778,6 +789,9 @@ func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
 			op = "chmod"
 		}
 	}
+	if (op != "mv" && c.Destination != "") || (op != "mkdir" && c.Parents) || (op != "rm" && (c.Recursive || c.Force)) || ((op != "cp" && op != "mv") && c.NoClobber) || (op != "cp" && (c.Name != "" || c.ResourceFork || c.Data != nil)) || ((op == "rm" || op == "mv") && c.Mode != "") {
+		return 0, fs.ErrInvalid
+	}
 	switch op {
 	case "mkdir":
 		return m.makeDirectory(c, stamp)
@@ -810,7 +824,7 @@ func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
 			if e != nil {
 				return 0, e
 			}
-			r, err = m.createCatalog(parent, name, false, "", stamp)
+			r, err = m.createCatalog(parent, name, false, c.Mode, stamp)
 		} else if err == nil && op == "cp" && c.NoClobber {
 			return 0, fs.ErrExist
 		}
