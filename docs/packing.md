@@ -394,6 +394,13 @@ pass Apple's checker without repair and retain its contents after remounting; th
 original image hash must remain unchanged. Fresh builds qualify native continued
 use, not Go transactions or power-loss durability.
 
+HFS file-compression outputs undergo the same native modification workload on a
+private Apple-converted UDRW copy. Native device size and complete sector SHA-256
+must match the original output before any write. The
+[HFS source study and route controls](native-hfs-writes.md) explain why mutation
+uses direct writable copies. Published read-only DMGs retain independent image,
+filesystem, file, metadata and signature qualification.
+
 Two additional cases remain within this same family: a three-volume container
 with mixed case policies, a reserve, a quota and an empty volume; and a System/Data
 group. Their native inventories supply UUIDs, roles, grouping and space limits.

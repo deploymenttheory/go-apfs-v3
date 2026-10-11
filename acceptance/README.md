@@ -664,8 +664,11 @@ forks, inactive attributes and all ordinary metadata must remain exact. Required
 controls independently prove actual attribute/resource compression, native stored
 blocks and explicit refusal to replace unrelated fork/attribute storage.
 
-Each policy output also receives native shadow-file writes, hard-link replacement,
+Each policy output also receives native writes, hard-link replacement,
 independent-fork preservation and allocation/reuse, followed by unmounted fsck and
-read-only remount verification. Source hashes must remain unchanged. This proves
+read-only remount verification. APFS uses private shadows. HFS uses private Apple
+UDRW copies admitted only after native device size and full sector SHA equality;
+the [source study and route controls](../docs/native-hfs-writes.md) explain why.
+Source hashes must remain unchanged. This proves
 continued native use without claiming Go existing-filesystem mutation or power-loss
 durability. All native operations run on disposable hosted VMs.

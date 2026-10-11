@@ -23,6 +23,7 @@ import container_building as containers
 import encrypted_output
 import compression_output
 import image_capacity
+import image_mutation
 from image_outputs import verify_identical_outputs
 
 
@@ -119,13 +120,22 @@ def verify_mounted(mount, expected, command, empty=False, lookup_count=0, file_c
     return len(want)
 
 
-def verify_native_allocation(image, command, empty=False, apfs=True, file_compression=None, use_shadow=True):
+def verify_native_allocation(image, command, empty=False, apfs=True, file_compression=None, use_shadow=None):
     """Apple modifies a disposable shadow/copy, then checks and remounts it."""
     containers.require_disposable_host()
     with tempfile.TemporaryDirectory(prefix='apfs-build-allocation-') as work:
         work = Path(work)
         mount = work / 'mount'; mount.mkdir()
         shadow = work / 'writes.shadow'
+        if use_shadow is None:
+            use_shadow = apfs
+            if not apfs:
+                # HFS shadow-backed catalog growth left a stale alternate
+                # header even in an Apple-rewrapped UDRO. Direct native writes
+                # passed. Admit the private UDRW only after whole-device SHA
+                # and capacity equality prove conversion changed no sectors.
+                image = image_mutation.writable_copy(image, work / 'native-writable.dmg',
+                                                    command, encrypted_output.disk_hash)
         storage = ['-shadow', shadow] if use_shadow else []
         def mount_image(readonly=False):
             result = plistlib.loads(command('hdiutil', 'attach', '-plist', '-nobrowse', '-owners', 'off',

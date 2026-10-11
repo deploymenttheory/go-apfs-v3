@@ -285,8 +285,6 @@ jobs:
         run: python3 acceptance/native/verify_metadata_edits.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/metadata-edits --outputs artifacts/outputs
       - name: Verify exported command sessions against Apple command observations
         run: python3 acceptance/native/verify_file_commands.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/file-commands --outputs artifacts/outputs
-      - name: Diagnose HFS catalog growth in Go and Apple image envelopes
-        run: python3 acceptance/native/diagnose_hfs_headers.py --image artifacts/outputs/image-building-Linux/macos-15/hfsplus/file-compression/none/UDRO.dmg --output artifacts/outputs/image-building-header-${{ matrix.major }}.diagnostics.json
       - name: Check built filesystems, file compression, encrypted DMGs, native writes and signatures with Apple tools
         run: python3 acceptance/native/verify_image_building.py --expected-major "${{ matrix.major }}" --corpus artifacts/native/image-building --outputs artifacts/outputs
       - name: Check repacked sectors, snapshots, encrypted DMGs and password changes with Apple tools
