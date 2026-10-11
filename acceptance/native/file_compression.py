@@ -202,6 +202,10 @@ def observe(root, observe_files, major):
     details = []
 
     def read(path):
+        if path.relative_to(root).parts[0] == 'compression-writing':
+            # These are ordinary files used as input to the new writer. Their
+            # native attributes are already recorded by observe_files.
+            return {'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
         raw = xattr(path, ATTRIBUTE)
         active = bool(path.lstat().st_flags & stat.UF_COMPRESSED)
         result = {}

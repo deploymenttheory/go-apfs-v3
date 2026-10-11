@@ -2,15 +2,36 @@
 import hashlib
 from pathlib import Path
 import struct
+import tempfile
 import unittest
 from unittest.mock import patch
 import zlib
 
 import compression_output
+import file_compression
 from preservation import digest_values
 
 
 class CompressionOutput(unittest.TestCase):
+    def test_ordinary_writer_inputs_do_not_require_compression_attributes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'Fixture'
+            directory = root / 'compression-writing'
+            directory.mkdir(parents=True)
+            path = directory / 'attribute-edge-3300'
+            data = b'Ordinary native input.'
+            path.write_bytes(data)
+            class Observed(Exception):
+                pass
+            def observer(observed_root, read):
+                self.assertEqual(observed_root, root)
+                self.assertEqual(read(path), {'sha256': hashlib.sha256(data).hexdigest()})
+                raise Observed()
+            with patch('file_compression.xattr') as attribute:
+                with self.assertRaises(Observed):
+                    file_compression.observe(root, observer, 26)
+                attribute.assert_not_called()
+
     def test_attribute_ownership_preserves_independent_and_inactive_values(self):
         values = {'com.apple.decmpfs': 1, 'com.apple.ResourceFork': 2, 'ordinary': 3}
         self.assertEqual(compression_output.ordinary_attributes({'flags': 0, 'attributes': {}}, values), values)
