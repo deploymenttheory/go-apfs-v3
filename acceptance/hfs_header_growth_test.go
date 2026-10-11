@@ -91,6 +91,9 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 	if err != nil || len(manifests) == 0 {
 		t.Fatal("missing retained HFS growth evidence", root, err)
 	}
+	if len(manifests) != 3 {
+		t.Fatal("exactly macOS 15, 26 and 27 references required")
+	}
 	seen := map[string]bool{}
 	for _, manifest := range manifests {
 		seen[filepath.Base(filepath.Dir(manifest))] = true
@@ -121,8 +124,62 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 			if err != nil || len(data) > 16<<20 {
 				t.Fatal("invalid growth manifest", err)
 			}
+			var index struct {
+				Schema   int
+				Scenario string
+				Producer map[string]any
+				Evidence hfsGrowthArchive
+				Cases    []struct {
+					ID                  string
+					NativeCheckerStatus int
+					CatalogBlocks       struct{ Before, PrimaryAfter, AlternateAfter uint32 }
+				}
+				SectorProbes []struct {
+					Capacity               int64
+					AllWritesSurvived      bool
+					OmittedReadOnlyOffsets []int64
+				}
+			}
+			if err = json.Unmarshal(data, &index); err != nil {
+				t.Fatal(err)
+			}
+			if index.Scenario == "hfs-header-growth-reference" {
+				archive := openGrowthArchive(t, filepath.Dir(manifest), index.Evidence)
+				data, err = io.ReadAll(io.NewSectionReader(archive, 0, archive.Size()))
+				if err != nil || len(data) > 16<<20 {
+					t.Fatal("retained evidence document", err)
+				}
+			}
 			if err = json.Unmarshal(data, &evidence); err != nil {
 				t.Fatal(err)
+			}
+			if index.Scenario == "hfs-header-growth-reference" {
+				var document struct{ Producer map[string]any }
+				if err = json.Unmarshal(data, &document); err != nil {
+					t.Fatal(err)
+				}
+				delete(document.Producer, "sources")
+				if index.Schema != 1 || !reflect.DeepEqual(index.Producer, document.Producer) || len(index.Cases) != len(evidence.Cases) || len(index.SectorProbes) != len(evidence.SectorProbes) {
+					t.Fatal("retained index is incomplete")
+				}
+				for i, c := range index.Cases {
+					want := evidence.Cases[i]
+					if c.ID != want.ID || c.NativeCheckerStatus != want.After.Checker.Status || c.CatalogBlocks.Before != want.Before.Headers.Primary.Forks["catalog"].TotalBlocks || c.CatalogBlocks.PrimaryAfter != want.After.Headers.Primary.Forks["catalog"].TotalBlocks || c.CatalogBlocks.AlternateAfter != want.After.Headers.Alternate.Forks["catalog"].TotalBlocks {
+						t.Fatal("retained index changes native catalog growth or verdict")
+					}
+				}
+				for i, p := range index.SectorProbes {
+					want := evidence.SectorProbes[i]
+					omitted := []int64{}
+					for _, marker := range want.Markers {
+						if marker.ReattachedSHA256 != marker.SHA256 {
+							omitted = append(omitted, marker.Offset)
+						}
+					}
+					if p.Capacity != want.Capacity || p.AllWritesSurvived != want.AllWritesSurvived || !reflect.DeepEqual(p.OmittedReadOnlyOffsets, omitted) {
+						t.Fatal("retained index changes native sector replay")
+					}
+				}
 			}
 			p := evidence.Producer
 			major := strings.Split(p.Version, ".")[0]
@@ -133,7 +190,12 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 			if len(p.Sources) != 6 || len(evidence.Cases) != 16 || len(evidence.SectorProbes) != 7 {
 				t.Fatal("incomplete source/control inventory")
 			}
+			recipes := map[string]bool{"hfs_header_growth.py": false, "capture.py": false, "container_building.py": false, "image_repacking.py": false, "verify_preservation.py": false, "file_compression.py": false}
 			for _, source := range p.Sources {
+				if used, ok := recipes[source.Source]; !ok || used {
+					t.Fatal("unknown or duplicate capture recipe")
+				}
+				recipes[source.Source] = true
 				verifyDigest(t, dir, source.Source, source.SHA256)
 			}
 			verifyDigest(t, dir, "commands.json", evidence.CommandsSHA256)
@@ -142,7 +204,12 @@ func TestNativeHFSCatalogGrowth(t *testing.T) {
 				original := openGrowthArchive(t, dir, evidence.Retention.NativeCapture)
 				compareRetainedNativeManifest(t, original, data)
 			}
+			capacities := map[int64]bool{10936320: false, 10944512: false, 10960896: false, 10977280: false, 11010048: false, 11534336: false, 16777216: false}
 			for _, probe := range evidence.SectorProbes {
+				if used, ok := capacities[probe.Capacity]; !ok || used {
+					t.Fatal("unknown or duplicate sector boundary control")
+				}
+				capacities[probe.Capacity] = true
 				t.Run(fmt.Sprintf("unmounted-sectors-%d", probe.Capacity), func(t *testing.T) { compareSectorProbe(t, dir, probe) })
 			}
 			ids := map[string]bool{}
@@ -408,37 +475,10 @@ func compareGrowthConstruction(t *testing.T, native hfsGrowthHeader, capacity in
 
 func openGrowthSnapshot(t *testing.T, dir string, state hfsGrowthState) *block.File {
 	t.Helper()
-	verifyDigest(t, dir, state.Image, state.ImageSHA256)
 	if state.Geometry.DeviceBytes < 8<<20 || state.Geometry.DeviceBytes > 16<<20 || len(state.DiskSHA256) != 64 {
 		t.Fatal("invalid retained device bounds")
 	}
-	in, err := os.Open(filepath.Join(dir, state.Image))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer in.Close()
-	z, err := gzip.NewReader(in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer z.Close()
-	path := filepath.Join(t.TempDir(), "native.raw")
-	out, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	digest := sha256.New()
-	n, err := io.Copy(io.MultiWriter(out, digest), io.LimitReader(z, state.Geometry.DeviceBytes+1))
-	closeErr := out.Close()
-	if err != nil || closeErr != nil || n != state.Geometry.DeviceBytes || hex.EncodeToString(digest.Sum(nil)) != state.DiskSHA256 {
-		t.Fatal("retained native disk integrity", n, err, closeErr)
-	}
-	source, err := block.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { source.Close() })
-	return source
+	return openGrowthArchive(t, dir, hfsGrowthArchive{Image: state.Image, SHA256: state.ImageSHA256, UncompressedSHA256: state.DiskSHA256, UncompressedBytes: state.Geometry.DeviceBytes})
 }
 
 func readGrowthHeader(t *testing.T, source block.Source, offset int64) hfsGrowthHeader {

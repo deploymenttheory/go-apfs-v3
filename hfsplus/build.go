@@ -21,7 +21,7 @@
  * @APPLE_LICENSE_HEADER_END@
  */
 // SPDX-License-Identifier: APSL-2.0
-// Modified 2026-10-10: Go adaptation of makehfs volume/B-tree initialization.
+// Modified 2026-10-11: Go adaptation of makehfs volume/B-tree initialization.
 // Bounded bulk construction and logical-reader payloads replace device mutation.
 // Source revision/hashes: docs/sources.json. License: LICENSES/APSL-2.0.txt.
 package hfsplus

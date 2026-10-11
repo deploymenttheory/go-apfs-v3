@@ -376,7 +376,7 @@ jobs:
           fi
 
   hfs_reference:
-    if: ${{ inputs.readback_run == '' }}
+    if: ${{ inputs.readback_run == '' || inputs.hfs_reference_capture }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -394,6 +394,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Require separate capture and verifier-only dispatches
+        env:
+          PRIOR_RUN: ${{ inputs.readback_run }}
+        run: test -z "$PRIOR_RUN"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
@@ -409,6 +413,24 @@ jobs:
           done
       - name: Capture freshly Apple-formatted controls, exact disks and native outcomes
         run: python3 acceptance/native/hfs_header_growth.py --expected-major "${{ matrix.major }}" --go-images artifacts/hfs-go --output artifacts/hfs-header-growth/macos-${{ matrix.major }}
+      - name: Explain the retained native outcomes
+        env:
+          HFS_MAJOR: ${{ matrix.major }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = json.loads(Path('artifacts/hfs-header-growth', 'macos-' + os.environ['HFS_MAJOR'], 'manifest.json').read_text())
+          failed = sum(c['after']['checker']['status'] != 0 for c in evidence['cases'])
+          omitted = sum(not p['allWritesSurvived'] for p in evidence['sectorProbes'])
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('## Retained HFS growth and storage evidence\n\n'
+                        f"{len(evidence['cases'])} matched Apple/Go filesystem controls completed actual catalog growth and native remount readback. "
+                        f'{failed} shadow controls retain explicit failed native checker verdicts.\n\n'
+                        f"{len(evidence['sectorProbes'])} unmounted native sector probes retain complete images and actual shadow files; "
+                        f'{omitted} record replay omission. These diagnostic failures qualify the evidence, not the mutation route. '
+                        'Published HFS image qualification separately requires native success on exact raw copies.\n')
+          PY
       - name: Retain complete and interrupted captures for analysis
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

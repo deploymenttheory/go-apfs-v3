@@ -17,6 +17,12 @@ VM; a private image or shadow alone does not isolate the host kernel.
 
 ## Source study and controlled experiment
 
+The matched retained investigation now isolates the observed discrepancy to
+native shadow replay. The historical envelope/conversion experiment below was
+an initial route control; it did not establish this cause on its own. The current
+corpus includes freshly Apple-formatted volumes and storage-only probes that
+never mount a filesystem. See [retained header-growth references](hfs-header-growth.md).
+
 Apple's [`ExtendBTreeFile`](https://github.com/apple-oss-distributions/hfs/blob/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core/hfs_btreeio.c)
 marks the grown system file modified and calls `hfs_flushvolumeheader` with
 `HFS_FVH_WAIT | HFS_FVH_WRITE_ALT`. The
