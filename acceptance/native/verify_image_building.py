@@ -55,7 +55,7 @@ def verify(image, expected, sensitive, command, apfs=False, empty=False, file_co
         if apfs:
             command('/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs', '-n', device.replace('/dev/disk', '/dev/rdisk'))
         else:
-            command('/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
+            command('/sbin/fsck_hfs', '-dfn', device.replace('/dev/disk', '/dev/rdisk'))
         mount = Path(temporary.name) / "mount"
         mount.mkdir()
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, volume)
@@ -162,7 +162,9 @@ def verify_native_allocation(image, command, empty=False, apfs=True, file_compre
             if apfs:
                 command('/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs', '-n', device.replace('/dev/disk', '/dev/rdisk'))
             else:
-                command('/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
+                # Apple's CompareVolumeHeader reports the exact mismatched
+                # field in debug mode; retain the same read-only failure gate.
+                command('/sbin/fsck_hfs', '-dfn', device.replace('/dev/disk', '/dev/rdisk'))
         finally:
             command('hdiutil', 'detach', device)
         device = mount_image(readonly=True)
