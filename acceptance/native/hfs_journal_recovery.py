@@ -26,6 +26,62 @@ from verify_preservation import require
 CAPACITY = 64 << 20
 
 
+def checksum(data):
+    value = 0
+    for byte in data:
+        value = ((value << 8) ^ (value + byte)) & 0xffffffff
+    return (~value) & 0xffffffff
+
+
+def pending_changes(image, state):
+    """Measure unapplied committed native metadata; no recovery is performed.
+
+    Checking only nonempty cursors would accept journals whose home writes have
+    already completed. Walk the declared range, check every payload and compare
+    the latest recorded bytes with their home sectors. Apple's replay-only
+    result remains the independent expected output, including any tail records.
+    """
+    data = image.read_bytes()
+    size, header_size = state['size'], state['headerSize']
+    base, order = state['offset'], state['byteOrder']
+
+    def advance(offset, count):
+        return header_size + (offset + count - header_size) % (size - header_size)
+
+    def read(offset, count):
+        first = min(count, size - offset)
+        return data[base + offset:base + offset + first] + data[base + header_size:base + header_size + count - first]
+
+    position, consumed = state['start'], 0
+    latest = {}
+    while position != state['end'] and consumed < size - header_size:
+        raw = bytearray(read(position, state['blockListSize']))
+        maximum, count, used, stored, flags = struct.unpack_from(order + 'HHIII', raw)
+        raw[8:12] = bytes(4)
+        if checksum(raw[:32]) != stored or not (1 <= count <= maximum <= len(raw) // 16 - 1):
+            return 0
+        if used < len(raw) or used > size - header_size - consumed:
+            return 0
+        offset, actual = advance(position, len(raw)), len(raw)
+        for index in range(1, count):
+            number, length, stored = struct.unpack_from(order + 'qII', raw, 16 + index * 16)
+            if not length or length % 512 or length > used - actual:
+                return 0
+            payload = read(offset, length)
+            if number != -1:
+                if number < 0 or number * header_size + length > len(data) or (flags & 1 and stored and checksum(payload) != stored):
+                    return 0
+                for part in range(0, length, 512):
+                    latest[number * header_size + part] = payload[part:part + 512]
+            offset, actual = advance(offset, length), actual + length
+        if actual != used:
+            return 0
+        consumed, position = consumed + used, advance(position, used)
+    if position != state['end']:
+        return 0
+    return sum(data[offset:offset + 512] != value for offset, value in latest.items())
+
+
 def journal(image):
     """File-only geometry observation; does not interpret/replay transactions."""
     with image.open('rb') as stream:
@@ -142,6 +198,7 @@ def capture(expected_major, output):
                 os.symlink('retained', root / 'link')
                 for index in range(256):
                     (root / f'entry-{index}').touch()
+                    xattr(root / f'entry-{index}', 'org.go-apfs.journal', struct.pack('>QI', 0, index))
                 command('sync')
                 worker = threading.Thread(target=churn, args=(root, stop, errors))
                 worker.start()
@@ -152,10 +209,12 @@ def capture(expected_major, output):
                     clone_file(image, candidate)
                     state = journal(candidate)
                     shape = 'wrapped' if state['start'] > state['end'] else 'linear'
-                    if state['start'] != state['end'] and shape not in snapshots:
+                    changes = pending_changes(candidate, state) if state['start'] != state['end'] and shape not in snapshots else 0
+                    if changes:
                         snapshots[shape] = candidate
                         retain_file(candidate, output / (filesystem + '-' + shape + '-interrupted.raw.gz'))
-                        diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'journal': state})
+                        diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'journal': state,
+                                            'unappliedSectors': changes})
                         print('Captured pending native journal:', filesystem, shape, state, flush=True)
                     else:
                         candidate.unlink()
