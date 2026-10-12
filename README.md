@@ -41,6 +41,8 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs pack --volume Apps --directory ./apps --volume Resources --directory ./resources Bundle.dmg
 ./bin/apfs pack --format UDZO original.dmg repacked.dmg
 ./bin/apfs cp --image Original.dmg --output Edited.dmg --from-host ./replacement.bin /Payload/file
+./bin/apfs cp --image Original.dmg --output Copied.dmg -a /Staging/Example.app /Applications
+./bin/apfs cp --image Original.dmg --output Imported.dmg --from-host -RX ./payload /Payload
 ./bin/apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
 ./bin/apfs pack --session build --encryption AES-256 --output-password-file ./new-password.bin Encrypted.dmg
 ./bin/apfs session remove build
@@ -98,6 +100,9 @@ Currently implemented:
   retaining original identities, hard-link siblings, metadata and independent forks
   through copy-on-write allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
+- Ordinary recursive image copying and host directory import, shared with session
+  copy policy, preserving supported metadata and independently reporting native
+  compression/fork visibility; see [copying semantics](docs/image-copy.md).
 - Versioned JSON reports and typed corruption, authentication and unsupported errors.
 
 Password files contain exact bytes: no newline or whitespace is removed. Use

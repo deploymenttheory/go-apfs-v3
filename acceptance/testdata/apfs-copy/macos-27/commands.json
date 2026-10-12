@@ -1,0 +1,2028 @@
+[
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>124293120</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8540160</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>124293120</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8540160</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 7.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-dynamiclib",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/framework-source.c",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Versions/A/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "A",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Versions/Current"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "Versions/Current/Example",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "Versions/Current/Resources",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Resources"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123858944</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8974336</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123858944</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8974336</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 9.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-copy.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123858944</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8974336</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123858944</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8974336</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 9.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/forked"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inline-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inline"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/resource-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/resource"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inline-fork-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inline-fork"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inactive-valid",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-valid"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inactive-malformed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-malformed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-R",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Merged"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/existing"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/no-attrs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/multi"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-R",
+      "-X",
+      "--",
+      "artifacts/apfs-editing/copy/macos-27/host-source",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/alias",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-r",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-copy.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123002880</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9830400</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123002880</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9830400</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 11.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-copy-final.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123002880</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9830400</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123002880</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9830400</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 11.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Merged"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/existing"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/no-attrs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Second.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-valid"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/resource-compressed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-R",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/forked",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/renamed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-copy-final.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123072512</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9760768</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>A5C1A294-C668-41CA-ABAF-970E1D26141C</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123072512</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>E6B779FF-CF52-4C36-BD4F-88AE8D7B957F</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9760768</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 13.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID E6B779FF-CF52-4C36-BD4F-88AE8D7B957F appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Second.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>124284928</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8548352</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>124284928</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8548352</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 6.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-dynamiclib",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/framework-source.c",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Versions/A/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "A",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Versions/Current"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "Versions/Current/Example",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "-s",
+      "--",
+      "Versions/Current/Resources",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework/Resources"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123850752</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8982528</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123850752</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8982528</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 8.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-copy.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123850752</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>8982528</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123850752</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>8982528</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 8.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/forked"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inline-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inline"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/resource-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/resource"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inline-fork-compressed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inline-fork"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inactive-valid",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-valid"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/inactive-malformed",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-malformed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-R",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Merged"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/existing"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/no-attrs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/multi"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-R",
+      "-X",
+      "--",
+      "artifacts/apfs-editing/copy/macos-27/host-source",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/ln",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/alias",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/usr/bin/touch",
+      "-r",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/preserved"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-copy.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123002880</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9830400</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123002880</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9830400</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 10.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-copy-final.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123002880</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9830400</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<true/>\n\t<key>WritableMedia</key>\n\t<true/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123002880</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9830400</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 10.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Merged"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/existing"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/no-attrs"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-a",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Second.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-X",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/independent",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/CopySource/data"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/inactive-valid"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/cp",
+      "-p",
+      "--",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/empty",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/resource-compressed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/rm",
+      "-R",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/bin/mv",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/forked",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/renamed"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-plist",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/apfs-case-sensitive-copy-final.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6s1</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>apfs</string>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk6</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t\t<key>unmapped-content-hint</key>\n\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "info",
+      "-plist",
+      "/dev/disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>APFSContainerFree</key>\n\t<integer>123072512</integer>\n\t<key>APFSContainerReference</key>\n\t<string>disk6</string>\n\t<key>APFSContainerSize</key>\n\t<integer>134217728</integer>\n\t<key>APFSPhysicalStores</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t</dict>\n\t</array>\n\t<key>APFSSnapshot</key>\n\t<false/>\n\t<key>Bootable</key>\n\t<true/>\n\t<key>BusProtocol</key>\n\t<string>Disk Image</string>\n\t<key>CanBeMadeBootable</key>\n\t<false/>\n\t<key>CanBeMadeBootableRequiresDestroy</key>\n\t<false/>\n\t<key>CapacityInUse</key>\n\t<integer>9760768</integer>\n\t<key>Content</key>\n\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t<key>DeviceBlockSize</key>\n\t<integer>4096</integer>\n\t<key>DeviceIdentifier</key>\n\t<string>disk6s1</string>\n\t<key>DeviceNode</key>\n\t<string>/dev/disk6s1</string>\n\t<key>DeviceTreePath</key>\n\t<string>IODeviceTree:/</string>\n\t<key>DiskUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>Ejectable</key>\n\t<true/>\n\t<key>EjectableMediaAutomaticUnderSoftwareControl</key>\n\t<true/>\n\t<key>EjectableOnly</key>\n\t<true/>\n\t<key>Encryption</key>\n\t<false/>\n\t<key>EncryptionThisVolumeProper</key>\n\t<false/>\n\t<key>FileVault</key>\n\t<false/>\n\t<key>FilesystemName</key>\n\t<string>Case-sensitive APFS</string>\n\t<key>FilesystemType</key>\n\t<string>apfs</string>\n\t<key>FilesystemUserVisibleName</key>\n\t<string>APFS (Case-sensitive)</string>\n\t<key>FreeSpace</key>\n\t<integer>0</integer>\n\t<key>GlobalPermissionsEnabled</key>\n\t<false/>\n\t<key>IOKitSize</key>\n\t<integer>134217728</integer>\n\t<key>IORegistryEntryName</key>\n\t<string>Existing</string>\n\t<key>Internal</key>\n\t<false/>\n\t<key>Locked</key>\n\t<false/>\n\t<key>MediaName</key>\n\t<string></string>\n\t<key>MediaType</key>\n\t<string>Generic</string>\n\t<key>MountPoint</key>\n\t<string></string>\n\t<key>OSInternalMedia</key>\n\t<false/>\n\t<key>ParentWholeDisk</key>\n\t<string>disk6</string>\n\t<key>PartitionMapPartition</key>\n\t<false/>\n\t<key>RAIDMaster</key>\n\t<false/>\n\t<key>RAIDSlice</key>\n\t<false/>\n\t<key>Removable</key>\n\t<true/>\n\t<key>RemovableMedia</key>\n\t<true/>\n\t<key>RemovableMediaOrExternalDevice</key>\n\t<true/>\n\t<key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key>\n\t<dict/>\n\t<key>SMARTStatus</key>\n\t<string>Not Supported</string>\n\t<key>Sealed</key>\n\t<string>No</string>\n\t<key>Size</key>\n\t<integer>134217728</integer>\n\t<key>SupportsGlobalPermissionsDisable</key>\n\t<true/>\n\t<key>SystemImage</key>\n\t<false/>\n\t<key>TotalSize</key>\n\t<integer>134217728</integer>\n\t<key>VolumeName</key>\n\t<string>Existing</string>\n\t<key>VolumeSize</key>\n\t<integer>0</integer>\n\t<key>VolumeUUID</key>\n\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t<key>WholeDisk</key>\n\t<false/>\n\t<key>Writable</key>\n\t<false/>\n\t<key>WritableMedia</key>\n\t<false/>\n\t<key>WritableVolume</key>\n\t<false/>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "apfs",
+      "list",
+      "-plist",
+      "disk6"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>Containers</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>APFSContainerUUID</key>\n\t\t\t<string>8166942A-F3C0-4F9B-8F04-31230B0850D5</string>\n\t\t\t<key>CapacityCeiling</key>\n\t\t\t<integer>134217728</integer>\n\t\t\t<key>CapacityFree</key>\n\t\t\t<integer>123072512</integer>\n\t\t\t<key>ContainerReference</key>\n\t\t\t<string>disk6</string>\n\t\t\t<key>DesignatedPhysicalStore</key>\n\t\t\t<string>disk5</string>\n\t\t\t<key>PhysicalStores</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk5</string>\n\t\t\t\t\t<key>Size</key>\n\t\t\t\t\t<integer>134217728</integer>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>Volumes</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>APFSVolumeUUID</key>\n\t\t\t\t\t<string>DD225759-84D5-4727-9232-DD31D33E92F9</string>\n\t\t\t\t\t<key>CapacityInUse</key>\n\t\t\t\t\t<integer>9760768</integer>\n\t\t\t\t\t<key>CapacityQuota</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CapacityReserve</key>\n\t\t\t\t\t<integer>0</integer>\n\t\t\t\t\t<key>CryptoMigrationOn</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>DeviceIdentifier</key>\n\t\t\t\t\t<string>disk6s1</string>\n\t\t\t\t\t<key>Encryption</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>FileVault</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Locked</key>\n\t\t\t\t\t<false/>\n\t\t\t\t\t<key>Name</key>\n\t\t\t\t\t<string>Existing</string>\n\t\t\t\t\t<key>Roles</key>\n\t\t\t\t\t<array/>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+      "-n",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** Checking the container superblock.\n   Checking the checkpoint with transaction ID 12.\n** Checking the space manager.\n** Checking the space manager free queue trees.\n** Checking the object map.\n** Checking volume /dev/rdisk6s1.\n** Checking the APFS volume superblock.\n   The volume Existing was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3).\n** Checking the object map.\n** Checking the snapshot metadata tree.\n** Checking the snapshot metadata.\n** Checking the fsroot tree.\n** Checking the extent ref tree.\n** Verifying volume object map space.\n** The volume /dev/rdisk6s1 with UUID DD225759-84D5-4727-9232-DD31D33E92F9 appears to be OK.\n** Verifying allocated space.\n** The container /dev/rdisk6 appears to be OK.\n",
+    "stderr": "warning: inode (id 95): unknown compression type: 4294967295\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount",
+      "disk6s1"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Existing on disk6s1 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Second.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/image-copy-1zbf9o_m/metadata-mount/Fixture/Copies/Example.framework"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  }
+]

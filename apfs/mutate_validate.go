@@ -194,6 +194,9 @@ func (m *mutation) validateOwnership() error {
 			if flags&^uint16(0x1f) != 0 || flags&3 != 1 && flags&3 != 2 || flags&0x10 != 0 && flags&3 != 1 {
 				return fmt.Errorf("APFS attribute %q flags %#x: %w", string(r.key[10:len(r.key)-1]), flags, filesystem.ErrUnsupported)
 			}
+			if string(r.key[10:len(r.key)-1]) == filesystem.ResourceFork && flags&3 != 1 {
+				return corrupt("resource fork is not stream based", 0)
+			}
 			if flags&1 != 0 {
 				if len(r.value) != 52 {
 					return corrupt("attribute stream bounds", 0)
@@ -227,13 +230,23 @@ func (m *mutation) validateOwnership() error {
 			return fmt.Errorf("APFS mutation record type %d: %w", p.kind, filesystem.ErrUnsupported)
 		}
 	}
-	extents := map[uint64]buildRecord{}
+	physicalOwners := map[uint64]uint64{}
 	for _, r := range m.extents.all() {
 		p := prefix(r.key)
 		if p.kind != 2 || len(r.key) != 8 || len(r.value) != 20 || le.Uint64(r.value)>>60 != 1 || le.Uint32(r.value[16:]) != 1 {
 			return fmt.Errorf("APFS extent ownership profile: %w", filesystem.ErrUnsupported)
 		}
-		extents[p.id] = r
+		length := le.Uint64(r.value) & objectMask
+		owner := le.Uint64(r.value[8:])
+		if length == 0 || p.id >= m.c.BlockCount || length > m.c.BlockCount-p.id || owner == 0 {
+			return corrupt("physical extent range", 0)
+		}
+		for at := p.id; at < p.id+length; at++ {
+			if physicalOwners[at] != 0 {
+				return corrupt("overlapping physical extents", 0)
+			}
+			physicalOwners[at] = owner
+		}
 	}
 	allocated := map[uint64]uint64{}
 	for _, r := range m.fs.all() {
@@ -253,18 +266,22 @@ func (m *mutation) validateOwnership() error {
 			continue
 		}
 		blocks := length / 4096
-		ref, ok := extents[address]
-		if !ok || le.Uint64(ref.value)&objectMask != blocks || le.Uint64(ref.value[8:]) != owners[p.id] {
-			return fmt.Errorf("file/physical extent at %d: stream=%d blocks=%d physical=%x: %w", address, p.id, blocks, ref.value, filesystem.ErrCorrupt)
+		if address >= m.c.BlockCount || blocks > m.c.BlockCount-address {
+			return corrupt("file extent range", 0)
 		}
-		delete(extents, address)
+		for at := address; at < address+blocks; at++ {
+			if physicalOwners[at] != owners[p.id] {
+				return fmt.Errorf("file/physical ownership at %d: stream=%d owner=%d: %w", at, p.id, physicalOwners[at], filesystem.ErrCorrupt)
+			}
+			delete(physicalOwners, at)
+		}
 		if e := claim(address, blocks); e != nil {
 			return e
 		}
 		allocated[p.id] += blocks
 		volumeBlocks += blocks
 	}
-	if len(extents) != 0 {
+	if len(physicalOwners) != 0 {
 		return corrupt("unowned physical extent", 0)
 	}
 	for id, blocks := range streamBlocks {

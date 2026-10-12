@@ -195,7 +195,7 @@ jobs:
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage(Directory|Metadata|Link)?Editing|HFS(Journaled)?Image(Catalog|Metadata|Link)?Editing|ImageBuilding$|ContainerBuilding$)'
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -311,7 +311,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
+    if: ${{ !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}

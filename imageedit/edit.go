@@ -40,8 +40,28 @@ type Report struct {
 // An error before publication leaves the destination absent and source intact.
 // Abrupt process death may leave private scratch; source/destination remain safe.
 // This is not HFS journal recovery or a universal power-loss durability promise.
-func Apply(ctx context.Context, sourcePath, destination string, o Options, changes []Change) (report Report, err error) {
-	if sourcePath == "" || destination == "" || len(changes) == 0 {
+func Apply(ctx context.Context, sourcePath, destination string, o Options, changes []Change) (Report, error) {
+	if len(changes) == 0 {
+		return Report{}, fs.ErrInvalid
+	}
+	return editImage(ctx, sourcePath, destination, o, func(view *mutablePartition, isAPFS bool) (Report, error) {
+		return modify(ctx, view, isAPFS, changes, o.Time)
+	})
+}
+
+func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []Change, when time.Time) (report Report, err error) {
+	if isAPFS {
+		changed, e := apfs.Modify(ctx, view, changes, when)
+		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
+		return report, e
+	}
+	changed, e := hfsplus.Modify(ctx, view, changes, when)
+	report.VolumeID, report.Changed, report.FreeBlocks = changed.VolumeID, changed.Changed, uint64(changed.FreeBlocks)
+	return report, e
+}
+
+func editImage(ctx context.Context, sourcePath, destination string, o Options, mutation func(*mutablePartition, bool) (Report, error)) (report Report, err error) {
+	if sourcePath == "" || destination == "" || mutation == nil {
 		return report, fs.ErrInvalid
 	}
 	if o.Time.IsZero() || o.Time.Nanosecond() != 0 {
@@ -110,15 +130,7 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 	}
 	defer func() { err = errors.Join(err, disk.Close()) }()
 	view := &mutablePartition{disk: disk, offset: partition.Offset, size: partition.Size}
-	if isAPFS {
-		changed, e := apfs.Modify(ctx, view, changes, o.Time)
-		err = e
-		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
-	} else {
-		changed, e := hfsplus.Modify(ctx, view, changes, o.Time)
-		err = e
-		report.VolumeID, report.Changed, report.FreeBlocks = changed.VolumeID, changed.Changed, uint64(changed.FreeBlocks)
-	}
+	report, err = mutation(view, isAPFS)
 	if err != nil {
 		return report, err
 	}

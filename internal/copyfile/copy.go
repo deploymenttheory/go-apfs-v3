@@ -1,0 +1,664 @@
+// Package copyfile shares ordinary file-copy policy across logical and image destinations.
+package copyfile
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/deploymenttheory/go-apfs-v3/block"
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+)
+
+// CopyOptions uses Apple cp's logical behavior. PreserveLinks is an explicit
+// extension: Apple -a means -RpP and does not preserve hard-link relationships.
+type Options struct {
+	FromHost      bool
+	Recursive     bool
+	Preserve      bool
+	Archive       bool
+	NoClobber     bool
+	NoAttributes  bool
+	PreserveLinks bool
+	Follow        string
+}
+
+type Omission struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Attribute   string `json:"attribute"`
+	Reason      string `json:"reason"`
+}
+type copyEntry struct {
+	node      filesystem.Node
+	path, key string
+	info      fs.FileInfo
+}
+
+// Backend owns destination state and immutable payload storage. Apply updates Tree;
+// Own consumes and closes each Value before returning a stable source.
+type Backend struct {
+	Tree            *edit.Tree
+	Time            time.Time
+	UID, GID, Umask uint32
+	Limits          edit.Limits
+	Own             func(context.Context, filesystem.Value, *int64) (block.Source, error)
+	Apply           func(context.Context, edit.Change) error
+	CreateMetadata  func(context.Context, string, uint32) (filesystem.Metadata, error)
+	Modified        func(context.Context, string) error
+	Omitted         func(Omission)
+}
+
+type copier struct {
+	backend     *Backend
+	options     Options
+	links       map[string]string
+	active      map[string]bool
+	count       int
+	transferred int64
+}
+
+func Run(ctx context.Context, backend Backend, sources []string, to string, options Options) error {
+	if len(sources) == 0 || backend.Tree == nil || backend.Own == nil || backend.Apply == nil || backend.Time.IsZero() {
+		return fs.ErrInvalid
+	}
+	limits, err := backend.Limits.Normalize()
+	if err != nil {
+		return err
+	}
+	backend.Limits = limits
+	if options.Archive {
+		options.Recursive = true
+		options.Preserve = true
+		if options.Follow == "" {
+			options.Follow = "P"
+		}
+	}
+	if options.Follow != "" && options.Follow != "P" && options.Follow != "H" && options.Follow != "L" {
+		return fs.ErrInvalid
+	}
+	cp := copier{backend: &backend, options: options, links: map[string]string{}, active: map[string]bool{}}
+	if len(sources) > 1 {
+		at, err := resolve(ctx, backend.Tree, to, true)
+		if err != nil {
+			return err
+		}
+		n, err := backend.Tree.Stat(ctx, at.id)
+		if err != nil {
+			return err
+		}
+		if n.Metadata.Mode.Value&0170000 != 0040000 {
+			return fs.ErrInvalid
+		}
+	}
+	for _, source := range sources {
+		follow := !options.Recursive || options.Follow == "H" || options.Follow == "L"
+		entry, err := cp.stat(ctx, source, follow)
+		if err != nil {
+			return err
+		}
+		basename := path.Base(strings.TrimRight(source, "/"))
+		if options.FromHost {
+			basename = filepath.Base(filepath.Clean(source))
+		}
+		dst, err := operandDestination(ctx, backend.Tree, basename, to)
+		if err != nil {
+			return err
+		}
+		contents := strings.HasSuffix(source, "/")
+		if options.FromHost && len(source) > 0 {
+			contents = os.IsPathSeparator(source[len(source)-1])
+		}
+		if contents && entry.node.Metadata.Mode.Value&0170000 == 0040000 {
+			dst, err = destination(ctx, backend.Tree, to)
+			if path.Clean(to) == "/" {
+				dst = "/"
+				err = nil
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if !options.FromHost && (entry.path == "/" || entry.path == dst || strings.HasPrefix(dst, entry.path+"/")) {
+			return filesystem.ErrConflict
+		}
+		if err = cp.copy(ctx, entry, dst, 0); err != nil {
+			return fmt.Errorf("copy %q: %w", source, err)
+		}
+	}
+	return nil
+}
+func (c *copier) stat(ctx context.Context, p string, follow bool) (copyEntry, error) {
+	if err := ctx.Err(); err != nil {
+		return copyEntry{}, err
+	}
+	if !c.options.FromHost {
+		at, err := resolve(ctx, c.backend.Tree, p, follow)
+		if err != nil {
+			return copyEntry{}, err
+		}
+		n, err := c.backend.Tree.Stat(ctx, at.id)
+		return copyEntry{node: n, path: at.path, key: fmt.Sprintf("%s:%d:%d", n.Identity.Volume, n.Identity.View, at.id)}, err
+	}
+	p, err := filepath.Abs(p)
+	if err != nil {
+		return copyEntry{}, err
+	}
+	if follow {
+		p, err = filepath.EvalSymlinks(p)
+		if err != nil {
+			return copyEntry{}, err
+		}
+	}
+	info, err := os.Lstat(p)
+	if err != nil {
+		return copyEntry{}, err
+	}
+	m, key, err := hostMetadata(p)
+	if err != nil {
+		return copyEntry{}, err
+	}
+	kind := uint32(0100000)
+	switch {
+	case info.IsDir():
+		kind = 0040000
+	case info.Mode()&os.ModeSymlink != 0:
+		kind = 0120000
+	case !info.Mode().IsRegular():
+		return copyEntry{}, filesystem.ErrUnsupported
+	}
+	m.Mode.Value = m.Mode.Value&07777 | kind
+	n := filesystem.Node{Metadata: m, Size: uint64(info.Size()), Compression: filesystem.Observation[filesystem.Compression]{State: filesystem.Absent}}
+	return copyEntry{node: n, path: p, key: key, info: info}, nil
+}
+func (c *copier) children(ctx context.Context, e copyEntry) ([]string, error) {
+	var names []string
+	if c.options.FromHost {
+		directory, err := os.Open(e.path)
+		if err != nil {
+			return nil, err
+		}
+		for {
+			entries, readErr := directory.ReadDir(128)
+			for _, entry := range entries {
+				if err := ctx.Err(); err != nil {
+					return nil, errors.Join(err, directory.Close())
+				}
+				if len(names) >= c.backend.Limits.Entries {
+					return nil, errors.Join(filesystem.ErrLimit, directory.Close())
+				}
+				names = append(names, entry.Name())
+			}
+			if readErr == io.EOF {
+				break
+			}
+			if readErr != nil {
+				return nil, errors.Join(readErr, directory.Close())
+			}
+		}
+		if err := directory.Close(); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := c.backend.Tree.ReadDir(ctx, e.node.Identity.Object, func(e filesystem.DirEntry) error { names = append(names, e.Name); return nil }); err != nil {
+			return nil, err
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+func (c *copier) sourceData(ctx context.Context, e copyEntry) (filesystem.Value, error) {
+	if !c.options.FromHost {
+		return c.backend.Tree.OpenData(ctx, e.node.Identity.Object)
+	}
+	f, err := os.Open(e.path)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return nil, errors.Join(err, f.Close())
+	}
+	if !os.SameFile(info, e.info) || info.Size() != e.info.Size() || !info.ModTime().Equal(e.info.ModTime()) {
+		return nil, errors.Join(filesystem.ErrConflict, f.Close())
+	}
+	return &hostValue{File: f, before: info}, nil
+}
+
+type hostValue struct {
+	*os.File
+	before fs.FileInfo
+}
+
+func (v *hostValue) Size() int64 { return v.before.Size() }
+func (v *hostValue) Close() error {
+	after, err := v.Stat()
+	if err == nil && (!os.SameFile(after, v.before) || after.Size() != v.before.Size() || !after.ModTime().Equal(v.before.ModTime())) {
+		err = filesystem.ErrConflict
+	}
+	return errors.Join(err, v.File.Close())
+}
+func (c *copier) own(ctx context.Context, v filesystem.Value) (block.Source, error) {
+	return c.backend.Own(ctx, v, &c.transferred)
+}
+func (c *copier) attributes(ctx context.Context, e *copyEntry, dst string) (map[string]block.Source, error) {
+	attrs := map[string]block.Source{}
+	if c.options.NoAttributes {
+		return attrs, nil
+	}
+	var names []string
+	if c.options.FromHost {
+		var err error
+		names, err = hostAttributes(e.path)
+		if errors.Is(err, filesystem.ErrUnsupported) {
+			e.node.AttributesUnavailable = true
+			return attrs, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := c.backend.Tree.ListAttributes(ctx, e.node.Identity.Object, func(name string) error { names = append(names, name); return nil }); err != nil {
+			return nil, err
+		}
+	}
+	if len(names) > 4096 {
+		return nil, filesystem.ErrLimit
+	}
+	sort.Strings(names)
+	removed := map[string]bool{}
+	if !c.options.FromHost && e.node.Metadata.Mode.Value&0170000 == 0100000 {
+		_, r, err := edit.ReplacementNode(ctx, c.backend.Tree, e.node, e.node.Size)
+		if err != nil {
+			return nil, err
+		}
+		removed = r
+	}
+	for _, name := range names {
+		if removed[name] {
+			continue
+		}
+		// copyfile_xattr enumerates with flags 0 for ordinary cp. Native APFS
+		// hides resource forks of active compressed files even when the raw
+		// fork is independent. Native APFS and HFS controls both expose this.
+		// The source remains intact and the command reports this difference.
+		if !c.options.FromHost && name == filesystem.ResourceFork && e.node.Metadata.BSDFlags.Value&32 != 0 {
+			if c.backend.Omitted != nil {
+				c.backend.Omitted(Omission{e.path, dst, name, "Apple's copy view hides this compressed file's independent resource fork"})
+			}
+			continue
+		}
+		var v filesystem.Value
+		var err error
+		if c.options.FromHost {
+			v, err = hostAttribute(e.path, name, c.backend.Limits.ValueBytes)
+		} else {
+			v, err = c.backend.Tree.OpenAttribute(ctx, e.node.Identity.Object, name)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if name == filesystem.Decmpfs {
+			valid, validationErr := CopyableCompression(v)
+			if validationErr != nil {
+				return nil, errors.Join(validationErr, v.Close())
+			}
+			if !valid {
+				if closeErr := v.Close(); closeErr != nil {
+					return nil, closeErr
+				}
+				if c.backend.Omitted != nil {
+					c.backend.Omitted(Omission{e.path, dst, name, "Apple's copy view omits unsupported inactive compression metadata"})
+				}
+				continue
+			}
+		}
+		data, err := c.own(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		attrs[name] = data
+	}
+	return attrs, nil
+}
+func (c *copier) metadata(ctx context.Context, e copyEntry, dst string) (filesystem.Metadata, []string, error) {
+	s := c.backend
+	m, err := c.creation(ctx, dst, e.node.Metadata.Mode.Value&0170000)
+	if err != nil {
+		return m, nil, err
+	}
+	src := e.node.Metadata
+	kind := src.Mode.Value & 0170000
+	// Apple cp's setfile calls utimensat, not a creation-time setter. An
+	// existing file or directory keeps its creation time; an earlier copied
+	// modification time may lower it through the filesystem's utimes rule.
+	if at, e := resolve(ctx, s.Tree, dst, kind == 0100000); e == nil && kind != 0120000 {
+		n, e := s.Tree.Stat(ctx, at.id)
+		if e != nil {
+			return m, nil, e
+		}
+		m.BirthTime = n.Metadata.BirthTime
+	}
+	var defaults []string
+	bits := uint32(0644)
+	switch kind {
+	case 0040000:
+		bits = 0755
+	case 0120000:
+		bits = 0777
+	}
+	if src.Mode.State == filesystem.Present {
+		bits = src.Mode.Value & 07777
+		if slices.Contains(e.node.MetadataDefaulted, "mode") {
+			defaults = append(defaults, "mode")
+		}
+		if !c.options.Preserve && kind == 0100000 {
+			bits &^= s.Umask
+			bits &^= 06000
+		}
+	} else {
+		defaults = append(defaults, "mode")
+	}
+	m.Mode = filesystem.Observed(kind | bits)
+	if c.options.Preserve {
+		for _, field := range []struct {
+			name string
+			src  filesystem.Observation[uint32]
+			dst  *filesystem.Observation[uint32]
+		}{{"uid", src.UID, &m.UID}, {"gid", src.GID, &m.GID}, {"bsdFlags", src.BSDFlags, &m.BSDFlags}} {
+			if field.src.State == filesystem.Present {
+				*field.dst = field.src
+				if slices.Contains(e.node.MetadataDefaulted, field.name) {
+					defaults = append(defaults, field.name)
+				}
+			} else {
+				defaults = append(defaults, field.name)
+			}
+		}
+		for _, field := range []struct {
+			name string
+			src  filesystem.Observation[time.Time]
+			dst  *filesystem.Observation[time.Time]
+		}{{"modifyTime", src.ModifyTime, &m.ModifyTime}, {"accessTime", src.AccessTime, &m.AccessTime}} {
+			if field.src.State == filesystem.Present {
+				v, err := edit.NativeTime(s.Tree.NameRules(), field.src.Value)
+				if err != nil {
+					return m, nil, err
+				}
+				*field.dst = filesystem.Observed(v)
+				if slices.Contains(e.node.MetadataDefaulted, field.name) {
+					defaults = append(defaults, field.name)
+				}
+			} else {
+				defaults = append(defaults, field.name)
+			}
+		}
+	} else {
+		for _, field := range []struct {
+			name  string
+			state filesystem.State
+		}{{"uid", src.UID.State}, {"gid", src.GID.State}, {"bsdFlags", src.BSDFlags.State}} {
+			if field.state != filesystem.Present {
+				defaults = append(defaults, field.name)
+			}
+		}
+	}
+	if c.options.Preserve && m.ModifyTime.State == filesystem.Present && m.BirthTime.State == filesystem.Present && m.ModifyTime.Value.Before(m.BirthTime.Value) {
+		m.BirthTime = m.ModifyTime
+	}
+	m.BSDFlags.Value &^= 32
+	return m, defaults, nil
+}
+func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) error {
+	c.count++
+	if depth > c.backend.Limits.Depth || c.count > c.backend.Limits.Entries {
+		return filesystem.ErrLimit
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	kind := e.node.Metadata.Mode.Value & 0170000
+	current, err := resolve(ctx, c.backend.Tree, dst, kind == 0100000)
+	exists := err == nil
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if !exists && current.path != "" {
+		dst = current.path
+	}
+	if exists {
+		n, err := c.backend.Tree.Stat(ctx, current.id)
+		if err != nil {
+			return err
+		}
+		if !c.options.FromHost && current.id == e.node.Identity.Object {
+			return filesystem.ErrConflict
+		}
+		if kind == 0040000 && n.Metadata.Mode.Value&0170000 != 0040000 {
+			return fs.ErrInvalid
+		}
+		if kind != 0040000 && n.Metadata.Mode.Value&0170000 == 0040000 {
+			return fs.ErrInvalid
+		}
+		if c.options.NoClobber && kind != 0040000 {
+			return fs.ErrExist
+		}
+	}
+	m, defaults, err := c.metadata(ctx, e, dst)
+	if err != nil {
+		return err
+	}
+	switch kind {
+	case 0040000:
+		if !c.options.Recursive {
+			return fs.ErrInvalid
+		}
+		if c.active[e.key] {
+			return filesystem.ErrConflict
+		}
+		c.active[e.key] = true
+		defer delete(c.active, e.key)
+		if !exists {
+			if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateDirectory, Path: dst, Metadata: &m}); err != nil {
+				return err
+			}
+			if err = c.parentTime(ctx, dst); err != nil {
+				return err
+			}
+		}
+		children, err := c.children(ctx, e)
+		if err != nil {
+			return err
+		}
+		key, err := edit.NameKey(c.backend.Tree.NameRules())
+		if err != nil {
+			return err
+		}
+		keys := map[string]bool{}
+		for _, name := range children {
+			key := key(name)
+			if keys[key] {
+				return filesystem.ErrConflict
+			}
+			keys[key] = true
+		}
+		for _, name := range children {
+			p := path.Join(e.path, name)
+			if c.options.FromHost {
+				p = filepath.Join(e.path, name)
+			}
+			child, err := c.stat(ctx, p, c.options.Follow == "L")
+			if err != nil {
+				return err
+			}
+			if err = c.copy(ctx, child, path.Join(dst, name), depth+1); err != nil {
+				return err
+			}
+		}
+	case 0120000:
+		if exists {
+			if err = c.backend.Apply(ctx, edit.Change{Op: edit.RemoveEntry, Path: dst}); err != nil {
+				return err
+			}
+		}
+		var target string
+		if c.options.FromHost {
+			target, err = os.Readlink(e.path)
+		} else {
+			target, err = c.backend.Tree.Readlink(ctx, e.node.Identity.Object)
+		}
+		if err != nil {
+			return err
+		}
+		if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateSymlink, Path: dst, Target: target, Metadata: &m}); err != nil {
+			return err
+		}
+		if err = c.parentTime(ctx, dst); err != nil {
+			return err
+		}
+	default:
+		if first := c.links[e.key]; c.options.PreserveLinks && first != "" {
+			if exists {
+				if err = c.backend.Apply(ctx, edit.Change{Op: edit.RemoveEntry, Path: dst}); err != nil {
+					return err
+				}
+			}
+			if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateHardLink, Path: first, To: dst}); err != nil {
+				return err
+			}
+			if err = c.parentTime(ctx, dst); err != nil {
+				return err
+			}
+			if c.backend.Modified != nil {
+				return c.backend.Modified(ctx, dst)
+			}
+			return nil
+		}
+		v, err := c.sourceData(ctx, e)
+		if err != nil {
+			return err
+		}
+		data, err := c.own(ctx, v)
+		if err != nil {
+			return err
+		}
+		if exists {
+			dst = current.path
+			if err = c.backend.Apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: dst, Data: data}); err != nil {
+				return err
+			}
+		} else {
+			if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateFile, Path: dst, Data: data, Metadata: &m}); err != nil {
+				return err
+			}
+			if err = c.parentTime(ctx, dst); err != nil {
+				return err
+			}
+		}
+		c.links[e.key] = dst
+	}
+	at, err := resolve(ctx, c.backend.Tree, dst, false)
+	if err != nil {
+		return err
+	}
+	attrs, err := c.attributes(ctx, &e, dst)
+	if err != nil {
+		return err
+	}
+	if !c.options.NoAttributes && !e.node.AttributesUnavailable {
+		var remove []string
+		if err = c.backend.Tree.ListAttributes(ctx, at.id, func(name string) error {
+			// copyfile_xattr retains quarantine; filesystem-owned values are
+			// maintained by the destination's content and link operations.
+			if attrs[name] == nil && name != "com.apple.quarantine" && name != "com.apple.system.Security" && !strings.HasPrefix(name, "com.apple.fs.") {
+				remove = append(remove, name)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		sort.Strings(remove)
+		for _, name := range remove {
+			if name == filesystem.Decmpfs {
+				err = c.backend.Tree.RemoveCopiedCompression(ctx, at.id)
+			} else {
+				err = c.backend.Apply(ctx, edit.Change{Op: edit.RemoveAttribute, Path: at.path, Attribute: name})
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if err = c.backend.Tree.CopyAttributes(ctx, at.id, attrs); err != nil {
+			return err
+		}
+	}
+	if !c.options.NoAttributes {
+		if err = c.backend.Tree.AttributeAvailability(ctx, at.id, e.node.AttributesUnavailable); err != nil {
+			return err
+		}
+	}
+	if c.options.Preserve {
+		m.ChangeTime = filesystem.Observation[time.Time]{}
+		// Birth time preservation is qualified independently from runtime ctime.
+		if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: at.path, Metadata: &m}); err != nil {
+			return err
+		}
+	} else if kind == 0100000 {
+		if err = c.backend.Tree.Times(ctx, at.id, nil, &c.backend.Time, nil); err != nil {
+			return err
+		}
+	}
+	if err = c.changeTime(ctx, at.id); err != nil {
+		return err
+	}
+	if err = c.backend.Tree.Defaults(ctx, at.id, defaults); err != nil {
+		return err
+	}
+	if c.options.FromHost {
+		after, err := os.Lstat(e.path)
+		if err != nil {
+			return err
+		}
+		if !os.SameFile(after, e.info) || after.Size() != e.info.Size() || !after.ModTime().Equal(e.info.ModTime()) {
+			return filesystem.ErrConflict
+		}
+		metadata, _, err := hostMetadata(e.path)
+		if err != nil {
+			return err
+		}
+		if metadata.ChangeTime.State == filesystem.Present && !metadata.ChangeTime.Value.Equal(e.node.Metadata.ChangeTime.Value) {
+			return filesystem.ErrConflict
+		}
+	}
+	if c.backend.Modified != nil {
+		return c.backend.Modified(ctx, dst)
+	}
+	return nil
+}
+
+func (c *copier) creation(ctx context.Context, dst string, kind uint32) (filesystem.Metadata, error) {
+	if c.backend.CreateMetadata != nil {
+		return c.backend.CreateMetadata(ctx, dst, kind)
+	}
+	return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: filesystem.Observed(c.backend.UID), GID: filesystem.Observed(c.backend.GID), BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(c.backend.Time), ModifyTime: filesystem.Observed(c.backend.Time), ChangeTime: filesystem.Observed(c.backend.Time), AccessTime: filesystem.Observed(c.backend.Time)}, nil
+}
+func (c *copier) changeTime(ctx context.Context, id uint64) error {
+	return c.backend.Tree.Times(ctx, id, nil, nil, &c.backend.Time)
+}
+func (c *copier) parentTime(ctx context.Context, p string) error {
+	at, err := resolve(ctx, c.backend.Tree, path.Dir(p), true)
+	if err != nil {
+		return err
+	}
+	return c.backend.Tree.Times(ctx, at.id, nil, &c.backend.Time, &c.backend.Time)
+}

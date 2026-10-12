@@ -99,7 +99,9 @@ prevent logical session edits.
 
 Session creation defaults are UID/GID 0 and umask 022, configurable using
 `--uid`, `--gid` and `--umask`. With `-p`, host observations supply mode, owner,
-flags, birth, modification and access time where available. Without `-p`, new
+flags, modification and access time where available. Creation time follows
+Apple's native copy rule: retain the destination time, lowering it when an earlier
+preserved modification time requires it. Without `-p`, new
 objects use the session creation context and native copy mode rules; replacing
 an existing file retains its metadata except command-derived timestamps.
 

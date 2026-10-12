@@ -821,6 +821,12 @@ func (m *mutation) relocateCatalog(r *catalogItem, parent uint32, name string, s
 	return nil
 }
 func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
+	if c.Operation == "copy-metadata" {
+		return m.copyMetadata(c, stamp)
+	}
+	if c.Attributes != nil || len(c.RemoveAttributes) != 0 {
+		return 0, fs.ErrInvalid
+	}
 	if c.Operation == "ln" {
 		return m.linkCatalog(c, stamp)
 	}

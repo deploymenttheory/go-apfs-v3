@@ -454,6 +454,12 @@ func (m *mutation) children(id uint64) []*mutationEntry {
 }
 
 func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
+	if c.Operation == "copy-metadata" {
+		return m.copyMetadata(c, stamp)
+	}
+	if c.Attributes != nil || len(c.RemoveAttributes) != 0 {
+		return 0, fs.ErrInvalid
+	}
 	if c.Operation == "ln" {
 		return m.linkEntry(c, stamp)
 	}

@@ -186,7 +186,9 @@ func (m *mutation) setAttribute(id uint64, name string, data block.Source) error
 			return err
 		}
 	}
-	if data.Size() <= 3500 {
+	// Resource forks remain stream-backed even when small. The builder already
+	// follows this rule; macOS 15/26/27 fsck rejects embedded copied forks.
+	if data.Size() <= 3500 && name != filesystem.ResourceFork {
 		b := make([]byte, data.Size())
 		if err := readAttribute(data, b); err != nil {
 			return err
@@ -215,7 +217,7 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 	if exists && le.Uint16(old.value)&4 != 0 {
 		return filesystem.ErrUnsupported
 	}
-	if (c.DeleteAttribute || c.AttributeMode == "replace") && !exists {
+	if (c.DeleteAttribute && c.Operation != "copy-metadata" || c.AttributeMode == "replace") && !exists {
 		return fs.ErrNotExist
 	}
 	if c.AttributeMode == "create" && exists {

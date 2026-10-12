@@ -158,7 +158,7 @@ func (m *mutation) removeStream(id uint64) error {
 		address := le.Uint64(r.value[8:])
 		blocks := (le.Uint64(r.value) & ((1 << 56) - 1)) / 4096
 		if address != 0 {
-			if e := m.extents.put(buildKey(address, 2, 0), nil); e != nil {
+			if e := m.releaseExtent(address, blocks); e != nil {
 				return e
 			}
 			if e := m.space.retire(false, address, blocks); e != nil {

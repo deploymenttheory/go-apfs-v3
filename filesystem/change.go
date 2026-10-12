@@ -18,7 +18,11 @@ type Change struct {
 	Mode     string
 	// Metadata is a partial ownership/time patch. Flags uses the ordinary
 	// chflags expression; attributes borrow a complete value just like a fork.
-	Metadata                            *Metadata
+	Metadata *Metadata
+	// Copy metadata assigns a completed copy's supported inode values and
+	// changed attributes. Payloads stay borrowed until the batch completes.
+	Attributes                          map[string]block.Source
+	RemoveAttributes                    []string
 	Flags, Attribute, AttributeMode     string
 	DeleteAttribute, NoCreate, NoFollow bool
 	Reference                           string

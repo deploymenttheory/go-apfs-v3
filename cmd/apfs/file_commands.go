@@ -242,6 +242,11 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if err != nil {
 		return err
 	}
+	if !common.json {
+		if err = copyOmissions(diagnostics, report.OmittedAttributes); err != nil {
+			return err
+		}
+	}
 	return printSessionReport(out, report, common.json, false)
 }
 func sessionAttributes(ctx context.Context, s *session.Session, args []string, read, write, remove, hexadecimal, noFollow bool, valueFile string, jsonOutput bool, out io.Writer) (err error) {
