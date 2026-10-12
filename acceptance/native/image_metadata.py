@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import tempfile
 
 from capture import sha256
@@ -168,11 +169,11 @@ def capture(references, output, kind, major):
                 with image.open('xb') as raw:
                     raw.truncate(engine.CAPACITY)
                 device = engine.attach(image, command, writable=True)
-                # newfs_hfs's -I a=0 explicitly omits the initial attributes
-                # file. Use the disposable raw device directly, as the existing
-                # HFS family does, instead of DiskImages' formatting wrapper.
+                # Format the disposable raw device with Apple's ordinary
+                # initialized tree. A later independent observation requires
+                # that no attribute records were created by the fixture setup.
                 command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
-                        *(['-J'] if journaled else []), '-b', '4096', '-I', 'a=0', '-v', 'Metadata',
+                        *(['-J'] if journaled else []), '-b', '4096', '-v', 'Metadata',
                         device.replace('/dev/disk', '/dev/rdisk'))
                 directory = work / (case_id + '-create')
                 directory.mkdir()
@@ -193,8 +194,13 @@ def capture(references, output, kind, major):
         for case_id, image, empty_attributes in sources:
             before = engine.observe(image, work, command, observer=metadata_files)
             if empty_attributes:
-                require(before['headers']['primary']['forks']['attributes']['logicalSize'] == 0,
-                        'Apple control starts without an attributes B-tree')
+                attrs = before['headers']['primary']['forks']['attributes']
+                require(attrs['logicalSize'] > 0, 'initialized native attributes tree')
+                # BTreeHeaderRec.leafRecords at byte 20 of the header node.
+                with image.open('rb') as raw:
+                    raw.seek(attrs['extents'][0][0] * 4096 + 20)
+                    require(struct.unpack('>I', raw.read(4))[0] == 0,
+                            'Apple control starts with an empty attributes B-tree')
             source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
             item = {'id': case_id, 'source': source, 'before': before, 'states': {},
                     'emptyAttributeTree': empty_attributes}
