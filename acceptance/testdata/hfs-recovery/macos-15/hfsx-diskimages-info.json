@@ -1,0 +1,52 @@
+{
+  "framework": "671.140.2.700.3",
+  "images": [
+    {
+      "blockcount": 8192,
+      "blocksize": 512,
+      "diskimages2": false,
+      "image-path": "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg",
+      "owner-uid": 0,
+      "removable": true,
+      "system-entities": [
+        {
+          "content-hint": "",
+          "dev-entry": "/dev/disk3"
+        },
+        {
+          "content-hint": "EF57347C-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk4"
+        },
+        {
+          "content-hint": "41504653-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk4s1",
+          "mount-point": "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/.AssetData"
+        }
+      ],
+      "writeable": true
+    },
+    {
+      "autodiskmount": false,
+      "blockcount": 131072,
+      "blocksize": 512,
+      "diskimages2": false,
+      "hdid-pid": 1455,
+      "icon-path": "/System/Library/PrivateFrameworks/DiskImages.framework/Resources/CDiskImage.icns",
+      "image-encrypted": false,
+      "image-path": "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live.raw",
+      "image-type": "read/write",
+      "owner-uid": 501,
+      "removable": true,
+      "system-entities": [
+        {
+          "content-hint": "",
+          "dev-entry": "/dev/disk5",
+          "mount-point": "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live"
+        }
+      ],
+      "writeable": true
+    }
+  ],
+  "revision": "671.140.2.700.3",
+  "vendor": "Apple"
+}

@@ -83,6 +83,39 @@ def pending_changes(image, state):
     return sum(data[offset:offset + 512] != value for offset, value in latest.items())
 
 
+def tail_kind(image, state):
+    """Observe an actual next block list without changing the recorded end."""
+    data = image.read_bytes()
+    base, size, header, order = state['offset'], state['size'], state['headerSize'], state['byteOrder']
+
+    def read(offset, count):
+        first = min(count, size - offset)
+        return data[base + offset:base + offset + first] + data[base + header:base + header + count - first]
+
+    position = state['end'] if state['end'] < size else header
+    raw = bytearray(read(position, state['blockListSize']))
+    maximum, count, used, stored, flags = struct.unpack_from(order + 'HHIII', raw)
+    raw[8:12] = bytes(4)
+    sequence = struct.unpack_from(order + 'I', raw, 28)[0]
+    if checksum(raw[:32]) != stored or sequence not in (state['sequence'], state['sequence'] + 1) or flags != 3 or not (1 < count <= maximum <= len(raw) // 16 - 1):
+        return None
+    offset, actual = header + (position + len(raw) - header) % (size - header), len(raw)
+    if used < actual or used > size - header:
+        return None
+    incomplete = False
+    for index in range(1, count):
+        number, length, stored = struct.unpack_from(order + 'qII', raw, 16 + index * 16)
+        if not length or length % 512 or length > used - actual:
+            return None
+        if number != -1 and stored and checksum(read(offset, length)) != stored:
+            incomplete = True
+        actual += length
+        offset = header + (offset + length - header) % (size - header)
+    if actual != used:
+        return None
+    return 'incomplete-tail' if incomplete else 'complete-tail'
+
+
 def journal(image):
     """File-only geometry observation; does not interpret/replay transactions."""
     with image.open('rb') as stream:
@@ -225,20 +258,23 @@ def capture(expected_major, output):
                 offset = journal(image)['offset']
                 worker = threading.Thread(target=churn, args=(root, stop, errors))
                 worker.start()
-                deadline = time.monotonic() + 60
+                deadline = time.monotonic() + 90
                 attempt = 0
-                while time.monotonic() < deadline and len(snapshots) < 2:
+                while time.monotonic() < deadline and len(snapshots) < 4:
                     candidate = work / (filesystem + f'-candidate-{attempt}.raw')
-                    command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', capture_helper,
-                            image, identifier, offset, candidate)
+                    mode = 'end' if len(snapshots) < 2 else 'tail'
+                    window = json.loads(command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', capture_helper,
+                                                image, identifier, offset, candidate, mode))
                     state = journal(candidate)
                     shape = 'wrapped' if state['start'] > state['end'] else 'linear'
+                    if mode == 'tail':
+                        shape = tail_kind(candidate, state) if state['end'] == window['observedEnd'] and state['start'] != state['end'] else None
                     changes = pending_changes(candidate, state) if state['start'] != state['end'] and shape not in snapshots else 0
                     diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'journal': state,
-                                        'unappliedSectors': changes})
+                                        'unappliedSectors': changes, 'window': window, 'shape': shape})
                     if not changes and attempt == 0:
                         retain_file(candidate, output / (filesystem + '-probe.raw.gz'))
-                    if changes:
+                    if (mode == 'end' and changes) or (mode == 'tail' and shape and shape not in snapshots):
                         snapshots[shape] = candidate
                         retain_file(candidate, output / (filesystem + '-' + shape + '-interrupted.raw.gz'))
                         print('Captured pending native journal:', filesystem, shape, state, flush=True)
@@ -254,7 +290,7 @@ def capture(expected_major, output):
                     require(not worker.is_alive(), 'bounded native workload shutdown')
                 command('hdiutil', 'detach', device)
                 (output / 'capture-diagnostics.json').write_text(json.dumps(diagnostics, indent=2) + '\n')
-            require(len(snapshots) == 2, f'pending linear and wrapped journals: {filesystem}')
+            require(len(snapshots) == 4, f'pending linear/wrapped and complete/incomplete tails: {filesystem}')
             for shape, source in sorted(snapshots.items()):
                 name = filesystem + '-' + shape
                 from capture import sha256

@@ -14,25 +14,26 @@ import (
 var be = binary.BigEndian
 
 type Volume struct {
-	Format         string `json:"format"`
-	Name           string `json:"name"`
-	VolumeID       string `json:"volumeId"`
-	BlockSize      uint32 `json:"blockSize"`
-	BlockCount     uint32 `json:"blockCount"`
-	FreeBlocks     uint32 `json:"freeBlocks"`
-	Attributes     uint32 `json:"attributes"`
-	CaseSensitive  bool   `json:"caseSensitive"`
-	Journaled      bool   `json:"journaled"`
-	Clean          bool   `json:"clean"`
-	Files          uint32 `json:"files"`
-	Directories    uint32 `json:"directories"`
-	source         block.Source
-	catalog        *tree
-	overflow       *tree
-	attributeFork  []byte
-	rootCreated    uint32
-	privateID      uint32
-	privateCreated uint32
+	Format          string `json:"format"`
+	Name            string `json:"name"`
+	VolumeID        string `json:"volumeId"`
+	BlockSize       uint32 `json:"blockSize"`
+	BlockCount      uint32 `json:"blockCount"`
+	FreeBlocks      uint32 `json:"freeBlocks"`
+	Attributes      uint32 `json:"attributes"`
+	CaseSensitive   bool   `json:"caseSensitive"`
+	Journaled       bool   `json:"journaled"`
+	Clean           bool   `json:"clean"`
+	Files           uint32 `json:"files"`
+	Directories     uint32 `json:"directories"`
+	source          block.Source
+	catalog         *tree
+	overflow        *tree
+	attributeFork   []byte
+	rootCreated     uint32
+	privateID       uint32
+	privateCreated  uint32
+	journalReplayed bool // Private recovery validation only; Clean remains disk-derived.
 }
 
 // Open borrows source and reads its header and catalog root thread.

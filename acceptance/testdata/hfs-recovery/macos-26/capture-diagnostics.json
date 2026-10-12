@@ -1,0 +1,70 @@
+[
+  {
+    "filesystem": "hfsplus",
+    "attempt": 0,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 512,
+      "end": 308736,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 14316120,
+      "checksum": 158774953,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 193
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 1,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 408064,
+      "end": 314368,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 14316131,
+      "checksum": 158876757,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 187
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 0,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 512,
+      "end": 296448,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 6392985,
+      "checksum": 149378777,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 196
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 1,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 257024,
+      "end": 151040,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 6392999,
+      "checksum": 167555878,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 206
+  }
+]

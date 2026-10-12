@@ -62,9 +62,6 @@ jobs:
         include:
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
-          - family: HFS journal recovery
-            tests: '^TestNativeHFSJournalRecovery$'
-            skip: '^$'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
           - family: HFS journal recovery
@@ -175,6 +172,9 @@ jobs:
             skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
+            skip: '^$'
+          - family: HFS journal recovery
+            tests: '^TestNativeHFSJournalRecovery$'
             skip: '^$'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'

@@ -90,7 +90,7 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 			t.Fatal(err)
 		}
 		producer := manifest.Producer
-		if manifest.Schema != 1 || manifest.Scenario != "hfs-journal-recovery" || !manifest.Complete || majors[manifest.Major] || (manifest.Major != 15 && manifest.Major != 26 && manifest.Major != 27) || producer.System != "macOS" || producer.Build == "" || producer.Architecture == "" || producer.Run == "" || len(producer.Revision) != 40 || len(producer.Sources) != 9 || !strings.HasPrefix(producer.Version, fmt.Sprint(manifest.Major)+".") || len(manifest.Cases) != 4 {
+		if manifest.Schema != 1 || manifest.Scenario != "hfs-journal-recovery" || !manifest.Complete || majors[manifest.Major] || (manifest.Major != 15 && manifest.Major != 26 && manifest.Major != 27) || producer.System != "macOS" || producer.Build == "" || producer.Architecture == "" || producer.Run == "" || len(producer.Revision) != 40 || len(producer.Sources) != 9 || !strings.HasPrefix(producer.Version, fmt.Sprint(manifest.Major)+".") || (len(manifest.Cases) != 4 && len(manifest.Cases) != 8) {
 			t.Fatal("incomplete native recovery provenance")
 		}
 		majors[manifest.Major] = true
@@ -102,7 +102,8 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 		t.Run(fmt.Sprintf("macos-%d", manifest.Major), func(t *testing.T) {
 			seen := map[string]bool{}
 			for _, c := range manifest.Cases {
-				if seen[c.ID] || (c.ID != "hfsplus-linear" && c.ID != "hfsplus-wrapped" && c.ID != "hfsx-linear" && c.ID != "hfsx-wrapped") || c.Recovered.CheckerStatus != 0 || len(c.Recovered.Files.Entries) < 260 || c.Journal.Start == c.Journal.End {
+				format, shape, found := strings.Cut(c.ID, "-")
+				if seen[c.ID] || !found || (format != "hfsplus" && format != "hfsx") || (shape != "linear" && shape != "wrapped" && shape != "complete-tail" && shape != "incomplete-tail") || c.Recovered.CheckerStatus != 0 || len(c.Recovered.Files.Entries) < 260 || c.Journal.Start == c.Journal.End {
 					t.Fatal("incomplete native interrupted/recovered cases")
 				}
 				seen[c.ID] = true
@@ -118,7 +119,7 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 					if err != nil || !journal.Pending || journal.Offset != c.Journal.Offset || journal.Size != c.Journal.Size || journal.Start != c.Journal.Start || journal.End != c.Journal.End || journal.Sequence != c.Journal.Sequence || journal.HeaderSize != c.Journal.HeaderSize || journal.BlockListSize != c.Journal.BlockListSize {
 						t.Fatal("native journal geometry", journal, err)
 					}
-					if strings.HasSuffix(c.ID, "wrapped") != (journal.Start > journal.End) {
+					if (shape == "linear" || shape == "wrapped") && (shape == "wrapped") != (journal.Start > journal.End) {
 						t.Fatal("ring wrap control missing")
 					}
 					if err = hfsplus.ValidateMutation(ctx, source); err == nil {
@@ -138,6 +139,12 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 					report, err := hfsplus.ReplayJournal(ctx, scratch)
 					if err != nil || report.Transactions == 0 || report.Sectors == 0 {
 						t.Fatal(report, err)
+					}
+					if shape == "complete-tail" && report.ExtraBlockLists == 0 {
+						t.Fatal("native complete tail was not replayed")
+					}
+					if shape == "incomplete-tail" && report.RecoveredEnd != journal.End {
+						t.Fatal("native incomplete tail changed recovery boundary")
 					}
 					if got := journalDiskHash(t, scratch, false); got != c.Recovered.ReplayArchive.UncompressedSHA256 {
 						t.Fatalf("Go replay differs from Apple's replay-only bytes: got %s want %s", got, c.Recovered.ReplayArchive.UncompressedSHA256)

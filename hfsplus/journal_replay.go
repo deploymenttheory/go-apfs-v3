@@ -338,6 +338,9 @@ func RecoverJournal(ctx context.Context, disk MutableSource) (JournalReplayRepor
 	if !v.Journaled {
 		return report, fs.ErrInvalid
 	}
+	// This private view exists only after successful replay, and is never
+	// returned to a reader. Its Clean field stays the actual on-disk state.
+	v.journalReplayed = true
 	m := &mutation{ctx: ctx, disk: readOnlyMutation{disk}, v: v, header: make([]byte, 512), trees: map[uint32]*mutableTree{}}
 	if err = block.ReadFull(disk, m.header, 1024); err != nil {
 		return report, err
@@ -345,7 +348,7 @@ func RecoverJournal(ctx context.Context, disk MutableSource) (JournalReplayRepor
 	// Recovery skips only the unmounted-bit requirement. Inconsistent/unknown
 	// flags, graph ownership, both structural headers and empty catalog-backed
 	// journal checks are exactly the same as ordinary mutation admission.
-	if err = m.admitProfile(true); err != nil {
+	if err = m.admit(); err != nil {
 		return report, err
 	}
 	if err = m.loadCatalog(); err != nil {

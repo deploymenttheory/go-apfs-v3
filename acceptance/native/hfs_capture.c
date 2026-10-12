@@ -24,6 +24,12 @@ static uint64_t little64(const unsigned char *data) {
     for (int i = 7; i >= 0; i--) value = value * 256 + data[i];
     return value;
 }
+static uint32_t little32(const unsigned char *data) { return (uint32_t)little64((unsigned char[8]){data[0],data[1],data[2],data[3],0,0,0,0}); }
+static uint32_t checksum(unsigned char *data, size_t size) {
+    uint32_t sum = 0;
+    for (size_t index = 0; index < size; index++) sum = (sum << 8) ^ (sum + data[index]);
+    return ~sum;
+}
 static double now(void) {
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
@@ -35,7 +41,8 @@ int main(int argc, char **argv) {
     if (!actions || strcmp(actions, "true") || !environment || strcmp(environment, "github-hosted")) {
         fprintf(stderr, "Capture requires a disposable GitHub-hosted VM\n"); return 1;
     }
-    if (argc != 5) return 1;
+    if (argc != 6 || (strcmp(argv[5], "end") && strcmp(argv[5], "tail"))) return 1;
+    int tail = !strcmp(argv[5], "tail");
     char *last;
     long identifier = strtol(argv[2], &last, 10);
     if (*last || identifier <= 1 || identifier > INT32_MAX) return 1;
@@ -54,11 +61,21 @@ int main(int argc, char **argv) {
     unsigned char state[48];
     if (pread(input, state, sizeof(state), header) != sizeof(state) || memcmp(state, "xLNJ", 4)) return 1;
     uint64_t original_end = little64(state + 16);
+    uint32_t original_sequence = little32(state + 44);
+    uint64_t journal_size = little64(state + 24);
     fprintf(stderr, "Watch journal: start=%llu end=%llu\n", (unsigned long long)little64(state + 8), (unsigned long long)original_end);
     double deadline = now() + 15;
     while (now() < deadline) {
         if (pread(input, state, sizeof(state), header) != sizeof(state)) return 1;
-        if (little64(state + 8) != little64(state + 16) && little64(state + 16) != original_end) break;
+        if (!tail && little64(state + 8) != little64(state + 16) && little64(state + 16) != original_end) break;
+        if (tail && original_end < journal_size && little64(state + 16) == original_end) {
+            unsigned char list[32];
+            if (pread(input, list, sizeof(list), header + original_end) != sizeof(list)) return 1;
+            uint32_t stored = little32(list + 8);
+            memset(list + 8, 0, 4);
+            uint32_t sequence = little32(list + 28);
+            if ((sequence == original_sequence || sequence == original_sequence + 1) && checksum(list, sizeof(list)) == stored) break;
+        }
     }
     if (now() >= deadline) { fprintf(stderr, "No new pending journal commit: last start=%llu end=%llu\n", (unsigned long long)little64(state+8), (unsigned long long)little64(state+16)); return 1; }
     signal(SIGINT, interrupted); signal(SIGTERM, interrupted); signal(SIGHUP, interrupted);
@@ -81,6 +98,6 @@ int main(int argc, char **argv) {
     if (output >= 0 && close(output)) failed = 1;
     close(input);
     if (failed) { unlink(argv[4]); perror("capture"); }
-    else printf("Captured helper %d after end=%llu\n", helper, (unsigned long long)little64(state + 16));
+    else printf("{\"helper\":%d,\"observedEnd\":%llu,\"mode\":\"%s\"}\n", helper, (unsigned long long)little64(state + 16), argv[5]);
     return failed;
 }

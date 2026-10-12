@@ -3,7 +3,6 @@
 import argparse
 import json
 from pathlib import Path
-import shutil
 import tempfile
 
 from capture import sha256
@@ -57,7 +56,7 @@ def verify(expected_major, references, outputs, diagnostics):
     require_disposable_host()
     version(expected_major)
     manifest = json.loads((references / 'recovery.json').read_text())
-    require(manifest['complete'] and manifest['major'] == expected_major and len(manifest['cases']) == 4,
+    require(manifest['complete'] and manifest['major'] == expected_major and len(manifest['cases']) in (4, 8),
             'complete recovery reference corpus')
     diagnostics.mkdir(parents=True)
     command = Commands(diagnostics / 'commands.json')

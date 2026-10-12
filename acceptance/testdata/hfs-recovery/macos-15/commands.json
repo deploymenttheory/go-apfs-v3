@@ -1,0 +1,825 @@
+[
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/hfs_replay.c",
+      "-o",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-replay"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/hfs_capture.c",
+      "-o",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-capture"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nokernel",
+      "-nomount",
+      "-noautofsck",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-plist",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-J",
+      "1m",
+      "-b",
+      "4096",
+      "-v",
+      "Recovery",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Initialized /dev/rdisk5 as a 64 MB case-insensitive HFS Plus volume with a 512k journal\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live/example.c",
+      "-o",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live/Fixture/Example.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live/Fixture/Example.app: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sync"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "info",
+      "-plist"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>framework</key>\n\t<string>671.140.2.700.3</string>\n\t<key>images</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>blockcount</key>\n\t\t\t<integer>8192</integer>\n\t\t\t<key>blocksize</key>\n\t\t\t<integer>512</integer>\n\t\t\t<key>diskimages2</key>\n\t\t\t<false/>\n\t\t\t<key>image-path</key>\n\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg</string>\n\t\t\t<key>owner-uid</key>\n\t\t\t<integer>0</integer>\n\t\t\t<key>removable</key>\n\t\t\t<true/>\n\t\t\t<key>system-entities</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string></string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk3</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4s1</string>\n\t\t\t\t\t<key>mount-point</key>\n\t\t\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/.AssetData</string>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>writeable</key>\n\t\t\t<true/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>autodiskmount</key>\n\t\t\t<false/>\n\t\t\t<key>blockcount</key>\n\t\t\t<integer>131072</integer>\n\t\t\t<key>blocksize</key>\n\t\t\t<integer>512</integer>\n\t\t\t<key>diskimages2</key>\n\t\t\t<false/>\n\t\t\t<key>hdid-pid</key>\n\t\t\t<integer>1327</integer>\n\t\t\t<key>icon-path</key>\n\t\t\t<string>/System/Library/PrivateFrameworks/DiskImages.framework/Resources/CDiskImage.icns</string>\n\t\t\t<key>image-encrypted</key>\n\t\t\t<false/>\n\t\t\t<key>image-path</key>\n\t\t\t<string>/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live.raw</string>\n\t\t\t<key>image-type</key>\n\t\t\t<string>read/write</string>\n\t\t\t<key>owner-uid</key>\n\t\t\t<integer>501</integer>\n\t\t\t<key>removable</key>\n\t\t\t<true/>\n\t\t\t<key>system-entities</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string></string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk5</string>\n\t\t\t\t\t<key>mount-point</key>\n\t\t\t\t\t<string>/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live</string>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>writeable</key>\n\t\t\t<true/>\n\t\t</dict>\n\t</array>\n\t<key>revision</key>\n\t<string>671.140.2.700.3</string>\n\t<key>vendor</key>\n\t<string>Apple</string>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-capture",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live.raw",
+      "1327",
+      "12288",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-candidate-0.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Captured helper 1327 after end=308736\n",
+    "stderr": "Watch journal: start=512 end=165376\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-capture",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-live.raw",
+      "1327",
+      "12288",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-candidate-1.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Captured helper 1327 after end=126976\n",
+    "stderr": "Watch journal: start=77312 end=507392\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-linear-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-replay",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "HFS_REPLAY_JOURNAL: status=0 errno=0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-linear-apple-recovered",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-linear-apple-recovered/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-linear-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-wrapped-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-replay",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "HFS_REPLAY_JOURNAL: status=0 errno=0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-wrapped-apple-recovered",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-wrapped-apple-recovered/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsplus-wrapped-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-nokernel",
+      "-nomount",
+      "-noautofsck",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-plist",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/newfs_hfs",
+      "-s",
+      "-J",
+      "1m",
+      "-b",
+      "4096",
+      "-v",
+      "Recovery",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Initialized /dev/rdisk5 as a 64 MB case-sensitive HFS Plus volume with a 512k journal\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "noowners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-arch",
+      "arm64",
+      "-arch",
+      "x86_64",
+      "-mmacosx-version-min=11.0",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live/example.c",
+      "-o",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live/Fixture/Example.app/Contents/MacOS/Example"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--timestamp=none",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live/Fixture/Example.app: replacing existing signature\n"
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sync"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "info",
+      "-plist"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>framework</key>\n\t<string>671.140.2.700.3</string>\n\t<key>images</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>blockcount</key>\n\t\t\t<integer>8192</integer>\n\t\t\t<key>blocksize</key>\n\t\t\t<integer>512</integer>\n\t\t\t<key>diskimages2</key>\n\t\t\t<false/>\n\t\t\t<key>image-path</key>\n\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg</string>\n\t\t\t<key>owner-uid</key>\n\t\t\t<integer>0</integer>\n\t\t\t<key>removable</key>\n\t\t\t<true/>\n\t\t\t<key>system-entities</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string></string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk3</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>EF57347C-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4</string>\n\t\t\t\t</dict>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string>41504653-0000-11AA-AA11-00306543ECAC</string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk4s1</string>\n\t\t\t\t\t<key>mount-point</key>\n\t\t\t\t\t<string>/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/.AssetData</string>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>writeable</key>\n\t\t\t<true/>\n\t\t</dict>\n\t\t<dict>\n\t\t\t<key>autodiskmount</key>\n\t\t\t<false/>\n\t\t\t<key>blockcount</key>\n\t\t\t<integer>131072</integer>\n\t\t\t<key>blocksize</key>\n\t\t\t<integer>512</integer>\n\t\t\t<key>diskimages2</key>\n\t\t\t<false/>\n\t\t\t<key>hdid-pid</key>\n\t\t\t<integer>1455</integer>\n\t\t\t<key>icon-path</key>\n\t\t\t<string>/System/Library/PrivateFrameworks/DiskImages.framework/Resources/CDiskImage.icns</string>\n\t\t\t<key>image-encrypted</key>\n\t\t\t<false/>\n\t\t\t<key>image-path</key>\n\t\t\t<string>/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live.raw</string>\n\t\t\t<key>image-type</key>\n\t\t\t<string>read/write</string>\n\t\t\t<key>owner-uid</key>\n\t\t\t<integer>501</integer>\n\t\t\t<key>removable</key>\n\t\t\t<true/>\n\t\t\t<key>system-entities</key>\n\t\t\t<array>\n\t\t\t\t<dict>\n\t\t\t\t\t<key>content-hint</key>\n\t\t\t\t\t<string></string>\n\t\t\t\t\t<key>dev-entry</key>\n\t\t\t\t\t<string>/dev/disk5</string>\n\t\t\t\t\t<key>mount-point</key>\n\t\t\t\t\t<string>/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live</string>\n\t\t\t\t</dict>\n\t\t\t</array>\n\t\t\t<key>writeable</key>\n\t\t\t<true/>\n\t\t</dict>\n\t</array>\n\t<key>revision</key>\n\t<string>671.140.2.700.3</string>\n\t<key>vendor</key>\n\t<string>Apple</string>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-capture",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live.raw",
+      "1455",
+      "12288",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-candidate-0.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Captured helper 1455 after end=296448\n",
+    "stderr": "Watch journal: start=512 end=157184\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-capture",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-live.raw",
+      "1455",
+      "12288",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-candidate-1.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Captured helper 1455 after end=290304\n",
+    "stderr": "Watch journal: start=257024 end=151040\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-linear-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-replay",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "HFS_REPLAY_JOURNAL: status=0 errno=0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n** Detected a case-sensitive volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-linear-apple-recovered",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-linear-apple-recovered/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-linear-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n** Detected a case-sensitive volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-wrapped-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfs-replay",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "HFS_REPLAY_JOURNAL: status=0 errno=0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n** Detected a case-sensitive volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-wrapped-apple-recovered",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Recovery on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "codesign",
+      "--verify",
+      "--deep",
+      "--strict",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-wrapped-apple-recovered/Fixture/Example.app"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/hfs-journal-recovery-q2ub8n0x/hfsx-wrapped-apple.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-683.120.3.704.7).\n** Checking Journaled HFS Plus volume.\n** Detected a case-sensitive volume.\n   The volume name is Recovery\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Recovery appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": ""
+  }
+]
