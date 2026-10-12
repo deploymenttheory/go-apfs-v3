@@ -109,8 +109,9 @@ def prepare(root, command):
 
 
 def preserve_links(source, destination, command):
-    """Explicit extension: Apple cp -a followed by Apple ln, independently."""
+    """Archive copy extension: Apple cp, ln, then native directory time restoration."""
     first = {}
+    parents = set()
     for p in sorted(source.rglob('*')):
         st = p.lstat()
         if not p.is_symlink() and p.is_file() and st.st_nlink > 1:
@@ -118,8 +119,13 @@ def preserve_links(source, destination, command):
             if st.st_ino in first:
                 command('/bin/rm', target)
                 command('/bin/ln', '--', first[st.st_ino], target)
+                parents.add(p.parent)
             else:
                 first[st.st_ino] = target
+    # Link repairs happen after Apple's archive copy. Restore each affected
+    # directory's copied timestamps with Apple touch, as -p specifies.
+    for parent in sorted(parents, reverse=True):
+        command('/usr/bin/touch', '-r', parent, destination / parent.relative_to(source))
 
 
 def apply(root, ops, command, host, clocks=None):
