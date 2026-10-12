@@ -21,7 +21,7 @@ func Target(target string) error {
 }
 
 func Validate(c filesystem.Change) error {
-	if c.Operation != "ln" || c.Path == "" || c.Destination == "" || c.Name != "" || c.Parents || c.Recursive || c.NoClobber || c.Data != nil || c.ResourceFork || c.Mode != "" || c.Metadata != nil || c.Flags != "" || c.Attribute != "" || c.AttributeMode != "" || c.DeleteAttribute || c.NoCreate || c.Reference != "" || c.Access || c.Modify {
+	if c.Operation != "ln" || c.Path == "" || c.Destination == "" || c.Name != "" || c.Parents || c.Recursive || c.NoClobber || c.Data != nil || c.ResourceFork || c.Mode != "" || c.Metadata != nil || c.Flags != "" || c.Attribute != "" || c.AttributeMode != "" || c.DeleteAttribute || c.NoCreate || c.Reference != "" || c.Access || c.Modify || c.Attributes != nil || len(c.RemoveAttributes) != 0 {
 		return fs.ErrInvalid
 	}
 	if c.Symbolic {

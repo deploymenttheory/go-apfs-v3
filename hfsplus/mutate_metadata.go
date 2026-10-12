@@ -240,7 +240,7 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 	name := c.Attribute
 	if name == filesystem.FinderInfo {
 		exists := !bytes.Equal(finderInfo(value), make([]byte, 32))
-		if (c.DeleteAttribute || c.AttributeMode == "replace") && !exists {
+		if (c.DeleteAttribute && c.Operation != "copy-metadata" || c.AttributeMode == "replace") && !exists {
 			return fs.ErrNotExist
 		}
 		if c.AttributeMode == "create" && exists {
@@ -274,7 +274,7 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 			return filesystem.ErrUnsupported
 		}
 		exists := be.Uint64(value[168:]) != 0
-		if (c.DeleteAttribute || c.AttributeMode == "replace") && !exists {
+		if (c.DeleteAttribute && c.Operation != "copy-metadata" || c.AttributeMode == "replace") && !exists {
 			return fs.ErrNotExist
 		}
 		if c.AttributeMode == "create" && exists {
@@ -283,7 +283,7 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 		data := c.Data
 		if c.DeleteAttribute {
 			data = emptySource{}
-		} else {
+		} else if c.Operation == "xattr" {
 			// hfs_vnop_setxattr uses VNOP_WRITE, preserving fork length and
 			// existing allocated storage for a short or zero-byte write.
 			if data.Size() == 0 {
@@ -322,7 +322,7 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 		}
 	}
 	exists := len(selected) != 0
-	if (c.DeleteAttribute || c.AttributeMode == "replace") && !exists {
+	if (c.DeleteAttribute && c.Operation != "copy-metadata" || c.AttributeMode == "replace") && !exists {
 		return fs.ErrNotExist
 	}
 	if c.AttributeMode == "create" && exists {

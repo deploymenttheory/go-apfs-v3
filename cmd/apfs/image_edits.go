@@ -14,6 +14,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/copyfile"
 )
 
 func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
@@ -30,7 +31,9 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
-		allowed["n"] = true
+		for _, option := range []string{"R", "p", "a", "n", "X", "H", "L", "P", "preserve-links"} {
+			allowed[option] = true
+		}
 	}
 	if verb == "mkdir" {
 		allowed["p"] = true
@@ -121,8 +124,26 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		}
 		changes = []imageedit.Change{{Operation: verb, Path: operands[0], Destination: operands[1], NoClobber: f.Lookup("n").Value.String() == "true"}}
 	case "cp":
-		if len(operands) != 2 || f.Lookup("from-host").Value.String() != "true" {
-			return fmt.Errorf("usage: apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE PATH")
+		if len(operands) < 2 {
+			return fs.ErrInvalid
+		}
+		copyOptions := imageedit.CopyOptions{FromHost: f.Lookup("from-host").Value.String() == "true", Recursive: f.Lookup("R").Value.String() == "true", Preserve: f.Lookup("p").Value.String() == "true", Archive: f.Lookup("a").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true", NoAttributes: f.Lookup("X").Value.String() == "true", PreserveLinks: f.Lookup("preserve-links").Value.String() == "true", Follow: f.Lookup("P").Value.String()}
+		if f.Lookup("resource-fork").Value.String() != "true" {
+			report, err := imageedit.Copy(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
+			if err != nil {
+				return err
+			}
+			if common.json {
+				return json.NewEncoder(out).Encode(report)
+			}
+			if err = copyOmissions(f.Output(), report.OmittedAttributes); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(out, "Copied %d path(s) in volume %s; published %s (%s); %d free allocation blocks\n", report.Copied, report.VolumeID, destination, report.Format, report.FreeBlocks)
+			return err
+		}
+		if len(operands) != 2 || !copyOptions.FromHost || copyOptions.Recursive || copyOptions.Preserve || copyOptions.Archive || copyOptions.NoAttributes || copyOptions.PreserveLinks || copyOptions.Follow != "" {
+			return fs.ErrInvalid
 		}
 		data, e := block.Open(operands[0])
 		if e != nil {
@@ -140,4 +161,13 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	}
 	_, err = fmt.Fprintf(out, "Updated %d file operation(s) in volume %s; published %s (%s); %d free allocation blocks\n", len(report.Changed), report.VolumeID, destination, report.Format, report.FreeBlocks)
 	return err
+}
+
+func copyOmissions(out io.Writer, omissions []copyfile.Omission) error {
+	for _, value := range omissions {
+		if _, err := fmt.Fprintf(out, "Copy %s to %s omitted %s: %s\n", value.Source, value.Destination, value.Attribute, value.Reason); err != nil {
+			return err
+		}
+	}
+	return nil
 }

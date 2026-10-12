@@ -77,6 +77,7 @@ type revision struct {
 
 // Report describes canonical state separately from scratch storage placement.
 type Report struct {
+	OmittedAttributes     []CopyOmission       `json:"omittedAttributes,omitempty"`
 	Location              string               `json:"location"`
 	Names                 filesystem.NameRules `json:"names"`
 	Source                filesystem.Identity  `json:"source"`

@@ -107,6 +107,13 @@ jobs:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_LINKS: ../artifacts/apfs-editing/links
           APFS_APFS_LINK_OUTPUT: ../artifacts/apfs-links-${{ matrix.host }}
+      - name: Compare preserved copying, recursive imports and copied application signatures
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$'
+        env:
+          CGO_ENABLED: ${{ matrix.host == 'Linux' && '1' || '0' }}
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_APFS_COPY: ../artifacts/apfs-editing/copy
+          APFS_APFS_COPY_OUTPUT: ../artifacts/apfs-copy-${{ matrix.host }}
       - name: Archive actual portable output images
         shell: bash
         run: |
@@ -114,7 +121,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }} apfs-metadata-${{ matrix.host }} apfs-links-${{ matrix.host }}
+          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }} apfs-metadata-${{ matrix.host }} apfs-links-${{ matrix.host }} apfs-copy-${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
@@ -195,6 +202,16 @@ jobs:
           APFS_IMAGE_LINK_CONTINUED_OUTPUT: ../artifacts/links-continued-go
       - name: Qualify the complete continued link result with Apple fsck and signatures
         run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/links-continued-go --controls artifacts/links-continued-native
+      - name: Qualify copied applications, frameworks and native copy continuation
+        run: python3 acceptance/native/verify_image_copy.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --corpus artifacts/apfs-editing/copy --outputs artifacts/outputs --continuation artifacts/copy-continued-native
+      - name: Copy again from Apple's subsequent state against a separate native control
+        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageCopyContinuation$'
+        env:
+          APFS_IMAGE_COPY_KIND: apfs
+          APFS_IMAGE_COPY_CONTINUATION: ../artifacts/copy-continued-native
+          APFS_IMAGE_COPY_CONTINUED_OUTPUT: ../artifacts/copy-continued-go
+      - name: Qualify continued copying with Apple fsck, metadata, forks and signatures
+        run: python3 acceptance/native/verify_image_copy.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/copy-continued-go --controls artifacts/copy-continued-native
       - name: Retain exact native continuation inputs and expectations
         if: always()
         run: |
@@ -203,6 +220,9 @@ jobs:
           fi
           if [ -d artifacts/links-continued-native ]; then
             tar -czf artifacts/links-continued-native.tgz -C artifacts links-continued-native
+          fi
+          if [ -d artifacts/copy-continued-native ]; then
+            tar -czf artifacts/copy-continued-native.tgz -C artifacts copy-continued-native
           fi
       - name: Retain native verification diagnostics
         if: always()
@@ -217,6 +237,8 @@ jobs:
             artifacts/metadata-continued-native.tgz
             artifacts/links-continued-go/*.diagnostics.json
             artifacts/links-continued-native.tgz
+            artifacts/copy-continued-go/*.diagnostics.json
+            artifacts/copy-continued-native.tgz
           if-no-files-found: error
 
   complete:

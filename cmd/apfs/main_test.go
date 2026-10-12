@@ -248,7 +248,7 @@ func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
 	invoke("mkdir", "--session", "build", "-p", "/_CodeSignature")
 	invoke("cp", "--session", "build", "--from-host", contents, "/_CodeSignature/CodeResources")
 	invoke("ln", "--session", "build", "/_CodeSignature/CodeResources", "/seal-alias")
-	invoke("cp", "--session", "build", "--from-host", contents, "/alias")
+	invoke("cp", "--session", "build", "--from-host", "-X", contents, "/alias")
 	invoke("rm", "--session", "build", "/empty")
 	invoke("chmod", "--session", "build", "0700", "/seal-alias")
 	invoke("xattr", "--session", "build", "-w", "--value-file", contents, "org.test", "/seal-alias")

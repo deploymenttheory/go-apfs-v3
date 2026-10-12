@@ -66,6 +66,41 @@ go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
 ```
 
 
+## Copying into existing filesystem images
+
+Purpose: import or copy applications, frameworks and directory trees into an
+existing APFS/HFS+/HFSX image using ordinary commands, retaining source bytes and
+destination aliases while transferring the native copy view of metadata/forks.
+
+| Cases | Independent native expectation | Portable assertions |
+| --- | --- | --- |
+| Both name policies on macOS 15/26/27; journaled/nonjournaled HFS | Apple source/copy/copy-final disks with complete readback and fsck | Recursive/archive copying, source trailing slash, directory merging, empty/Unicode/long names and existing destination inode identity |
+| Source aliases, destination aliases, attrs and forks | Apple cp, explicit ln plus directory touch for the link-preservation extension | Ordinary archive alias splitting; explicit copied alias groups; complete fork shrinking/clearing and -X preservation |
+| Explicitly active compressed source with independent fork | Fork installed before UF_COMPRESSED, recorded source flags/storage and Apple cp result | Logical decompression; actual source remains intact; both copy views omit its independent fork with an explicit report |
+| Native coalesced APFS data/fork ownership | Apple data-only overwrite with surviving fork/aliases | Stream retirement keeps surviving physical subranges accounted |
+| Signed app and versioned framework; portable host tree | Apple codesign and native file/metadata/fork observations | Copied signatures, complete metadata, bounded host import and immutable inputs |
+
+`TestNativeAPFSImageCopy`, `TestNativeHFSImageCopy` and
+`TestNativeHFSJournaledImageCopy` replay retained `testdata/*-copy` references or
+fresh `APFS_NATIVE_APFS_COPY`, `APFS_NATIVE_HFS_COPY` and
+`APFS_NATIVE_HFS_JOURNALED_COPY` controls. Each compares complete source/native
+states before generating deterministic UDRO/UDZO outputs. Whole namespace and
+identity bijections remain checked across phases; exact preserved dates are
+separate from individually observed final operation clock effects.
+
+The existing filesystem-edit pipelines compare output hashes on all three hosts
+and run complete Apple readback, fsck and signatures on all three Macs. Six final
+images per profile undergo subsequent native copying. Go copies from these native
+states; separate Apple-only images provide final expectations for native readback.
+Failure/interruption, changed host input and aggregate payload bounds have local
+controls. Native tools run exclusively in disposable CI VMs.
+
+```sh
+go test -count=1 ./acceptance -run '^TestNative(APFS|HFS(Journaled)?)ImageCopy$'
+```
+
+See [the copy contract](../docs/image-copy.md) for flags and admission bounds.
+
 ## Editing existing APFS filesystems
 
 Purpose: create, move and remove files/directories or replace data/resource forks

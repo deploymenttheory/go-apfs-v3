@@ -215,7 +215,7 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 	if exists && le.Uint16(old.value)&4 != 0 {
 		return filesystem.ErrUnsupported
 	}
-	if (c.DeleteAttribute || c.AttributeMode == "replace") && !exists {
+	if (c.DeleteAttribute && c.Operation != "copy-metadata" || c.AttributeMode == "replace") && !exists {
 		return fs.ErrNotExist
 	}
 	if c.AttributeMode == "create" && exists {

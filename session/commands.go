@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/copyfile"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
 	linkcommand "github.com/deploymenttheory/go-apfs-v3/internal/link"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
@@ -375,19 +376,7 @@ func (s *Session) Move(ctx context.Context, source, to string, noClobber bool) (
 	})
 }
 func operandDestination(ctx context.Context, r filesystem.Reader, source, to string) (string, error) {
-	at, err := resolve(ctx, r, to, true)
-	if err == nil {
-		n, err := r.Stat(ctx, at.id)
-		if err != nil {
-			return "", err
-		}
-		if n.Metadata.Mode.Value&0170000 == 0040000 {
-			return destination(ctx, r, path.Join(at.path, path.Base(strings.TrimRight(source, "/"))))
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	}
-	return destination(ctx, r, to)
+	return copyfile.OperandDestination(ctx, r, source, to)
 }
 
 type LinkOptions struct{ Symbolic, Force, NoFollow bool }

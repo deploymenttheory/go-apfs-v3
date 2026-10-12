@@ -21,6 +21,22 @@ type cowTree struct {
 	newOID   func() (uint64, error)
 }
 
+// floor follows one current tree path to the greatest key <= key. Physical
+// ownership ranges can cover adjacent data and attribute streams of one inode.
+func (t *cowTree) floor(key []byte) (buildRecord, bool) {
+	n := t.rootNode
+	for {
+		i := sort.Search(len(n.records), func(i int) bool { return t.less(key, n.records[i].key) }) - 1
+		if i < 0 {
+			return buildRecord{}, false
+		}
+		if n.level == 0 {
+			return n.records[i], true
+		}
+		n = n.children[i]
+	}
+}
+
 // records visits only paths intersecting an object/type prefix. Data replacement
 // and unlink use the current tree, not a full-volume scan for every stream.
 func (t *cowTree) records(id uint64, kind uint8) []buildRecord {

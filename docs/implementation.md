@@ -703,3 +703,28 @@ all portable outputs, complete native/Go/native link cycles and original source
 preservation. Identity mappings persist across phases to detect accidental
 recreation, separated aliases and conflation with retired objects. See
 [link contracts and profile bounds](image-links.md).
+
+## Existing-image copying increment
+
+Ordinary image `cp` now shares session copy policy through `internal/copyfile`:
+internal image copies, recursive host imports, Apple `-R/-p/-a/-n/-X` and source
+symlink options, plus explicit `--preserve-links`. The image adapter prepares
+owned streamed payloads and a bounded logical tree, then reuses the current
+filesystem allocation/tree/link/metadata writers within one completed output
+transaction. Destination hard-link identities survive overwrite; copied
+attributes and forks replace complete previous values. HFS ordinary xattr prefix
+writes remain separate from complete fork copying.
+
+Apple-only source/copy/copy-final controls on macOS 15/26/27 cover signed apps and
+frameworks, name policies, journaled/nonjournaled HFS, independent/compressed forks,
+alias splitting/preservation, trailing-slash merging and portable host imports.
+An explicit active-compression control proves that both Apple copy views hide an
+independent fork; the shared copier reports this omission and leaves source
+storage intact. Native creation-time coupling and final clock effects remain
+independently observed. Coalesced APFS data/fork ownership is validated by ranges
+and retirement preserves surviving subranges instead of deleting a whole record.
+
+The existing required edit jobs include retained/fresh replay on every portable
+host, byte-identical UDRO/UDZO outputs, complete native checker/readback/signature
+checks, and Apple/Go/Apple continued copying against separate native controls.
+Native tools remain confined to disposable VMs. See [copy contracts](image-copy.md).
