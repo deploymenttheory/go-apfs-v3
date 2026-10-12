@@ -14,18 +14,19 @@ import (
 var be = binary.BigEndian
 
 type Volume struct {
-	Format          string `json:"format"`
-	Name            string `json:"name"`
-	VolumeID        string `json:"volumeId"`
-	BlockSize       uint32 `json:"blockSize"`
-	BlockCount      uint32 `json:"blockCount"`
-	FreeBlocks      uint32 `json:"freeBlocks"`
-	Attributes      uint32 `json:"attributes"`
-	CaseSensitive   bool   `json:"caseSensitive"`
-	Journaled       bool   `json:"journaled"`
-	Clean           bool   `json:"clean"`
-	Files           uint32 `json:"files"`
-	Directories     uint32 `json:"directories"`
+	Format          string       `json:"format"`
+	Name            string       `json:"name"`
+	VolumeID        string       `json:"volumeId"`
+	BlockSize       uint32       `json:"blockSize"`
+	BlockCount      uint32       `json:"blockCount"`
+	FreeBlocks      uint32       `json:"freeBlocks"`
+	Attributes      uint32       `json:"attributes"`
+	CaseSensitive   bool         `json:"caseSensitive"`
+	Journaled       bool         `json:"journaled"`
+	Clean           bool         `json:"clean"`
+	Files           uint32       `json:"files"`
+	Directories     uint32       `json:"directories"`
+	Journal         *JournalInfo `json:"journal,omitempty"`
 	source          block.Source
 	catalog         *tree
 	overflow        *tree
@@ -67,6 +68,13 @@ func Open(source block.Source) (*Volume, error) {
 	a := be.Uint32(h[4:])
 	v := &Volume{Format: format, BlockSize: bs, BlockCount: count, FreeBlocks: free, Attributes: a, Journaled: a&0x2000 != 0, Clean: a&0x100 != 0 && a&0x4000 == 0, Files: be.Uint32(h[32:]), Directories: be.Uint32(h[36:]), VolumeID: fmt.Sprintf("%X", h[104:112])}
 	v.source = source
+	if v.Journaled {
+		var err error
+		v.Journal, err = readJournal(source, h, uint64(bs), uint64(count))
+		if err != nil {
+			return nil, err
+		}
+	}
 	// TN1150 requires the extents file to describe itself in the volume header.
 	ef, err := openInlineFork(source, bs, count, h[192:272])
 	if err != nil {

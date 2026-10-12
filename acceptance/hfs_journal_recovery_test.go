@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +45,55 @@ type journalRecoveryManifest struct {
 			CheckerStatus          int
 		}
 	}
+}
+
+func loadJournalRecoveryManifest(t *testing.T, path string) journalRecoveryManifest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) > 16<<20 {
+		t.Fatal("recovery manifest", err)
+	}
+	var index struct {
+		Schema   int
+		Scenario string
+		Producer map[string]any
+		Evidence hfsGrowthArchive
+		Cases    []struct {
+			ID           string
+			Start, End   uint64
+			ReplaySHA256 string
+		}
+	}
+	if err = json.Unmarshal(data, &index); err != nil {
+		t.Fatal(err)
+	}
+	if index.Scenario == "hfs-journal-recovery-reference" {
+		original := openGrowthArchive(t, filepath.Dir(path), index.Evidence)
+		data, err = io.ReadAll(io.NewSectionReader(original, 0, original.Size()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var producer struct{ Producer map[string]any }
+		if err = json.Unmarshal(data, &producer); err != nil || index.Schema != 1 || !reflect.DeepEqual(producer.Producer, index.Producer) {
+			t.Fatal("retention changes native provenance", err)
+		}
+	}
+	var result journalRecoveryManifest
+	if err = json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if index.Scenario == "hfs-journal-recovery-reference" {
+		if len(index.Cases) != len(result.Cases) {
+			t.Fatal("incomplete retained recovery index")
+		}
+		for i, entry := range index.Cases {
+			c := result.Cases[i]
+			if entry.ID != c.ID || entry.Start != c.Journal.Start || entry.End != c.Journal.End || entry.ReplaySHA256 != c.Recovered.ReplayArchive.UncompressedSHA256 {
+				t.Fatal("retention changes native recovery boundaries")
+			}
+		}
+	}
+	return result
 }
 
 func journalDiskHash(t *testing.T, source block.Source, markUnmounted bool) string {
@@ -81,23 +132,20 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 	ctx := context.Background()
 	majors := map[int]bool{}
 	for _, path := range paths {
-		var manifest journalRecoveryManifest
-		data, err := os.ReadFile(path)
-		if err != nil || len(data) > 16<<20 {
-			t.Fatal("recovery manifest", err)
-		}
-		if err = json.Unmarshal(data, &manifest); err != nil {
-			t.Fatal(err)
-		}
+		manifest := loadJournalRecoveryManifest(t, path)
 		producer := manifest.Producer
-		if manifest.Schema != 1 || manifest.Scenario != "hfs-journal-recovery" || !manifest.Complete || majors[manifest.Major] || (manifest.Major != 15 && manifest.Major != 26 && manifest.Major != 27) || producer.System != "macOS" || producer.Build == "" || producer.Architecture == "" || producer.Run == "" || len(producer.Revision) != 40 || len(producer.Sources) != 9 || !strings.HasPrefix(producer.Version, fmt.Sprint(manifest.Major)+".") || (len(manifest.Cases) != 4 && len(manifest.Cases) != 8) {
+		if manifest.Schema != 1 || manifest.Scenario != "hfs-journal-recovery" || !manifest.Complete || majors[manifest.Major] || (manifest.Major != 15 && manifest.Major != 26 && manifest.Major != 27) || producer.System != "macOS" || producer.Build == "" || producer.Architecture == "" || producer.Run == "" || len(producer.Revision) != 40 || len(producer.Sources) != 9 || !strings.HasPrefix(producer.Version, fmt.Sprint(manifest.Major)+".") || len(manifest.Cases) != 8 {
 			t.Fatal("incomplete native recovery provenance")
 		}
 		majors[manifest.Major] = true
 		dir := filepath.Dir(path)
+		scripts := filepath.Join(dir, "scripts")
+		if _, err := os.Stat(scripts); os.IsNotExist(err) {
+			scripts = filepath.Join(filepath.Dir(dir), "scripts")
+		}
 		verifyDigest(t, dir, "commands.json", manifest.CommandsSHA256)
 		for _, name := range []string{"hfs_journal_recovery.py", "hfs_replay.c", "hfs_capture.c", "hfs_header_growth.py", "image_repacking.py", "container_building.py", "image_building.py", "file_compression.py", "capture.py"} {
-			verifyDigest(t, filepath.Join(dir, "scripts"), name, producer.Sources[name])
+			verifyDigest(t, scripts, name, producer.Sources[name])
 		}
 		t.Run(fmt.Sprintf("macos-%d", manifest.Major), func(t *testing.T) {
 			seen := map[string]bool{}

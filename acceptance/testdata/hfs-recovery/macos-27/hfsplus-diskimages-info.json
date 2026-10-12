@@ -31,10 +31,10 @@
       "blockcount": 131072,
       "blocksize": 512,
       "diskimages2": false,
-      "hdid-pid": 2711,
+      "hdid-pid": 3371,
       "icon-path": "/System/Library/PrivateFrameworks/DiskImages.framework/Resources/CDiskImage.icns",
       "image-encrypted": false,
-      "image-path": "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/hfs-journal-recovery-vel8tv2e/hfsplus-live.raw",
+      "image-path": "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/hfs-journal-recovery-bxop7d85/hfsplus-live.raw",
       "image-type": "read/write",
       "owner-uid": 501,
       "removable": true,
@@ -42,7 +42,7 @@
         {
           "content-hint": "",
           "dev-entry": "/dev/disk5",
-          "mount-point": "/private/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/hfs-journal-recovery-vel8tv2e/hfsplus-live"
+          "mount-point": "/private/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/hfs-journal-recovery-bxop7d85/hfsplus-live"
         }
       ],
       "writeable": true

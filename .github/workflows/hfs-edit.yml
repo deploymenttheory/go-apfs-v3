@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       journal_capture:
-        description: 'Capture actual pending journals and Apple recovery only'
+        description: 'Run the HFS journal recovery family only (capture_only limits it to Apple references)'
         type: boolean
         default: false
       capture_only:
@@ -33,7 +33,7 @@ jobs:
     if: ${{ inputs.journal_capture }}
     uses: ./.github/workflows/hfs-recovery.yml
     with:
-      capture_only: true
+      capture_only: ${{ inputs.capture_only }}
 
   capture:
     if: ${{ !inputs.journal_capture }}
@@ -376,7 +376,7 @@ jobs:
 
   complete:
     name: Require existing HFS edit qualification
-    if: ${{ always() && !inputs.capture_only }}
+    if: ${{ always() && !inputs.capture_only && !inputs.journal_capture }}
     needs: [capture, replay, replay_copy, readback]
     runs-on: ubuntu-24.04
     steps:

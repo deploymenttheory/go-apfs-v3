@@ -166,3 +166,43 @@ func TestJournalReplayDropsIncompleteTailAndPropagatesCancellationAndWriteFailur
 		t.Fatal(err)
 	}
 }
+
+func TestJournalReplayContinuationAndIncompleteWholeTailTransaction(t *testing.T) {
+	order := binary.LittleEndian
+	data, _, base := journalMutationFixture(t, order)
+	committed := journalTestList(order, 100, journalTestBlock{0, bytes.Repeat([]byte("a"), 512)})
+	first := journalTestList(order, 101, journalTestBlock{1, bytes.Repeat([]byte("b"), 512)})
+	continuation := journalTestList(order, 101, journalTestBlock{2, bytes.Repeat([]byte("c"), 512)})
+	order.PutUint32(continuation[12:], 1)
+	clear(continuation[8:12])
+	order.PutUint32(continuation[8:], journalChecksum(continuation[:32]))
+	end := journalTestRing(data, base, order, 512, 1, committed, first, continuation)
+	disk := &memoryMutation{bytes.Clone(data)}
+	report, err := ReplayJournal(context.Background(), disk)
+	if err != nil || report.Transactions != 2 || report.BlockLists != 3 || report.ExtraBlockLists != 2 || report.RecoveredEnd != end {
+		t.Fatal(report, err)
+	}
+	continuation[8192] ^= 1
+	journalTestRing(data, base, order, 512, 1, committed, first, continuation)
+	disk = &memoryMutation{bytes.Clone(data)}
+	report, err = ReplayJournal(context.Background(), disk)
+	if err != nil || report.Transactions != 1 || report.BlockLists != 1 || report.ExtraBlockLists != 0 || report.RecoveredEnd != 512+uint64(len(committed)) || !bytes.Equal(disk.data[512:1536], data[512:1536]) {
+		t.Fatal("incomplete continuation did not drop the whole tentative transaction", report, err)
+	}
+}
+
+func TestJournalReaderRefusesPendingRecordsDespiteUnmountedBit(t *testing.T) {
+	order := binary.LittleEndian
+	data, _, base := journalMutationFixture(t, order)
+	journalTestRing(data, base, order, 512, 1, journalTestList(order, 100, journalTestBlock{0, make([]byte, 512)}))
+	volume, err := Open(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !volume.Clean || volume.Journal == nil || !volume.Journal.Pending {
+		t.Fatal("actual header flags and journal state must stay distinct")
+	}
+	if _, err = volume.Stat(context.Background(), 2); !errors.Is(err, filesystem.ErrUnsupported) {
+		t.Fatal("pending journal was hidden by the primary unmounted bit", err)
+	}
+}

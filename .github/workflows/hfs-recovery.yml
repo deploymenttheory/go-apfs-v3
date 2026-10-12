@@ -93,6 +93,18 @@ jobs:
             options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
           tar -czf "artifacts/recovered-${{ matrix.artifact }}.tgz" "${options[@]}" -C artifacts "recovered-${{ matrix.platform }}"
+      - name: Build the portable CLI and interrupt a partial scratch copy
+        shell: bash
+        run: |
+          go build -o "artifacts/apfs${{ runner.os == 'Windows' && '.exe' || '' }}" ./cmd/apfs
+          python3 acceptance/native/recovery_interruption.py --apfs "artifacts/apfs${{ runner.os == 'Windows' && '.exe' || '' }}" --references artifacts/hfs-recovery/macos-15 --diagnostics artifacts/interruption
+      - name: Retain portable interruption evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-recovery-interruption-${{ matrix.artifact }}
+          path: artifacts/interruption
+          if-no-files-found: warn
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: hfs-recovered-${{ matrix.artifact }}

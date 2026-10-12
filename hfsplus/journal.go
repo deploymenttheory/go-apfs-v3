@@ -28,9 +28,10 @@
 // SPDX-License-Identifier: APSL-2.0
 // Modified 2026-10-12: Go adaptation of calc_checksum, journal_is_clean,
 // journal_open geometry and hfs_late_journal_init backing-file checks. Exclusive
-// unpublished copies replace mounted devices. Only current, empty internal
-// journals are admitted; no replay, relocation, reinitialization or live journal
-// writer is ported. Exact pinned sources/hashes: docs/sources.json.
+// unpublished copies replace mounted devices. Ordinary mutation admits only
+// current, empty internal journals. Explicit recovery is in journal_replay.go;
+// no relocation, reinitialization or live journal writer is ported.
+// Exact pinned sources/hashes: docs/sources.json.
 package hfsplus
 
 import (
@@ -78,7 +79,10 @@ func InspectJournal(source block.Source) (*JournalInfo, error) {
 	if err := block.ReadFull(source, header, 1024); err != nil {
 		return nil, err
 	}
-	if (string(header[:2]) != "H+" || be.Uint16(header[2:]) != 4) && (string(header[:2]) != "HX" || be.Uint16(header[2:]) != 5) {
+	if string(header[:2]) != "H+" && string(header[:2]) != "HX" {
+		return nil, fmt.Errorf("journal operation requires HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	}
+	if (string(header[:2]) == "H+" && be.Uint16(header[2:]) != 4) || (string(header[:2]) == "HX" && be.Uint16(header[2:]) != 5) {
 		return nil, bad("journal volume signature/version")
 	}
 	if be.Uint32(header[4:])&0x2000 == 0 {
