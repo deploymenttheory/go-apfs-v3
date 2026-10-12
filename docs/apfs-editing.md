@@ -96,6 +96,12 @@ The existing tree, checkpoint and free-queue capacity limits continue to apply.
 Physical node identifiers follow new addresses; virtual identifiers remain stable.
 Construction and editing share the node encoder in `apfs/build_tree.go`.
 
+Ordinary opens, explicit checkpoint inspection/recovery and mutation admission
+share mapping and stored-object validation in `apfs/checkpoint.go`. Recovery can
+choose an earlier complete checkpoint only through an explicit operation that
+reports the discarded newer candidates and validates the entire selected
+filesystem. See [checkpoint recovery](apfs-checkpoint-recovery.md).
+
 `apfs/mutate_space.go` validates device/chunk and internal-pool bitmaps, CIBs and
 transaction-tagged free queues. New data and metadata are allocated from admitted
 free space. Retired extents remain pending until they are older than the retained

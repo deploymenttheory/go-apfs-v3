@@ -5,6 +5,7 @@ package apfs
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -30,6 +31,7 @@ type Container struct {
 	source                         block.Source
 	id                             [16]byte
 	keylockerStart, keylockerCount uint64
+	locatorDamaged                 bool
 }
 
 type Volume struct {
@@ -63,61 +65,97 @@ type Volume struct {
 	snapMetaExt                OID
 }
 
-// Open borrows source. It selects the highest valid container superblock in
-// the contiguous checkpoint descriptor area. Once selected, failure to resolve
-// its volumes is an error; it never silently falls back to an older view.
+// Open borrows source and selects the highest checksummed superblock in the
+// contiguous descriptor area. Its complete checkpoint must validate. It never
+// silently falls back when mappings, stored objects or volumes are damaged;
+// checkpoint recovery is an explicit operation that reports any discarded view.
 func Open(source block.Source) (*Container, error) {
-	if source == nil || source.Size() < 4096 {
-		return nil, corrupt("container size", 0)
-	}
-	h := make([]byte, 4096)
-	if err := block.ReadFull(source, h, 0); err != nil {
-		return nil, err
-	}
-	if string(h[32:36]) != "NXSB" {
-		return nil, corrupt("container signature", 0)
-	}
-	bs := le.Uint32(h[36:])
-	if bs < 4096 || bs > 65536 || bs&(bs-1) != 0 {
-		return nil, corrupt("container block size", 0)
-	}
-	c := &Container{source: source, BlockSize: bs, BlockCount: le.Uint64(h[40:])}
-	if c.BlockCount == 0 || c.BlockCount > uint64(source.Size()/int64(bs)) {
-		return nil, corrupt("container block count", 0)
-	}
-	h, err := c.object(0, 1)
+	c, zero, err := containerGeometry(source)
 	if err != nil {
 		return nil, err
 	}
-	count, base := le.Uint32(h[104:]), le.Uint64(h[112:])
-	if count&0x80000000 != 0 {
-		return nil, fmt.Errorf("checkpoint descriptor tree: %w", filesystem.ErrUnsupported)
+	candidates, err := c.checkpointCandidates(context.Background(), zero)
+	if err != nil {
+		return nil, err
 	}
-	if count > 65536 {
-		return nil, filesystem.ErrLimit
-	}
-	if base > c.BlockCount || uint64(count) > c.BlockCount-base {
-		return nil, corrupt("checkpoint area", 0)
-	}
-	selected := h
-	for n := uint64(0); n < uint64(count); n++ {
-		b := make([]byte, bs)
-		if err := block.ReadFull(source, b, int64(base+n)*int64(bs)); err != nil {
-			return nil, err
-		}
-		if string(b[32:36]) != "NXSB" || !validChecksum(b) {
+	var selected []byte
+	for _, candidate := range candidates {
+		b := candidate.data
+		if !candidateHeader(c, zero, b) {
 			continue
 		}
-		if le.Uint32(b[24:])&0xffff != 1 || le.Uint32(b[36:]) != bs || le.Uint64(b[40:]) != c.BlockCount || !bytes.Equal(h[72:88], b[72:88]) {
-			continue
+		if selected != nil && le.Uint64(b[16:]) == le.Uint64(selected[16:]) {
+			return nil, corrupt("ambiguous checkpoint transaction", int64(candidate.address)*int64(c.BlockSize))
 		}
-		if le.Uint64(b[16:]) > le.Uint64(selected[16:]) || (le.Uint64(b[16:]) == le.Uint64(selected[16:]) && c.Checkpoint == 0) {
-			// Block zero locates checkpoints; its clean-unmount copy can carry
-			// different counters at the same XID. Use the actual descriptor.
-			selected = b
-			c.Checkpoint = PhysicalAddress(base + n)
+		if selected == nil || le.Uint64(b[16:]) > le.Uint64(selected[16:]) {
+			selected, c.Checkpoint = b, candidate.address
 		}
 	}
+	if selected == nil {
+		return nil, corrupt("missing checkpoint descriptor", 0)
+	}
+	c.XID = XID(le.Uint64(selected[16:]))
+	if le.Uint32(selected[24:]) != 0x80000001 {
+		return nil, fmt.Errorf("checkpoint superblock storage %#x: %w", le.Uint32(selected[24:]), filesystem.ErrUnsupported)
+	}
+	if _, err = c.checkpointObjects(context.Background(), selected); err != nil {
+		return nil, err
+	}
+	return c.openSuperblock(selected)
+}
+
+func containerGeometry(source block.Source) (*Container, []byte, error) {
+	return readContainerGeometry(source, false)
+}
+
+func readContainerGeometry(source block.Source, allowDamagedLocator bool) (*Container, []byte, error) {
+	if source == nil || source.Size() < 4096 {
+		return nil, nil, corrupt("container size", 0)
+	}
+	h := make([]byte, 4096)
+	if err := block.ReadFull(source, h, 0); err != nil {
+		return nil, nil, err
+	}
+	if string(h[32:36]) != "NXSB" {
+		return nil, nil, corrupt("container signature", 0)
+	}
+	bs := le.Uint32(h[36:])
+	if bs < 4096 || bs > 65536 || bs&(bs-1) != 0 {
+		return nil, nil, corrupt("container block size", 0)
+	}
+	c := &Container{source: source, BlockSize: bs, BlockCount: le.Uint64(h[40:])}
+	if c.BlockCount == 0 || c.BlockCount > uint64(source.Size()/int64(bs)) {
+		return nil, nil, corrupt("container block count", 0)
+	}
+	h = make([]byte, bs)
+	if err := block.ReadFull(source, h, 0); err != nil {
+		return nil, nil, err
+	}
+	if le.Uint32(h[24:])&0xffff != 1 {
+		return nil, nil, corrupt("object type", 0)
+	}
+	if !validChecksum(h) {
+		if !allowDamagedLocator {
+			return nil, nil, corrupt("object checksum", 0)
+		}
+		// Explicit recovery can use damaged block zero only as a bounded locator
+		// hint. Every immutable geometry field must match a checksummed NXSB in
+		// that exact descriptor region; complete ownership admission follows.
+		if bs != 4096 || c.BlockCount > 1<<18 || le.Uint32(h[24:]) != 0x80000001 || le.Uint64(h[8:]) != 1 {
+			return nil, nil, corrupt("damaged checkpoint locator", 0)
+		}
+		c.locatorDamaged = true
+	}
+	return c, h, nil
+}
+
+func candidateHeader(c *Container, zero, candidate []byte) bool {
+	return validChecksum(candidate) && le.Uint32(candidate[24:])&0xffff == 1 && le.Uint64(candidate[8:]) == 1 &&
+		le.Uint32(candidate[36:]) == c.BlockSize && le.Uint64(candidate[40:]) == c.BlockCount && bytes.Equal(zero[72:88], candidate[72:88]) &&
+		(!c.locatorDamaged || bytes.Equal(zero[104:128], candidate[104:128]))
+}
+
+func (c *Container) openSuperblock(selected []byte) (*Container, error) {
 	c.UUID = uuid(selected[72:88])
 	copy(c.id[:], selected[72:88])
 	c.keylockerStart, c.keylockerCount = le.Uint64(selected[1296:]), le.Uint64(selected[1304:])
@@ -149,7 +187,7 @@ func Open(source block.Source) (*Container, error) {
 			return nil, err
 		}
 		if string(b[32:36]) != "APSB" || OID(le.Uint64(b[8:])) != oid || XID(le.Uint64(b[16:])) > c.XID {
-			return nil, corrupt("volume superblock", int64(address)*int64(bs))
+			return nil, corrupt("volume superblock", int64(address)*int64(c.BlockSize))
 		}
 		v := c.volume(b, c.XID)
 		c.Volumes = append(c.Volumes, v)

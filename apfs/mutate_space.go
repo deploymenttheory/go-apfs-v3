@@ -8,11 +8,6 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
-type ephemeral struct {
-	kind, subtype uint32
-	oid, address  uint64
-	data          []byte
-}
 type mutableChunk struct {
 	xid, start    uint64
 	count, free   uint32

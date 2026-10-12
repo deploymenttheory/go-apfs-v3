@@ -10,7 +10,7 @@ and harness were not imported.
 | 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; APFS recovery, physical power-loss qualification and broader mutation pending |
+| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
 | 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | 7 | Read/write mounts on Linux/macOS/Windows | Pending |
 | 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -751,6 +751,40 @@ deterministic output and subsequent Go mutation. Fresh portable/native
 qualification is required by the compatibility workflow; process interruption
 checks are file-only and native operations remain restricted to disposable VMs.
 
-This completes the first HFS recovery increment in phase 5. APFS checkpoint
-recovery, durable in-place commit, broader journal profiles and physical
-power-loss qualification remain open. See [the contract and limits](hfs-journal-recovery.md).
+This completes the first HFS recovery increment in phase 5. The following APFS
+checkpoint increment is described below. Durable in-place commit, broader journal
+profiles and physical power-loss qualification remain open. See [the contract and limits](hfs-journal-recovery.md).
+
+
+## APFS checkpoint recovery increment
+
+Shared checkpoint mapping/object validation now serves ordinary reads, explicit
+inspection, recovery and mutation admission. Ordinary opens refuse incomplete
+selected checkpoints. Explicit recovery reports discarded newer candidates,
+validates the entire selected allocation/tree/stream/link graph in a read-only
+overlay, then normalizes only checkpoint descriptors and block zero in managed
+scratch before no-overwrite completed-image publication. Unsupported profiles
+and selected filesystem damage cannot authorize fallback. Damaged block-zero
+checksums permit only independently corroborated bounded locator hints.
+
+The retained 36 controls cover both name profiles on macOS 15/26/27. Genuine
+checkpoint-data/mapping/superblock windows and native ring wrap have separate
+provenance from deliberately derived mapping/object checksum damage. Apple's
+checker selects the transaction and read-only mounting observes files, identities,
+metadata, forks and signatures. Independent Apple-checked earlier-state controls
+qualify the deliberate-damage recovery policy. Exact disk comparison permits
+only documented checkpoint normalization.
+
+Every actual Go transaction write is faulted, including physical partial prefixes,
+ENOSPC and failed acknowledgements. File-backed boundary controls from each source
+version distinguish old/new complete states and retain actual interrupted bytes.
+Linux, Windows and macOS emit completed recovery images; all three native versions
+independently check corresponding source-version outputs, continued allocation,
+links and signatures. Process-kill tests interrupt observed partial CLI scratch
+copying and require an unchanged source and absent destination. The dedicated
+family and retained-corpus/race groups remain required in CI.
+
+See [the contract, evidence and bounds](apfs-checkpoint-recovery.md). In-place
+commit with ordered flushes, live journal writing and physical storage power-loss
+qualification remain the next transaction work, before snapshot/clone mutation
+and writable mounts.

@@ -910,3 +910,43 @@ go test -count=1 -run TestNativeHFSJournalRecovery ./acceptance
 The capture and verifier guards refuse working Macs. Production recovery is
 pure Go; the acceptance C helpers invoke or observe Apple solely in disposable
 VMs. See [the contract, source mapping and limits](../docs/hfs-journal-recovery.md).
+
+## APFS checkpoint recovery
+
+Purpose: identify and recover the newest complete APFS checkpoint on Linux or
+Windows while preserving original forensic evidence. Checkpoint completeness
+and selected filesystem health are separate checks; unsupported profiles and
+selected tree/ownership corruption cannot authorize rollback.
+
+| Cases | Independent expectation | Value of the comparison |
+| --- | --- | --- |
+| Both APFS name profiles, newer checkpoint data/maps without a superblock | Actual Apple write windows and checker-selected XID on macOS 15/26/27 | Unpublished state is never presented as committed |
+| Published checkpoint with stale block zero; actual data-ring wrap | Native selected transaction and complete read-only file observations | Selection uses a complete descriptor state across ring reuse |
+| Deliberately damaged newest mapping/object checksum | Separately Apple-checked controls disable that descriptor and verify the earlier state | Explicit rollback requires a complete earlier filesystem; damage is distinguished from genuine interruption |
+| Full disk, inode/link IDs, metadata, attributes, independent forks and signed apps | Retained original/control disk bytes and native observations | Recovery changes only documented descriptor/block-zero normalization and preserves evidence |
+| Seven-byte file-backed Go writes at six commit boundaries | Native original observation and independently checked recovered outputs | Before superblock publication the old state persists; a torn block-zero update retains the fully committed new state |
+| Actual Linux/Windows/macOS recovered and Go-edited images | Apple checker/readback, codesign, continued allocation, hard-link writes and unlink/reuse | Recovered filesystems remain usable by Apple and Go |
+| Killed CLI during observed partial scratch copy | Actual process termination and retained diagnostics | No destination is published and original source hashes remain unchanged |
+
+`TestNativeAPFSCheckpointRecovery` uses retained `testdata/apfs-recovery` or fresh
+`APFS_NATIVE_CHECKPOINT_RECOVERY` artifacts. The repository retains 36 controls
+and original native documents verbatim, with a readable index and shared capture
+scripts. The family produces actual output files when
+`APFS_CHECKPOINT_RECOVERY_OUTPUT` is set. Go interruption artifacts explicitly
+identify their separate producer and retain their real torn bytes and write traces.
+
+The dedicated workflow has three native captures, bounded Linux/source-version
+race comparisons and Windows/macOS comparisons, portable process-kill checks,
+and nine native readback jobs. Each native version checks all three portable
+hosts against that source version's Apple controls. Every job describes what it
+proves; the family is excluded from duplicate default-library/reader race runs.
+Fresh captures never replace the repository baseline automatically.
+
+```sh
+go test -count=1 -run TestNativeAPFSCheckpointRecovery ./acceptance
+```
+
+Native operations remain on guarded disposable VMs. Retained replay, fault
+injection and process interruption are ordinary-file operations suitable for the
+developer's host. Physical power loss and in-place commits remain separate work.
+See [the contract and limits](../docs/apfs-checkpoint-recovery.md).

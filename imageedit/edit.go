@@ -27,11 +27,12 @@ type Options struct {
 type Change = filesystem.Change
 
 type Report struct {
-	VolumeID    string                       `json:"volumeId"`
-	Changed     []uint64                     `json:"changed"`
-	FreeBlocks  uint64                       `json:"freeBlocks"`
-	Transaction uint64                       `json:"transaction,omitempty"`
-	Journal     *hfsplus.JournalReplayReport `json:"journal,omitempty"`
+	VolumeID    string                         `json:"volumeId"`
+	Changed     []uint64                       `json:"changed"`
+	FreeBlocks  uint64                         `json:"freeBlocks"`
+	Transaction uint64                         `json:"transaction,omitempty"`
+	Journal     *hfsplus.JournalReplayReport   `json:"journal,omitempty"`
+	Checkpoint  *apfs.CheckpointRecoveryReport `json:"checkpoint,omitempty"`
 	diskimage.RepackReport
 }
 
