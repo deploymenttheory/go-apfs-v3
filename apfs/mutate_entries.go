@@ -345,6 +345,13 @@ func (m *mutation) volumeCount(kind uint16, delta int) error {
 	return nil
 }
 func (m *mutation) createEntry(parent uint64, name string, directory bool, permission string, stamp uint64) (*mutationEntry, error) {
+	kind := uint32(0100000)
+	if directory {
+		kind = 0040000
+	}
+	return m.createEntryKind(parent, name, kind, permission, stamp)
+}
+func (m *mutation) createEntryKind(parent uint64, name string, kind uint32, permission string, stamp uint64) (*mutationEntry, error) {
 	if e := m.writableParent(parent); e != nil {
 		return nil, e
 	}
@@ -354,9 +361,12 @@ func (m *mutation) createEntry(parent uint64, name string, directory bool, permi
 	if m.entries[parent][m.nameKey(name)] != nil {
 		return nil, fs.ErrExist
 	}
-	perm := uint32(0100644)
-	if directory {
+	perm := kind | 0644
+	switch kind {
+	case 0040000:
 		perm = 0040755
+	case 0120000:
+		perm = 0120755
 	}
 	if permission != "" {
 		p, e := mode.Parse(permission, 022)
@@ -444,6 +454,12 @@ func (m *mutation) children(id uint64) []*mutationEntry {
 }
 
 func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
+	if c.Operation == "ln" {
+		return m.linkEntry(c, stamp)
+	}
+	if c.Symbolic {
+		return 0, fs.ErrInvalid
+	}
 	op := c.Operation
 	if op == "" {
 		op = "cp"

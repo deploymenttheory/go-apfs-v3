@@ -123,6 +123,10 @@ Existing-image `chown`, `touch`, `chflags` and `xattr` also update ownership,
 clocks, user flags and attribute storage while preserving original identities.
 See [metadata command semantics and qualification](docs/image-metadata.md).
 
+Existing-image `ln` creates regular-file hard links and literal symlinks, including
+versioned framework layouts. `-f` replaces entries and `-h` selects a destination
+symlink itself. See [link semantics and native qualification](docs/image-links.md).
+
 ## Library
 
 ```go

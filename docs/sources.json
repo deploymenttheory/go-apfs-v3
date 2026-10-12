@@ -27,9 +27,10 @@
         "apfs/mutate_commit.go",
         "apfs/mutate_validate.go",
         "apfs/mutate_entries.go",
-        "apfs/mutate_metadata.go"
+        "apfs/mutate_metadata.go",
+        "apfs/mutate_links.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state. Multiple-volume construction uses nx_fs_oid slots, per-volume fs_index, reserves/quotas, group UUIDs and SYSTEM_OBJ_ID_MARK. The latter is independently observed in native System user objects and apfs_next_obj_id; UNIFIED_ID_SPACE_MARK is not used as the allocator base. Existing APFS mutation is an original Go implementation of the published object storage classes, B-tree/object-map versioning, space-manager CIB/bitmap/internal-pool structures, transaction-tagged free queues and checkpoint mappings. Native macOS 15/26/27 source/peak/final captures separately qualify observable file semantics and allocator state; Apple fsck, mounted readback and continued native/Go/native mutation are required. Stored resource-fork stream IDs differ from owning inode IDs; physical extent owning_obj_id follows the owning filesystem record. The actual checkpoint descriptor is selected when block zero has the same XID with different native counters. Directory mutation uses published directory-entry hashes, inode child/link counts, volume file counters, primary sibling selection, sibling-link/map records and apfs_next_obj_id. Native retained create/move/unlink/removal states independently confirm retained single-sibling records and primary-name/parent repair; fresh Apple checker/readback and native/Go/native cycles qualify the writer. Adjacent free-queue range coalescing retains the published transaction lifetime. No private APFS kernel C implementation is claimed as a source port. Existing-image metadata patches and generic attribute stream mutation are original interpretations, independently qualified by macOS 15/26/27 metadata controls. Native ordinary streams carrying the unpublished 0x10 flag use their stream ID for physical extent ownership, unlike legacy attributes/resource forks. The writer preserves this observed distinction, rejects unknown flags/shared profiles, and requires native continued writes; no private flag name or C port is inferred."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state. Multiple-volume construction uses nx_fs_oid slots, per-volume fs_index, reserves/quotas, group UUIDs and SYSTEM_OBJ_ID_MARK. The latter is independently observed in native System user objects and apfs_next_obj_id; UNIFIED_ID_SPACE_MARK is not used as the allocator base. Existing APFS mutation is an original Go implementation of the published object storage classes, B-tree/object-map versioning, space-manager CIB/bitmap/internal-pool structures, transaction-tagged free queues and checkpoint mappings. Native macOS 15/26/27 source/peak/final captures separately qualify observable file semantics and allocator state; Apple fsck, mounted readback and continued native/Go/native mutation are required. Stored resource-fork stream IDs differ from owning inode IDs; physical extent owning_obj_id follows the owning filesystem record. The actual checkpoint descriptor is selected when block zero has the same XID with different native counters. Directory mutation uses published directory-entry hashes, inode child/link counts, volume file counters, primary sibling selection, sibling-link/map records and apfs_next_obj_id. Native retained create/move/unlink/removal states independently confirm retained single-sibling records and primary-name/parent repair; fresh Apple checker/readback and native/Go/native cycles qualify the writer. Adjacent free-queue range coalescing retains the published transaction lifetime. No private APFS kernel C implementation is claimed as a source port. Existing-image metadata patches and generic attribute stream mutation are original interpretations, independently qualified by macOS 15/26/27 metadata controls. Native ordinary streams carrying the unpublished 0x10 flag use their stream ID for physical extent ownership, unlike legacy attributes/resource forks. The writer preserves this observed distinction, rejects unknown flags/shared profiles, and requires native continued writes; no private flag name or C port is inferred. Link creation inserts sibling-link/map records for original and new aliases while retaining original inode/stream identities, and stores literal symlink targets in filesystem-owned attributes. Native first-link, alias growth/replacement/removal and signed framework controls qualify these original Go interpretations."
     },
     {
       "id": "apple-tn1150",
@@ -594,7 +595,7 @@
         "acceptance/native/verify_preservation.py"
       ],
       "evidence": "acceptance/testdata/preservation/macos-27/manifest.json",
-      "basis": "Four native APFS/HFS+/HFSX images, 125\u2013126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
+      "basis": "Four native APFS/HFS+/HFSX images, 125–126 entries each. Final read-only observations include logical file hashes, raw XATTR_SHOWCOMPRESSION values, native metadata, link identities and host-incompatible names. Apple copyfile independently packs/unpacks three metadata controls per filesystem. Portable output returns to macOS for an independent Python preservation comparison and native unpack, without invoking Go."
     },
     {
       "id": "native-content-replacement-27",
@@ -1168,14 +1169,79 @@
         {
           "path": "core/hfs_cnode.c",
           "sha256": "d9fffdcd7cf157ba1fb9b804f27fef7e2dc712054452fd48c7baeab0966eb109"
+        },
+        {
+          "path": "core/hfs.h",
+          "sha256": "931731027ac0a9dfb1254a36aea47dfb4c2af843d7c4093c7806b56454a7d1f1"
         }
       ],
       "components": [
         "hfsplus/mutate_catalog.go",
         "hfsplus/mutate.go",
-        "hfsplus/mutate_tree.go"
+        "hfsplus/mutate_tree.go",
+        "hfsplus/mutate_links.go",
+        "hfsplus/build.go"
       ],
-      "basis": "Bounded unpublished-copy adaptation of cat_create/buildrecord/buildthread, cat_rename, cat_delete, cat_acquire_cnid, hfs_makenode, hfs_unlink and catalog sibling chains. Thread and orphan-attribute collisions reserve CNIDs; wraparound is refused until qualified. Date-added and generation fields follow hfs_write_dateadded/hfs_write_gencount/hfs_incr_gencount. No vnodes, process-credential emulation, live journal callbacks or open-unlinked orphan staging: exclusively owned copies reclaim final-link storage immediately. New records use explicit clocks, parent UID/GID and fixed portable creation modes; ACL/set-ID inheritance is refused. Independent Apple namespace qualification is separate. Catalog metadata growth uses the same inline/overflow extent-record representation as ordinary forks; the extents tree remains self-describing. Native fragmented sources exposed the previous eight-inline-extents catalog growth limit and independently qualify this extension."
+      "basis": "Bounded unpublished-copy adaptation of cat_create/buildrecord/buildthread, cat_rename, cat_delete, cat_acquire_cnid, hfs_makenode, hfs_unlink and catalog sibling chains. Thread and orphan-attribute collisions reserve CNIDs; wraparound is refused until qualified. Date-added and generation fields follow hfs_write_dateadded/hfs_write_gencount/hfs_incr_gencount. No vnodes, process-credential emulation, live journal callbacks or open-unlinked orphan staging: exclusively owned copies reclaim final-link storage immediately. New records use explicit clocks, parent UID/GID and fixed portable creation modes; ACL/set-ID inheritance is refused. Independent Apple namespace qualification is separate. Catalog metadata growth uses the same inline/overflow extent-record representation as ordinary forks; the extents tree remains self-describing. Native fragmented sources exposed the previous eight-inline-extents catalog growth limit and independently qualify this extension. Hard-link creation adapts hfs_makelink/createindirectlink/cat_createlink: first conversion moves the original CNID into private inode storage, creates indirect aliases, preserves legacy/current chain style and enforces HFS_LINK_MAX=32767. Shared indirectLinkRecord serves construction/mutation, with immutable alias catalog lock consistency. Symlinks adapt hfs_vnop_symlink's literal data fork and Finder type/creator. Source and alias storage are reclaimed only on final unlink."
+    },
+    {
+      "id": "apple-ln-command-semantics",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds/blob/659a8a301e2acf0343f8b8673a154a2ca4d07084/ln/ln.c",
+      "revision": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+      "license": "BSD-3-Clause",
+      "files": [
+        {
+          "path": "ln/ln.c",
+          "sha256": "17a433e936648d53ba098694d8434daace2edffd95614455598f1b25f624350e"
+        }
+      ],
+      "components": [
+        "cmd/apfs/image_edits.go",
+        "apfs/mutate_links.go",
+        "hfsplus/mutate_links.go",
+        "session/commands.go"
+      ],
+      "basis": "Original Go command handling informed by linkit/samedirent: existing-directory basename, explicit -f removal, -h destination symlink selection and protecting the source directory entry. A different alias of the same inode can be replaced. No ln C code is copied. Physical image/session path policy explicitly refuses implicit symlink traversal; process credential/authorization behavior is not emulated."
+    },
+    {
+      "id": "native-apfs-links-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38225845839",
+      "evidence": "acceptance/testdata/apfs-link-editing",
+      "components": [
+        "apfs/mutate_links.go",
+        "acceptance/image_links_test.go",
+        "acceptance/native/image_links.py",
+        "acceptance/native/verify_image_links.py"
+      ],
+      "basis": "Immutable Apple-created controls captured at 56aa13e on macOS 15/26/27: two native name policies, source plus link-growth/alias-update/final-removal states, exact identities/full metadata/attributes/forks/literal targets and checker outcomes. Signed versioned framework payload/signature survives removal of only its symlinks before capture; recreating them must restore native signature verification. First-file hard links retain their original public inode ID. Recipes, compressed/decoded hashes, source bindings and tool/OS/command evidence accompany the corpus. Fresh required CI additionally qualifies explicit -h and same-inode different-alias force replacement. No Go-produced expected states."
+    },
+    {
+      "id": "native-hfs-links-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38225853680",
+      "evidence": "acceptance/testdata/hfs-link-editing",
+      "components": [
+        "hfsplus/mutate_links.go",
+        "acceptance/image_links_test.go",
+        "acceptance/native/image_links.py",
+        "acceptance/native/verify_image_links.py"
+      ],
+      "basis": "Immutable Apple-created controls captured at 56aa13e on macOS 15/26/27: two native name policies, source plus link-growth/alias-update/final-removal states, exact identities/full metadata/attributes/forks/literal targets and checker outcomes. Signed versioned framework payload/signature survives removal of only its symlinks before capture; recreating them must restore native signature verification. First-file hard links retain their original public inode ID. Recipes, compressed/decoded hashes, source bindings and tool/OS/command evidence accompany the corpus. Fresh required CI additionally qualifies explicit -h and same-inode different-alias force replacement. No Go-produced expected states."
+    },
+    {
+      "id": "native-hfs-journaled-links-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38225853680",
+      "evidence": "acceptance/testdata/hfs-journaled-link-editing",
+      "components": [
+        "hfsplus/mutate_links.go",
+        "acceptance/image_links_test.go",
+        "acceptance/native/image_links.py",
+        "acceptance/native/verify_image_links.py"
+      ],
+      "basis": "Immutable Apple-created controls captured at 56aa13e on macOS 15/26/27: two native name policies, source plus link-growth/alias-update/final-removal states, exact identities/full metadata/attributes/forks/literal targets and checker outcomes. Signed versioned framework payload/signature survives removal of only its symlinks before capture; recreating them must restore native signature verification. First-file hard links retain their original public inode ID. Recipes, compressed/decoded hashes, source bindings and tool/OS/command evidence accompany the corpus. Fresh required CI additionally qualifies explicit -h and same-inode different-alias force replacement. No Go-produced expected states."
     }
   ]
 }

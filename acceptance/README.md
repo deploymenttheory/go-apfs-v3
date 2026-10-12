@@ -824,3 +824,22 @@ exact raw copies and actual continued writes. A separate Apple-only copy supplie
 the complete expectation for each subsequent Go re-edit, followed by native
 qualification. Native commands remain restricted to disposable VMs. Retained
 metadata groups have bounded individual invocations within the existing CI jobs.
+
+## Existing-image link qualification
+
+Purpose: prove existing APFS/HFS+/HFSX images can gain aliases and framework
+symlinks without losing original inodes, forks, metadata, signatures or correct
+final-link reclamation. Native sources and three subsequent lifetime states are
+retained under `apfs-link-editing`, `hfs-link-editing` and
+`hfs-journaled-link-editing`, with exact recipes, source hashes, commands and OS/tool
+versions. A signed framework's removed symlinks must be restored with their exact
+literal targets and accepted by codesign. Untouched application signatures remain
+required throughout. New identity bijections persist across the whole lifecycle.
+
+The existing edit pipelines add separate bounded link replay invocations and
+Apple readback on macOS 15/26/27. Linux/Windows/macOS output triples must be byte
+identical; each native checker validates distinct images. Later native links become
+Go inputs, with separate Apple-only continuation copies supplying full expectations
+before another native checker/remount/signature check. Failed continuation inputs
+are retained for file-only local investigation. See the
+[command and storage contract](../docs/image-links.md).

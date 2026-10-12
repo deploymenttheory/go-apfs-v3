@@ -93,6 +93,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	case "ln":
 		f.BoolVar(&link.Symbolic, "s", false, "create a symbolic link")
 		f.BoolVar(&link.Force, "f", false, "replace an existing non-directory entry")
+		f.BoolVar(&link.NoFollow, "h", false, "replace a destination symlink itself")
 	case "xattr":
 		f.BoolVar(&xread, "p", false, "print an attribute")
 		f.BoolVar(&xwrite, "w", false, "write an attribute")

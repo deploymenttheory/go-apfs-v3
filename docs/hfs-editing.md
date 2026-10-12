@@ -201,3 +201,6 @@ records through the same allocator and completed-output transaction. See
 [metadata semantics and native evidence](image-metadata.md). Ordinary attributes
 require an initialized attributes tree; absent-file initialization remains
 unqualified. Newly formatted and populated trees retain native qualification.
+
+`ln` converts a first regular-file link into native private-inode storage, extends
+existing alias chains and creates literal symlinks. See [link lifecycle semantics](image-links.md).

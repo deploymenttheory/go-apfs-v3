@@ -414,6 +414,13 @@ func (m *mutation) allocateCNID() (uint32, error) {
 	return 0, filesystem.ErrLimit
 }
 func (m *mutation) createCatalog(parent *catalogItem, name string, directory bool, permission string, stamp uint32) (*catalogItem, error) {
+	kind := uint32(0100000)
+	if directory {
+		kind = 0040000
+	}
+	return m.createCatalogKind(parent, name, kind, permission, stamp)
+}
+func (m *mutation) createCatalogKind(parent *catalogItem, name string, fileType uint32, permission string, stamp uint32) (*catalogItem, error) {
 	if err := m.writableParent(parent); err != nil {
 		return nil, err
 	}
@@ -426,11 +433,14 @@ func (m *mutation) createCatalog(parent *catalogItem, name string, directory boo
 		return nil, err
 	}
 	size, kind, flags, perm := 248, uint16(2), uint16(0x82), uint32(0100644)
-	if directory {
+	switch fileType {
+	case 0040000:
 		size, kind, flags, perm = 88, 1, 0x80, 0040755
 		if m.v.Format == "HFSX" {
 			flags |= 0x10
 		}
+	case 0120000:
+		perm = 0120755
 	}
 	if permission != "" {
 		p, e := mode.Parse(permission, 022)
@@ -452,30 +462,34 @@ func (m *mutation) createCatalog(parent *catalogItem, name string, directory boo
 	copy(b[32:40], parent.value[32:40])
 	be.PutUint16(b[42:], uint16(perm))
 	be.PutUint32(b[44:], 1)
+	if fileType == 0120000 {
+		be.PutUint32(b[44:], 0)
+		copy(b[48:56], "slnkrhap")
+	}
 	be.PutUint32(b[68:], stamp-2082844800)
-	if !directory {
+	if fileType != 0040000 {
 		be.PutUint32(b[76:], 1)
 	}
 	r := &catalogItem{key, b}
+	return r, m.insertCatalog(r, stamp)
+}
+func (m *mutation) insertCatalog(r *catalogItem, stamp uint32) error {
 	t := m.trees[4]
-	if err = t.set(catalogKey(id, ""), catalogThread(r), false); err != nil {
-		return nil, err
+	if err := t.set(catalogKey(r.id(), ""), catalogThread(r), false); err != nil {
+		return err
 	}
-	if err = t.set(key, b, false); err != nil {
-		return nil, err
+	if err := t.set(r.key, r.value, false); err != nil {
+		return err
 	}
-	m.catalog[id] = r
-	if m.children[parent.id()] == nil {
-		m.children[parent.id()] = map[string]*catalogItem{}
+	m.catalog[r.id()] = r
+	if m.children[r.parent()] == nil {
+		m.children[r.parent()] = map[string]*catalogItem{}
 	}
-	m.children[parent.id()][m.catalogName(r.name())] = r
-	if err = m.parentChanged(parent.id(), 1, directory, stamp); err != nil {
-		return nil, err
+	m.children[r.parent()][m.catalogName(r.name())] = r
+	if err := m.parentChanged(r.parent(), 1, r.directory(), stamp); err != nil {
+		return err
 	}
-	if err = m.volumeCount(directory, 1); err != nil {
-		return nil, err
-	}
-	return r, nil
+	return m.volumeCount(r.directory(), 1)
 }
 func (m *mutation) makeDirectory(c Change, stamp uint32) (uint32, error) {
 	parts, err := catalogPath(c.Path)
@@ -742,40 +756,9 @@ func (m *mutation) moveCatalog(c Change, stamp uint32) (uint32, error) {
 			return 0, err
 		}
 	}
-	oldParent, oldKey, oldName := r.parent(), bytes.Clone(r.key), r.name()
-	t := m.trees[4]
-	// A case-only spelling change compares equal in HFS+. Remove that key before
-	// inserting the replacement, as cat_rename does after BTInsert's btExists.
-	same := t.compare(oldKey, key) == 0
-	if same {
-		if err = t.set(oldKey, nil, true); err != nil {
-			return 0, err
-		}
-	}
-	if err = t.set(key, r.value, false); err != nil {
+	oldParent := r.parent()
+	if err = m.relocateCatalog(r, parent.id(), name, stamp); err != nil {
 		return 0, err
-	}
-	if !same {
-		if err = t.set(oldKey, nil, true); err != nil {
-			return 0, err
-		}
-	}
-	delete(m.children[oldParent], m.catalogName(oldName))
-	r.key = key
-	if m.children[parent.id()] == nil {
-		m.children[parent.id()] = map[string]*catalogItem{}
-	}
-	m.children[parent.id()][m.catalogName(r.name())] = r
-	if err = t.set(catalogKey(r.id(), ""), catalogThread(r), false); err != nil {
-		return 0, err
-	}
-	if oldParent != parent.id() {
-		if err = m.parentChanged(oldParent, -1, r.directory(), stamp); err != nil {
-			return 0, err
-		}
-		if err = m.parentChanged(parent.id(), 1, r.directory(), stamp); err != nil {
-			return 0, err
-		}
 	}
 	inode, err := m.logical(r)
 	if err != nil {
@@ -794,7 +777,56 @@ func (m *mutation) moveCatalog(c Change, stamp uint32) (uint32, error) {
 	}
 	return inode.id(), nil
 }
+
+// relocateCatalog shares record, thread, index and count updates between public
+// rename and internal hard-link inode conversion. Callers own admission/clocks.
+func (m *mutation) relocateCatalog(r *catalogItem, parent uint32, name string, stamp uint32) error {
+	key := catalogKey(parent, name)
+	var err error
+	oldParent, oldKey, oldName := r.parent(), bytes.Clone(r.key), r.name()
+	t := m.trees[4]
+	// A case-only spelling change compares equal in HFS+. Remove that key before
+	// inserting the replacement, as cat_rename does after BTInsert's btExists.
+	same := t.compare(oldKey, key) == 0
+	if same {
+		if err = t.set(oldKey, nil, true); err != nil {
+			return err
+		}
+	}
+	if err = t.set(key, r.value, false); err != nil {
+		return err
+	}
+	if !same {
+		if err = t.set(oldKey, nil, true); err != nil {
+			return err
+		}
+	}
+	delete(m.children[oldParent], m.catalogName(oldName))
+	r.key = key
+	if m.children[parent] == nil {
+		m.children[parent] = map[string]*catalogItem{}
+	}
+	m.children[parent][m.catalogName(r.name())] = r
+	if err = t.set(catalogKey(r.id(), ""), catalogThread(r), false); err != nil {
+		return err
+	}
+	if oldParent != parent {
+		if err = m.parentChanged(oldParent, -1, r.directory(), stamp); err != nil {
+			return err
+		}
+		if err = m.parentChanged(parent, 1, r.directory(), stamp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
+	if c.Operation == "ln" {
+		return m.linkCatalog(c, stamp)
+	}
+	if c.Symbolic {
+		return 0, fs.ErrInvalid
+	}
 	if c.Path == "" {
 		return 0, fs.ErrInvalid
 	}

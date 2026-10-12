@@ -42,6 +42,8 @@ jobs:
         run: python3 acceptance/native/apfs_directory_editing.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-editing/directories/macos-${{ matrix.major }}
       - name: Record native ownership, timestamps, flags and attribute storage transitions
         run: python3 acceptance/native/image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --references artifacts/apfs-editing/macos-${{ matrix.major }} --output artifacts/apfs-editing/metadata/macos-${{ matrix.major }}
+      - name: Record Apple hard-link conversion, symbolic links and complete link lifetimes
+        run: python3 acceptance/native/image_links.py --expected-major "${{ matrix.major }}" --kind apfs --references artifacts/apfs-editing/macos-${{ matrix.major }} --output artifacts/apfs-editing/links/macos-${{ matrix.major }}
       - name: Retain source disks, native states and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -95,6 +97,14 @@ jobs:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_METADATA: ../artifacts/apfs-editing/metadata
           APFS_APFS_METADATA_OUTPUT: ../artifacts/apfs-metadata-${{ matrix.host }}
+      # Link replay has its own bounded invocation in the existing job.
+      - name: Compare new links, original identities and complete alias lifetimes
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$'
+        env:
+          CGO_ENABLED: ${{ matrix.host == 'Linux' && '1' || '0' }}
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_APFS_LINKS: ../artifacts/apfs-editing/links
+          APFS_APFS_LINK_OUTPUT: ../artifacts/apfs-links-${{ matrix.host }}
       - name: Archive actual portable output images
         shell: bash
         run: |
@@ -102,7 +112,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }} apfs-metadata-${{ matrix.host }}
+          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }} apfs-metadata-${{ matrix.host }} apfs-links-${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
@@ -173,11 +183,24 @@ jobs:
           APFS_IMAGE_METADATA_CONTINUED_OUTPUT: ../artifacts/metadata-continued-go
       - name: Qualify complete continued metadata state with Apple tools
         run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/metadata-continued-go --controls artifacts/metadata-continued-native
+      - name: Qualify hard links, literal symlinks and signed frameworks with Apple tools
+        run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --corpus artifacts/apfs-editing/links --outputs artifacts/outputs --continuation artifacts/links-continued-native
+      - name: Re-edit native link changes against a separate Apple-only control
+        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageLinkEditingContinuation$'
+        env:
+          APFS_IMAGE_LINK_KIND: apfs
+          APFS_IMAGE_LINK_CONTINUATION: ../artifacts/links-continued-native
+          APFS_IMAGE_LINK_CONTINUED_OUTPUT: ../artifacts/links-continued-go
+      - name: Qualify the complete continued link result with Apple fsck and signatures
+        run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/links-continued-go --controls artifacts/links-continued-native
       - name: Retain exact native continuation inputs and expectations
         if: always()
         run: |
           if [ -d artifacts/metadata-continued-native ]; then
             tar -czf artifacts/metadata-continued-native.tgz -C artifacts metadata-continued-native
+          fi
+          if [ -d artifacts/links-continued-native ]; then
+            tar -czf artifacts/links-continued-native.tgz -C artifacts links-continued-native
           fi
       - name: Retain native verification diagnostics
         if: always()
@@ -190,6 +213,8 @@ jobs:
             artifacts/apfs-directories-continued-go/*.diagnostics.json
             artifacts/metadata-continued-go/*.diagnostics.json
             artifacts/metadata-continued-native.tgz
+            artifacts/links-continued-go/*.diagnostics.json
+            artifacts/links-continued-native.tgz
           if-no-files-found: error
 
   complete:
