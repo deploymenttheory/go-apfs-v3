@@ -64,6 +64,7 @@ def clone_file(source, target):
 
 def churn(root, stop, errors):
     try:
+        from file_compression import xattr
         generation = 0
         while not stop.is_set():
             for index in range(256):
@@ -71,20 +72,25 @@ def churn(root, stop, errors):
                     break
                 path = root / f'entry-{index}'
                 os.chmod(path, 0o600 | (generation & 0o77))
-                os.setxattr(path, 'org.go-apfs.journal', struct.pack('>QI', generation, index))
+                xattr(path, 'org.go-apfs.journal', struct.pack('>QI', generation, index))
             generation += 1
     except BaseException as error:
         errors.append(str(error))
         stop.set()
 
 
-def recover(image, work, command):
+def recover(image, work, output, name, helper, command):
     device = attach(image, command, writable=True)
     mount = work / (image.stem + '-recovered')
     mount.mkdir()
     try:
-        command('sudo', '/sbin/fsck_hfs', '-fy', device.replace('/dev/disk', '/dev/rdisk'))
-        command('diskutil', 'mount', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
+        command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', helper,
+                device.replace('/dev/disk', '/dev/rdisk'))
+        replay = retain_file(image, output / (name + '-apple-replay.raw.gz'))
+        replay_journal = journal(image)
+        require(replay_journal['start'] == replay_journal['end'], 'native replay emptied journal')
+        command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
+        command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
         observed = files(mount / 'Fixture')
         command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
     finally:
@@ -95,7 +101,8 @@ def recover(image, work, command):
         command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
     finally:
         command('hdiutil', 'detach', device)
-    return {'files': observed, 'journal': journal(image), 'checkerStatus': 0}
+    return {'files': observed, 'journal': journal(image), 'checkerStatus': 0,
+            'replayArchive': replay, 'replayJournal': replay_journal}
 
 
 def capture(expected_major, output):
@@ -107,6 +114,9 @@ def capture(expected_major, output):
     diagnostics = []
     with tempfile.TemporaryDirectory(prefix='hfs-journal-recovery-') as temporary:
         work = Path(temporary)
+        helper = work / 'hfs-replay'
+        command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror',
+                Path(__file__).with_name('hfs_replay.c'), '-o', helper)
         for filesystem in ('hfsplus', 'hfsx'):
             image = work / (filesystem + '-live.raw')
             with image.open('xb') as stream:
@@ -169,13 +179,13 @@ def capture(expected_major, output):
                 recovered = work / (name + '-apple.raw')
                 shutil.copyfile(source, recovered)
                 before = journal(source)
-                native = recover(recovered, work, command)
+                native = recover(recovered, work, output, name, helper, command)
                 native['archive'] = retain_file(recovered, output / (name + '-apple.raw.gz'))
                 cases.append({'id': name, 'source': original, 'journal': before, 'recovered': native})
                 (output / 'recovery.json').write_text(json.dumps({'producer': producer, 'cases': cases}, indent=2) + '\n')
     producer['tools'] = {str(path): hashlib.sha256(Path(path).read_bytes()).hexdigest()
                          for path in ('/sbin/newfs_hfs', '/sbin/fsck_hfs', '/usr/bin/hdiutil', '/usr/sbin/diskutil')}
-    scripts = ('hfs_journal_recovery.py', 'hfs_header_growth.py', 'image_repacking.py',
+    scripts = ('hfs_journal_recovery.py', 'hfs_replay.c', 'hfs_header_growth.py', 'image_repacking.py',
                'container_building.py', 'image_building.py', 'file_compression.py', 'capture.py')
     script_output = output / 'scripts'
     script_output.mkdir()
