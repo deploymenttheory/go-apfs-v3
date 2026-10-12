@@ -26,6 +26,7 @@ def operations(phase):
             {'sources': ['independent'], 'destination': 'Copies/forked', 'preserve': True},
             {'sources': ['inline-compressed'], 'destination': 'Copies/inline', 'preserve': True},
             {'sources': ['resource-compressed'], 'destination': 'Copies/resource', 'preserve': True},
+            {'sources': ['inline-fork-compressed'], 'destination': 'Copies/inline-fork', 'preserve': True},
             {'sources': ['CopySource/'], 'destination': 'Copies/Merged', 'recursive': True},
             {'sources': ['independent'], 'destination': 'Copies/existing', 'preserve': True},
             {'sources': ['independent'], 'destination': 'Copies/no-attrs', 'noAttributes': True},
@@ -71,7 +72,14 @@ def host_source(directory):
 def prepare(root, command):
     require_disposable_host()
     from metadata_edits import set_attribute, set_metadata
+    from file_compression import xattr, install, plain, encode, RESOURCE
     prepare_framework(root, command)
+    # Install the independent fork before setting UF_COMPRESSED. Writing it to
+    # an already compressed HFS file would decompress it, changing the profile.
+    compressed = root / 'inline-fork-compressed'
+    compressed.touch()
+    xattr(compressed, RESOURCE, b'Independent compressed copy fork\x00\xff')
+    install(compressed, 3, plain(1200), payload=encode(3, plain(1200)))
     for target, name in [('A', 'Versions/Current'), ('Versions/Current/Example', 'Example'),
                          ('Versions/Current/Resources', 'Resources')]:
         command('/bin/ln', '-s', '--', target, root / FRAMEWORK / name)
@@ -103,7 +111,7 @@ def prepare(root, command):
     # The portable construction clock is 2025. Preserved source dates must
     # precede both that clock and the native operation clock, so the filesystem
     # birth<=mtime adjustment compares the same ordered dates on both sides.
-    paths += [root / name for name in ('independent', 'empty', 'inline-compressed', 'resource-compressed')]
+    paths += [root / name for name in ('independent', 'empty', 'inline-compressed', 'resource-compressed', 'inline-fork-compressed')]
     for p in reversed(paths):
         set_metadata(p, {'birthTime': stamp, 'modifyTime': stamp, 'accessTime': stamp}, command)
 
@@ -174,6 +182,11 @@ def apply(root, ops, command, host, clocks=None):
         prior = old.get(e['object'])
         fields = clocks.setdefault(str(e['object']), [])
         for field in ('changeNS', 'modifyNS'):
+            # A later preserved copy can replace an earlier operation-derived
+            # mtime with an exact source value. Classification follows the final
+            # observation, rather than retaining a stale previous-phase marker.
+            if field == 'modifyNS' and prior is not None and e[field] != prior[field] and e[field] < clock_start and field in fields:
+                fields.remove(field)
             if (prior is None and field == 'changeNS' or prior is not None and e[field] != prior[field] and e[field] >= clock_start) and field not in fields:
                 fields.append(field)
     return clocks
