@@ -311,7 +311,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
+    if: ${{ !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
