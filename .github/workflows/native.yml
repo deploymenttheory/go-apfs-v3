@@ -11,12 +11,18 @@ on:
       - '.github/workflows/hfs-edit.yml'
       - '.github/workflows/hfs-recovery.yml'
       - '.github/workflows/apfs-edit.yml'
+      - '.github/workflows/apfs-recovery.yml'
   push:
     branches: [main]
   schedule:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      apfs_checkpoint_capture:
+        description: 'Capture actual interrupted Apple checkpoints and native selected states only'
+        required: false
+        type: boolean
+        default: false
       apfs_edits_only:
         description: 'Only existing APFS capture, portable editing and Apple readback'
         required: false
@@ -50,22 +56,28 @@ env:
   CGO_ENABLED: "0"
 
 jobs:
+  apfs_recovery:
+    if: ${{ inputs.apfs_checkpoint_capture }}
+    uses: ./.github/workflows/apfs-recovery.yml
+    with:
+      capture_only: true
+
   apfs_edits:
-    if: ${{ !inputs.hfs_reference_capture && inputs.readback_run == '' }}
+    if: ${{ !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '' }}
     uses: ./.github/workflows/apfs-edit.yml
     with:
       capture_only: ${{ inputs.apfs_reference_capture || false }}
 
   hfs_edits:
-    if: ${{ !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
+    if: ${{ !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
     uses: ./.github/workflows/hfs-edit.yml
 
   hfs_recovery:
-    if: ${{ !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '' }}
+    if: ${{ !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '' }}
     uses: ./.github/workflows/hfs-recovery.yml
 
   produce:
-    if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
+    if: ${{ !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -316,7 +328,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
+    if: ${{ !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
@@ -435,7 +447,7 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
+    if: ${{ !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
     needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits]
     runs-on: ubuntu-24.04
     steps:
@@ -462,7 +474,7 @@ jobs:
           fi
 
   hfs_reference:
-    if: ${{ !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture) }}
+    if: ${{ !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture) }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
