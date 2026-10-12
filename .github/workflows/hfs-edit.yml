@@ -8,6 +8,10 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      journal_capture:
+        description: 'Capture actual pending journals and Apple recovery only'
+        type: boolean
+        default: false
       capture_only:
         description: 'Capture Apple-created HFS editing reference disks only'
         type: boolean
@@ -25,7 +29,12 @@ env:
   CGO_ENABLED: '0'
 
 jobs:
+  journal_recovery:
+    if: ${{ inputs.journal_capture }}
+    uses: ./.github/workflows/hfs-recovery.yml
+
   capture:
+    if: ${{ !inputs.journal_capture }}
     name: Record Apple-created ${{ matrix.profile }} HFS edit controls (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15

@@ -1,0 +1,38 @@
+name: HFS journal recovery
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hfs-recovery-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture interrupted Apple HFS journals and native recovery (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Capture genuine pending journal rings and Apple-recovered copies
+        run: python3 acceptance/native/hfs_journal_recovery.py --expected-major "${{ matrix.major }}" --output artifacts/hfs-recovery/macos-${{ matrix.major }}
+      - name: Retain interrupted disks, Apple recovery and diagnostic commands
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-recovery-reference-${{ matrix.major }}
+          path: artifacts/hfs-recovery/macos-${{ matrix.major }}
+          if-no-files-found: error
