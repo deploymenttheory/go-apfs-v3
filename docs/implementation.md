@@ -685,3 +685,21 @@ continuation expectations. Retained capture recipes and images remain immutable.
 Current profile and credential limits, absent HFS attribute-file initialization,
 physical power-loss qualification and broader transaction profiles remain explicit.
 See [metadata contracts](image-metadata.md).
+
+## Existing-image link creation increment
+
+`ln`, `ln -s` and qualified `-f`/`-h` replacement extend the current APFS/HFS
+mutation layers. Original inode identity, forks, metadata and attributes survive
+alias creation, writes through an alias, rename and removal through final deletion.
+HFS first-link inode conversion and indirect records follow pinned Apple C;
+construction and mutation share their encoder. APFS adds sibling records/maps
+using the published structures and independent observations.
+
+Apple captures retain signed versioned framework material with only its links
+removed. Native readback must accept restored signatures after Go creates them.
+Retained before/growth/removal images on macOS 15/26/27 and fresh required captures
+cover both name policies and both HFS journal profiles. Existing pipelines require
+all portable outputs, complete native/Go/native link cycles and original source
+preservation. Identity mappings persist across phases to detect accidental
+recreation, separated aliases and conflation with retired objects. See
+[link contracts and profile bounds](image-links.md).

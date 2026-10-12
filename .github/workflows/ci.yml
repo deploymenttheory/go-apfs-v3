@@ -34,7 +34,7 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage(Directory|Metadata)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog|Metadata)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage(Directory|Metadata|Link)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog|Metadata|Link)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
       - run: go vet ./...
 
   portable_acceptance:
@@ -52,9 +52,9 @@ jobs:
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
           - family: existing APFS edits
-            tests: '^TestNativeAPFSImage(Directory|Metadata)?Editing(Continuation)?$'
+            tests: '^TestNativeAPFSImage(Directory|Metadata|Link)?Editing(Continuation)?$'
           - family: existing HFS edits
-            tests: '^TestNativeHFS(Journaled)?Image(Catalog|Metadata)?Editing(Continuation)?$'
+            tests: '^TestNativeHFS(Journaled)?Image(Catalog|Metadata|Link)?Editing(Continuation)?$'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -75,12 +75,18 @@ jobs:
       - name: Compare APFS metadata with retained Apple observations
         if: matrix.family == 'existing APFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$'
+      - name: Compare APFS link lifetimes with retained Apple observations
+        if: matrix.family == 'existing APFS edits'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$'
       - name: Compare HFS files and catalogs with retained Apple observations
         if: matrix.family == 'existing HFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
       - name: Compare HFS metadata with retained Apple observations
         if: matrix.family == 'existing HFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$'
+      - name: Compare HFS link lifetimes with retained Apple observations
+        if: matrix.family == 'existing HFS edits'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -142,7 +148,7 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage(Directory|Metadata)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog|Metadata)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+            skip: '^TestNative(APFSImage(Directory|Metadata|Link)?Editing(Continuation)?|HFS(Journaled)?Image(Catalog|Metadata|Link)?Editing(Continuation)?|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
             skip: '^$'

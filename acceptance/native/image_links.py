@@ -38,6 +38,11 @@ def operations(phase):
                              ('/outside/not-present', 'absolute'), ('-target', 'dash'), ('Nested', 'directory')]:
             ops.append({'op': 'ln', 'path': target, 'destination': 'Links/' + name, 'symbolic': True})
         ops.extend([
+            {'op': 'ln', 'path': 't' * 1023, 'destination': 'Links/long-target', 'symbolic': True},
+            {'op': 'ln', 'path': '\u00e9' * 511 + 'a', 'destination': 'Links/unicode-target', 'symbolic': True},
+        ])
+        ops.extend([
+            {'op': 'ln', 'path': 'independent', 'destination': 'Links/forked', 'force': True},
             {'op': 'ln', 'path': '../independent', 'destination': 'replace', 'symbolic': True, 'force': True},
             {'op': 'ln', 'path': 'independent', 'destination': 'Links/empty', 'force': True},
             {'op': 'ln', 'path': 'A', 'destination': FRAMEWORK + '/Versions/Current', 'symbolic': True},
@@ -127,7 +132,9 @@ def apply(root, ops, command, clocks=None):
         path = root / op['path']
         verb = op['op']
         if verb == 'ln':
-            flags = (['-s'] if op.get('symbolic') else ['-P']) + (['-f'] if op.get('force') else [])
+            if op.get('force'):
+                op['nofollow'] = True
+            flags = (['-s'] if op.get('symbolic') else ['-P']) + (['-f'] if op.get('force') else []) + (['-h'] if op.get('nofollow') else [])
             target = op['path'] if op.get('symbolic') else path
             command('/bin/ln', *flags, '--', target, root / op['destination'])
         elif verb == 'mkdir':
@@ -167,7 +174,13 @@ def observe(raw, kind, command, work, signed=False):
         native('codesign', '--verify', '--deep', '--strict', root / 'Example.app')
         if signed:
             native('codesign', '--verify', '--deep', '--strict', root / FRAMEWORK)
-        return {'files': metadata_files(root), 'checkerStatus': 0}
+        result = {'files': metadata_files(root), 'checkerStatus': 0}
+    if kind == 'hfs':
+        from hfs_editing import read_journal
+        journal = read_journal(raw)
+        if journal is not None:
+            result['journal'] = journal
+    return result
 
 
 def capture(references, output, kind, major):

@@ -7,6 +7,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+	linkcommand "github.com/deploymenttheory/go-apfs-v3/internal/link"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 	"io/fs"
@@ -389,15 +390,27 @@ func operandDestination(ctx context.Context, r filesystem.Reader, source, to str
 	return destination(ctx, r, to)
 }
 
-type LinkOptions struct{ Symbolic, Force bool }
+type LinkOptions struct{ Symbolic, Force, NoFollow bool }
 
 func (s *Session) Link(ctx context.Context, source, to string, o LinkOptions) (Report, error) {
+	if o.Symbolic {
+		if err := linkcommand.Target(source); err != nil {
+			return Report{}, err
+		}
+	}
 	return s.mutate(ctx, func(c *command) error {
 		dst, err := operandDestination(ctx, c.tree, source, to)
 		if err != nil {
 			return err
 		}
 		if existing, e := resolve(ctx, c.tree, dst, false); e == nil && o.Force {
+			node, err := c.tree.Stat(ctx, existing.id)
+			if err != nil {
+				return err
+			}
+			if node.Metadata.Mode.Value&0170000 == 0120000 && !o.NoFollow {
+				return filesystem.ErrUnsupported
+			}
 			if err = c.changeTime(ctx, existing.id); err != nil {
 				return err
 			}

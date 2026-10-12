@@ -122,6 +122,17 @@ jobs:
           APFS_NATIVE_HFS_JOURNALED_METADATA: ../artifacts/${{ matrix.prefix }}-editing/metadata
           APFS_HFS_METADATA_OUTPUT: ../artifacts/${{ matrix.prefix }}-metadata-${{ matrix.platform }}
           APFS_HFS_JOURNALED_METADATA_OUTPUT: ../artifacts/${{ matrix.prefix }}-metadata-${{ matrix.platform }}
+      - name: Compare first-link conversion, alias chains and literal symlinks
+        if: matrix.operations == 'file contents, modes and metadata'
+        shell: bash
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$LINK_TESTS"
+        env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          LINK_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageLinkEditing$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
+          APFS_NATIVE_HFS_LINKS: ../artifacts/${{ matrix.prefix }}-editing/links
+          APFS_NATIVE_HFS_JOURNALED_LINKS: ../artifacts/${{ matrix.prefix }}-editing/links
+          APFS_HFS_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
+          APFS_HFS_JOURNALED_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
       - name: Archive actual portable output images
         env:
           HFS_OUTPUT_ARTIFACT: ${{ matrix.artifact }}
@@ -139,6 +150,7 @@ jobs:
           output_directories=("$output_directory")
           if [[ "$HFS_OUTPUT_ARTIFACT" != Catalog-* ]]; then
             output_directories+=("${{ matrix.prefix }}-metadata-${{ matrix.platform }}")
+            output_directories+=("${{ matrix.prefix }}-links-${{ matrix.platform }}")
           fi
           tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${output_directories[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -216,6 +228,16 @@ jobs:
           APFS_IMAGE_METADATA_CONTINUED_OUTPUT: ../artifacts/metadata-continued-go
       - name: Qualify complete continued metadata state with Apple tools
         run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --continued artifacts/metadata-continued-go --controls artifacts/metadata-continued-native
+      - name: Qualify hard links, literal symlinks and signed frameworks with Apple tools
+        run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --corpus artifacts/${{ matrix.prefix }}-editing/links --outputs artifacts/outputs --continuation artifacts/links-continued-native
+      - name: Re-edit native link changes against a separate Apple-only control
+        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageLinkEditingContinuation$'
+        env:
+          APFS_IMAGE_LINK_KIND: hfs
+          APFS_IMAGE_LINK_CONTINUATION: ../artifacts/links-continued-native
+          APFS_IMAGE_LINK_CONTINUED_OUTPUT: ../artifacts/links-continued-go
+      - name: Qualify the complete continued link result with Apple fsck and signatures
+        run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --continued artifacts/links-continued-go --controls artifacts/links-continued-native
       - name: Explain the independently verified capability
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -241,12 +263,17 @@ jobs:
           Independent continued Apple writes become Go inputs, and separate Apple-only
           copies supply complete expectations for the final native/Go/native cycle.
           Native tooling ran only in disposable VMs.
+          Link outputs additionally qualify first-link inode conversion, complete
+          alias lifetimes, literal/dangling symlinks and restored signed frameworks.
           EOF
       - name: Retain exact native continuation inputs and expectations
         if: always()
         run: |
           if [ -d artifacts/metadata-continued-native ]; then
             tar -czf artifacts/metadata-continued-native.tgz -C artifacts metadata-continued-native
+          fi
+          if [ -d artifacts/links-continued-native ]; then
+            tar -czf artifacts/links-continued-native.tgz -C artifacts links-continued-native
           fi
       - name: Retain failed or successful native verification diagnostics
         if: always()
@@ -259,6 +286,8 @@ jobs:
             artifacts/catalog-continued-go/*.diagnostics.json
             artifacts/metadata-continued-go/*.diagnostics.json
             artifacts/metadata-continued-native.tgz
+            artifacts/links-continued-go/*.diagnostics.json
+            artifacts/links-continued-native.tgz
           if-no-files-found: warn
 
   complete:

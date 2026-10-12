@@ -28,6 +28,10 @@ type nativeImageMetadataOperation struct {
 	ModifyNS, AccessNS  int64
 	Object              uint64
 	Seed                uint8
+	Destination         string
+	Symbolic, Force     bool
+	NoFollow            bool
+	Mode                uint32
 }
 type nativeImageMetadataState struct {
 	nativeEditState

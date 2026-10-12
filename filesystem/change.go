@@ -13,7 +13,9 @@ type Change struct {
 	Path                                 string
 	Data                                 block.Source
 	ResourceFork                         bool
-	Mode                                 string
+	// Symbolic makes ln store Path as its literal target, rather than resolve it.
+	Symbolic bool
+	Mode     string
 	// Metadata is a partial ownership/time patch. Flags uses the ordinary
 	// chflags expression; attributes borrow a complete value just like a fork.
 	Metadata                            *Metadata

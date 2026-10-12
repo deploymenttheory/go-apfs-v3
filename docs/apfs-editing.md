@@ -143,3 +143,6 @@ observations, rather than presented as a translation of private kernel C.
 
 Ownership, clocks, flags and attributes use the same transaction engine; see
 [existing-image metadata semantics](image-metadata.md) and native qualification.
+
+`ln` adds original-inode aliases and literal symlinks through that same directory
+index and transaction. See [link creation and lifecycle semantics](image-links.md).

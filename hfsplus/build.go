@@ -612,23 +612,15 @@ func (p *Layout) records() ([]treeRecord, []treeRecord, uint32, uint32, error) {
 			add(o.id, private, fmt.Sprintf("iNode%d", o.id), b)
 			// Alias catalog records use their own CNIDs; the private inode owns data.
 			for i, a := range aliases {
-				link := make([]byte, 248)
-				be.PutUint16(link, 2)
-				be.PutUint16(link[2:], 0x22)
-				be.PutUint32(link[8:], a.id)
 				stamp, _ := buildDate(p.options.Time)
-				be.PutUint32(link[12:], stamp)
+				var previous, next uint32
 				if i > 0 {
-					be.PutUint32(link[32:], aliases[i-1].id)
+					previous = aliases[i-1].id
 				}
 				if i+1 < len(aliases) {
-					be.PutUint32(link[36:], aliases[i+1].id)
+					next = aliases[i+1].id
 				}
-				link[41] = 2
-				be.PutUint16(link[42:], 0100444)
-				be.PutUint32(link[44:], o.id)
-				copy(link[48:], "hlnkhfs+")
-				be.PutUint16(link[56:], 0x100)
+				link := indirectLinkRecord(a.id, o.id, stamp, previous, next, true)
 				add(a.id, a.parent, a.name, link)
 			}
 		} else {

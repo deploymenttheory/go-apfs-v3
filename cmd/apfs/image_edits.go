@@ -20,7 +20,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	if verb == "xattr" && f.Lookup("w").Value.String() != "true" && f.Lookup("d").Value.String() != "true" {
 		return readImageAttributes(ctx, f, common, source, partition, operands, out)
 	}
-	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" && verb != "chown" && verb != "chflags" && verb != "touch" && verb != "xattr" {
+	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" && verb != "chown" && verb != "chflags" && verb != "touch" && verb != "xattr" && verb != "ln" {
 		return fmt.Errorf("existing-image %s: %w", verb, filesystem.ErrUnsupported)
 	}
 	if common.name != "" || destination == "" || partition < 0 {
@@ -38,6 +38,11 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	}
 	if verb == "mv" {
 		allowed["n"] = true
+	}
+	if verb == "ln" {
+		allowed["s"] = true
+		allowed["f"] = true
+		allowed["h"] = true
 	}
 	if verb == "rm" {
 		allowed["r"] = true
@@ -76,6 +81,11 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	}
 	var changes []imageedit.Change
 	switch verb {
+	case "ln":
+		if len(operands) != 2 {
+			return fs.ErrInvalid
+		}
+		changes = []imageedit.Change{{Operation: verb, Path: operands[0], Destination: operands[1], Symbolic: f.Lookup("s").Value.String() == "true", Force: f.Lookup("f").Value.String() == "true", NoFollow: f.Lookup("h").Value.String() == "true"}}
 	case "chown", "chflags", "touch", "xattr":
 		var close func() error
 		changes, close, err = imageMetadataChanges(verb, f, operands)

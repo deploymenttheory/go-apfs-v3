@@ -103,7 +103,7 @@ func ValidateChange(c filesystem.Change) error {
 	if (c.Access || c.Modify) && c.Operation != "touch" {
 		return fs.ErrInvalid
 	}
-	if c.Path == "" || c.Name != "" || c.Destination != "" || c.Parents || c.Force || c.NoClobber || c.ResourceFork {
+	if c.Path == "" || c.Name != "" || c.Destination != "" || c.Parents || c.Force || c.NoClobber || c.ResourceFork || c.Symbolic {
 		return fs.ErrInvalid
 	}
 	if c.Recursive && c.Operation != "chown" && c.Operation != "chflags" && c.Operation != "chmod" {
