@@ -880,3 +880,33 @@ Go inputs, with separate Apple-only continuation copies supplying full expectati
 before another native checker/remount/signature check. Failed continuation inputs
 are retained for file-only local investigation. See the
 [command and storage contract](../docs/image-links.md).
+
+
+## HFS journal recovery
+
+Purpose: recover a consistent HFS+/HFSX copy on Linux or Windows without
+changing original forensic evidence or guessing which pending state is valid.
+
+| Cases | Independent native expectation | Portable assertions |
+| --- | --- | --- |
+| Both filesystems, unapplied linear/wrapped logs on macOS 15/26/27 | Real paused image-helper write windows; Apple replay-only kernel operation | Exact complete recovered disk bytes, original evidence unchanged |
+| Complete/incomplete transactions beyond recorded end | Apple accepts complete sequences and drops incomplete tentative payloads | Actual recovered boundaries and byte-identical home/journal state |
+| Signed apps, aliases, metadata, attributes and forks | Native read-only observations, fsck and codesign | Full logical/native identity preservation; deterministic UDRO/UDZO output |
+| Actual portable outputs and subsequent changes | Apple mounted writes, allocation reuse and fsck on disposable VMs | Continued native journaled operation and Go mutation after recovery |
+| Process interruption during partial scratch copying | Observed partial managed file and killed CLI process | Absent destination and unchanged original source bytes |
+
+`TestNativeHFSJournalRecovery` replays retained `testdata/hfs-recovery` controls or
+fresh `APFS_NATIVE_HFS_RECOVERY` artifacts. All 24 controls and their native
+replay-only results are retained. Large original documents are archived verbatim
+under hashed, readable indexes; identical producer scripts are shared. A fresh
+capture never updates the baseline automatically. The family has bounded
+portable/race jobs and a separate native readback matrix, keeping its purpose
+and cost visible instead of extending unrelated editing jobs.
+
+```sh
+go test -count=1 -run TestNativeHFSJournalRecovery ./acceptance
+```
+
+The capture and verifier guards refuse working Macs. Production recovery is
+pure Go; the acceptance C helpers invoke or observe Apple solely in disposable
+VMs. See [the contract, source mapping and limits](../docs/hfs-journal-recovery.md).

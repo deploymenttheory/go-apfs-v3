@@ -27,10 +27,11 @@ type Options struct {
 type Change = filesystem.Change
 
 type Report struct {
-	VolumeID    string   `json:"volumeId"`
-	Changed     []uint64 `json:"changed"`
-	FreeBlocks  uint64   `json:"freeBlocks"`
-	Transaction uint64   `json:"transaction,omitempty"`
+	VolumeID    string                       `json:"volumeId"`
+	Changed     []uint64                     `json:"changed"`
+	FreeBlocks  uint64                       `json:"freeBlocks"`
+	Transaction uint64                       `json:"transaction,omitempty"`
+	Journal     *hfsplus.JournalReplayReport `json:"journal,omitempty"`
 	diskimage.RepackReport
 }
 
@@ -61,10 +62,14 @@ func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []
 }
 
 func editImage(ctx context.Context, sourcePath, destination string, o Options, mutation func(*mutablePartition, bool) (Report, error)) (report Report, err error) {
-	if sourcePath == "" || destination == "" || mutation == nil {
+	if o.Time.IsZero() || o.Time.Nanosecond() != 0 {
 		return report, fs.ErrInvalid
 	}
-	if o.Time.IsZero() || o.Time.Nanosecond() != 0 {
+	return transformImage(ctx, sourcePath, destination, o, nil, mutation)
+}
+
+func transformImage(ctx context.Context, sourcePath, destination string, o Options, admission func(block.Source, bool) error, mutation func(*mutablePartition, bool) (Report, error)) (report Report, err error) {
+	if sourcePath == "" || destination == "" || mutation == nil {
 		return report, fs.ErrInvalid
 	}
 	if _, e := os.Lstat(destination); e == nil {
@@ -109,7 +114,10 @@ func editImage(ctx context.Context, sourcePath, destination string, o Options, m
 		validate = apfs.ValidateMutation
 	}
 	// Admit supported ownership before staging the complete decoded disk.
-	if err = validate(ctx, input); err != nil {
+	if admission == nil {
+		admission = func(s block.Source, _ bool) error { return validate(ctx, s) }
+	}
+	if err = admission(input, isAPFS); err != nil {
 		return report, err
 	}
 

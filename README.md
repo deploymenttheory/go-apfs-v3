@@ -10,7 +10,7 @@ software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
-writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. Existing APFS files now support data/resource-fork replacement and chmod through copy-on-write transactions for the admitted single-volume plaintext profile. Journal recovery, broader APFS mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
+writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. Existing APFS files now support data/resource-fork replacement and chmod through copy-on-write transactions for the admitted single-volume plaintext profile. Explicit HFS+/HFSX journal recovery now produces a validated new image from interrupted internal journals. Broader APFS recovery/mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -44,6 +44,8 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cp --image Original.dmg --output Copied.dmg -a /Staging/Example.app /Applications
 ./bin/apfs cp --image Original.dmg --output Imported.dmg --from-host -RX ./payload /Payload
 ./bin/apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
+./bin/apfs journal inspect --image Interrupted.dmg
+./bin/apfs journal replay --image Interrupted.dmg --output Recovered.dmg
 ./bin/apfs pack --session build --encryption AES-256 --output-password-file ./new-password.bin Encrypted.dmg
 ./bin/apfs session remove build
 ```
@@ -99,6 +101,8 @@ Currently implemented:
 - Existing APFS file and directory edits through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
   retaining original identities, hard-link siblings, metadata and independent forks
   through copy-on-write allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
+- Explicit HFS+/HFSX internal-journal inspection and recovery into a validated new image,
+  with retained Apple replay-only byte comparisons; see [recovery semantics](docs/hfs-journal-recovery.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
 - Ordinary recursive image copying and host directory import, shared with session
   copy policy, preserving supported metadata and independently reporting native

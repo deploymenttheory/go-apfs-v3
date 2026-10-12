@@ -26,11 +26,12 @@
  * @APPLE_OSREFERENCE_LICENSE_HEADER_END@
  */
 // SPDX-License-Identifier: APSL-2.0
-// Modified 2026-10-11: Go adaptation of calc_checksum, journal_is_clean,
+// Modified 2026-10-12: Go adaptation of calc_checksum, journal_is_clean,
 // journal_open geometry and hfs_late_journal_init backing-file checks. Exclusive
-// unpublished copies replace mounted devices. Only current, empty internal
-// journals are admitted; no replay, relocation, reinitialization or live journal
-// writer is ported. Exact pinned sources/hashes: docs/sources.json.
+// unpublished copies replace mounted devices. Ordinary mutation admits only
+// current, empty internal journals. Explicit recovery is in journal_replay.go;
+// no relocation, reinitialization or live journal writer is ported.
+// Exact pinned sources/hashes: docs/sources.json.
 package hfsplus
 
 import (
@@ -49,6 +50,51 @@ const (
 
 type mutationJournal struct{ infoID, fileID uint64 }
 
+// JournalInfo describes the current internal journal without replay or repair.
+// Reading it needs only the volume header/JIB, not a consistent catalog tree.
+type JournalInfo struct {
+	InfoBlock     uint32 `json:"infoBlock"`
+	Offset        uint64 `json:"offset"`
+	Size          uint64 `json:"size"`
+	Start         uint64 `json:"start"`
+	End           uint64 `json:"end"`
+	HeaderSize    uint32 `json:"headerSize"`
+	BlockListSize uint32 `json:"blockListSize"`
+	Sequence      uint32 `json:"sequence"`
+	ByteOrder     string `json:"byteOrder"`
+	Pending       bool   `json:"pending"`
+
+	order     binary.ByteOrder
+	header    []byte
+	blockSize uint64
+}
+
+// InspectJournal verifies current journal geometry and its header checksum.
+// It never parses the catalog, changes cursors, or changes any input byte.
+func InspectJournal(source block.Source) (*JournalInfo, error) {
+	if source == nil || source.Size() < 1536 {
+		return nil, bad("journal volume header")
+	}
+	header := make([]byte, 512)
+	if err := block.ReadFull(source, header, 1024); err != nil {
+		return nil, err
+	}
+	if string(header[:2]) != "H+" && string(header[:2]) != "HX" {
+		return nil, fmt.Errorf("journal operation requires HFS+/HFSX: %w", filesystem.ErrUnsupported)
+	}
+	if (string(header[:2]) == "H+" && be.Uint16(header[2:]) != 4) || (string(header[:2]) == "HX" && be.Uint16(header[2:]) != 5) {
+		return nil, bad("journal volume signature/version")
+	}
+	if be.Uint32(header[4:])&0x2000 == 0 {
+		return nil, fmt.Errorf("volume is not journaled: %w", filesystem.ErrUnsupported)
+	}
+	bs, count := uint64(be.Uint32(header[40:])), uint64(be.Uint32(header[44:]))
+	if bs < 512 || bs&(bs-1) != 0 || count == 0 || count > uint64(source.Size())/bs {
+		return nil, bad("journal volume allocation geometry")
+	}
+	return readJournal(source, header, bs, count)
+}
+
 // journalChecksum follows Apple's byte-at-a-time calc_checksum. Callers zero
 // the checksum field in the original byte order before calculating it.
 func journalChecksum(b []byte) uint32 {
@@ -59,40 +105,26 @@ func journalChecksum(b []byte) uint32 {
 	return ^sum
 }
 
-func (m *mutation) admitJournal() error {
-	bs := uint64(m.v.BlockSize)
-	infoBlock := uint64(be.Uint32(m.header[12:]))
-	if infoBlock == 0 || infoBlock >= uint64(m.v.BlockCount) {
-		return bad("journal info block range")
+func readJournal(source block.Source, header []byte, bs, count uint64) (*JournalInfo, error) {
+	infoBlock := uint64(be.Uint32(header[12:]))
+	if infoBlock == 0 || infoBlock >= count {
+		return nil, bad("journal info block range")
 	}
 	info := make([]byte, 180) // packed JournalInfoBlock; preserve all reserved bytes.
-	if err := block.ReadFull(m.disk, info, int64(infoBlock*bs)); err != nil {
-		return err
+	if err := block.ReadFull(source, info, int64(infoBlock*bs)); err != nil {
+		return nil, err
 	}
 	if be.Uint32(info) != 1 { // kJIJournalInFSMask only; no external/need-init/unknown flags.
-		return fmt.Errorf("journal must be initialized and internal: %w", filesystem.ErrUnsupported)
+		return nil, fmt.Errorf("journal must be initialized and internal: %w", filesystem.ErrUnsupported)
 	}
 	offset, size := be.Uint64(info[36:]), be.Uint64(info[44:])
-	if size < 256<<10 || size > 1<<30 || offset%bs != 0 || size%bs != 0 || offset > uint64(m.disk.Size()) || size > uint64(m.disk.Size())-offset {
-		return bad("journal storage geometry")
-	}
-	// Backing files must agree with the header/JIB without Apple's repair,
-	// relocation or reinitialization fallback. Their extents already participate
-	// in the complete allocation-ownership check, just like other catalog files.
-	infoID, err := m.journalFile(".journal_info_block", infoBlock*bs, bs)
-	if err != nil {
-		return err
-	}
-	fileID, err := m.journalFile(".journal", offset, size)
-	if err != nil {
-		return err
-	}
-	if infoID == fileID {
-		return bad("journal backing identity")
+	volumeSize := count * bs
+	if size < 256<<10 || size > 1<<30 || offset%bs != 0 || size%bs != 0 || offset > volumeSize || size > volumeSize-offset || offset < 1536 || offset+size > volumeSize-1024 || (infoBlock*bs < offset+size && offset < (infoBlock+1)*bs) {
+		return nil, bad("journal storage geometry")
 	}
 	h := make([]byte, 48)
-	if err = block.ReadFull(m.disk, h, int64(offset)); err != nil {
-		return err
+	if err := block.ReadFull(source, h, int64(offset)); err != nil {
+		return nil, err
 	}
 	var order binary.ByteOrder
 	switch {
@@ -101,26 +133,56 @@ func (m *mutation) admitJournal() error {
 	case binary.LittleEndian.Uint32(h) == journalHeaderMagic:
 		order = binary.LittleEndian
 	case be.Uint32(h) == 0x4a484452 || binary.LittleEndian.Uint32(h) == 0x4a484452: // OLD_JOURNAL_HEADER_MAGIC
-		return fmt.Errorf("old journal header: %w", filesystem.ErrUnsupported)
+		return nil, fmt.Errorf("old journal header: %w", filesystem.ErrUnsupported)
 	default:
-		return bad("journal header magic")
+		return nil, bad("journal header magic")
 	}
 	if order.Uint32(h[4:]) != journalEndianMagic {
-		return bad("journal byte order")
+		return nil, bad("journal byte order")
 	}
 	checksum := order.Uint32(h[36:])
 	clear(h[36:40])
 	if journalChecksum(h[:journalChecksumSize]) != checksum {
-		return bad("journal header checksum")
+		return nil, bad("journal header checksum")
 	}
+	order.PutUint32(h[36:], checksum)
 	start, end, headerSize := order.Uint64(h[8:]), order.Uint64(h[16:]), uint64(order.Uint32(h[40:]))
 	listSize := uint64(order.Uint32(h[32:]))
 	if order.Uint64(h[24:]) != size || headerSize < 512 || headerSize > bs || headerSize&(headerSize-1) != 0 || listSize < 512 || listSize%512 != 0 || listSize > size-headerSize || start < headerSize || start > size || end < headerSize || end > size || start%512 != 0 || end%512 != 0 {
-		return bad("journal header geometry")
+		return nil, bad("journal header geometry")
+	}
+	byteOrder := "big-endian"
+	if order == binary.LittleEndian {
+		byteOrder = "little-endian"
+	}
+	return &JournalInfo{InfoBlock: uint32(infoBlock), Offset: offset, Size: size,
+		Start: start, End: end, HeaderSize: uint32(headerSize), BlockListSize: uint32(listSize),
+		Sequence: order.Uint32(h[44:]), ByteOrder: byteOrder, Pending: start != end,
+		order: order, header: h, blockSize: bs}, nil
+}
+
+func (m *mutation) admitJournal() error {
+	j, err := readJournal(m.disk, m.header, uint64(m.v.BlockSize), uint64(m.v.BlockCount))
+	if err != nil {
+		return err
+	}
+	// Backing files must agree with the header/JIB without Apple's repair,
+	// relocation or reinitialization fallback. Their extents already participate
+	// in the complete allocation-ownership check, just like other catalog files.
+	infoID, err := m.journalFile(".journal_info_block", uint64(j.InfoBlock)*j.blockSize, j.blockSize)
+	if err != nil {
+		return err
+	}
+	fileID, err := m.journalFile(".journal", j.Offset, j.Size)
+	if err != nil {
+		return err
+	}
+	if infoID == fileID {
+		return bad("journal backing identity")
 	}
 	// journal_is_clean compares the actual cursors. Do not advance them, reset
 	// the journal, or discard pending transactions to admit a dirty source.
-	if start != end {
+	if j.Pending {
 		return fmt.Errorf("journal requires replay: %w", filesystem.ErrUnsupported)
 	}
 	m.journal = &mutationJournal{infoID: infoID, fileID: fileID}

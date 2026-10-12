@@ -9,6 +9,7 @@ on:
       - 'acceptance/**'
       - '.github/workflows/native.yml'
       - '.github/workflows/hfs-edit.yml'
+      - '.github/workflows/hfs-recovery.yml'
       - '.github/workflows/apfs-edit.yml'
   push:
     branches: [main]
@@ -58,6 +59,10 @@ jobs:
   hfs_edits:
     if: ${{ !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
     uses: ./.github/workflows/hfs-edit.yml
+
+  hfs_recovery:
+    if: ${{ !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '' }}
+    uses: ./.github/workflows/hfs-recovery.yml
 
   produce:
     if: ${{ inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
@@ -431,7 +436,7 @@ jobs:
   complete:
     name: Require all filesystem compatibility checks
     if: ${{ always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
-    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, apfs_edits]
+    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -442,10 +447,11 @@ jobs:
           READBACK: ${{ needs.readback.result }}
           HFS_REFERENCES: ${{ needs.hfs_reference.result }}
           HFS_EDITS: ${{ needs.hfs_edits.result }}
+          HFS_RECOVERY: ${{ needs.hfs_recovery.result }}
           APFS_EDITS: ${{ needs.apfs_edits.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
-          if [ -z "$REUSED_RUN" ]; then test "$APFS_EDITS" = success; fi
+          if [ -z "$REUSED_RUN" ]; then test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success; fi
           test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,

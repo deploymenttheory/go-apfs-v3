@@ -34,7 +34,7 @@ func (v *Volume) readable(ctx context.Context, id uint64) error {
 	if v.catalog == nil || id > math.MaxUint32 {
 		return fs.ErrInvalid
 	}
-	if !v.Clean {
+	if (!v.Clean && !v.journalReplayed) || (v.Journal != nil && v.Journal.Pending) {
 		return fmt.Errorf("HFS+ requires journal replay or recovery: %w", filesystem.ErrUnsupported)
 	}
 	return nil

@@ -34,7 +34,7 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
       - run: go vet ./...
 
   portable_acceptance:
@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
-        family: [image construction, image repacking, existing HFS edits, existing APFS edits]
+        family: [image construction, image repacking, existing HFS edits, existing APFS edits, HFS journal recovery]
         source: [all, 15, 26, 27]
         exclude:
           - {family: image construction, source: 15}
@@ -54,6 +54,9 @@ jobs:
           - {family: image repacking, source: 15}
           - {family: image repacking, source: 26}
           - {family: image repacking, source: 27}
+          - {family: HFS journal recovery, source: 15}
+          - {family: HFS journal recovery, source: 26}
+          - {family: HFS journal recovery, source: 27}
           - {family: existing HFS edits, source: all}
           - {family: existing APFS edits, source: all}
         include:
@@ -61,6 +64,8 @@ jobs:
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
+          - family: HFS journal recovery
+            tests: '^TestNativeHFSJournalRecovery$'
           - family: existing APFS edits
             tests: '^TestNativeAPFSImage(Directory|Metadata|Link)?Editing(Continuation)?$'
           - family: existing HFS edits
@@ -164,9 +169,12 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
+            skip: '^$'
+          - family: HFS journal recovery
+            tests: '^TestNativeHFSJournalRecovery$'
             skip: '^$'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'

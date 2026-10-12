@@ -31,14 +31,23 @@ modification descriptions are retained in the supplied Go source. Private
 unpublished disk copies replace mounted buffer-cache blocks, locks and journal
 callbacks. Deterministic allocation and splits are explicitly documented
 adaptations. Exact upstream file hashes and the pinned revision are in
-[the source inventory](docs/sources.json). Journal recovery is not ported.
+[the source inventory](docs/sources.json). Live journal writing is not ported.
 
 `hfsplus/journal.go` adapts Apple's `calc_checksum`, `journal_is_clean`,
 `journal_open` geometry and HFS journal backing-file checks under APSL-2.0.
 Original notices, modification description and exact source hashes are retained.
 It admits valid empty internal journals on unpublished copies, preserves their
-storage, and follows the journaled volume-header identifier. Journal replay,
-reinitialization and live journal transactions are not ported.
+storage, and follows the journaled volume-header identifier.
+`hfsplus/journal_replay.go` separately adapts Apple's replay, checksum,
+circular-read and sequence-qualified tail behavior under APSL-2.0. Bounded sector
+references replace C overlap buckets; malformed committed logs fail rather than
+using kernel salvage. Private recovered-graph validation, primary unmounted
+marking and completed-output publication are documented project adaptations.
+`acceptance/native/hfs_capture.c` adapts the checksum for observing actual native
+write boundaries and retains the Apple notice. Frozen capture recipes retain
+their original native hashes; the Apple-derived checksum in retained capture
+recipes is also subject to APSL-2.0. Reinitialization and live journal transactions
+are not ported.
 
 `internal/names/hfs_tables.go` derives comparison/decomposition tables from
 Apple's `UCStringCompareData.h` and XNU `vfs_utfconvdata.h`, copyright 1997–2005

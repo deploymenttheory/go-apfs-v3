@@ -34,11 +34,11 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return fmt.Errorf("usage: apfs COMMAND [options] [operands]; use apfs help for commands")
 	}
 	if args[0] == "licenses" {
-		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived HFS formatter and mutation engine, FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nApple/Berkeley-derived mode parser: BSD-3-Clause. golang.org/x/sys: BSD-3-Clause.\nSee hfsplus/build.go, hfsplus/mutate_allocation.go, hfsplus/mutate_tree.go, internal/finderinfo/hfs.go, appledouble/appledouble.go, internal/mode/mode.go, LICENSES and THIRD_PARTY_NOTICES.md.")
+		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived HFS formatter, mutation and journal recovery engines, FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nApple/Berkeley-derived mode parser: BSD-3-Clause. golang.org/x/sys: BSD-3-Clause.\nSee hfsplus/build.go, hfsplus/journal.go, hfsplus/journal_replay.go, hfsplus/mutate_allocation.go, hfsplus/mutate_tree.go, internal/finderinfo/hfs.go, appledouble/appledouble.go, internal/mode/mode.go, LICENSES and THIRD_PARTY_NOTICES.md.")
 		return err
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs pack [--format UDRO|UDZO] IMAGE NEW_DMG\n       apfs pack [--session NAME | --filesystem apfs|hfsplus|hfsx DIRECTORY] [options] NEW_DMG\n       apfs pack --volume NAME [--session NAME | --directory PATH] [--volume ...] NEW_DMG\n       apfs session create --filesystem apfs|hfsplus|hfsx [options] NAME\n       apfs session open --image IMAGE [reader options] NAME\n       apfs session status|verify|remove NAME\n       apfs session export NAME NEW_DESTINATION\n       apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE EXISTING_PATH\n       apfs chmod --image IMAGE --output NEW_DMG MODE PATH...\n       apfs cp --session NAME [--from-host] [-RpanX] SOURCE... DESTINATION\n       apfs chmod|chown|chflags --session NAME [-R] VALUE PATH...\n       apfs mkdir|touch|mv|rm|ln|xattr --session NAME [options] PATH...\n       apfs list|cat|stat --session NAME PATH\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Image-reading paths use native filename comparison without following symlinks. Session commands follow their documented link options. pack accepts --file-compression preserve|zlib|none for filesystem builds, independently of --format. pack accepts --encryption AES-128|AES-256 with --output-password-file FILE, or explicit --encryption none when removing source image encryption. Password files contain exact bytes; use - for stdin through EOF.")
+		_, err = fmt.Fprintln(out, "usage: apfs inspect|info [--json] [--image-password-file FILE] IMAGE\n       apfs list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs cat [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE PATH\n       apfs snapshot list [--json] [--partition INDEX] [--volume ID] [--image-password-file FILE] [--password-file FILE] IMAGE\n       apfs journal inspect --image IMAGE [--partition INDEX] [--json]\n       apfs journal replay --image IMAGE --output NEW_DMG [--partition INDEX] [--format UDRO|UDZO] [--json]\n       apfs extract [--json] [reader options] IMAGE PATH NEW_WORKSPACE\n       apfs workspace verify [--json] WORKSPACE\n       apfs pack [--format UDRO|UDZO] IMAGE NEW_DMG\n       apfs pack [--session NAME | --filesystem apfs|hfsplus|hfsx DIRECTORY] [options] NEW_DMG\n       apfs pack --volume NAME [--session NAME | --directory PATH] [--volume ...] NEW_DMG\n       apfs session create --filesystem apfs|hfsplus|hfsx [options] NAME\n       apfs session open --image IMAGE [reader options] NAME\n       apfs session status|verify|remove NAME\n       apfs session export NAME NEW_DESTINATION\n       apfs cp --image IMAGE --output NEW_DMG --from-host [--resource-fork] HOST_FILE EXISTING_PATH\n       apfs chmod --image IMAGE --output NEW_DMG MODE PATH...\n       apfs cp --session NAME [--from-host] [-RpanX] SOURCE... DESTINATION\n       apfs chmod|chown|chflags --session NAME [-R] VALUE PATH...\n       apfs mkdir|touch|mv|rm|ln|xattr --session NAME [options] PATH...\n       apfs list|cat|stat --session NAME PATH\n\nlist/cat/extract accept --snapshot-name NAME or --snapshot-xid XID for historical APFS reads.\nRead-only inspection and ordinary, compressed or encrypted file reading. Image passwords unlock DMG envelopes; volume passwords unlock APFS. Image-reading paths use native filename comparison without following symlinks. Session commands follow their documented link options. pack accepts --file-compression preserve|zlib|none for filesystem builds, independently of --format. pack accepts --encryption AES-128|AES-256 with --output-password-file FILE, or explicit --encryption none when removing source image encryption. Password files contain exact bytes; use - for stdin through EOF.")
 		return err
 	}
 	if args[0] == "pack" {
@@ -56,6 +56,9 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 	}
 	if args[0] == "snapshot" {
 		return snapshots(ctx, args[1:], input, out, diagnostics)
+	}
+	if args[0] == "journal" {
+		return journalCommand(ctx, args[1:], out, diagnostics)
 	}
 	if args[0] == "workspace" {
 		return workspaceCommand(ctx, args[1:], out, diagnostics)
@@ -121,6 +124,11 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		if p.HFSPlus != nil {
 			if _, err = fmt.Fprintf(out, "  Volume %q, journaled=%t, clean=%t\n", p.HFSPlus.Name, p.HFSPlus.Journaled, p.HFSPlus.Clean); err != nil {
 				return err
+			}
+			if j := p.HFSPlus.Journal; j != nil {
+				if _, err = fmt.Fprintf(out, "  Journal: pending=%t, start=%d, end=%d\n", j.Pending, j.Start, j.End); err != nil {
+					return err
+				}
 			}
 		}
 	}

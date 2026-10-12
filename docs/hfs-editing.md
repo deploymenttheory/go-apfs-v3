@@ -108,6 +108,11 @@ mount identifier. The same ordinary CLI commands apply; no recovery flag or
 configuration file is needed. Private-copy publication provides the transaction;
 this capability does not write live journal transactions or replay pending ones.
 
+Interrupted current internal journals have a separate explicit
+[recovery command](hfs-journal-recovery.md). It preserves the original image,
+replays into private scratch, validates the complete recovered graph and
+publishes a new image before ordinary editing becomes available.
+
 ## Source translation
 
 The pinned Apple HFS revision is

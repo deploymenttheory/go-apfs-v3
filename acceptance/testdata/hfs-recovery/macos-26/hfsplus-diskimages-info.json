@@ -1,0 +1,78 @@
+{
+  "framework": "683.160.3",
+  "images": [
+    {
+      "autodiskmount": false,
+      "blockcount": 1064960,
+      "blocksize": 512,
+      "diskimages2": false,
+      "image-path": "/System/Library/AssetsV2/com_apple_MobileAsset_UAF_Siri_Understanding/purpose_auto/c10eb90af2d4996616c3cd0f6bac0833eb4925fa.asset/AssetData/Restore/UC_SIRI_ASR_ASSISTANT_EN_US_EN_US_MACVM_Cryptex.dmg",
+      "owner-uid": 0,
+      "removable": true,
+      "system-entities": [
+        {
+          "content-hint": "",
+          "dev-entry": "/dev/disk3"
+        },
+        {
+          "content-hint": "EF57347C-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk4"
+        },
+        {
+          "content-hint": "41504653-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk4s1",
+          "mount-point": "/System/Library/AssetsV2/com_apple_MobileAsset_UAF_Siri_Understanding/purpose_auto/c10eb90af2d4996616c3cd0f6bac0833eb4925fa.asset/.AssetData"
+        }
+      ],
+      "writeable": false
+    },
+    {
+      "autodiskmount": false,
+      "blockcount": 8192,
+      "blocksize": 512,
+      "diskimages2": false,
+      "image-path": "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg",
+      "owner-uid": 0,
+      "removable": true,
+      "system-entities": [
+        {
+          "content-hint": "",
+          "dev-entry": "/dev/disk5"
+        },
+        {
+          "content-hint": "EF57347C-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk6"
+        },
+        {
+          "content-hint": "41504653-0000-11AA-AA11-00306543ECAC",
+          "dev-entry": "/dev/disk6s1",
+          "mount-point": "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/.AssetData"
+        }
+      ],
+      "writeable": false
+    },
+    {
+      "autodiskmount": false,
+      "blockcount": 131072,
+      "blocksize": 512,
+      "diskimages2": false,
+      "hdid-pid": 1350,
+      "icon-path": "/System/Library/PrivateFrameworks/DiskImages.framework/Resources/CDiskImage.icns",
+      "image-encrypted": false,
+      "image-path": "/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-journal-recovery-fok2rnvl/hfsplus-live.raw",
+      "image-type": "read/write",
+      "owner-uid": 501,
+      "removable": true,
+      "system-entities": [
+        {
+          "content-hint": "",
+          "dev-entry": "/dev/disk7",
+          "mount-point": "/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/hfs-journal-recovery-fok2rnvl/hfsplus-live"
+        }
+      ],
+      "writeable": true
+    }
+  ],
+  "revision": "683.160.3",
+  "vendor": "Apple"
+}

@@ -8,6 +8,10 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      journal_capture:
+        description: 'Run the HFS journal recovery family only (capture_only limits it to Apple references)'
+        type: boolean
+        default: false
       capture_only:
         description: 'Capture Apple-created HFS editing reference disks only'
         type: boolean
@@ -25,7 +29,14 @@ env:
   CGO_ENABLED: '0'
 
 jobs:
+  journal_recovery:
+    if: ${{ inputs.journal_capture }}
+    uses: ./.github/workflows/hfs-recovery.yml
+    with:
+      capture_only: ${{ inputs.capture_only }}
+
   capture:
+    if: ${{ !inputs.journal_capture }}
     name: Record Apple-created ${{ matrix.profile }} HFS edit controls (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -365,7 +376,7 @@ jobs:
 
   complete:
     name: Require existing HFS edit qualification
-    if: ${{ always() && !inputs.capture_only }}
+    if: ${{ always() && !inputs.capture_only && !inputs.journal_capture }}
     needs: [capture, replay, replay_copy, readback]
     runs-on: ubuntu-24.04
     steps:

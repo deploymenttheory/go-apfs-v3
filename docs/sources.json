@@ -1144,7 +1144,7 @@
           "sha256": "3c70c6a87a7bca185c7ba9b7ef6b16bbb365dbc5a1c443ac5496ed41926bc722"
         }
       ],
-      "basis": "Adapted calc_checksum, journal_is_clean and current journal_open header/geometry checks to bounded byte slices. Checksums cover the original 44 bytes before sequence_num, with the checksum field zeroed in stored byte order. hfs_late_journal_init supplies backing-file location/size checks; disagreement is refused rather than relocating, recreating or disabling a journal. hfs_flushvolumeheader supplies HFSJ versus 10.0 mount identifiers. hfs_is_journal_file supplies CNID-based protection for both journal backing files. Admission requires a clean volume and current, empty, initialized internal journal with contiguous catalog-backed allocation; size is bounded from 256 KiB to 1 GiB. Exclusive unpublished copies preserve complete journal/JIB storage and sequence numbers, with no live journal transactions. Old headers, external journals, need-init profiles and pending transactions remain unsupported. No journal replay, repair, reset, cache flushing or mounted vnode implementation is ported. Kernel journal_open only logs checksum mismatch; the offline engine deliberately follows journal_is_clean strict refusal. The fsck_journal replay behavior was studied separately and is not translated. hfs_flushvolumeheader updates the alternate only with HFS_FVH_WRITE_ALT: all six retained clean journaled captures leave its unmounted bit clear. Admission requires primary cleanliness and an empty journal, permits that alternate-bit difference, and checks all other attribute bits and the journal pointer. Native raw backing-file records supply identities because ordinary mounted pathname lookup hides them."
+      "basis": "Adapted calc_checksum, journal_is_clean and current journal_open header/geometry checks to bounded byte slices. Checksums cover the original 44 bytes before sequence_num, with the checksum field zeroed in stored byte order. hfs_late_journal_init supplies backing-file location/size checks; disagreement is refused rather than relocating, recreating or disabling a journal. hfs_flushvolumeheader supplies HFSJ versus 10.0 mount identifiers. hfs_is_journal_file supplies CNID-based protection for both journal backing files. Admission requires a clean volume and current, empty, initialized internal journal with contiguous catalog-backed allocation; size is bounded from 256 KiB to 1 GiB. Exclusive unpublished copies preserve complete journal/JIB storage and sequence numbers, with no live journal transactions. Old headers, external journals, need-init profiles and pending transactions remain unsupported. No journal replay, repair, reset, cache flushing or mounted vnode implementation is ported. Kernel journal_open only logs checksum mismatch; the offline engine deliberately follows journal_is_clean strict refusal. The fsck_journal replay behavior was studied separately and is not translated. hfs_flushvolumeheader updates the alternate only with HFS_FVH_WRITE_ALT: all six retained clean journaled captures leave its unmounted bit clear. Admission requires primary cleanliness and an empty journal, permits that alternate-bit difference, and checks all other attribute bits and the journal pointer. Native raw backing-file records supply identities because ordinary mounted pathname lookup hides them. This entry describes empty-journal admission only; explicit recovery is recorded separately under apple-hfs-journal-recovery."
     },
     {
       "id": "native-hfs-journaled-editing-15-26-27",
@@ -1316,6 +1316,74 @@
         "acceptance/native/verify_image_copy.py"
       ],
       "basis": "Immutable Apple-created source/copy/copy-final raw disks and complete metadata/fork/content/identity observations captured at a097665 on macOS 15/26/27 for both native name policies. Signed application and versioned framework copies, native hard-link destination overwrite, archive independent-file copying, explicit link-group preservation using Apple ln plus directory touch -r, trailing-slash merge, independent and compressed forks, portable host directory import, and data-only overwrite of coalesced source data/fork ownership are independently recorded. Producer scripts, tool/OS/command evidence, reference bindings and compressed/decoded hashes accompany the corpus. Preservation inputs predate the reproducible construction clock; runtime clock classification uses the measured operation window, not arbitrary recent source dates. Required fresh readback independently qualifies cross-host output hashes, native fsck/signatures and a complete native/Go/native copy continuation. Explicit active inline-compressed source controls own independent forks before UF_COMPRESSED is set. Apple cp omits those forks on both APFS and HFS, while sources remain intact; ordinary uncompressed independent forks are copied. Valid inactive compression headers are copied byte-exact while malformed headers are explicitly omitted. Final copies clear prior inactive metadata and retire active compression-owned fork/header storage without changing the source."
+    },
+    {
+      "id": "apple-hfs-journal-recovery",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/hfs/tree/d1bac2f062e6e9c0dfcce302d9aacb10173d0eea/core",
+      "revision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "components": [
+        "hfsplus/journal.go",
+        "hfsplus/journal_replay.go",
+        "hfsplus/reader.go",
+        "hfsplus/volume.go",
+        "hfsplus/mutate.go",
+        "imageedit/journal.go",
+        "acceptance/native/hfs_capture.c"
+      ],
+      "files": [
+        {
+          "path": "core/hfs_journal.c",
+          "sha256": "eac32a0de4fb36d2cbe391ebc31c5917ba058c342c5997bb464eb772b75e6d9c"
+        },
+        {
+          "path": "core/hfs_journal.h",
+          "sha256": "1de7e23acb743775d99970ce83ddad68d2f56200ab52f5dfd7aafa8038b4aa40"
+        },
+        {
+          "path": "core/hfs_format.h",
+          "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+        },
+        {
+          "path": "core/hfs_vfsutils.c",
+          "sha256": "85916866504e2db3ad8784129c588af8e375c3631de5d01cb28f13c4c8426c27"
+        },
+        {
+          "path": "core/hfs_vfsops.c",
+          "sha256": "070d63b5defcfc32c074197d85eb6c1913f894f5d453f923b07bc03bd0c15b15"
+        },
+        {
+          "path": "core/hfs_vnops.c",
+          "sha256": "a07a8cd9bad0e485a6c7248facac3edcf66736727777715f8cf6a86fb77f3f44"
+        },
+        {
+          "path": "lib_fsck_hfs/fsck_journal.c",
+          "sha256": "3c70c6a87a7bca185c7ba9b7ef6b16bbb365dbc5a1c443ac5496ed41926bc722"
+        },
+        {
+          "path": "lib_fsck_hfs/fsck_journal.h",
+          "sha256": "3392e5d15c875fa09957cc04be650a3a26b25cf25e5ba830367e00d5b5711654"
+        }
+      ],
+      "basis": "Bounded Go adaptation of replay_journal, circular journal reads, calc_checksum, killed-buffer handling, block-list continuation/sequence checks, payload checksum validation, sequence-qualified scanning beyond the recorded end and write_journal_header. Last writes coalesce through bounded 512-byte sector references instead of sorted C buckets. The native corpus qualifies current initialized internal JNLx journals with 512-byte journal sectors and checksum-enabled block lists. Committed corruption fails rather than using kernel best-effort salvage; incomplete tentative payloads discard the complete tentative transaction. Private completed-copy recovery preserves original evidence, validates the complete allocation/tree/thread/link graph and empty catalog-backed journal, then marks only the primary header unmounted. That final clean marking and atomic output publication are offline project policy, not a mounted-vnode or live-journal port. Both stored byte orders have synthetic safety controls; current little-endian native fixtures supply independent complete-disk expected replay bytes. hfs_fsync/HFS_FSYNC_FULL and SDK F_FULLFSYNC establish native fixture commit behavior. HFS_REPLAY_JOURNAL in hfs_vfsops supplies the independent replay-only oracle, without fsck tree repair. The native capture helper adapts calc_checksum to observe real block-list write boundaries; it pauses only the runner-owned image helper with a resume watchdog and never manufactures cursors or payloads. No kernel cache/lock/credential or live transaction writer is ported."
+    },
+    {
+      "id": "native-hfs-journal-recovery-15-26-27",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38285544453",
+      "evidence": "acceptance/testdata/hfs-recovery",
+      "components": [
+        "acceptance/hfs_journal_recovery_test.go",
+        "acceptance/native/hfs_journal_recovery.py",
+        "acceptance/native/hfs_replay.c",
+        "acceptance/native/hfs_capture.c",
+        "acceptance/native/verify_hfs_recovery.py",
+        "acceptance/native/recovery_interruption.py",
+        "acceptance/native/retain_hfs_recovery.py"
+      ],
+      "basis": "Apple-created HFS+/HFSX journals on macOS 15/26/27 captured at real image-helper I/O boundaries. Eight independent controls per OS include unapplied committed metadata in linear/wrapped rings, complete sequence-qualified transactions beyond the recorded end and incomplete tentative payloads. Apple kernel replay-only bytes are retained before native fsck/readback/signature verification. Portable replay compares the entire disk byte-for-byte, checks metadata/forks/links, immutable source hashes, deterministic UDRO/UDZO output and subsequent Go mutation. Fresh required native readback checks actual Linux/Windows/macOS outputs and continued journaled allocation/writes. A separate file-only portable process kill interrupts partial managed scratch copying. Retention compresses original native documents verbatim, verifies indexed provenance/boundaries and shares identical producer scripts without rewriting native evidence."
     }
   ]
 }

@@ -1,0 +1,370 @@
+[
+  {
+    "filesystem": "hfsplus",
+    "attempt": 0,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 512,
+      "end": 308736,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565955,
+      "checksum": 158774953,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 162,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 308736,
+      "mode": "end"
+    },
+    "shape": "linear"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 1,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 264704,
+      "end": 171008,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565965,
+      "checksum": 155226297,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 187,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 171008,
+      "mode": "end"
+    },
+    "shape": "wrapped"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 2,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 33280,
+      "end": 320000,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565978,
+      "checksum": 168467965,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 320000,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 3,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 88576,
+      "end": 375296,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565993,
+      "checksum": 161397835,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 375296,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 4,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 375296,
+      "end": 138240,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565995,
+      "checksum": 156283272,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 138240,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 5,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 138240,
+      "end": 424960,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565997,
+      "checksum": 152484549,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 424960,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 6,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 424960,
+      "end": 187904,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1565999,
+      "checksum": 164937219,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 187904,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 7,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 187904,
+      "end": 474624,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1566001,
+      "checksum": 160343872,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 474624,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 8,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 474624,
+      "end": 237568,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1566003,
+      "checksum": 160466045,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 237568,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 9,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 380928,
+      "end": 143872,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1566006,
+      "checksum": 158095708,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 143872,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsplus",
+    "attempt": 10,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 143872,
+      "end": 430592,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 1566008,
+      "checksum": 154066585,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1350,
+      "observedEnd": 430592,
+      "mode": "tail"
+    },
+    "shape": "incomplete-tail"
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 0,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 512,
+      "end": 435712,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 13055511,
+      "checksum": 155882679,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 206,
+    "window": {
+      "helper": 1825,
+      "observedEnd": 435712,
+      "mode": "end"
+    },
+    "shape": "linear"
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 1,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 257024,
+      "end": 151040,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 13055524,
+      "checksum": 167555878,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 206,
+    "window": {
+      "helper": 1825,
+      "observedEnd": 151040,
+      "mode": "end"
+    },
+    "shape": "wrapped"
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 2,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 365568,
+      "end": 120320,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 13055537,
+      "checksum": 101490677,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1825,
+      "observedEnd": 120320,
+      "mode": "tail"
+    },
+    "shape": "complete-tail"
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 3,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 465408,
+      "end": 359424,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 13055549,
+      "checksum": 151824067,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 207,
+    "window": {
+      "helper": 1825,
+      "observedEnd": 220160,
+      "mode": "tail"
+    },
+    "shape": null
+  },
+  {
+    "filesystem": "hfsx",
+    "attempt": 4,
+    "journal": {
+      "offset": 12288,
+      "size": 524288,
+      "start": 220160,
+      "end": 498688,
+      "blockListSize": 8192,
+      "headerSize": 512,
+      "sequence": 13055551,
+      "checksum": 162707555,
+      "byteOrder": "<",
+      "attributes": 2147491840
+    },
+    "unappliedSectors": 0,
+    "window": {
+      "helper": 1825,
+      "observedEnd": 498688,
+      "mode": "tail"
+    },
+    "shape": "incomplete-tail"
+  }
+]

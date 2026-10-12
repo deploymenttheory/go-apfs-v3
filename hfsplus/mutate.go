@@ -175,7 +175,7 @@ func (m *mutation) admit() error {
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
-	if !v.Clean || v.Attributes & ^uint32(0x80003500) != 0 || (!v.Journaled && be.Uint32(m.header[12:]) != 0) {
+	if (!v.Clean && !v.journalReplayed) || v.Attributes & ^uint32(0x80003500) != 0 || (!v.Journaled && be.Uint32(m.header[12:]) != 0) {
 		return fmt.Errorf("mutation requires a clean, unlocked HFS+/HFSX profile: %w", filesystem.ErrUnsupported)
 	}
 	if uint64(v.BlockCount)*uint64(v.BlockSize) != uint64(m.disk.Size()) {

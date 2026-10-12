@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "scenario": "hfs-journal-recovery-reference",
+  "producer": {
+    "system": "macOS",
+    "version": "26.6.2",
+    "build": "25G83",
+    "architecture": "arm64",
+    "run": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38285544453",
+    "revision": "dcced66d763898f692d198f728b97cc962275c57",
+    "tools": {
+      "/sbin/newfs_hfs": "e57e37ec1e7df3a66cb29ab4a2df9384f515df20254ed556bae81a433a073d50",
+      "/sbin/fsck_hfs": "1329d4a15eb0f6effd450f4623cba863d520b948785b12e4ef4ac85f9bf4fe5e",
+      "/usr/bin/hdiutil": "7b73b38f363c3fa1a338fb876d7bb7c9a6a8a9e5c1ba82fd74d8453a74c6795a",
+      "/usr/sbin/diskutil": "624a8601b97ddfaa4b18dd2854c299e084cd45eb18fc152011c97615c3b9da1f"
+    },
+    "sources": {
+      "hfs_journal_recovery.py": "0eaa7ff153c19908ec56ed99ba9ff0f175a708fcd84abc468754f056fcad3d8b",
+      "hfs_replay.c": "113c8a28cf17fb190f88fcc3dfca051af269b5733301b698bfc10e6203d2ef4c",
+      "hfs_capture.c": "674e5d8c731b9b31b7d0124f254e8369fd06a1074a36ae1f34f1d1e53a2db5aa",
+      "hfs_header_growth.py": "1d23caf642883a4a9f275a39a11cf928f970fd22ee6c75955fb2aac78b3b8c62",
+      "image_repacking.py": "bac4818fa3c5fd21021d7465aa4570251501bd92f2e277ea26405686e43ec041",
+      "container_building.py": "4c3dd9834fb4f204ccdfbcadff7056af599dc2656e9392ccb8070cad2df51dde",
+      "image_building.py": "775e7ea1467a139fb1b6ea9dff7d5087c1198812b2afaf391b5eb7f5b649b7bf",
+      "file_compression.py": "a8efd89a3a854b8fc8265a696be45f48bb6475401968ce4418810c8c115d1049",
+      "capture.py": "d4af5119024280dff03a262e0d759c8ccac8e0e52badba357d4627f8489ad15b"
+    }
+  },
+  "evidence": {
+    "image": "native-capture.json.gz",
+    "sha256": "1854a0a96e02e84c0d340d08e21261a48aa348f7398f8c0c320968e8af1e6fce",
+    "uncompressedSHA256": "dd5faddb6544fd7de51da174c0a6ece1e82287d2708dc33a7604efe6b47ee7c9",
+    "uncompressedBytes": 2122052
+  },
+  "cases": [
+    {
+      "id": "hfsplus-complete-tail",
+      "start": 33280,
+      "end": 320000,
+      "replaySHA256": "a8ef07f029d3d7cae669b2ea7366bc05313c45412890d5700ebab10144e7d300"
+    },
+    {
+      "id": "hfsplus-incomplete-tail",
+      "start": 143872,
+      "end": 430592,
+      "replaySHA256": "60591d735b1966246ca0f76fc0ae0397e247239b11f6b9595e6825e95d5949d1"
+    },
+    {
+      "id": "hfsplus-linear",
+      "start": 512,
+      "end": 308736,
+      "replaySHA256": "7e9725cc60cda22c4040a5a4891515e8543ad8555d9616dec9c7bdc67632f0ff"
+    },
+    {
+      "id": "hfsplus-wrapped",
+      "start": 264704,
+      "end": 171008,
+      "replaySHA256": "38390b126b75d06c45fe9e5b7ed8da7949eaa6308080a18d836876eda0d92f67"
+    },
+    {
+      "id": "hfsx-complete-tail",
+      "start": 365568,
+      "end": 120320,
+      "replaySHA256": "24f03550e183e079ec27cf1f89695c99b8d76bd6a676ed427d93268d483ae2f2"
+    },
+    {
+      "id": "hfsx-incomplete-tail",
+      "start": 220160,
+      "end": 498688,
+      "replaySHA256": "23144f25ab38f8ea78050e78a99c3f9089cd9e3be3f5eaf36b5956cfbb54af83"
+    },
+    {
+      "id": "hfsx-linear",
+      "start": 512,
+      "end": 435712,
+      "replaySHA256": "4a4debccbbe6b8a19bf8c1a31eefec7805e5b674219df9d8d35fdefe5b83052a"
+    },
+    {
+      "id": "hfsx-wrapped",
+      "start": 257024,
+      "end": 151040,
+      "replaySHA256": "04f7620bd56ce81d5094100d5c23b1fcc95b51d0ceaa918f57083336737276d2"
+    }
+  ]
+}
