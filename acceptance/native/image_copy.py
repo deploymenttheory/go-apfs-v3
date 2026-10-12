@@ -55,7 +55,7 @@ def host_source(directory):
     directory.mkdir()
     for name in ('Nested', 'Empty'):
         (directory / name).mkdir()
-    for name, data in [('payload', b'host copy\x00\xff' * 131), ('Nested/caf\u00e9', b'Unicode host copy\n'), ('empty', b'')]:
+    for name, data in [('payload', b'host copy\x00\xff' * 131), ('Nested/caf\u00e9', b'Unicode host copy\n'), ('zero-file', b'')]:
         (directory / name).write_bytes(data)
         os.chmod(directory / name, 0o644)
     for p in directory.rglob('*'):
