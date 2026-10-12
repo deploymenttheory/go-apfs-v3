@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import plistlib
 import shutil
 import struct
 import tempfile
@@ -177,7 +178,13 @@ def capture(expected_major, output):
             image = work / (filesystem + '-live.raw')
             with image.open('xb') as stream:
                 stream.truncate(CAPACITY)
-            device = attach(image, command, writable=True)
+            # Apple's documented -nokernel forces an image-owned helper. It
+            # can be paused without freezing any unrelated filesystem/device.
+            attachment = plistlib.loads(command('hdiutil', 'attach', '-nokernel', '-nomount', '-noautofsck',
+                                                '-imagekey', 'diskimage-class=CRawDiskImage', '-plist', image))
+            devices = [item['dev-entry'] for item in attachment['system-entities'] if 'dev-entry' in item]
+            require(len(devices) == 1, 'owned bare HFS image device')
+            device = devices[0]
             mount = work / (filesystem + '-live')
             mount.mkdir()
             snapshots = {}
@@ -200,6 +207,8 @@ def capture(expected_major, output):
                     (root / f'entry-{index}').touch()
                     xattr(root / f'entry-{index}', 'org.go-apfs.journal', struct.pack('>QI', 0, index))
                 command('sync')
+                inventory = plistlib.loads(command('hdiutil', 'info', '-plist'))
+                (output / (filesystem + '-diskimages-info.json')).write_text(json.dumps(inventory, indent=2) + '\n')
                 worker = threading.Thread(target=churn, args=(root, stop, errors))
                 worker.start()
                 deadline = time.monotonic() + 60
