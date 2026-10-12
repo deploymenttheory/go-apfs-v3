@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Capture actual Apple HFS journal write windows on disposable macOS VMs.
 
-APFS clonefile captures the backing file while Apple changes HFS metadata. We
-never manufacture pending cursors or journal payloads. Apple recovers a separate
-copy; the original clone and every native verdict remain available for analysis.
+The image-owned DiskImages helper is paused after Apple's journal-end update.
+We never manufacture pending cursors or journal payloads. Apple recovers a
+separate copy; original interrupted bytes and every native verdict are retained.
 No Go code participates in producing these references.
 """
 import argparse
-import ctypes
 import hashlib
 import json
 import os
@@ -106,17 +105,15 @@ def journal(image):
             'checksum': checksum, 'byteOrder': order, 'attributes': struct.unpack_from('>I', volume, 4)[0]}
 
 
-def clone_file(source, target):
-    require_disposable_host()
-    # Native APFS clonefile makes one backing-file point-in-time copy. The
-    # source HFS mount keeps running, exactly as if its storage had disappeared
-    # at that instant. Native recovery, not the capture, judges consistency.
-    library = ctypes.CDLL('/usr/lib/libSystem.B.dylib', use_errno=True)
-    call = library.clonefile
-    call.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int)
-    call.restype = ctypes.c_int
-    if call(os.fsencode(source), os.fsencode(target), 0):
-        raise OSError(ctypes.get_errno(), 'clonefile', str(target))
+def image_helper(inventory, image, device):
+    owned = [entry for entry in inventory['images']
+             if Path(entry['image-path']).resolve() == image.resolve()
+             and any(entity.get('dev-entry') == device for entity in entry['system-entities'])]
+    require(len(owned) == 1 and owned[0]['writeable'] and owned[0]['owner-uid'] == os.getuid(),
+            'exclusive runner-owned image helper')
+    identifier = owned[0]['hdid-pid']
+    require(isinstance(identifier, int) and identifier > 1, 'owned image helper PID')
+    return identifier
 
 
 def churn(root, stop, errors):
@@ -131,6 +128,11 @@ def churn(root, stop, errors):
                 os.chmod(path, 0o600 | (generation & 0o77))
                 xattr(path, 'org.go-apfs.journal', struct.pack('>QI', generation, index))
             generation += 1
+            descriptor = os.open(root / 'entry-0', os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
     except BaseException as error:
         errors.append(str(error))
         stop.set()
@@ -174,6 +176,9 @@ def capture(expected_major, output):
         helper = work / 'hfs-replay'
         command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror',
                 Path(__file__).with_name('hfs_replay.c'), '-o', helper)
+        capture_helper = work / 'hfs-capture'
+        command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror',
+                Path(__file__).with_name('hfs_capture.c'), '-o', capture_helper)
         for filesystem in ('hfsplus', 'hfsx'):
             image = work / (filesystem + '-live.raw')
             with image.open('xb') as stream:
@@ -209,13 +214,16 @@ def capture(expected_major, output):
                 command('sync')
                 inventory = plistlib.loads(command('hdiutil', 'info', '-plist'))
                 (output / (filesystem + '-diskimages-info.json')).write_text(json.dumps(inventory, indent=2) + '\n')
+                identifier = image_helper(inventory, image, device)
+                offset = journal(image)['offset']
                 worker = threading.Thread(target=churn, args=(root, stop, errors))
                 worker.start()
                 deadline = time.monotonic() + 60
                 attempt = 0
                 while time.monotonic() < deadline and len(snapshots) < 2:
                     candidate = work / (filesystem + f'-candidate-{attempt}.raw')
-                    clone_file(image, candidate)
+                    command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', capture_helper,
+                            image, identifier, offset, candidate)
                     state = journal(candidate)
                     shape = 'wrapped' if state['start'] > state['end'] else 'linear'
                     changes = pending_changes(candidate, state) if state['start'] != state['end'] and shape not in snapshots else 0
@@ -253,7 +261,7 @@ def capture(expected_major, output):
                 (output / 'recovery.json').write_text(json.dumps({'producer': producer, 'cases': cases}, indent=2) + '\n')
     producer['tools'] = {str(path): hashlib.sha256(Path(path).read_bytes()).hexdigest()
                          for path in ('/sbin/newfs_hfs', '/sbin/fsck_hfs', '/usr/bin/hdiutil', '/usr/sbin/diskutil')}
-    scripts = ('hfs_journal_recovery.py', 'hfs_replay.c', 'hfs_header_growth.py', 'image_repacking.py',
+    scripts = ('hfs_journal_recovery.py', 'hfs_replay.c', 'hfs_capture.c', 'hfs_header_growth.py', 'image_repacking.py',
                'container_building.py', 'image_building.py', 'file_compression.py', 'capture.py')
     script_output = output / 'scripts'
     script_output.mkdir()
