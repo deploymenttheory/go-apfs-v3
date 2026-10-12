@@ -10,6 +10,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
@@ -76,6 +77,9 @@ func (m *mutation) editMetadata(c Change, stamp uint64) (uint64, error) {
 		}
 	} else {
 		err = m.metadataObject(c, entry, stamp)
+	}
+	if err == nil && c.Operation == "xattr" && c.Attribute == filesystem.ResourceFork && !c.DeleteAttribute && c.Data.Size() == 0 {
+		return 0, nil
 	}
 	return entry.id, err
 }
@@ -161,6 +165,9 @@ func (m *mutation) metadataObject(c Change, e *mutationEntry, stamp uint64) erro
 			return err
 		}
 		if c.Attribute == filesystem.ResourceFork {
+			if !c.DeleteAttribute && c.Data.Size() == 0 {
+				return nil
+			}
 			le.PutUint64(value[24:], stamp)
 		}
 	}
@@ -202,7 +209,7 @@ func (m *mutation) setAttribute(id uint64, name string, data block.Source) error
 	return m.fs.put(key, buildXattr(id, name, sv, 1|extra).value)
 }
 
-func (m *mutation) changeAttribute(c Change, id uint64, value []byte) error {
+func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result error) {
 	key := buildXattr(id, c.Attribute, nil, 2).key
 	old, exists := m.fs.get(key)
 	if exists && le.Uint16(old.value)&4 != 0 {
@@ -218,8 +225,26 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) error {
 		if le.Uint16(value[80:])&0170000 != 0100000 || le.Uint32(value[68:])&0x20 != 0 {
 			return filesystem.ErrUnsupported
 		}
+		if !c.DeleteAttribute && c.Operation == "xattr" {
+			if c.Data.Size() == 0 {
+				return nil
+			}
+			if exists {
+				base, err := m.attributeValue(old)
+				if err != nil {
+					return err
+				}
+				defer func() { result = errors.Join(result, base.Close()) }()
+				combined, err := forkvalue.Prefix(m.ctx, base, c.Data)
+				if err != nil {
+					return err
+				}
+				defer func() { result = errors.Join(result, combined.Close()) }()
+				c.Data = combined
+			}
+		}
 	}
-	remove := c.DeleteAttribute
+	remove := c.DeleteAttribute || c.Attribute == filesystem.ResourceFork && c.Operation != "xattr" && c.Data.Size() == 0
 	if remove {
 		if exists {
 			if err := m.removeAttributeStream(old); err != nil {
@@ -266,6 +291,35 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) error {
 	}
 	le.PutUint64(value[48:], flags)
 	return nil
+}
+
+// attributeValue snapshots the current transaction's records, including streams
+// created by earlier changes. Retired APFS blocks remain allocated until a later
+// checkpoint, so replacement can safely stream their original tail.
+func (m *mutation) attributeValue(attr buildRecord) (filesystem.Value, error) {
+	if le.Uint16(attr.value)&2 != 0 {
+		return forkvalue.Bytes(m.ctx, attr.value[4:])
+	}
+	stream, size := le.Uint64(attr.value[4:]), le.Uint64(attr.value[12:])
+	if size > math.MaxInt64 {
+		return nil, filesystem.ErrLimit
+	}
+	var extents []forkvalue.Extent
+	for _, r := range m.fs.records(stream, 8) {
+		logical := le.Uint64(r.key[8:])
+		length := le.Uint64(r.value) & ((1 << 56) - 1)
+		address := le.Uint64(r.value[8:])
+		var source block.Source
+		if address != 0 {
+			var err error
+			source, err = block.NewSection(m.disk, int64(address*4096), int64(length))
+			if err != nil {
+				return nil, err
+			}
+		}
+		extents = append(extents, forkvalue.Extent{Logical: int64(logical), Length: int64(length), Data: source})
+	}
+	return forkvalue.New(m.ctx, int64(size), extents)
 }
 
 func readAttribute(source block.Source, b []byte) error {

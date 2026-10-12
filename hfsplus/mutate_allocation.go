@@ -346,7 +346,8 @@ func (m *mutation) growTree(t *mutableTree) error {
 
 func bytesCopy(p []byte) []byte { return append([]byte(nil), p...) }
 
-func (m *mutation) writePayload(f *fork, data block.Source) error {
+// writeForkPrefix preserves bytes after the supplied stream write.
+func (m *mutation) writeForkPrefix(f *fork, data block.Source) error {
 	if data == nil || data.Size() < 0 || uint64(data.Size()) > f.size {
 		return fs.ErrInvalid
 	}
@@ -364,9 +365,16 @@ func (m *mutation) writePayload(f *fork, data block.Source) error {
 		}
 		off += n
 	}
+	return nil
+}
+
+func (m *mutation) writePayload(f *fork, data block.Source) error {
+	if err := m.writeForkPrefix(f, data); err != nil {
+		return err
+	}
 	// Initialize the final allocation-block slack after the logical contents.
 	if f.size > uint64(data.Size()) {
-		clear(buf)
+		buf := make([]byte, 128<<10)
 		for off := uint64(data.Size()); off < f.size; {
 			n := min(uint64(len(buf)), f.size-off)
 			if err := m.writeFork(f, buf[:n], off); err != nil {

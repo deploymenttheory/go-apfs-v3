@@ -57,6 +57,23 @@ func Bytes(ctx context.Context, data []byte) (filesystem.Value, error) {
 	return New(ctx, int64(len(data)), extents)
 }
 
+// Prefix models a stream write at position zero, retaining a longer old tail.
+// Inputs remain owned by the caller; the returned value does not close them.
+func Prefix(ctx context.Context, base, data block.Source) (filesystem.Value, error) {
+	if base == nil || data == nil || base.Size() < 0 || data.Size() < 0 {
+		return nil, fs.ErrInvalid
+	}
+	var extents []Extent
+	if data.Size() > 0 {
+		extents = append(extents, Extent{Length: data.Size(), Data: data})
+	}
+	if base.Size() > data.Size() {
+		n := base.Size() - data.Size()
+		extents = append(extents, Extent{Logical: data.Size(), Length: n, Data: io.NewSectionReader(base, data.Size(), n)})
+	}
+	return New(ctx, max(base.Size(), data.Size()), extents)
+}
+
 func (v *value) Size() int64  { return v.size }
 func (v *value) Close() error { v.closed.Store(true); return nil }
 func (v *value) ReadAt(p []byte, off int64) (int, error) {

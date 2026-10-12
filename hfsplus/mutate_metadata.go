@@ -118,6 +118,9 @@ func (m *mutation) editMetadata(c Change, stamp uint32) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
+	if c.Operation == "xattr" && c.Attribute == filesystem.ResourceFork && !c.DeleteAttribute && c.Data.Size() == 0 {
+		return 0, nil
+	}
 	return inode.id(), nil
 }
 
@@ -202,6 +205,9 @@ func (m *mutation) metadataObject(c Change, item *catalogItem, stamp uint32) err
 			return err
 		}
 		if c.Attribute == filesystem.ResourceFork {
+			if !c.DeleteAttribute && c.Data.Size() == 0 {
+				return nil
+			}
 			be.PutUint32(value[16:], stamp)
 		}
 	}
@@ -277,6 +283,19 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 		data := c.Data
 		if c.DeleteAttribute {
 			data = emptySource{}
+		} else {
+			// hfs_vnop_setxattr uses VNOP_WRITE, preserving fork length and
+			// existing allocated storage for a short or zero-byte write.
+			if data.Size() == 0 {
+				return nil
+			}
+			if uint64(data.Size()) <= be.Uint64(value[168:]) {
+				f, err := m.v.fileFork(m.ctx, id, 255, value[168:248])
+				if err != nil {
+					return err
+				}
+				return m.writeForkPrefix(f, data)
+			}
 		}
 		return m.replaceFork(id, 255, value[168:248], data)
 	}

@@ -12,6 +12,27 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
+func TestStreamPrefixRetainsTailAndBorrowedSources(t *testing.T) {
+	for _, tc := range []struct{ input, expected string }{{"XY", "XYcdef"}, {"", "abcdef"}, {"12345678", "12345678"}} {
+		base, _ := Bytes(context.Background(), []byte("abcdef"))
+		data := bytes.NewReader([]byte(tc.input))
+		v, err := Prefix(context.Background(), base, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make([]byte, len(tc.expected)+1)
+		n, err := v.ReadAt(got, 0)
+		if !errors.Is(err, io.EOF) || n != len(tc.expected) || string(got[:n]) != tc.expected {
+			t.Fatal("stream prefix or EOF boundary", string(got[:n]), err)
+		}
+		v.Close()
+		if _, err = base.ReadAt(make([]byte, 6), 0); err != nil {
+			t.Fatal("prefix closed its caller-owned base", err)
+		}
+		base.Close()
+	}
+}
+
 func TestSparseRangesAndIndependentConcurrentValues(t *testing.T) {
 
 	extents := []Extent{{Logical: 0, Length: 4, Data: bytes.NewReader([]byte("abcd"))}, {Logical: 4, Length: 8}, {Logical: 12, Length: 4, Data: bytes.NewReader([]byte("EFGH"))}}

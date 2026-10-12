@@ -29,9 +29,12 @@ def operations(phase):
         return [
             {'op': 'xattr-remove', 'path': 'alias', 'attribute': ATTRIBUTE + '.continued'},
             {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 17},
+            {'op': 'xattr', 'path': 'small', 'attribute': 'com.apple.ResourceFork', 'size': 0},
             {'op': 'chflags', 'path': 'independent', 'flags': 0},
             {'op': 'xattr', 'path': 'independent', 'attribute': 'com.apple.ResourceFork', 'size': 8193},
+            {'op': 'xattr', 'path': 'independent', 'attribute': 'com.apple.ResourceFork', 'size': 17, 'seed': 42},
             {'op': 'xattr', 'path': 'independent', 'attribute': 'com.apple.ResourceFork', 'size': 0},
+            {'op': 'xattr', 'path': 'fragmented-resource', 'attribute': 'com.apple.ResourceFork', 'size': 17, 'seed': 42},
             {'op': 'touch', 'path': 'symlink', 'modifyNS': TIME_NS, 'accessNS': TIME_NS + 999999999},
         ]
     if phase == 'metadata':
@@ -72,7 +75,7 @@ def data(op):
         # Native masks reserved FinderInfo fields on HFS and preserves their
         # existing values. Only public type/creator and the invisible bit change.
         return b'TEXTttxt' + b'\x40' + bytes(23)
-    pattern = bytes(range(256)) + b'attribute bytes\x00\xff'
+    pattern = bytes((n + op.get('seed', 0)) & 255 for n in range(256)) + b'attribute bytes\x00\xff'
     size = op['size']
     return (pattern * ((size + len(pattern) - 1) // len(pattern)))[:size]
 
@@ -201,12 +204,12 @@ def capture(references, output, kind, major):
                 finally:
                     command('hdiutil', 'detach', device)
                 sources.append((case_id, image, True))
-        for case_id, image, empty_attributes in sources:
+        for case_id, image, new_volume in sources:
             # Keep an Apple source even if its first checker verdict fails;
             # only a successful complete capture publishes an oracle manifest.
             source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
             before = engine.observe(image, work, command, observer=metadata_files)
-            if empty_attributes:
+            if new_volume:
                 attrs = before['headers']['primary']['forks']['attributes']
                 require(attrs['logicalSize'] > 0, 'initialized native attributes tree')
                 # BTreeHeaderRec.leafRecords at byte 20 of the header node.
@@ -221,7 +224,7 @@ def capture(references, output, kind, major):
                     require(not any(name.startswith('org.go-apfs.') for name in entry['rawAttributes']),
                             'new-volume files begin without the tested attributes')
             item = {'id': case_id, 'source': source, 'before': before, 'states': {},
-                    'emptyAttributeTree': empty_attributes}
+                    'newVolume': new_volume}
             clocks = {}
             for phase in ('metadata', 'metadata-final'):
                 edited = work / (case_id + '-' + phase + '.raw')
@@ -229,7 +232,7 @@ def capture(references, output, kind, major):
                 directory = work / (case_id + '-' + phase + '-write')
                 cleanup, native = mounted(edited, directory)
                 ops = operations(phase)
-                if empty_attributes:
+                if new_volume:
                     ops = [op for op in ops if not op['path'].endswith('-compressed')]
                 try:
                     apply_operations(directory / 'Fixture', ops, native, clocks)

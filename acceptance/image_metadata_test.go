@@ -27,6 +27,7 @@ type nativeImageMetadataOperation struct {
 	Flags, UID, GID     uint32
 	ModifyNS, AccessNS  int64
 	Object              uint64
+	Seed                uint8
 }
 type nativeImageMetadataState struct {
 	nativeEditState
@@ -62,7 +63,7 @@ func imageMetadataChanges(ops []nativeImageMetadataOperation) []imageedit.Change
 			} else {
 				unit := make([]byte, 256)
 				for i := range unit {
-					unit[i] = byte(i)
+					unit[i] = byte(i) + op.Seed
 				}
 				unit = append(unit, []byte("attribute bytes\x00\xff")...)
 				data = bytes.Repeat(unit, (int(op.Size)+len(unit)-1)/len(unit))[:op.Size]

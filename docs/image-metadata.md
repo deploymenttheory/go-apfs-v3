@@ -57,10 +57,12 @@ ordinary attribute edits. Explicit resource-fork edits retain the existing
 compression ownership restrictions. Compression, security and private filesystem
 attributes cannot be overwritten through the ordinary opaque-value API.
 
-An empty APFS resource-fork attribute remains present; removing it requires
-explicit `xattr -d`. HFS's synthesized resource-fork attribute disappears when
-its catalog fork has zero length. Continued native controls qualify this
-filesystem-specific distinction.
+Resource-fork `xattr -w` follows Apple's stream API: it writes at position zero,
+retains a longer existing tail, and a zero-byte write leaves the fork unchanged.
+Use explicit `xattr -d` to remove a fork, or `cp --resource-fork` to replace it.
+Apple HFS `hfs_vnop_setxattr` calls `VNOP_WRITE` without truncation; independent
+APFS controls establish the same behavior. Current-transaction records supply
+retained tails, so successive writes operate on the results of earlier changes.
 
 HFS FinderInfo is catalog storage. Its public setter masks reserved fields,
 preserves document/date-added/generation values, retains private symlink type
