@@ -7,4 +7,3 @@ Each macOS 15/26/27 directory contains two name-policy cases, with source and th
 A signed universal framework has only its symlinks removed before capture. Their recreation must restore the exact link targets and a valid native signature. The untouched signed application is independently verified throughout. Observations retain complete namespaces, original/created IDs, link counts, nanosecond clock observations, metadata and raw fork/attribute hashes.
 
 These files are immutable regression evidence. Fresh required CI controls additionally exercise explicit destination `-h` and force replacement of a different alias of the same inode. Sources retain a clean initialized internal HFS journal; mutation uses completed-output transactions.
-
