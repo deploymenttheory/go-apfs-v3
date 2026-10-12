@@ -160,6 +160,13 @@ func TestNativeHFSJournaledImageMetadataEditing(t *testing.T) {
 	testImageMetadata(t, "hfs", "APFS_NATIVE_HFS_JOURNALED_METADATA", "APFS_HFS_JOURNALED_METADATA_OUTPUT", "testdata/hfs-journaled-metadata-editing")
 }
 
+func imageMetadataCases(kind string) []string {
+	if kind == "apfs" {
+		return []string{"apfs", "apfs-case-sensitive"}
+	}
+	return []string{"hfsplus", "hfsx", "hfsplus-empty-attributes", "hfsx-empty-attributes"}
+}
+
 func testImageMetadata(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 	t.Helper()
 	root := os.Getenv(rootEnv)
@@ -180,7 +187,7 @@ func testImageMetadata(t *testing.T, kind, rootEnv, outputEnv, retained string) 
 		if err = json.Unmarshal(b, &m); err != nil {
 			t.Fatal(err)
 		}
-		if m.Schema != 1 || m.Contract != "existing-"+kind+"-metadata-edits" || len(m.Cases) != map[string]int{"apfs": 2, "hfs": 4}[kind] || majors[m.Major] || len(m.Producer.Sources) < 12 {
+		if m.Schema != 1 || m.Contract != "existing-"+kind+"-metadata-edits" || len(m.Cases) != len(imageMetadataCases(kind)) || majors[m.Major] || len(m.Producer.Sources) < 12 {
 			t.Fatal("metadata reference contract")
 		}
 		majors[m.Major] = true
@@ -190,7 +197,15 @@ func testImageMetadata(t *testing.T, kind, rootEnv, outputEnv, retained string) 
 		for name, hash := range m.Producer.Sources {
 			verifyDigest(t, dir, name, hash)
 		}
+		cases := map[string]bool{}
+		for _, id := range imageMetadataCases(kind) {
+			cases[id] = true
+		}
 		for _, c := range m.Cases {
+			if !cases[c.ID] {
+				t.Fatal("unexpected or duplicate metadata case", c.ID)
+			}
+			delete(cases, c.ID)
 			if kind == "hfs" && (c.Before.Journal != nil) != strings.Contains(retained, "journaled") {
 				t.Fatal("metadata journal profile mismatch")
 			}
@@ -285,14 +300,24 @@ func TestNativeImageMetadataEditingContinuation(t *testing.T) {
 		t.Fatal("explicit continuation filesystem required")
 	}
 	paths, err := filepath.Glob(filepath.Join(root, "*.raw"))
-	if err != nil || len(paths) != 6 {
-		t.Fatal("complete native metadata continuation", err)
+	expected := map[string]bool{}
+	for _, major := range []int{15, 26, 27} {
+		for _, id := range imageMetadataCases(kind) {
+			expected[fmt.Sprintf("macos-%d-%s.raw", major, id)] = true
+		}
+	}
+	if err != nil || len(paths) != len(expected) {
+		t.Fatalf("complete native metadata continuation: got %d inputs, want %d: %v", len(paths), len(expected), err)
 	}
 	output := os.Getenv("APFS_IMAGE_METADATA_CONTINUED_OUTPUT")
 	if err = os.MkdirAll(output, 0700); err != nil {
 		t.Fatal(err)
 	}
 	for _, source := range paths {
+		if !expected[filepath.Base(source)] {
+			t.Fatal("unexpected native continuation source", filepath.Base(source))
+		}
+		delete(expected, filepath.Base(source))
 		var control struct {
 			Before   fileObservation
 			Expected nativeImageMetadataState

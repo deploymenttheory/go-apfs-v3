@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 import struct
 import tempfile
+import time
 
 from capture import sha256
 from container_building import require_disposable_host
@@ -113,6 +114,15 @@ def operate(root, op, command):
 def apply_operations(root, ops, command, clocks=None):
     require_disposable_host()
     clocks = {} if clocks is None else clocks
+    if ops:
+        # HFS stores whole-second ctime. Separate the batch from its baseline
+        # so a real first change cannot disappear inside the same clock tick.
+        # Repeated changes remain covered by the object's first measured effect.
+        latest = max((root / op['path']).lstat().st_ctime_ns for op in ops)
+        delay = latest // 10**9 + 1 - time.time()
+        require(delay <= 1.1, 'native baseline clock is not in the future')
+        if delay > 0:
+            time.sleep(delay + 0.01)
     for op in ops:
         path = root / op['path']
         old = path.lstat()

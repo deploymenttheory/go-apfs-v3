@@ -1,7 +1,8 @@
 import copy
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import image_metadata
 import verify_image_metadata
@@ -14,9 +15,41 @@ class ImageMetadataTests(unittest.TestCase):
                 image_metadata.capture(Path('absent'), Path('absent-output'), 'apfs', 15)
             with self.assertRaisesRegex(RuntimeError, 'disposable VM'):
                 image_metadata.operate(Path('absent'), {'op': 'chown', 'path': 'file'}, None)
+            with self.assertRaisesRegex(RuntimeError, 'disposable VM'):
+                image_metadata.apply_operations(Path('absent'), [], None)
         with patch.object(verify_image_metadata, 'require_disposable_host', side_effect=RuntimeError('disposable VM required')):
             with self.assertRaisesRegex(RuntimeError, 'disposable VM'):
                 verify_image_metadata.verify(None, None, None, 15, 'apfs', 'apfs')
+
+    def test_batch_separates_whole_second_clock_effects(self):
+        root = MagicMock()
+        file = root.__truediv__.return_value
+        old = SimpleNamespace(st_ino=19, st_ctime_ns=100 * 10**9, st_mtime_ns=99 * 10**9)
+        changed = SimpleNamespace(st_ino=19, st_ctime_ns=101 * 10**9, st_mtime_ns=99 * 10**9)
+        ops = [{'op': 'xattr-remove', 'path': 'file'}, {'op': 'xattr', 'path': 'file'}]
+        with patch.object(image_metadata, 'require_disposable_host'), \
+             patch.object(image_metadata, 'operate') as operate, \
+             patch.object(image_metadata.time, 'time', return_value=100.75), \
+             patch.object(image_metadata.time, 'sleep') as sleep:
+            # Two baseline stats, then the per-operation before/after stats.
+            file.lstat.side_effect = [old, old, old, changed, changed, changed]
+            clocks = image_metadata.apply_operations(root, ops, None)
+            sleep.assert_called_once()
+            self.assertAlmostEqual(sleep.call_args.args[0], 0.26)
+            self.assertEqual(operate.call_count, 2)
+            self.assertEqual(clocks, {'19': ['changeNS']})
+
+    def test_unchanged_native_metadata_is_not_a_clock_effect(self):
+        root = MagicMock()
+        entry = SimpleNamespace(st_ino=19, st_ctime_ns=100 * 10**9, st_mtime_ns=99 * 10**9)
+        root.__truediv__.return_value.lstat.return_value = entry
+        with patch.object(image_metadata, 'require_disposable_host'), \
+             patch.object(image_metadata, 'operate'), \
+             patch.object(image_metadata.time, 'time', return_value=101.5), \
+             patch.object(image_metadata.time, 'sleep') as sleep:
+            clocks = image_metadata.apply_operations(root, [{'op': 'xattr', 'path': 'file', 'size': 0}], None)
+            sleep.assert_not_called()
+            self.assertEqual(clocks, {'19': []})
 
     def test_only_recorded_clock_fields_are_adjusted(self):
         entry = {'path': 'Fixture/file', 'object': 19, 'uid': 501, 'gid': 20,
