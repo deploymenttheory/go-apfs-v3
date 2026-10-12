@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -7,6 +8,11 @@ import verify_image_links
 
 
 class ImageLinkSafetyTests(unittest.TestCase):
+    def test_loading_verifier_requires_no_native_libraries(self):
+        with patch('ctypes.CDLL', side_effect=AssertionError('native library loaded')):
+            importlib.reload(image_links)
+            importlib.reload(verify_image_links)
+
     def test_vm_guard_precedes_files_and_native_tools(self):
         with patch.object(image_links, 'require_disposable_host', side_effect=RuntimeError('disposable VM required')):
             calls = [lambda: image_links.prepare(Path('absent'), None),

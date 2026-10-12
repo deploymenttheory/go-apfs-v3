@@ -18,7 +18,6 @@ from capture import sha256
 from container_building import require_disposable_host
 from image_metadata import metadata_files, STAMP
 from image_repacking import Commands, version
-from metadata_edits import set_metadata, set_attribute
 from verify_image_metadata import mounted
 from verify_preservation import require
 
@@ -95,6 +94,7 @@ def payload(size):
 
 def prepare(root, command):
     require_disposable_host()
+    from metadata_edits import set_attribute
     (root / 'replace').write_bytes(payload(65537))
     set_attribute(root / 'replace', 'org.go-apfs.links.discard', payload(8193))
     framework = root / FRAMEWORK
@@ -121,6 +121,7 @@ def prepare(root, command):
 
 def apply(root, ops, command, clocks=None):
     require_disposable_host()
+    from metadata_edits import set_metadata, set_attribute
     before = metadata_files(root)
     latest = max(e['changeNS'] for e in before['entries'])
     delay = latest // 10**9 + 1 - time.time()
