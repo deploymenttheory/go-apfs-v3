@@ -200,8 +200,14 @@ def capture(references, output, kind, major):
                 # BTreeHeaderRec.leafRecords at byte 20 of the header node.
                 with image.open('rb') as raw:
                     raw.seek(attrs['extents'][0][0] * 4096 + 20)
-                    require(struct.unpack('>I', raw.read(4))[0] == 0,
-                            'Apple control starts with an empty attributes B-tree')
+                    records = struct.unpack('>I', raw.read(4))[0]
+                # Native services/signing can add their own records while the
+                # fixture is populated. Keep the actual count and observations;
+                # none of the tested files has an ordinary user attribute yet.
+                before['initialAttributeRecords'] = records
+                for entry in before['files']['entries']:
+                    require(not any(name.startswith('org.go-apfs.') for name in entry['rawAttributes']),
+                            'new-volume files begin without the tested attributes')
             source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
             item = {'id': case_id, 'source': source, 'before': before, 'states': {},
                     'emptyAttributeTree': empty_attributes}
