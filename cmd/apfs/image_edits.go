@@ -17,7 +17,10 @@ import (
 )
 
 func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
-	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" {
+	if verb == "xattr" && f.Lookup("w").Value.String() != "true" && f.Lookup("d").Value.String() != "true" {
+		return readImageAttributes(ctx, f, common, source, partition, operands, out)
+	}
+	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" && verb != "chown" && verb != "chflags" && verb != "touch" && verb != "xattr" {
 		return fmt.Errorf("existing-image %s: %w", verb, filesystem.ErrUnsupported)
 	}
 	if common.name != "" || destination == "" || partition < 0 {
@@ -41,6 +44,21 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		allowed["R"] = true
 		allowed["f"] = true
 	}
+	if verb == "chmod" || verb == "chown" || verb == "chflags" {
+		allowed["R"] = true
+		allowed["h"] = true
+		allowed["P"] = true
+	}
+	if verb == "touch" {
+		for _, name := range []string{"a", "m", "c", "h", "d", "r"} {
+			allowed[name] = true
+		}
+	}
+	if verb == "xattr" {
+		for _, name := range []string{"w", "d", "s", "x", "value-file"} {
+			allowed[name] = true
+		}
+	}
 	f.Visit(func(option *flag.Flag) {
 		if !allowed[option.Name] {
 			err = fmt.Errorf("--%s is unsupported for existing-image %s: %w", option.Name, verb, filesystem.ErrUnsupported)
@@ -58,12 +76,19 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	}
 	var changes []imageedit.Change
 	switch verb {
+	case "chown", "chflags", "touch", "xattr":
+		var close func() error
+		changes, close, err = imageMetadataChanges(verb, f, operands)
+		defer func() { err = errors.Join(err, close()) }()
+		if err != nil {
+			return err
+		}
 	case "chmod":
 		if len(operands) < 2 {
 			return fmt.Errorf("usage: apfs chmod --image IMAGE --output NEW_DMG MODE PATH [PATH]")
 		}
 		for _, path := range operands[1:] {
-			changes = append(changes, imageedit.Change{Operation: verb, Path: path, Mode: operands[0]})
+			changes = append(changes, imageedit.Change{Operation: verb, Path: path, Mode: operands[0], Recursive: f.Lookup("R").Value.String() == "true", NoFollow: f.Lookup("h").Value.String() == "true"})
 		}
 	case "mkdir", "rm":
 		if len(operands) == 0 {

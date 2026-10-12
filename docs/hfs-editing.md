@@ -193,3 +193,11 @@ Apple qualifies it again. Profiles have separate bounded jobs in the same family
 The journaled baseline is retained separately under
 `acceptance/testdata/hfs-journaled-editing` (about 11 MiB). All six sources replay
 in about 21 seconds locally. Fresh native verification remains a required gate.
+
+## Existing-image metadata and attributes
+
+`chown`, `touch`, `chflags` and `xattr` now update original catalog/attribute
+records through the same allocator and completed-output transaction. See
+[metadata semantics and native evidence](image-metadata.md). Ordinary attributes
+require an initialized attributes tree; absent-file initialization remains
+unqualified. Newly formatted and populated trees retain native qualification.

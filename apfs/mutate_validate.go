@@ -187,9 +187,12 @@ func (m *mutation) validateOwnership() error {
 			if len(r.key) < 11 || len(r.value) < 4 || int(le.Uint16(r.value[2:])) != len(r.value)-4 {
 				return corrupt("mutation attribute bounds", 0)
 			}
+			// Independently captured ordinary attribute streams carry 0x10 on
+			// macOS 15/26/27. Its meaning is unpublished; the documented stream
+			// layout, complete extent ownership and contents are still validated.
 			flags := le.Uint16(r.value)
-			if flags&^uint16(7) != 0 || flags&3 != 1 && flags&3 != 2 {
-				return filesystem.ErrUnsupported
+			if flags&^uint16(0x1f) != 0 || flags&3 != 1 && flags&3 != 2 || flags&0x10 != 0 && flags&3 != 1 {
+				return fmt.Errorf("APFS attribute %q flags %#x: %w", string(r.key[10:len(r.key)-1]), flags, filesystem.ErrUnsupported)
 			}
 			if flags&1 != 0 {
 				if len(r.value) != 52 {
@@ -197,10 +200,10 @@ func (m *mutation) validateOwnership() error {
 				}
 				id := le.Uint64(r.value[4:])
 				if id == 0 || streams[id] {
-					return filesystem.ErrUnsupported
+					return fmt.Errorf("APFS attribute %q shared stream %d: %w", string(r.key[10:len(r.key)-1]), id, filesystem.ErrUnsupported)
 				}
 				streams[id] = true
-				owners[id] = p.id
+				owners[id] = attributeExtentOwner(p.id, id, flags)
 				size := le.Uint64(r.value[20:])
 				if size%4096 != 0 {
 					return corrupt("attribute stream allocation", 0)

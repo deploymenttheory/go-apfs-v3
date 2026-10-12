@@ -287,6 +287,9 @@ func (m *mutation) destination(path string) (*catalogItem, string, error) {
 	return parent, name, err
 }
 func (m *mutation) protected(r *catalogItem, root bool) error {
+	return m.protectedMetadata(r, root, false)
+}
+func (m *mutation) protectedMetadata(r *catalogItem, root, flagsChange bool) error {
 	if r == nil {
 		return fs.ErrNotExist
 	}
@@ -311,7 +314,11 @@ func (m *mutation) protected(r *catalogItem, root bool) error {
 		record = inode.value
 	}
 	flags := uint32(record[40])<<16 | uint32(record[41])
-	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(record[2:])&1 != 0 {
+	mask := uint32(0x00060006 | 0x40000000)
+	if flagsChange {
+		mask &^= 6
+	}
+	if flags&mask != 0 || be.Uint16(record[2:])&1 != 0 {
 		return fmt.Errorf("locked, immutable, append-only or dataless catalog record: %w", filesystem.ErrUnsupported)
 	}
 	return nil
@@ -791,6 +798,13 @@ func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
 		if c.Data == nil && c.Mode != "" {
 			op = "chmod"
 		}
+	}
+	if op == "chown" || op == "chflags" || op == "touch" || op == "xattr" || op == "chmod" {
+		c.Operation = op
+		return m.editMetadata(c, stamp)
+	}
+	if c.Metadata != nil || c.Flags != "" || c.Attribute != "" || c.AttributeMode != "" || c.DeleteAttribute || c.NoCreate || c.NoFollow || c.Reference != "" || c.Access || c.Modify {
+		return 0, fs.ErrInvalid
 	}
 	if (op != "mv" && c.Destination != "") || (op != "mkdir" && c.Parents) || (op != "rm" && (c.Recursive || c.Force)) || ((op != "cp" && op != "mv") && c.NoClobber) || (op != "cp" && (c.Name != "" || c.ResourceFork || c.Data != nil)) || ((op == "rm" || op == "mv") && c.Mode != "") {
 		return 0, fs.ErrInvalid

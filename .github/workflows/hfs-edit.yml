@@ -33,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
+          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
@@ -65,22 +65,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageEditing$/macos-15', artifact: Linux-15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-15', artifact: Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageEditing$/macos-26', artifact: Linux-26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-26', artifact: Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageEditing$/macos-27', artifact: Linux-27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSJournaledImageEditing$/macos-27', artifact: Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: Windows, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: macOS, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSImageEditing$/macos-15', artifact: Linux-15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSJournaledImageEditing$/macos-15', artifact: Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSImageEditing$/macos-26', artifact: Linux-26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSJournaledImageEditing$/macos-26', artifact: Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSImageEditing$/macos-27', artifact: Linux-27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSJournaledImageEditing$/macos-27', artifact: Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: Windows, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: macOS, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
           - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCatalogEditing$', artifact: Catalog-Windows, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
           - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$', artifact: Catalog-Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
           - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCatalogEditing$', artifact: Catalog-macOS, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
@@ -109,6 +109,17 @@ jobs:
           APFS_HFS_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
           APFS_HFS_JOURNALED_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
           APFS_HFS_JOURNALED_EDIT_OUTPUT: ../artifacts/${{ matrix.prefix }}-edits-${{ matrix.platform }}
+      - name: Compare native metadata and allocated attribute transitions
+        if: matrix.operations == 'file contents, modes and metadata'
+        shell: bash
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$METADATA_TESTS"
+        env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          METADATA_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageMetadataEditing$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
+          APFS_NATIVE_HFS_METADATA: ../artifacts/${{ matrix.prefix }}-editing/metadata
+          APFS_NATIVE_HFS_JOURNALED_METADATA: ../artifacts/${{ matrix.prefix }}-editing/metadata
+          APFS_HFS_METADATA_OUTPUT: ../artifacts/${{ matrix.prefix }}-metadata-${{ matrix.platform }}
+          APFS_HFS_JOURNALED_METADATA_OUTPUT: ../artifacts/${{ matrix.prefix }}-metadata-${{ matrix.platform }}
       - name: Archive actual portable output images
         env:
           HFS_OUTPUT_ARTIFACT: ${{ matrix.artifact }}
@@ -123,7 +134,11 @@ jobs:
           else
             output_directory="${{ matrix.prefix }}-edits-${{ matrix.platform }}"
           fi
-          tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "$output_directory"
+          output_directories=("$output_directory")
+          if [[ "$HFS_OUTPUT_ARTIFACT" != Catalog-* ]]; then
+            output_directories+=("${{ matrix.prefix }}-metadata-${{ matrix.platform }}")
+          fi
+          tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${output_directories[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ matrix.prefix }}-edits-${{ matrix.artifact }}
@@ -140,12 +155,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
-          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents and modes'}
-          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents and modes'}
+          - {runner: macos-15, major: 15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: macos-15, major: 15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, major: 26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: macos-26, major: 26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
+          - {runner: xcode-27, major: 27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
+          - {runner: xcode-27, major: 27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
@@ -189,6 +204,16 @@ jobs:
           APFS_HFS_CATALOG_CONTINUED_OUTPUT: ../artifacts/catalog-continued-go
       - name: Qualify continued Go catalog operations with Apple fsck and remount
         run: python3 acceptance/native/verify_hfs_catalog_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/catalog-continued-go ${{ matrix.journal }}
+      - name: Qualify metadata storage, FinderInfo and continued native attribute writes
+        run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --corpus artifacts/${{ matrix.prefix }}-editing/metadata --outputs artifacts/outputs --continuation artifacts/metadata-continued-native
+      - name: Re-edit native metadata and compare the complete independent result
+        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageMetadataEditingContinuation$'
+        env:
+          APFS_IMAGE_METADATA_KIND: hfs
+          APFS_IMAGE_METADATA_CONTINUATION: ../artifacts/metadata-continued-native
+          APFS_IMAGE_METADATA_CONTINUED_OUTPUT: ../artifacts/metadata-continued-go
+      - name: Qualify complete continued metadata state with Apple tools
+        run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --continued artifacts/metadata-continued-go --controls artifacts/metadata-continued-native
       - name: Explain the independently verified capability
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -209,6 +234,10 @@ jobs:
           Twelve additional catalog images qualified creation, moves, Unicode names,
           overwrite, unlink/final-link storage reclamation, compressed-file removal
           and native/Go/native continued tree edits. Their bytes matched on all hosts.
+          Metadata outputs additionally qualify numeric ownership, precise clocks,
+          BSD flags, FinderInfo, long-key growth and inline/allocated attribute transitions.
+          Independent continued Apple writes become Go inputs, and separate Apple-only
+          copies supply complete expectations for the final native/Go/native cycle.
           Native tooling ran only in disposable VMs.
           EOF
       - name: Retain failed or successful native verification diagnostics
@@ -220,6 +249,7 @@ jobs:
             artifacts/outputs/*.diagnostics.json
             artifacts/continued-go/*.diagnostics.json
             artifacts/catalog-continued-go/*.diagnostics.json
+            artifacts/metadata-continued-go/*.diagnostics.json
           if-no-files-found: warn
 
   complete:

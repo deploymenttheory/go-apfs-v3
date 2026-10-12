@@ -7,10 +7,10 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 	"io/fs"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -87,64 +87,22 @@ func (s *Session) Chmod(ctx context.Context, paths []string, expression string, 
 }
 func (s *Session) Chown(ctx context.Context, paths []string, owner string, o WalkOptions) (Report, error) {
 	o.includeLinks = true
-	parts := strings.Split(owner, ":")
-	if len(parts) > 2 || owner == "" || owner == ":" {
-		return Report{}, fs.ErrInvalid
-	}
-	m := filesystem.Metadata{}
-	if parts[0] != "" {
-		v, e := strconv.ParseUint(parts[0], 10, 32)
-		if e != nil || uint32(v) == ^uint32(0) {
-			return Report{}, fs.ErrInvalid
-		}
-		m.UID = filesystem.Observed(uint32(v))
-	}
-	if len(parts) == 2 && parts[1] != "" {
-		v, e := strconv.ParseUint(parts[1], 10, 32)
-		if e != nil || uint32(v) == ^uint32(0) {
-			return Report{}, fs.ErrInvalid
-		}
-		m.GID = filesystem.Observed(uint32(v))
+	m, err := metadata.Owner(owner)
+	if err != nil {
+		return Report{}, err
 	}
 	return s.patch(ctx, paths, o, func(filesystem.Node) (filesystem.Metadata, error) { return m, nil })
 }
 func (s *Session) Chflags(ctx context.Context, paths []string, flags string, o WalkOptions) (Report, error) {
-	names := map[string]uint32{"nodump": 1, "uchg": 2, "uchange": 2, "uimmutable": 2, "uappnd": 4, "uappend": 4, "opaque": 8, "hidden": 0x8000}
-	if flags == "" {
-		return Report{}, fs.ErrInvalid
-	}
 	return s.patch(ctx, paths, o, func(n filesystem.Node) (filesystem.Metadata, error) {
 		if n.Metadata.BSDFlags.State != filesystem.Present {
 			return filesystem.Metadata{}, filesystem.ErrUnsupported
 		}
-		v := n.Metadata.BSDFlags.Value
-		if flags[0] >= '0' && flags[0] <= '9' {
-			number, e := strconv.ParseUint(flags, 8, 32)
-			if e != nil || uint32(number)&^uint32(0x800f) != 0 {
-				return filesystem.Metadata{}, filesystem.ErrUnsupported
-			}
-			v = v&^uint32(0x800f) | uint32(number)
-		} else {
-			for _, name := range strings.Split(flags, ",") {
-				bit, ok := names[name]
-				remove := false
-				if !ok && strings.HasPrefix(name, "no") {
-					bit, ok = names[name[2:]]
-					remove = true
-				}
-				if !ok {
-					return filesystem.Metadata{}, filesystem.ErrUnsupported
-				}
-				if remove {
-					v &^= bit
-				} else {
-					v |= bit
-				}
-			}
-		}
-		return filesystem.Metadata{BSDFlags: filesystem.Observed(v)}, nil
+		v, err := metadata.Flags(n.Metadata.BSDFlags.Value, flags)
+		return filesystem.Metadata{BSDFlags: filesystem.Observed(v)}, err
 	})
 }
+
 func (s *Session) patch(ctx context.Context, paths []string, o WalkOptions, makePatch func(filesystem.Node) (filesystem.Metadata, error)) (Report, error) {
 	return s.mutate(ctx, func(c *command) error {
 		targets, err := collect(ctx, c.tree, paths, o)

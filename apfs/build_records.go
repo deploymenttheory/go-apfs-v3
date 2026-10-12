@@ -25,6 +25,17 @@ func buildExtentReference(address, blocks, owner uint64) buildRecord {
 	le.PutUint32(v[16:], 1)
 	return buildRecord{buildKey(address, 2, 0), v}
 }
+
+// Native ordinary attribute streams with flag 0x10 own their physical extents
+// by stream ID. Legacy attributes (including resource forks) use the inode ID.
+// The 2020 reference omits 0x10; retained macOS 15/26/27 captures and full native
+// continuation qualify this distinction without assigning a private Apple name.
+func attributeExtentOwner(inode, stream uint64, flags uint16) uint64 {
+	if flags&0x10 != 0 {
+		return stream
+	}
+	return inode
+}
 func buildStreamValue(s *buildStream) []byte {
 	b := make([]byte, 40)
 	le.PutUint64(b, uint64(s.size))

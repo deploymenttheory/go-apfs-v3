@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   capture:
-    name: Record Apple-created APFS file and directory edits (macOS ${{ matrix.major }})
+    name: Record Apple-created APFS file, directory and metadata edits (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
@@ -52,7 +52,7 @@ jobs:
 
   replay:
     if: ${{ !inputs.capture_only }}
-    name: Edit APFS files and directories (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
+    name: Edit APFS files, directories and metadata (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
     needs: capture
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -88,6 +88,13 @@ jobs:
           APFS_APFS_EDIT_OUTPUT: ../artifacts/apfs-edits-${{ matrix.host }}
           APFS_NATIVE_APFS_DIRECTORY_EDITS: ../artifacts/apfs-editing/directories
           APFS_APFS_DIRECTORY_OUTPUT: ../artifacts/apfs-directories-${{ matrix.host }}
+      - name: Compare ownership, clocks, flags, FinderInfo and allocated attributes
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$'
+        env:
+          CGO_ENABLED: ${{ matrix.host == 'Linux' && '1' || '0' }}
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_APFS_METADATA: ../artifacts/apfs-editing/metadata
+          APFS_APFS_METADATA_OUTPUT: ../artifacts/apfs-metadata-${{ matrix.host }}
       - name: Archive actual portable output images
         shell: bash
         run: |
@@ -95,7 +102,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }}
+          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }} apfs-metadata-${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
@@ -156,6 +163,16 @@ jobs:
           APFS_APFS_DIRECTORY_CONTINUED_OUTPUT: ../artifacts/apfs-directories-continued-go
       - name: Qualify subsequent Go directory edits with Apple fsck and remount
         run: python3 acceptance/native/verify_apfs_directory_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/apfs-directories-continued-go
+      - name: Qualify metadata images and capture independent continued native controls
+        run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --corpus artifacts/apfs-editing/metadata --outputs artifacts/outputs --continuation artifacts/metadata-continued-native
+      - name: Re-edit native attribute streams and compare the complete Apple result
+        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageMetadataEditingContinuation$'
+        env:
+          APFS_IMAGE_METADATA_KIND: apfs
+          APFS_IMAGE_METADATA_CONTINUATION: ../artifacts/metadata-continued-native
+          APFS_IMAGE_METADATA_CONTINUED_OUTPUT: ../artifacts/metadata-continued-go
+      - name: Qualify complete continued metadata state with Apple tools
+        run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/metadata-continued-go --controls artifacts/metadata-continued-native
       - name: Retain native verification diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -165,6 +182,7 @@ jobs:
             artifacts/outputs/*.diagnostics.json
             artifacts/apfs-continued-go/*.diagnostics.json
             artifacts/apfs-directories-continued-go/*.diagnostics.json
+            artifacts/metadata-continued-go/*.diagnostics.json
           if-no-files-found: error
 
   complete:

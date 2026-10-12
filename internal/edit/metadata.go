@@ -8,13 +8,12 @@ import (
 	"io/fs"
 	"math"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/finderinfo"
+	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 )
 
 // AttributeMode follows Apple's XATTR_CREATE / XATTR_REPLACE conditions. The
@@ -75,7 +74,7 @@ func (r *Tree) hasAttribute(ctx context.Context, id uint64, name string) (bool, 
 }
 
 func validAttributeName(name string) bool {
-	return name != "" && len(name) <= 127 && utf8.ValidString(name) && !strings.ContainsRune(name, 0)
+	return metadata.ValidAttributeName(name)
 }
 
 func (r *Tree) editMetadata(ctx context.Context, c Change) error {
@@ -107,8 +106,8 @@ func (r *Tree) editMetadata(ctx context.Context, c Change) error {
 	}
 	// These values control decoding or native authorization, rather than an
 	// ordinary opaque attribute. Preserve them; require a dedicated operation.
-	if name == filesystem.Decmpfs || name == "com.apple.system.Security" || strings.HasPrefix(name, "com.apple.fs.") {
-		return filesystem.ErrUnsupported
+	if err := metadata.AttributeName(name); err != nil {
+		return err
 	}
 	if name == filesystem.ResourceFork {
 		if c.Op == SetAttribute {

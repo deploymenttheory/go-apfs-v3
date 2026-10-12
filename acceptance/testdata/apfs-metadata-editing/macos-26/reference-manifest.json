@@ -1,0 +1,3303 @@
+{
+  "schema": 1,
+  "major": 26,
+  "producer": {
+    "system": "macOS",
+    "version": "26.6.2",
+    "build": "25G83",
+    "architecture": "arm64",
+    "tools": {
+      "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs": "cb766c122d2412c745ed39ba71e12cc6425b4976c7f213557828695edd0ba429",
+      "/usr/bin/hdiutil": "7b73b38f363c3fa1a338fb876d7bb7c9a6a8a9e5c1ba82fd74d8453a74c6795a"
+    },
+    "sources": {
+      "apfs_editing.py": "dab0a2f0171d991390e06edcdd95508863327cc12036d47d394a363e0ae642b2",
+      "capture.py": "d4af5119024280dff03a262e0d759c8ccac8e0e52badba357d4627f8489ad15b",
+      "container_building.py": "4c3dd9834fb4f204ccdfbcadff7056af599dc2656e9392ccb8070cad2df51dde",
+      "file_compression.py": "a8efd89a3a854b8fc8265a696be45f48bb6475401968ce4418810c8c115d1049",
+      "hfs_header_growth.py": "1d23caf642883a4a9f275a39a11cf928f970fd22ee6c75955fb2aac78b3b8c62",
+      "image_repacking.py": "bac4818fa3c5fd21021d7465aa4570251501bd92f2e277ea26405686e43ec041",
+      "image_building.py": "775e7ea1467a139fb1b6ea9dff7d5087c1198812b2afaf391b5eb7f5b649b7bf",
+      "image_mutation.py": "70205f2a4dbb5bfc4172371d21e0c4cb55c88f6de867f26bd4a1dcc5a0099fa3",
+      "verify_preservation.py": "cd3583091bbd947c57870d899d86b94ea871b9b294935daf7416e301675655d0",
+      "metadata_edits.py": "7e8543ac291445facdf7b9529f367e5ed83b400794c81ed1e3ecd74326499137",
+      "content_replacement.py": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3",
+      "preservation.py": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75"
+    }
+  },
+  "cases": [
+    {
+      "id": "apfs",
+      "source": {
+        "image": "apfs-source.raw.gz",
+        "sha256": "1dc5340dcefbdef8697498abff46e5d310032359c480b80910448ef313f1d83a",
+        "uncompressedSHA256": "7b5bba840cfea61383ecbf1a618a3992f41cece1041d9041e4a71cde27e86e42",
+        "uncompressedBytes": 134217728
+      },
+      "before": {
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 18,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780423987981291,
+              "changeNS": 1791780423987981291,
+              "accessNS": 1791780421811946458,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app",
+              "object": 33,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422062076124,
+              "changeNS": 1791780422062076124,
+              "accessNS": 1791780422061991208,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents",
+              "object": 34,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780423971890874,
+              "changeNS": 1791780423971890874,
+              "accessNS": 1791780422062074291,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Info.plist",
+              "object": 38,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422087339624,
+              "changeNS": 1791780422087339624,
+              "accessNS": 1791780422087265916,
+              "size": 471,
+              "links": 1,
+              "attributes": {},
+              "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/MacOS",
+              "object": 35,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780423972722041,
+              "changeNS": 1791780423972722041,
+              "accessNS": 1791780422062137708,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/MacOS/Example",
+              "object": 43,
+              "mode": 33261,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780423,
+              "modifyNS": 1791780423972649583,
+              "changeNS": 1791780423972721958,
+              "accessNS": 1791780423954122166,
+              "size": 84000,
+              "links": 1,
+              "attributes": {},
+              "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Resources",
+              "object": 36,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422062456499,
+              "changeNS": 1791780422062456499,
+              "accessNS": 1791780422062206416,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Resources/message.txt",
+              "object": 37,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422062830624,
+              "changeNS": 1791780422062830624,
+              "accessNS": 1791780422062446583,
+              "size": 49,
+              "links": 1,
+              "attributes": {},
+              "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/_CodeSignature",
+              "object": 41,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780423972063291,
+              "changeNS": 1791780423972063291,
+              "accessNS": 1791780422061991208,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+              "object": 42,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780423,
+              "modifyNS": 1791780423972088041,
+              "changeNS": 1791780423972088041,
+              "accessNS": 1791780423972061999,
+              "size": 2444,
+              "links": 1,
+              "attributes": {},
+              "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Unicode-\u00e9",
+              "object": 32,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422025279291,
+              "changeNS": 1791780422025279291,
+              "accessNS": 1791780422025190791,
+              "size": 19,
+              "links": 1,
+              "attributes": {},
+              "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 22,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780424030621999,
+              "changeNS": 1791780424030621999,
+              "accessNS": 1791780421816145624,
+              "size": 4194318,
+              "links": 2,
+              "attributes": {},
+              "sha256": "9f4b8d814a265c78563dfe9306f459f7ca8133d4f68e898a42dce691f2286bd8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/empty",
+              "object": 20,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780424032364833,
+              "changeNS": 1791780424032364833,
+              "accessNS": 1791780421812280791,
+              "size": 0,
+              "links": 1,
+              "attributes": {},
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/fragmented-data",
+              "object": 22,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780424030621999,
+              "changeNS": 1791780424030621999,
+              "accessNS": 1791780421816145624,
+              "size": 4194318,
+              "links": 2,
+              "attributes": {},
+              "sha256": "9f4b8d814a265c78563dfe9306f459f7ca8133d4f68e898a42dce691f2286bd8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/fragmented-resource",
+              "object": 23,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780424030942124,
+              "changeNS": 1791780424030942124,
+              "accessNS": 1791780421824903166,
+              "size": 14,
+              "links": 1,
+              "attributes": {
+                "com.apple.ResourceFork": {
+                  "size": 4194304,
+                  "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                }
+              },
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 4194304,
+                  "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                }
+              }
+            },
+            {
+              "path": "Fixture/guards",
+              "object": 44,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780423,
+              "modifyNS": 1791780424032294749,
+              "changeNS": 1791780424032294749,
+              "accessNS": 1791780423987979458,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/independent",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780421884594208,
+              "changeNS": 1791780421925318541,
+              "accessNS": 1791780421812913499,
+              "size": 14,
+              "links": 1,
+              "attributes": {
+                "com.apple.ResourceFork": {
+                  "size": 18,
+                  "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                },
+                "org.go-apfs.retained": {
+                  "size": 26,
+                  "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                }
+              },
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 18,
+                  "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                },
+                "org.go-apfs.retained": {
+                  "size": 26,
+                  "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                }
+              }
+            },
+            {
+              "path": "Fixture/inline-compressed",
+              "object": 25,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 32,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780421986284958,
+              "changeNS": 1791780421986290166,
+              "accessNS": 1791780421925888749,
+              "size": 1200,
+              "links": 1,
+              "attributes": {},
+              "sha256": "1a1968365d703144877efcbf57137f6833336775dc031d0da0654d6411a62f07",
+              "rawAttributes": {
+                "com.apple.decmpfs": {
+                  "size": 342,
+                  "sha256": "437146f538ef983579099f8915a8069f2ab02054f0e0092736abee60b3cebe56"
+                }
+              }
+            },
+            {
+              "path": "Fixture/resource-compressed",
+              "object": 27,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 32,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780422023986874,
+              "changeNS": 1791780422023990791,
+              "accessNS": 1791780421987352374,
+              "size": 65553,
+              "links": 1,
+              "attributes": {},
+              "sha256": "ef5e844304436a504f99de9822772f874e44e5175d6f399a871cb38334718e49",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 1226,
+                  "sha256": "87f6047f43dee8ca7b09573190fc90f46775ea61da4bb141a7ed2950c964c36f"
+                },
+                "com.apple.decmpfs": {
+                  "size": 16,
+                  "sha256": "a1e5345e97755582aa9be879b20da9a459b4a9b4a97edf9b03e4fd52f4b52ba3"
+                }
+              }
+            },
+            {
+              "path": "Fixture/small",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780421,
+              "modifyNS": 1791780421812110208,
+              "changeNS": 1791780421812110208,
+              "accessNS": 1791780421812050874,
+              "size": 14,
+              "links": 1,
+              "attributes": {},
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/symlink",
+              "object": 31,
+              "mode": 41453,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780422,
+              "modifyNS": 1791780422024821916,
+              "changeNS": 1791780422024821916,
+              "accessNS": 1791780422024821916,
+              "size": 15,
+              "links": 1,
+              "attributes": {},
+              "target": "fragmented-data",
+              "rawAttributes": {}
+            }
+          ]
+        },
+        "nativeExtents": {
+          "fragmented-data": [
+            {
+              "logical": 0,
+              "physical": 1433600,
+              "length": 4096
+            },
+            {
+              "logical": 4096,
+              "physical": 1728512,
+              "length": 131072
+            },
+            {
+              "logical": 135168,
+              "physical": 2121728,
+              "length": 131072
+            },
+            {
+              "logical": 266240,
+              "physical": 2514944,
+              "length": 131072
+            },
+            {
+              "logical": 397312,
+              "physical": 2908160,
+              "length": 131072
+            },
+            {
+              "logical": 528384,
+              "physical": 3301376,
+              "length": 131072
+            },
+            {
+              "logical": 659456,
+              "physical": 3694592,
+              "length": 131072
+            },
+            {
+              "logical": 790528,
+              "physical": 4087808,
+              "length": 131072
+            },
+            {
+              "logical": 921600,
+              "physical": 4481024,
+              "length": 131072
+            },
+            {
+              "logical": 1052672,
+              "physical": 4874240,
+              "length": 1048576
+            },
+            {
+              "logical": 2101248,
+              "physical": 8019968,
+              "length": 1048576
+            },
+            {
+              "logical": 3149824,
+              "physical": 11165696,
+              "length": 1044494
+            }
+          ],
+          "fragmented-resource": [
+            {
+              "logical": 0,
+              "physical": 1859584,
+              "length": 131072
+            },
+            {
+              "logical": 131072,
+              "physical": 2252800,
+              "length": 131072
+            },
+            {
+              "logical": 262144,
+              "physical": 2646016,
+              "length": 131072
+            },
+            {
+              "logical": 393216,
+              "physical": 3039232,
+              "length": 131072
+            },
+            {
+              "logical": 524288,
+              "physical": 3432448,
+              "length": 131072
+            },
+            {
+              "logical": 655360,
+              "physical": 3825664,
+              "length": 131072
+            },
+            {
+              "logical": 786432,
+              "physical": 4218880,
+              "length": 131072
+            },
+            {
+              "logical": 917504,
+              "physical": 4612096,
+              "length": 131072
+            },
+            {
+              "logical": 1048576,
+              "physical": 5922816,
+              "length": 131072
+            },
+            {
+              "logical": 1179648,
+              "physical": 6184960,
+              "length": 131072
+            },
+            {
+              "logical": 1310720,
+              "physical": 6447104,
+              "length": 131072
+            },
+            {
+              "logical": 1441792,
+              "physical": 6709248,
+              "length": 131072
+            },
+            {
+              "logical": 1572864,
+              "physical": 6971392,
+              "length": 131072
+            },
+            {
+              "logical": 1703936,
+              "physical": 7233536,
+              "length": 131072
+            },
+            {
+              "logical": 1835008,
+              "physical": 7495680,
+              "length": 131072
+            },
+            {
+              "logical": 1966080,
+              "physical": 7757824,
+              "length": 131072
+            },
+            {
+              "logical": 2097152,
+              "physical": 9068544,
+              "length": 131072
+            },
+            {
+              "logical": 2228224,
+              "physical": 9330688,
+              "length": 131072
+            },
+            {
+              "logical": 2359296,
+              "physical": 9592832,
+              "length": 131072
+            },
+            {
+              "logical": 2490368,
+              "physical": 9854976,
+              "length": 131072
+            },
+            {
+              "logical": 2621440,
+              "physical": 10117120,
+              "length": 131072
+            },
+            {
+              "logical": 2752512,
+              "physical": 10379264,
+              "length": 131072
+            },
+            {
+              "logical": 2883584,
+              "physical": 10641408,
+              "length": 131072
+            },
+            {
+              "logical": 3014656,
+              "physical": 10903552,
+              "length": 131072
+            },
+            {
+              "logical": 3145728,
+              "physical": 12214272,
+              "length": 131072
+            },
+            {
+              "logical": 3276800,
+              "physical": 12476416,
+              "length": 131072
+            },
+            {
+              "logical": 3407872,
+              "physical": 12738560,
+              "length": 131072
+            },
+            {
+              "logical": 3538944,
+              "physical": 13000704,
+              "length": 131072
+            },
+            {
+              "logical": 3670016,
+              "physical": 13262848,
+              "length": 131072
+            },
+            {
+              "logical": 3801088,
+              "physical": 13524992,
+              "length": 131072
+            },
+            {
+              "logical": 3932160,
+              "physical": 13787136,
+              "length": 131072
+            },
+            {
+              "logical": 4063232,
+              "physical": 14049280,
+              "length": 131072
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "volumeUUID": "D29B33F4-7F93-4CB0-966C-945C75E35D53"
+      },
+      "states": {
+        "peak": {
+          "files": {
+            "schema": 1,
+            "root": "Fixture",
+            "entries": [
+              {
+                "path": "Fixture",
+                "object": 18,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1791780423987981291,
+                "changeNS": 1791780423987981291,
+                "accessNS": 1791780421811946458,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app",
+                "object": 33,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062076124,
+                "changeNS": 1791780422062076124,
+                "accessNS": 1791780422061991208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents",
+                "object": 34,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423971890874,
+                "changeNS": 1791780423971890874,
+                "accessNS": 1791780422062074291,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Info.plist",
+                "object": 38,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422087339624,
+                "changeNS": 1791780422087339624,
+                "accessNS": 1791780422087265916,
+                "size": 471,
+                "links": 1,
+                "attributes": {},
+                "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS",
+                "object": 35,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423972722041,
+                "changeNS": 1791780423972722041,
+                "accessNS": 1791780422062137708,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS/Example",
+                "object": 43,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780423972649583,
+                "changeNS": 1791780423972721958,
+                "accessNS": 1791780423954122166,
+                "size": 84000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources",
+                "object": 36,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062456499,
+                "changeNS": 1791780422062456499,
+                "accessNS": 1791780422062206416,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources/message.txt",
+                "object": 37,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062830624,
+                "changeNS": 1791780422062830624,
+                "accessNS": 1791780422062446583,
+                "size": 49,
+                "links": 1,
+                "attributes": {},
+                "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature",
+                "object": 41,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423972063291,
+                "changeNS": 1791780423972063291,
+                "accessNS": 1791780422061991208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+                "object": 42,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780423972088041,
+                "changeNS": 1791780423972088041,
+                "accessNS": 1791780423972061999,
+                "size": 2444,
+                "links": 1,
+                "attributes": {},
+                "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Unicode-\u00e9",
+                "object": 32,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422025279291,
+                "changeNS": 1791780422025279291,
+                "accessNS": 1791780422025190791,
+                "size": 19,
+                "links": 1,
+                "attributes": {},
+                "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/alias",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437193289458,
+                "accessNS": 1791780421816145624,
+                "size": 20971520,
+                "links": 2,
+                "attributes": {},
+                "sha256": "f07b592bec838493346b93ddec56fc4d80b5ff398ff31e40aa7ca6fcb585709f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/empty",
+                "object": 20,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1791780424032364833,
+                "changeNS": 1791780424032364833,
+                "accessNS": 1791780421812280791,
+                "size": 0,
+                "links": 1,
+                "attributes": {},
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-data",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437193289458,
+                "accessNS": 1791780421816145624,
+                "size": 20971520,
+                "links": 2,
+                "attributes": {},
+                "sha256": "f07b592bec838493346b93ddec56fc4d80b5ff398ff31e40aa7ca6fcb585709f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-resource",
+                "object": 23,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1791780424030942124,
+                "changeNS": 1791780424030942124,
+                "accessNS": 1791780421824903166,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 4194304,
+                    "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 4194304,
+                    "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/guards",
+                "object": 44,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780424032294749,
+                "changeNS": 1791780424032294749,
+                "accessNS": 1791780423987979458,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/independent",
+                "object": 21,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1791780421884594208,
+                "changeNS": 1791780421925318541,
+                "accessNS": 1791780421812913499,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/inline-compressed",
+                "object": 25,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194407499,
+                "accessNS": 1791780421925888749,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "15f3857265f8d6a7a950ec1659c93aa45d82554093b299b1e45be1fedc88eddb",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/resource-compressed",
+                "object": 27,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194856583,
+                "accessNS": 1791780421987352374,
+                "size": 100000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "d8d3f5893ab5f0bfbd616c04ae69cbd27e34495af478910730f6baea1ab01da1",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/small",
+                "object": 19,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194883583,
+                "accessNS": 1791780421812050874,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "5a8c15323900824699827794b944af6ec5858b873bbe7fe873aa4589ad02d4e6",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/symlink",
+                "object": 31,
+                "mode": 41453,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422024821916,
+                "changeNS": 1791780422024821916,
+                "accessNS": 1791780422024821916,
+                "size": 15,
+                "links": 1,
+                "attributes": {},
+                "target": "fragmented-data",
+                "rawAttributes": {}
+              }
+            ]
+          },
+          "nativeExtents": {
+            "fragmented-data": [
+              {
+                "logical": 0,
+                "physical": 14180352,
+                "length": 16908288
+              },
+              {
+                "logical": 16908288,
+                "physical": 31092736,
+                "length": 4063232
+              }
+            ],
+            "fragmented-resource": [
+              {
+                "logical": 0,
+                "physical": 1859584,
+                "length": 131072
+              },
+              {
+                "logical": 131072,
+                "physical": 2252800,
+                "length": 131072
+              },
+              {
+                "logical": 262144,
+                "physical": 2646016,
+                "length": 131072
+              },
+              {
+                "logical": 393216,
+                "physical": 3039232,
+                "length": 131072
+              },
+              {
+                "logical": 524288,
+                "physical": 3432448,
+                "length": 131072
+              },
+              {
+                "logical": 655360,
+                "physical": 3825664,
+                "length": 131072
+              },
+              {
+                "logical": 786432,
+                "physical": 4218880,
+                "length": 131072
+              },
+              {
+                "logical": 917504,
+                "physical": 4612096,
+                "length": 131072
+              },
+              {
+                "logical": 1048576,
+                "physical": 5922816,
+                "length": 131072
+              },
+              {
+                "logical": 1179648,
+                "physical": 6184960,
+                "length": 131072
+              },
+              {
+                "logical": 1310720,
+                "physical": 6447104,
+                "length": 131072
+              },
+              {
+                "logical": 1441792,
+                "physical": 6709248,
+                "length": 131072
+              },
+              {
+                "logical": 1572864,
+                "physical": 6971392,
+                "length": 131072
+              },
+              {
+                "logical": 1703936,
+                "physical": 7233536,
+                "length": 131072
+              },
+              {
+                "logical": 1835008,
+                "physical": 7495680,
+                "length": 131072
+              },
+              {
+                "logical": 1966080,
+                "physical": 7757824,
+                "length": 131072
+              },
+              {
+                "logical": 2097152,
+                "physical": 9068544,
+                "length": 131072
+              },
+              {
+                "logical": 2228224,
+                "physical": 9330688,
+                "length": 131072
+              },
+              {
+                "logical": 2359296,
+                "physical": 9592832,
+                "length": 131072
+              },
+              {
+                "logical": 2490368,
+                "physical": 9854976,
+                "length": 131072
+              },
+              {
+                "logical": 2621440,
+                "physical": 10117120,
+                "length": 131072
+              },
+              {
+                "logical": 2752512,
+                "physical": 10379264,
+                "length": 131072
+              },
+              {
+                "logical": 2883584,
+                "physical": 10641408,
+                "length": 131072
+              },
+              {
+                "logical": 3014656,
+                "physical": 10903552,
+                "length": 131072
+              },
+              {
+                "logical": 3145728,
+                "physical": 12214272,
+                "length": 131072
+              },
+              {
+                "logical": 3276800,
+                "physical": 12476416,
+                "length": 131072
+              },
+              {
+                "logical": 3407872,
+                "physical": 12738560,
+                "length": 131072
+              },
+              {
+                "logical": 3538944,
+                "physical": 13000704,
+                "length": 131072
+              },
+              {
+                "logical": 3670016,
+                "physical": 13262848,
+                "length": 131072
+              },
+              {
+                "logical": 3801088,
+                "physical": 13524992,
+                "length": 131072
+              },
+              {
+                "logical": 3932160,
+                "physical": 13787136,
+                "length": 131072
+              },
+              {
+                "logical": 4063232,
+                "physical": 14049280,
+                "length": 131072
+              }
+            ]
+          },
+          "checkerStatus": 0,
+          "volumeUUID": "D29B33F4-7F93-4CB0-966C-945C75E35D53",
+          "archive": {
+            "image": "apfs-peak.raw.gz",
+            "sha256": "aefcd1fca01a912304dc5130a06f24fc15074ec459e6a37836cc4d5e423daa39",
+            "uncompressedSHA256": "6c5e14be4a0ca67121f1397c85b80abec69102b8c9e4f53b677dce4d4294bdae",
+            "uncompressedBytes": 134217728
+          }
+        },
+        "final": {
+          "files": {
+            "schema": 1,
+            "root": "Fixture",
+            "entries": [
+              {
+                "path": "Fixture",
+                "object": 18,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1791780423987981291,
+                "changeNS": 1791780423987981291,
+                "accessNS": 1791780421811946458,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app",
+                "object": 33,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062076124,
+                "changeNS": 1791780422062076124,
+                "accessNS": 1791780422061991208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents",
+                "object": 34,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423971890874,
+                "changeNS": 1791780423971890874,
+                "accessNS": 1791780422062074291,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Info.plist",
+                "object": 38,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422087339624,
+                "changeNS": 1791780422087339624,
+                "accessNS": 1791780422087265916,
+                "size": 471,
+                "links": 1,
+                "attributes": {},
+                "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS",
+                "object": 35,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423972722041,
+                "changeNS": 1791780423972722041,
+                "accessNS": 1791780422062137708,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS/Example",
+                "object": 43,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780423972649583,
+                "changeNS": 1791780423972721958,
+                "accessNS": 1791780423954122166,
+                "size": 84000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources",
+                "object": 36,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062456499,
+                "changeNS": 1791780422062456499,
+                "accessNS": 1791780422062206416,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources/message.txt",
+                "object": 37,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422062830624,
+                "changeNS": 1791780422062830624,
+                "accessNS": 1791780422062446583,
+                "size": 49,
+                "links": 1,
+                "attributes": {},
+                "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature",
+                "object": 41,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780423972063291,
+                "changeNS": 1791780423972063291,
+                "accessNS": 1791780422061991208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+                "object": 42,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780423972088041,
+                "changeNS": 1791780423972088041,
+                "accessNS": 1791780423972061999,
+                "size": 2444,
+                "links": 1,
+                "attributes": {},
+                "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Unicode-\u00e9",
+                "object": 32,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422025279291,
+                "changeNS": 1791780422025279291,
+                "accessNS": 1791780422025190791,
+                "size": 19,
+                "links": 1,
+                "attributes": {},
+                "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/alias",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780439172746374,
+                "accessNS": 1791780421816145624,
+                "size": 513,
+                "links": 2,
+                "attributes": {},
+                "sha256": "b9c9e54d456b0383e2e3b213951686fd94be1414cfa515ae0799e7e0362ebc6f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/empty",
+                "object": 20,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780439178305083,
+                "accessNS": 1791780421812280791,
+                "size": 0,
+                "links": 1,
+                "attributes": {},
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-data",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780439172746374,
+                "accessNS": 1791780421816145624,
+                "size": 513,
+                "links": 2,
+                "attributes": {},
+                "sha256": "b9c9e54d456b0383e2e3b213951686fd94be1414cfa515ae0799e7e0362ebc6f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-resource",
+                "object": 23,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780439177905333,
+                "accessNS": 1791780421824903166,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 131073,
+                    "sha256": "8ec88df8d4f8115043add4a306fbbdc8b4f7b4614ed8a6a8d268fe748b57bd8c"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 131073,
+                    "sha256": "8ec88df8d4f8115043add4a306fbbdc8b4f7b4614ed8a6a8d268fe748b57bd8c"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/guards",
+                "object": 44,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780423,
+                "modifyNS": 1791780424032294749,
+                "changeNS": 1791780424032294749,
+                "accessNS": 1791780423987979458,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/independent",
+                "object": 21,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780439178641999,
+                "accessNS": 1791780421812913499,
+                "size": 65537,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                },
+                "sha256": "8862edfd10d94715991f0aaf9050a39fe2299f87427123b77a47318f20031482",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/inline-compressed",
+                "object": 25,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194407499,
+                "accessNS": 1791780421925888749,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "15f3857265f8d6a7a950ec1659c93aa45d82554093b299b1e45be1fedc88eddb",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/resource-compressed",
+                "object": 27,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194856583,
+                "accessNS": 1791780421987352374,
+                "size": 100000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "d8d3f5893ab5f0bfbd616c04ae69cbd27e34495af478910730f6baea1ab01da1",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/small",
+                "object": 19,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780421,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780437194883583,
+                "accessNS": 1791780421812050874,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "5a8c15323900824699827794b944af6ec5858b873bbe7fe873aa4589ad02d4e6",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/symlink",
+                "object": 31,
+                "mode": 41453,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780422,
+                "modifyNS": 1791780422024821916,
+                "changeNS": 1791780422024821916,
+                "accessNS": 1791780422024821916,
+                "size": 15,
+                "links": 1,
+                "attributes": {},
+                "target": "fragmented-data",
+                "rawAttributes": {}
+              }
+            ]
+          },
+          "nativeExtents": {
+            "fragmented-data": [
+              {
+                "logical": 0,
+                "physical": 1433600,
+                "length": 513
+              }
+            ],
+            "fragmented-resource": [
+              {
+                "logical": 0,
+                "physical": 1736704,
+                "length": 131072
+              },
+              {
+                "logical": 131072,
+                "physical": 1871872,
+                "length": 1
+              }
+            ]
+          },
+          "checkerStatus": 0,
+          "volumeUUID": "D29B33F4-7F93-4CB0-966C-945C75E35D53",
+          "archive": {
+            "image": "apfs-final.raw.gz",
+            "sha256": "6760e2c5eace9a55a51de66f85f5b4b14b69c8f99fb089f5b1644385151ae613",
+            "uncompressedSHA256": "7a7e30dacc9807eb72aa543a11cd0b0332cee691f59c940f69b62b1c5c6577c4",
+            "uncompressedBytes": 134217728
+          }
+        }
+      }
+    },
+    {
+      "id": "apfs-case-sensitive",
+      "source": {
+        "image": "apfs-case-sensitive-source.raw.gz",
+        "sha256": "2be9c3571aac638c3b48d217e17f6fa6ffd09b95e250ecf834e3003165855455",
+        "uncompressedSHA256": "bd2d11cd19e7ff6c9a0ed8d272be20d24275c64bb66f0fde20688be5088e00ed",
+        "uncompressedBytes": 134217728
+      },
+      "before": {
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 18,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442367805124,
+              "changeNS": 1791780442367805124,
+              "accessNS": 1791780442193816916,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app",
+              "object": 33,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198486416,
+              "changeNS": 1791780442198486416,
+              "accessNS": 1791780442198443499,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents",
+              "object": 34,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442352238541,
+              "changeNS": 1791780442352238541,
+              "accessNS": 1791780442198485208,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Info.plist",
+              "object": 38,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198964041,
+              "changeNS": 1791780442198964041,
+              "accessNS": 1791780442198925166,
+              "size": 471,
+              "links": 1,
+              "attributes": {},
+              "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/MacOS",
+              "object": 35,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442353211583,
+              "changeNS": 1791780442353211583,
+              "accessNS": 1791780442198541083,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/MacOS/Example",
+              "object": 43,
+              "mode": 33261,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442353155124,
+              "changeNS": 1791780442353211541,
+              "accessNS": 1791780442340019083,
+              "size": 84000,
+              "links": 1,
+              "attributes": {},
+              "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Resources",
+              "object": 36,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198687374,
+              "changeNS": 1791780442198687374,
+              "accessNS": 1791780442198601124,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/Resources/message.txt",
+              "object": 37,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198741374,
+              "changeNS": 1791780442198741374,
+              "accessNS": 1791780442198684999,
+              "size": 49,
+              "links": 1,
+              "attributes": {},
+              "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/_CodeSignature",
+              "object": 41,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442352457583,
+              "changeNS": 1791780442352457583,
+              "accessNS": 1791780442198443499,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+              "object": 42,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442352500833,
+              "changeNS": 1791780442352500833,
+              "accessNS": 1791780442352455791,
+              "size": 2444,
+              "links": 1,
+              "attributes": {},
+              "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/Unicode-\u00e9",
+              "object": 32,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198326249,
+              "changeNS": 1791780442198326249,
+              "accessNS": 1791780442198284916,
+              "size": 19,
+              "links": 1,
+              "attributes": {},
+              "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 22,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442389391208,
+              "changeNS": 1791780442389391208,
+              "accessNS": 1791780442195679208,
+              "size": 4194318,
+              "links": 2,
+              "attributes": {},
+              "sha256": "9f4b8d814a265c78563dfe9306f459f7ca8133d4f68e898a42dce691f2286bd8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/empty",
+              "object": 20,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442391111791,
+              "changeNS": 1791780442391111791,
+              "accessNS": 1791780442194177791,
+              "size": 0,
+              "links": 1,
+              "attributes": {},
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/fragmented-data",
+              "object": 22,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442389391208,
+              "changeNS": 1791780442389391208,
+              "accessNS": 1791780442195679208,
+              "size": 4194318,
+              "links": 2,
+              "attributes": {},
+              "sha256": "9f4b8d814a265c78563dfe9306f459f7ca8133d4f68e898a42dce691f2286bd8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/fragmented-resource",
+              "object": 23,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442389801791,
+              "changeNS": 1791780442389801791,
+              "accessNS": 1791780442195778291,
+              "size": 14,
+              "links": 1,
+              "attributes": {
+                "com.apple.ResourceFork": {
+                  "size": 4194304,
+                  "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                }
+              },
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 4194304,
+                  "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                }
+              }
+            },
+            {
+              "path": "Fixture/guards",
+              "object": 44,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442391041124,
+              "changeNS": 1791780442391041124,
+              "accessNS": 1791780442367803166,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/independent",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442196232749,
+              "changeNS": 1791780442196322249,
+              "accessNS": 1791780442195558374,
+              "size": 14,
+              "links": 1,
+              "attributes": {
+                "com.apple.ResourceFork": {
+                  "size": 18,
+                  "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                },
+                "org.go-apfs.retained": {
+                  "size": 26,
+                  "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                }
+              },
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 18,
+                  "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                },
+                "org.go-apfs.retained": {
+                  "size": 26,
+                  "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                }
+              }
+            },
+            {
+              "path": "Fixture/inline-compressed",
+              "object": 25,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 32,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442196986291,
+              "changeNS": 1791780442196988291,
+              "accessNS": 1791780442196709124,
+              "size": 1200,
+              "links": 1,
+              "attributes": {},
+              "sha256": "1a1968365d703144877efcbf57137f6833336775dc031d0da0654d6411a62f07",
+              "rawAttributes": {
+                "com.apple.decmpfs": {
+                  "size": 342,
+                  "sha256": "437146f538ef983579099f8915a8069f2ab02054f0e0092736abee60b3cebe56"
+                }
+              }
+            },
+            {
+              "path": "Fixture/resource-compressed",
+              "object": 27,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 32,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442197776958,
+              "changeNS": 1791780442197784499,
+              "accessNS": 1791780442197531499,
+              "size": 65553,
+              "links": 1,
+              "attributes": {},
+              "sha256": "ef5e844304436a504f99de9822772f874e44e5175d6f399a871cb38334718e49",
+              "rawAttributes": {
+                "com.apple.ResourceFork": {
+                  "size": 1226,
+                  "sha256": "87f6047f43dee8ca7b09573190fc90f46775ea61da4bb141a7ed2950c964c36f"
+                },
+                "com.apple.decmpfs": {
+                  "size": 16,
+                  "sha256": "a1e5345e97755582aa9be879b20da9a459b4a9b4a97edf9b03e4fd52f4b52ba3"
+                }
+              }
+            },
+            {
+              "path": "Fixture/small",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442194029333,
+              "changeNS": 1791780442194029333,
+              "accessNS": 1791780442193955291,
+              "size": 14,
+              "links": 1,
+              "attributes": {},
+              "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/symlink",
+              "object": 31,
+              "mode": 41453,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791780442,
+              "modifyNS": 1791780442198186666,
+              "changeNS": 1791780442198186666,
+              "accessNS": 1791780442198186666,
+              "size": 15,
+              "links": 1,
+              "attributes": {},
+              "target": "fragmented-data",
+              "rawAttributes": {}
+            }
+          ]
+        },
+        "nativeExtents": {
+          "fragmented-data": [
+            {
+              "logical": 0,
+              "physical": 1433600,
+              "length": 4096
+            },
+            {
+              "logical": 4096,
+              "physical": 1728512,
+              "length": 131072
+            },
+            {
+              "logical": 135168,
+              "physical": 2121728,
+              "length": 131072
+            },
+            {
+              "logical": 266240,
+              "physical": 2514944,
+              "length": 131072
+            },
+            {
+              "logical": 397312,
+              "physical": 2908160,
+              "length": 131072
+            },
+            {
+              "logical": 528384,
+              "physical": 3301376,
+              "length": 131072
+            },
+            {
+              "logical": 659456,
+              "physical": 3694592,
+              "length": 131072
+            },
+            {
+              "logical": 790528,
+              "physical": 4087808,
+              "length": 131072
+            },
+            {
+              "logical": 921600,
+              "physical": 4481024,
+              "length": 131072
+            },
+            {
+              "logical": 1052672,
+              "physical": 4874240,
+              "length": 131072
+            },
+            {
+              "logical": 1183744,
+              "physical": 5267456,
+              "length": 131072
+            },
+            {
+              "logical": 1314816,
+              "physical": 5660672,
+              "length": 131072
+            },
+            {
+              "logical": 1445888,
+              "physical": 6053888,
+              "length": 131072
+            },
+            {
+              "logical": 1576960,
+              "physical": 6447104,
+              "length": 131072
+            },
+            {
+              "logical": 1708032,
+              "physical": 6840320,
+              "length": 131072
+            },
+            {
+              "logical": 1839104,
+              "physical": 7233536,
+              "length": 131072
+            },
+            {
+              "logical": 1970176,
+              "physical": 7626752,
+              "length": 131072
+            },
+            {
+              "logical": 2101248,
+              "physical": 8019968,
+              "length": 131072
+            },
+            {
+              "logical": 2232320,
+              "physical": 8413184,
+              "length": 131072
+            },
+            {
+              "logical": 2363392,
+              "physical": 8806400,
+              "length": 131072
+            },
+            {
+              "logical": 2494464,
+              "physical": 9199616,
+              "length": 131072
+            },
+            {
+              "logical": 2625536,
+              "physical": 9592832,
+              "length": 131072
+            },
+            {
+              "logical": 2756608,
+              "physical": 9986048,
+              "length": 131072
+            },
+            {
+              "logical": 2887680,
+              "physical": 10379264,
+              "length": 131072
+            },
+            {
+              "logical": 3018752,
+              "physical": 10772480,
+              "length": 131072
+            },
+            {
+              "logical": 3149824,
+              "physical": 11165696,
+              "length": 131072
+            },
+            {
+              "logical": 3280896,
+              "physical": 11558912,
+              "length": 131072
+            },
+            {
+              "logical": 3411968,
+              "physical": 11952128,
+              "length": 131072
+            },
+            {
+              "logical": 3543040,
+              "physical": 12345344,
+              "length": 131072
+            },
+            {
+              "logical": 3674112,
+              "physical": 12738560,
+              "length": 131072
+            },
+            {
+              "logical": 3805184,
+              "physical": 13131776,
+              "length": 131072
+            },
+            {
+              "logical": 3936256,
+              "physical": 13524992,
+              "length": 131072
+            },
+            {
+              "logical": 4067328,
+              "physical": 13918208,
+              "length": 126990
+            }
+          ],
+          "fragmented-resource": [
+            {
+              "logical": 0,
+              "physical": 1859584,
+              "length": 131072
+            },
+            {
+              "logical": 131072,
+              "physical": 2252800,
+              "length": 131072
+            },
+            {
+              "logical": 262144,
+              "physical": 2646016,
+              "length": 131072
+            },
+            {
+              "logical": 393216,
+              "physical": 3039232,
+              "length": 131072
+            },
+            {
+              "logical": 524288,
+              "physical": 3432448,
+              "length": 131072
+            },
+            {
+              "logical": 655360,
+              "physical": 3825664,
+              "length": 131072
+            },
+            {
+              "logical": 786432,
+              "physical": 4218880,
+              "length": 131072
+            },
+            {
+              "logical": 917504,
+              "physical": 4612096,
+              "length": 131072
+            },
+            {
+              "logical": 1048576,
+              "physical": 5005312,
+              "length": 131072
+            },
+            {
+              "logical": 1179648,
+              "physical": 5398528,
+              "length": 131072
+            },
+            {
+              "logical": 1310720,
+              "physical": 5791744,
+              "length": 131072
+            },
+            {
+              "logical": 1441792,
+              "physical": 6184960,
+              "length": 131072
+            },
+            {
+              "logical": 1572864,
+              "physical": 6578176,
+              "length": 131072
+            },
+            {
+              "logical": 1703936,
+              "physical": 6971392,
+              "length": 131072
+            },
+            {
+              "logical": 1835008,
+              "physical": 7364608,
+              "length": 131072
+            },
+            {
+              "logical": 1966080,
+              "physical": 7757824,
+              "length": 131072
+            },
+            {
+              "logical": 2097152,
+              "physical": 8151040,
+              "length": 131072
+            },
+            {
+              "logical": 2228224,
+              "physical": 8544256,
+              "length": 131072
+            },
+            {
+              "logical": 2359296,
+              "physical": 8937472,
+              "length": 131072
+            },
+            {
+              "logical": 2490368,
+              "physical": 9330688,
+              "length": 131072
+            },
+            {
+              "logical": 2621440,
+              "physical": 9723904,
+              "length": 131072
+            },
+            {
+              "logical": 2752512,
+              "physical": 10117120,
+              "length": 131072
+            },
+            {
+              "logical": 2883584,
+              "physical": 10510336,
+              "length": 131072
+            },
+            {
+              "logical": 3014656,
+              "physical": 10903552,
+              "length": 131072
+            },
+            {
+              "logical": 3145728,
+              "physical": 11296768,
+              "length": 131072
+            },
+            {
+              "logical": 3276800,
+              "physical": 11689984,
+              "length": 131072
+            },
+            {
+              "logical": 3407872,
+              "physical": 12083200,
+              "length": 131072
+            },
+            {
+              "logical": 3538944,
+              "physical": 12476416,
+              "length": 131072
+            },
+            {
+              "logical": 3670016,
+              "physical": 12869632,
+              "length": 131072
+            },
+            {
+              "logical": 3801088,
+              "physical": 13262848,
+              "length": 131072
+            },
+            {
+              "logical": 3932160,
+              "physical": 13656064,
+              "length": 131072
+            },
+            {
+              "logical": 4063232,
+              "physical": 14049280,
+              "length": 131072
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "volumeUUID": "CE55F8EB-FDEC-4BC7-83FB-EE039C4013EE"
+      },
+      "states": {
+        "peak": {
+          "files": {
+            "schema": 1,
+            "root": "Fixture",
+            "entries": [
+              {
+                "path": "Fixture",
+                "object": 18,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442367805124,
+                "changeNS": 1791780442367805124,
+                "accessNS": 1791780442193816916,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app",
+                "object": 33,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198486416,
+                "changeNS": 1791780442198486416,
+                "accessNS": 1791780442198443499,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents",
+                "object": 34,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352238541,
+                "changeNS": 1791780442352238541,
+                "accessNS": 1791780442198485208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Info.plist",
+                "object": 38,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198964041,
+                "changeNS": 1791780442198964041,
+                "accessNS": 1791780442198925166,
+                "size": 471,
+                "links": 1,
+                "attributes": {},
+                "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS",
+                "object": 35,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442353211583,
+                "changeNS": 1791780442353211583,
+                "accessNS": 1791780442198541083,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS/Example",
+                "object": 43,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442353155124,
+                "changeNS": 1791780442353211541,
+                "accessNS": 1791780442340019083,
+                "size": 84000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources",
+                "object": 36,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198687374,
+                "changeNS": 1791780442198687374,
+                "accessNS": 1791780442198601124,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources/message.txt",
+                "object": 37,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198741374,
+                "changeNS": 1791780442198741374,
+                "accessNS": 1791780442198684999,
+                "size": 49,
+                "links": 1,
+                "attributes": {},
+                "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature",
+                "object": 41,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352457583,
+                "changeNS": 1791780442352457583,
+                "accessNS": 1791780442198443499,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+                "object": 42,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352500833,
+                "changeNS": 1791780442352500833,
+                "accessNS": 1791780442352455791,
+                "size": 2444,
+                "links": 1,
+                "attributes": {},
+                "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Unicode-\u00e9",
+                "object": 32,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198326249,
+                "changeNS": 1791780442198326249,
+                "accessNS": 1791780442198284916,
+                "size": 19,
+                "links": 1,
+                "attributes": {},
+                "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/alias",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444985853708,
+                "accessNS": 1791780442195679208,
+                "size": 20971520,
+                "links": 2,
+                "attributes": {},
+                "sha256": "f07b592bec838493346b93ddec56fc4d80b5ff398ff31e40aa7ca6fcb585709f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/empty",
+                "object": 20,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442391111791,
+                "changeNS": 1791780442391111791,
+                "accessNS": 1791780442194177791,
+                "size": 0,
+                "links": 1,
+                "attributes": {},
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-data",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444985853708,
+                "accessNS": 1791780442195679208,
+                "size": 20971520,
+                "links": 2,
+                "attributes": {},
+                "sha256": "f07b592bec838493346b93ddec56fc4d80b5ff398ff31e40aa7ca6fcb585709f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-resource",
+                "object": 23,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442389801791,
+                "changeNS": 1791780442389801791,
+                "accessNS": 1791780442195778291,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 4194304,
+                    "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 4194304,
+                    "sha256": "cdbf1b762396cabd9176e2b5f8bdbb26d97e830246b20f4178b47300718944cd"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/guards",
+                "object": 44,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442391041124,
+                "changeNS": 1791780442391041124,
+                "accessNS": 1791780442367803166,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/independent",
+                "object": 21,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442196232749,
+                "changeNS": 1791780442196322249,
+                "accessNS": 1791780442195558374,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/inline-compressed",
+                "object": 25,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444986621833,
+                "accessNS": 1791780442196709124,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "15f3857265f8d6a7a950ec1659c93aa45d82554093b299b1e45be1fedc88eddb",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/resource-compressed",
+                "object": 27,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444987080124,
+                "accessNS": 1791780442197531499,
+                "size": 100000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "d8d3f5893ab5f0bfbd616c04ae69cbd27e34495af478910730f6baea1ab01da1",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/small",
+                "object": 19,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444987108874,
+                "accessNS": 1791780442193955291,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "5a8c15323900824699827794b944af6ec5858b873bbe7fe873aa4589ad02d4e6",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/symlink",
+                "object": 31,
+                "mode": 41453,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198186666,
+                "changeNS": 1791780442198186666,
+                "accessNS": 1791780442198186666,
+                "size": 15,
+                "links": 1,
+                "attributes": {},
+                "target": "fragmented-data",
+                "rawAttributes": {}
+              }
+            ]
+          },
+          "nativeExtents": {
+            "fragmented-data": [
+              {
+                "logical": 0,
+                "physical": 14180352,
+                "length": 16908288
+              },
+              {
+                "logical": 16908288,
+                "physical": 31092736,
+                "length": 4063232
+              }
+            ],
+            "fragmented-resource": [
+              {
+                "logical": 0,
+                "physical": 1859584,
+                "length": 131072
+              },
+              {
+                "logical": 131072,
+                "physical": 2252800,
+                "length": 131072
+              },
+              {
+                "logical": 262144,
+                "physical": 2646016,
+                "length": 131072
+              },
+              {
+                "logical": 393216,
+                "physical": 3039232,
+                "length": 131072
+              },
+              {
+                "logical": 524288,
+                "physical": 3432448,
+                "length": 131072
+              },
+              {
+                "logical": 655360,
+                "physical": 3825664,
+                "length": 131072
+              },
+              {
+                "logical": 786432,
+                "physical": 4218880,
+                "length": 131072
+              },
+              {
+                "logical": 917504,
+                "physical": 4612096,
+                "length": 131072
+              },
+              {
+                "logical": 1048576,
+                "physical": 5005312,
+                "length": 131072
+              },
+              {
+                "logical": 1179648,
+                "physical": 5398528,
+                "length": 131072
+              },
+              {
+                "logical": 1310720,
+                "physical": 5791744,
+                "length": 131072
+              },
+              {
+                "logical": 1441792,
+                "physical": 6184960,
+                "length": 131072
+              },
+              {
+                "logical": 1572864,
+                "physical": 6578176,
+                "length": 131072
+              },
+              {
+                "logical": 1703936,
+                "physical": 6971392,
+                "length": 131072
+              },
+              {
+                "logical": 1835008,
+                "physical": 7364608,
+                "length": 131072
+              },
+              {
+                "logical": 1966080,
+                "physical": 7757824,
+                "length": 131072
+              },
+              {
+                "logical": 2097152,
+                "physical": 8151040,
+                "length": 131072
+              },
+              {
+                "logical": 2228224,
+                "physical": 8544256,
+                "length": 131072
+              },
+              {
+                "logical": 2359296,
+                "physical": 8937472,
+                "length": 131072
+              },
+              {
+                "logical": 2490368,
+                "physical": 9330688,
+                "length": 131072
+              },
+              {
+                "logical": 2621440,
+                "physical": 9723904,
+                "length": 131072
+              },
+              {
+                "logical": 2752512,
+                "physical": 10117120,
+                "length": 131072
+              },
+              {
+                "logical": 2883584,
+                "physical": 10510336,
+                "length": 131072
+              },
+              {
+                "logical": 3014656,
+                "physical": 10903552,
+                "length": 131072
+              },
+              {
+                "logical": 3145728,
+                "physical": 11296768,
+                "length": 131072
+              },
+              {
+                "logical": 3276800,
+                "physical": 11689984,
+                "length": 131072
+              },
+              {
+                "logical": 3407872,
+                "physical": 12083200,
+                "length": 131072
+              },
+              {
+                "logical": 3538944,
+                "physical": 12476416,
+                "length": 131072
+              },
+              {
+                "logical": 3670016,
+                "physical": 12869632,
+                "length": 131072
+              },
+              {
+                "logical": 3801088,
+                "physical": 13262848,
+                "length": 131072
+              },
+              {
+                "logical": 3932160,
+                "physical": 13656064,
+                "length": 131072
+              },
+              {
+                "logical": 4063232,
+                "physical": 14049280,
+                "length": 131072
+              }
+            ]
+          },
+          "checkerStatus": 0,
+          "volumeUUID": "CE55F8EB-FDEC-4BC7-83FB-EE039C4013EE",
+          "archive": {
+            "image": "apfs-case-sensitive-peak.raw.gz",
+            "sha256": "013c6c093da37b9b29cdb075fb4ec8ac5bdaf557680bb7556332e95c7d29ca2d",
+            "uncompressedSHA256": "b31d80086fc7dc20e68c81e9ab374b74271b2005aca3935773728fd4cdd93313",
+            "uncompressedBytes": 134217728
+          }
+        },
+        "final": {
+          "files": {
+            "schema": 1,
+            "root": "Fixture",
+            "entries": [
+              {
+                "path": "Fixture",
+                "object": 18,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442367805124,
+                "changeNS": 1791780442367805124,
+                "accessNS": 1791780442193816916,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app",
+                "object": 33,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198486416,
+                "changeNS": 1791780442198486416,
+                "accessNS": 1791780442198443499,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents",
+                "object": 34,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352238541,
+                "changeNS": 1791780442352238541,
+                "accessNS": 1791780442198485208,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Info.plist",
+                "object": 38,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198964041,
+                "changeNS": 1791780442198964041,
+                "accessNS": 1791780442198925166,
+                "size": 471,
+                "links": 1,
+                "attributes": {},
+                "sha256": "09bc6ab9ceb67dc8e7d7725c088071f3569594db71dde5d0bbe17b45ee01945e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS",
+                "object": 35,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442353211583,
+                "changeNS": 1791780442353211583,
+                "accessNS": 1791780442198541083,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/MacOS/Example",
+                "object": 43,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442353155124,
+                "changeNS": 1791780442353211541,
+                "accessNS": 1791780442340019083,
+                "size": 84000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "579dff12cd3d4c20fb8b012d56b953c92aa6ff1c2f7c9d706f3da8028d60d68e",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources",
+                "object": 36,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198687374,
+                "changeNS": 1791780442198687374,
+                "accessNS": 1791780442198601124,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/Resources/message.txt",
+                "object": 37,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198741374,
+                "changeNS": 1791780442198741374,
+                "accessNS": 1791780442198684999,
+                "size": 49,
+                "links": 1,
+                "attributes": {},
+                "sha256": "14344dc1c21503cf3030f95593ea91355c9834d5761ff1fd8019eef4c29417a9",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature",
+                "object": 41,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352457583,
+                "changeNS": 1791780442352457583,
+                "accessNS": 1791780442198443499,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Example.app/Contents/_CodeSignature/CodeResources",
+                "object": 42,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442352500833,
+                "changeNS": 1791780442352500833,
+                "accessNS": 1791780442352455791,
+                "size": 2444,
+                "links": 1,
+                "attributes": {},
+                "sha256": "cb6429d34862c6ba663f37b16ff69e2a905dc35aefb1d14fe63d93b28a612f3c",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/Unicode-\u00e9",
+                "object": 32,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198326249,
+                "changeNS": 1791780442198326249,
+                "accessNS": 1791780442198284916,
+                "size": 19,
+                "links": 1,
+                "attributes": {},
+                "sha256": "3a164ff0fcc1e90cbe1b9a69c93426483ebc194f047d7b4824b6debf40114100",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/alias",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780446639734916,
+                "accessNS": 1791780442195679208,
+                "size": 513,
+                "links": 2,
+                "attributes": {},
+                "sha256": "b9c9e54d456b0383e2e3b213951686fd94be1414cfa515ae0799e7e0362ebc6f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/empty",
+                "object": 20,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780446655279416,
+                "accessNS": 1791780442194177791,
+                "size": 0,
+                "links": 1,
+                "attributes": {},
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-data",
+                "object": 22,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780446639734916,
+                "accessNS": 1791780442195679208,
+                "size": 513,
+                "links": 2,
+                "attributes": {},
+                "sha256": "b9c9e54d456b0383e2e3b213951686fd94be1414cfa515ae0799e7e0362ebc6f",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/fragmented-resource",
+                "object": 23,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780446655009666,
+                "accessNS": 1791780442195778291,
+                "size": 14,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 131073,
+                    "sha256": "8ec88df8d4f8115043add4a306fbbdc8b4f7b4614ed8a6a8d268fe748b57bd8c"
+                  }
+                },
+                "sha256": "e0f12c5f7b63db5afccfc34fabe9ac114468e12925bd0e34f8f980abc12400b8",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 131073,
+                    "sha256": "8ec88df8d4f8115043add4a306fbbdc8b4f7b4614ed8a6a8d268fe748b57bd8c"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/guards",
+                "object": 44,
+                "mode": 16877,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442391041124,
+                "changeNS": 1791780442391041124,
+                "accessNS": 1791780442367803166,
+                "attributes": {},
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/independent",
+                "object": 21,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780446656144624,
+                "accessNS": 1791780442195558374,
+                "size": 65537,
+                "links": 1,
+                "attributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                },
+                "sha256": "8862edfd10d94715991f0aaf9050a39fe2299f87427123b77a47318f20031482",
+                "rawAttributes": {
+                  "com.apple.ResourceFork": {
+                    "size": 18,
+                    "sha256": "aa1c97af7d84f6581aac2e61518172ffab3a343644918bed4b0c53120a97fc52"
+                  },
+                  "org.go-apfs.retained": {
+                    "size": 26,
+                    "sha256": "e14c2e51f22954a868a50ed7c1221d92c212741f7883a516767c241960fa2e69"
+                  }
+                }
+              },
+              {
+                "path": "Fixture/inline-compressed",
+                "object": 25,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444986621833,
+                "accessNS": 1791780442196709124,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "15f3857265f8d6a7a950ec1659c93aa45d82554093b299b1e45be1fedc88eddb",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/resource-compressed",
+                "object": 27,
+                "mode": 33188,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444987080124,
+                "accessNS": 1791780442197531499,
+                "size": 100000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "d8d3f5893ab5f0bfbd616c04ae69cbd27e34495af478910730f6baea1ab01da1",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/small",
+                "object": 19,
+                "mode": 33261,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1749283750000000000,
+                "changeNS": 1791780444987108874,
+                "accessNS": 1791780442193955291,
+                "size": 7000,
+                "links": 1,
+                "attributes": {},
+                "sha256": "5a8c15323900824699827794b944af6ec5858b873bbe7fe873aa4589ad02d4e6",
+                "rawAttributes": {}
+              },
+              {
+                "path": "Fixture/symlink",
+                "object": 31,
+                "mode": 41453,
+                "uid": 501,
+                "gid": 20,
+                "flags": 0,
+                "birthSeconds": 1791780442,
+                "modifyNS": 1791780442198186666,
+                "changeNS": 1791780442198186666,
+                "accessNS": 1791780442198186666,
+                "size": 15,
+                "links": 1,
+                "attributes": {},
+                "target": "fragmented-data",
+                "rawAttributes": {}
+              }
+            ]
+          },
+          "nativeExtents": {
+            "fragmented-data": [
+              {
+                "logical": 0,
+                "physical": 1433600,
+                "length": 513
+              }
+            ],
+            "fragmented-resource": [
+              {
+                "logical": 0,
+                "physical": 1744896,
+                "length": 131072
+              },
+              {
+                "logical": 131072,
+                "physical": 1880064,
+                "length": 1
+              }
+            ]
+          },
+          "checkerStatus": 0,
+          "volumeUUID": "CE55F8EB-FDEC-4BC7-83FB-EE039C4013EE",
+          "archive": {
+            "image": "apfs-case-sensitive-final.raw.gz",
+            "sha256": "c6fb733a2fd1e7549e7cbe9345ad59514de7805b39148729ff59be57f9bdffec",
+            "uncompressedSHA256": "49917f98697e3b38c021d0da825c32c92ea80c793976a0ccd916545fbe802ecb",
+            "uncompressedBytes": 134217728
+          }
+        }
+      }
+    }
+  ],
+  "contract": "existing-apfs-file-edits",
+  "modificationSeconds": 1749283750,
+  "capacityBytes": 134217728,
+  "commandsSHA256": "05358f0a837ee15f1b096089ea2645e13b4c81fa572b3f3b85787c39ddaed214"
+}

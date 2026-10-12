@@ -1,6 +1,6 @@
 # Editing existing APFS filesystems
 
-`cp`, `chmod`, `mkdir`, `mv` and `rm` with `--image` edit existing records
+`cp`, `chmod`, `mkdir`, `mv`, `rm`, `chown`, `touch`, `chflags` and `xattr` with `--image` edit existing records
 in a private decoded disk copy. A completed UDRO/UDZO image is published without overwriting a destination.
 The source remains read-only; scratch is managed internally.
 
@@ -140,3 +140,6 @@ Record layouts and primary-link selection follow the
 Apple's private APFS writer is not publicly available to port. These Go write
 rules interpret the published format and are qualified by independent native
 observations, rather than presented as a translation of private kernel C.
+
+Ownership, clocks, flags and attributes use the same transaction engine; see
+[existing-image metadata semantics](image-metadata.md) and native qualification.

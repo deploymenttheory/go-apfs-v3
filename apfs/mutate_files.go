@@ -8,7 +8,6 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
-	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
 func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
@@ -23,120 +22,77 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 		return 0, fmt.Errorf("APFS change requires an ordinary mutable file or directory: %w", filesystem.ErrUnsupported)
 	}
 	if c.Data == nil {
-		if le.Uint64(value[48:])&0x40 != 0 {
-			return 0, fmt.Errorf("ACL mode interaction requires credential policy: %w", filesystem.ErrUnsupported)
+		return 0, fs.ErrInvalid
+	}
+
+	if le.Uint16(value[80:])&06000 != 0 {
+		return 0, fmt.Errorf("set-ID replacement requires credential policy: %w", filesystem.ErrUnsupported)
+	}
+	if c.Operation == "chmod" || c.Mode != "" || c.Data.Size() < 0 {
+		return 0, fs.ErrInvalid
+	}
+	if c.ResourceFork {
+		if e = m.changeAttribute(Change{Attribute: filesystem.ResourceFork, Data: c.Data}, id, value); e != nil {
+			return 0, e
 		}
-		if c.Operation == "cp" || c.ResourceFork {
-			return 0, fs.ErrInvalid
+	} else {
+		if le.Uint32(value[68:])&0x20 != 0 {
+			compression, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, id, name) })
+			if e != nil {
+				return 0, e
+			}
+			ownsFork, e := decmpfs.UsesResourceFork(compression.Type)
+			if e != nil {
+				return 0, e
+			}
+			remove := []string{filesystem.Decmpfs}
+			if ownsFork {
+				remove = append(remove, filesystem.ResourceFork)
+			}
+			for _, name := range remove {
+				key := buildXattr(id, name, nil, 2).key
+				if attr, ok := m.fs.get(key); ok {
+					if e = m.removeAttributeStream(attr); e != nil {
+						return 0, e
+					}
+					if e = m.fs.put(key, nil); e != nil {
+						return 0, e
+					}
+				}
+			}
+			le.PutUint32(value[68:], le.Uint32(value[68:])&^uint32(0x20))
+			le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x40000))
+			if ownsFork {
+				le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x4000)|0x8000)
+			}
+			le.PutUint64(value[84:], 0)
 		}
-		p, e := mode.Parse(c.Mode, 0)
+		stream := le.Uint64(value[8:])
+		if stream == 0 {
+			stream = id
+			le.PutUint64(value[8:], stream)
+		}
+		blocks, e := m.replaceStream(stream, stream, c.Data)
 		if e != nil {
 			return 0, e
 		}
-		le.PutUint16(value[80:], uint16(p.Apply(uint32(le.Uint16(value[80:])))))
-	} else {
-		if le.Uint16(value[80:])&06000 != 0 {
-			return 0, fmt.Errorf("set-ID replacement requires credential policy: %w", filesystem.ErrUnsupported)
+		sv := make([]byte, 40)
+		le.PutUint64(sv, uint64(c.Data.Size()))
+		le.PutUint64(sv[8:], blocks*4096)
+		le.PutUint64(sv[24:], uint64(c.Data.Size()))
+		value, e = replaceInodeField(value, 8, 0x20, sv)
+		if e != nil {
+			return 0, e
 		}
-		if c.Operation == "chmod" || c.Mode != "" || c.Data.Size() < 0 {
-			return 0, fs.ErrInvalid
-		}
-		if c.ResourceFork {
-			if le.Uint32(value[68:])&0x20 != 0 {
-				return 0, fmt.Errorf("active compression owns resource storage: %w", filesystem.ErrUnsupported)
-			}
-			key := buildXattr(id, filesystem.ResourceFork, nil, 2).key
-			old, exists := m.fs.get(key)
-			if exists {
-				if e = m.removeAttributeStream(old); e != nil {
-					return 0, e
-				}
-			}
-			if c.Data.Size() <= 3500 {
-				data := make([]byte, c.Data.Size())
-				if e = block.ReadFull(c.Data, data, 0); e != nil {
-					return 0, e
-				}
-				if e = m.fs.put(key, buildXattr(id, filesystem.ResourceFork, data, 2).value); e != nil {
-					return 0, e
-				}
-			} else {
-				stream, e := m.nextFileID()
-				if e != nil {
-					return 0, e
-				}
-				blocks, e := m.replaceStream(stream, id, c.Data)
-				if e != nil {
-					return 0, e
-				}
-				sv := make([]byte, 48)
-				le.PutUint64(sv, stream)
-				le.PutUint64(sv[8:], uint64(c.Data.Size()))
-				le.PutUint64(sv[16:], blocks*4096)
-				le.PutUint64(sv[32:], uint64(c.Data.Size()))
-				if e = m.fs.put(key, buildXattr(id, filesystem.ResourceFork, sv, 1).value); e != nil {
-					return 0, e
-				}
-			}
-			le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x8000)|0x4000)
-		} else {
-			if le.Uint32(value[68:])&0x20 != 0 {
-				compression, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, id, name) })
-				if e != nil {
-					return 0, e
-				}
-				ownsFork, e := decmpfs.UsesResourceFork(compression.Type)
-				if e != nil {
-					return 0, e
-				}
-				remove := []string{filesystem.Decmpfs}
-				if ownsFork {
-					remove = append(remove, filesystem.ResourceFork)
-				}
-				for _, name := range remove {
-					key := buildXattr(id, name, nil, 2).key
-					if attr, ok := m.fs.get(key); ok {
-						if e = m.removeAttributeStream(attr); e != nil {
-							return 0, e
-						}
-						if e = m.fs.put(key, nil); e != nil {
-							return 0, e
-						}
-					}
-				}
-				le.PutUint32(value[68:], le.Uint32(value[68:])&^uint32(0x20))
-				le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x40000))
-				if ownsFork {
-					le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x4000)|0x8000)
-				}
-				le.PutUint64(value[84:], 0)
-			}
-			stream := le.Uint64(value[8:])
-			if stream == 0 {
-				stream = id
-				le.PutUint64(value[8:], stream)
-			}
-			blocks, e := m.replaceStream(stream, stream, c.Data)
-			if e != nil {
-				return 0, e
-			}
-			sv := make([]byte, 40)
-			le.PutUint64(sv, uint64(c.Data.Size()))
-			le.PutUint64(sv[8:], blocks*4096)
-			le.PutUint64(sv[24:], uint64(c.Data.Size()))
-			value, e = replaceInodeField(value, 8, 0x20, sv)
-			if e != nil {
-				return 0, e
-			}
-			rc := make([]byte, 4)
-			le.PutUint32(rc, 1)
-			if e = m.fs.put(buildKey(stream, 6, 0), rc); e != nil {
-				return 0, e
-			}
-			le.PutUint64(value[24:], stamp)
+		rc := make([]byte, 4)
+		le.PutUint32(rc, 1)
+		if e = m.fs.put(buildKey(stream, 6, 0), rc); e != nil {
+			return 0, e
 		}
 		le.PutUint64(value[24:], stamp)
 	}
+	le.PutUint64(value[24:], stamp)
+
 	le.PutUint64(value[32:], stamp)
 	if e = m.fs.put(r.key, value); e != nil {
 		return 0, e

@@ -119,6 +119,10 @@ unsupported. AES-256-XTS primitive vectors are tested independently; a native vo
 Invalid recognized structures fail explicitly. Inspection never replays a journal
 or repairs a source.
 
+Existing-image `chown`, `touch`, `chflags` and `xattr` also update ownership,
+clocks, user flags and attribute storage while preserving original identities.
+See [metadata command semantics and qualification](docs/image-metadata.md).
+
 ## Library
 
 ```go
