@@ -32,6 +32,8 @@ jobs:
   journal_recovery:
     if: ${{ inputs.journal_capture }}
     uses: ./.github/workflows/hfs-recovery.yml
+    with:
+      capture_only: true
 
   capture:
     if: ${{ !inputs.journal_capture }}

@@ -2,7 +2,16 @@ name: HFS journal recovery
 
 on:
   workflow_call:
+    inputs:
+      capture_only:
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      capture_only:
+        description: 'Record actual Apple pending journals and native replay only'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,3 +45,108 @@ jobs:
           name: hfs-recovery-reference-${{ matrix.major }}
           path: artifacts/hfs-recovery/macos-${{ matrix.major }}
           if-no-files-found: error
+
+  replay:
+    if: ${{ !inputs.capture_only }}
+    name: Compare Go recovery with Apple replay bytes (${{ matrix.platform }}, ${{ matrix.scope }})
+    needs: capture
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 15, source: 15, race: '-race', artifact: Linux-15}
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 26, source: 26, race: '-race', artifact: Linux-26}
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 27, source: 27, race: '-race', artifact: Linux-27}
+          - {runner: windows-2025, platform: Windows, scope: all sources, source: '', race: '', artifact: Windows}
+          - {runner: macos-26, platform: macOS, scope: all sources, source: '', race: '', artifact: macOS}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hfs-recovery-reference-*
+          path: artifacts/hfs-recovery
+      - name: Arrange the independently recorded source versions
+        shell: bash
+        run: |
+          for major in 15 26 27; do
+            mv "artifacts/hfs-recovery/hfs-recovery-reference-$major" "artifacts/hfs-recovery/macos-$major"
+          done
+      - name: Compare complete replay bytes, preserved metadata, reproducibility and subsequent Go edits
+        shell: bash
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$RECOVERY_TESTS"
+        env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          RECOVERY_TESTS: "^TestNativeHFSJournalRecovery$${{ matrix.source != '' && format('/macos-{0}', matrix.source) || '' }}"
+          APFS_NATIVE_HFS_RECOVERY: ../artifacts/hfs-recovery
+          APFS_HFS_RECOVERY_OUTPUT: ../artifacts/recovered-${{ matrix.platform }}
+      - name: Archive actual completed outputs
+        shell: bash
+        run: |
+          options=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf "artifacts/recovered-${{ matrix.artifact }}.tgz" "${options[@]}" -C artifacts "recovered-${{ matrix.platform }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-recovered-${{ matrix.artifact }}
+          path: artifacts/recovered-*.tgz
+          if-no-files-found: error
+
+  readback:
+    if: ${{ !inputs.capture_only }}
+    name: Verify ${{ matrix.platform }} recovery and native continued writes (macOS ${{ matrix.major }})
+    needs: [capture, replay]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Linux, Windows, macOS]
+        runner: [macos-15, macos-26, xcode-27]
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: actions/download-artifact@v7
+        with:
+          name: hfs-recovery-reference-${{ matrix.major }}
+          path: artifacts/references
+      - uses: actions/download-artifact@v7
+        with:
+          name: hfs-recovered-${{ matrix.platform }}${{ matrix.platform == 'Linux' && format('-{0}', matrix.major) || '' }}
+          path: artifacts/archives
+      - name: Unpack portable output images
+        run: tar -xzf artifacts/archives/recovered-*.tgz -C artifacts
+      - name: Apple fsck, complete readback, signatures and subsequent journaled modification
+        run: python3 acceptance/native/verify_hfs_recovery.py --expected-major "${{ matrix.major }}" --references artifacts/references --outputs artifacts/recovered-${{ matrix.platform }}/macos-${{ matrix.major }} --diagnostics artifacts/verification
+      - name: Retain native command verdicts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: hfs-recovery-verification-${{ matrix.platform }}-${{ matrix.major }}
+          path: artifacts/verification
+          if-no-files-found: warn
+
+  complete:
+    name: Require HFS journal recovery qualification
+    if: ${{ always() && !inputs.capture_only }}
+    needs: [capture, replay, readback]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require all Apple interruption controls, portable comparisons and native continuations
+        env:
+          CAPTURE: ${{ needs.capture.result }}
+          REPLAY: ${{ needs.replay.result }}
+          READBACK: ${{ needs.readback.result }}
+        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success

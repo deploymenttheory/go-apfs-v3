@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
     int failed = kill(helper, SIGSTOP) != 0;
     int output = failed ? -1 : open(argv[4], O_WRONLY | O_CREAT | O_EXCL, 0600);
     if (output < 0) failed = 1;
+    if (!failed && fchown(output, size.st_uid, size.st_gid)) failed = 1;
     unsigned char buffer[128 << 10];
     for (off_t offset = 0; !failed && offset < size.st_size; offset += sizeof(buffer)) {
         ssize_t count = pread(input, buffer, sizeof(buffer), offset);
