@@ -173,6 +173,12 @@ jobs:
           APFS_IMAGE_METADATA_CONTINUED_OUTPUT: ../artifacts/metadata-continued-go
       - name: Qualify complete continued metadata state with Apple tools
         run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --prefix apfs --continued artifacts/metadata-continued-go --controls artifacts/metadata-continued-native
+      - name: Retain exact native continuation inputs and expectations
+        if: always()
+        run: |
+          if [ -d artifacts/metadata-continued-native ]; then
+            tar -czf artifacts/metadata-continued-native.tgz -C artifacts metadata-continued-native
+          fi
       - name: Retain native verification diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -183,6 +189,7 @@ jobs:
             artifacts/apfs-continued-go/*.diagnostics.json
             artifacts/apfs-directories-continued-go/*.diagnostics.json
             artifacts/metadata-continued-go/*.diagnostics.json
+            artifacts/metadata-continued-native.tgz
           if-no-files-found: error
 
   complete:

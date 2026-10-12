@@ -161,20 +161,11 @@ func (m *mutation) metadataObject(c Change, item *catalogItem, stamp uint32) err
 			be.PutUint32(value[36:], c.Metadata.GID.Value)
 		}
 	case "chflags":
-		old := uint32(value[40])<<16 | uint32(value[41])
-		if value[56]&0x40 != 0 {
-			old |= 0x8000
-		}
-		flags, err := metadata.Flags(old, c.Flags)
+		flags, err := metadata.Flags(catalogBSDFlags(value), c.Flags)
 		if err != nil {
 			return err
 		}
-		value[40], value[41] = byte(flags>>16), byte(flags)
-		// hfs_set_bsd_flags mirrors UF_HIDDEN into the public Finder flags.
-		value[56] &^= 0x40
-		if flags&0x8000 != 0 {
-			value[56] |= 0x40
-		}
+		setCatalogBSDFlags(value, flags)
 	case "touch":
 		var reference *filesystem.Metadata
 		if c.Reference != "" {

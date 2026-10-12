@@ -219,7 +219,7 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) error {
 			return filesystem.ErrUnsupported
 		}
 	}
-	remove := c.DeleteAttribute || c.Attribute == filesystem.ResourceFork && c.Data.Size() == 0
+	remove := c.DeleteAttribute
 	if remove {
 		if exists {
 			if err := m.removeAttributeStream(old); err != nil {

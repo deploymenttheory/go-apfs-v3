@@ -313,12 +313,18 @@ func (m *mutation) protectedMetadata(r *catalogItem, root, flagsChange bool) err
 		}
 		record = inode.value
 	}
-	flags := uint32(record[40])<<16 | uint32(record[41])
+	flags := catalogBSDFlags(record)
 	mask := uint32(0x00060006 | 0x40000000)
+	locked := be.Uint16(record[2:])&1 != 0
 	if flagsChange {
 		mask &^= 6
+		// Explicit chflags may clear a user lock on a file. System immutable
+		// remains protected; the folder's reserved record bit is not admitted.
+		if be.Uint16(record) == 2 && flags&0x20000 == 0 {
+			locked = false
+		}
 	}
-	if flags&mask != 0 || be.Uint16(record[2:])&1 != 0 {
+	if flags&mask != 0 || locked {
 		return fmt.Errorf("locked, immutable, append-only or dataless catalog record: %w", filesystem.ErrUnsupported)
 	}
 	return nil
@@ -649,7 +655,7 @@ func (m *mutation) removeCatalog(r *catalogItem, recursive bool, stamp uint32) e
 	}
 	// The hidden inode is protected from direct namespace access, but its flags
 	// still govern operations through each public alias.
-	flags := uint32(inode.value[40])<<16 | uint32(inode.value[41])
+	flags := catalogBSDFlags(inode.value)
 	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(inode.value[2:])&1 != 0 {
 		return filesystem.ErrUnsupported
 	}

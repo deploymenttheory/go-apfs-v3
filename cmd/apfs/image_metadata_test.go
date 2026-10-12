@@ -54,6 +54,7 @@ func TestExistingImageMetadataCommands(t *testing.T) {
 			}
 			original := read(source)
 			steps := [][]string{{"chown", "0:20", "/file"}, {"xattr", "-w", "-x", "org.go-apfs.binary", "00ff01", "/file"}, {"chflags", "hidden,nodump", "/file"}, {"chflags", "nohidden", "/file"}, {"touch", "-a", "-d", "2023-11-14T22:13:21.234567891Z", "/file"}, {"touch", "-m", "-r", "/file", "/file"}, {"xattr", "-d", "org.go-apfs.binary", "/file"}}
+			steps = append(steps, []string{"chflags", "uchg", "/file"}, []string{"chflags", "nouchg", "/file"}, []string{"xattr", "-w", filesystem.ResourceFork, "fork", "/file"}, []string{"xattr", "-w", filesystem.ResourceFork, "", "/file"})
 			current := source
 			for i, args := range steps {
 				output := filepath.Join(t.TempDir(), "edited.dmg")
@@ -78,6 +79,20 @@ func TestExistingImageMetadataCommands(t *testing.T) {
 					}
 					if !node.Metadata.AccessTime.Value.Equal(want) || node.Metadata.ModifyTime != original.Metadata.ModifyTime || node.Metadata.BirthTime != original.Metadata.BirthTime {
 						t.Fatal("atime-only changed other clocks", node.Metadata)
+					}
+				}
+				if i == 7 && node.Metadata.BSDFlags.Value&2 == 0 || i == 8 && node.Metadata.BSDFlags.Value&2 != 0 {
+					t.Fatal("user immutable flag did not survive reopening or clearing", node.Metadata)
+				}
+				if i == 10 {
+					var value, diagnostics bytes.Buffer
+					err := run(ctx, []string{"xattr", "--image", output, "-p", filesystem.ResourceFork, "/file"}, nil, &value, &diagnostics)
+					if kind == "apfs" {
+						if err != nil || value.Len() != 0 {
+							t.Fatal("native APFS empty resource attribute must remain present", err)
+						}
+					} else if !errors.Is(err, fs.ErrNotExist) {
+						t.Fatal("native HFS zero-length fork has no synthesized attribute", err)
 					}
 				}
 				current = output

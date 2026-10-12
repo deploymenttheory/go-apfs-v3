@@ -26,6 +26,11 @@ replace only those user bits, preserving compressed and system flags. Explicit
 refused. Protected system objects, system flags and private directories remain
 outside the admitted profile.
 
+HFS file immutability is also stored in the catalog's locked bit. Apple
+`catrec_update` synchronizes it on writes and `getbsdattr` reconstructs public
+immutable flags from it on reads. `hfsplus/metadata.go` shares these rules across
+readback and mutation, including legacy locked records without a BSD flag.
+
 `touch -a` changes access time; `-m` changes modification time; the default
 changes both. `-d` takes RFC3339 with optional fractional seconds and `-r` borrows
 the selected timestamps of an image file. These options are mutually exclusive.
@@ -51,6 +56,11 @@ engine. FinderInfo, independent resource forks and unrelated attributes survive
 ordinary attribute edits. Explicit resource-fork edits retain the existing
 compression ownership restrictions. Compression, security and private filesystem
 attributes cannot be overwritten through the ordinary opaque-value API.
+
+An empty APFS resource-fork attribute remains present; removing it requires
+explicit `xattr -d`. HFS's synthesized resource-fork attribute disappears when
+its catalog fork has zero length. Continued native controls qualify this
+filesystem-specific distinction.
 
 HFS FinderInfo is catalog storage. Its public setter masks reserved fields,
 preserves document/date-added/generation values, retains private symlink type
