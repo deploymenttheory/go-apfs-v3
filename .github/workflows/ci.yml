@@ -57,9 +57,7 @@ jobs:
           - {family: HFS journal recovery, source: 15}
           - {family: HFS journal recovery, source: 26}
           - {family: HFS journal recovery, source: 27}
-          - {family: APFS checkpoint recovery, source: 15}
-          - {family: APFS checkpoint recovery, source: 26}
-          - {family: APFS checkpoint recovery, source: 27}
+          - {family: APFS checkpoint recovery, source: all}
           - {family: existing HFS edits, source: all}
           - {family: existing APFS edits, source: all}
         include:
@@ -82,8 +80,11 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained Apple observations
-        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits'
+        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits' && matrix.family != 'APFS checkpoint recovery'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+      - name: Compare APFS checkpoint recovery with this retained native source version
+        if: matrix.family == 'APFS checkpoint recovery'
+        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
       # Source-version jobs keep the growing edit suites within the same bounded
       # deadlines on every host. All three versions remain required by quality.
       - name: Compare APFS file edits with retained Apple observations

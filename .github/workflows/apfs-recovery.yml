@@ -79,10 +79,15 @@ jobs:
           done
       - name: Compare selected state, disk bytes, metadata and actual torn commit boundaries
         shell: bash
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$RECOVERY_TESTS"
+        run: |
+          sources=(15 26 27)
+          if [[ -n "$RECOVERY_SOURCE" ]]; then sources=("$RECOVERY_SOURCE"); fi
+          for major in "${sources[@]}"; do
+            go test -v -count=1 -timeout 5m ./acceptance -run "^TestNativeAPFSCheckpointRecovery$/macos-$major(/|$)"
+          done
         env:
           CGO_ENABLED: '0'
-          RECOVERY_TESTS: "^TestNativeAPFSCheckpointRecovery$${{ matrix.source != '' && format('/macos-{0}', matrix.source) || '' }}"
+          RECOVERY_SOURCE: "${{ matrix.source }}"
           APFS_NATIVE_CHECKPOINT_RECOVERY: ../artifacts/apfs-recovery
           APFS_CHECKPOINT_RECOVERY_OUTPUT: ../artifacts/recovered-${{ matrix.platform }}
       - name: Archive actual portable outputs and Go interruption evidence
