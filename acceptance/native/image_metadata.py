@@ -33,7 +33,7 @@ def operations(phase):
             {'op': 'touch', 'path': 'symlink', 'modifyNS': TIME_NS, 'accessNS': TIME_NS + 999999999},
         ]
     if phase == 'metadata':
-        return [
+        result = [
             {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 65537},
             {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE + '.empty', 'size': 0},
             {'op': 'xattr', 'path': 'alias', 'attribute': ATTRIBUTE, 'size': 8193},
@@ -46,7 +46,10 @@ def operations(phase):
             {'op': 'touch', 'path': 'symlink', 'modifyNS': TIME_NS + 999999999, 'accessNS': TIME_NS},
             {'op': 'chown', 'path': 'empty', 'uid': 60001, 'gid': 60002},
         ]
-    return [
+        result.extend({'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE + f'.{n:03}-' + 'k' * 72,
+                       'size': 0 if n % 3 == 0 else 17} for n in range(96))
+        return result
+    result = [
         {'op': 'chflags', 'path': 'independent', 'flags': 0},
         {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 17},
         {'op': 'xattr-remove', 'path': 'small', 'attribute': ATTRIBUTE + '.empty'},
@@ -57,6 +60,9 @@ def operations(phase):
         {'op': 'xattr', 'path': '.', 'attribute': ATTRIBUTE + '.reuse', 'size': 131073},
         {'op': 'touch', 'path': 'small', 'modifyNS': TIME_NS + 10000000000, 'accessNS': TIME_NS},
     ]
+    result.extend({'op': 'xattr-remove', 'path': 'small', 'attribute': ATTRIBUTE + f'.{n:03}-' + 'k' * 72}
+                  for n in range(0, 96, 2))
+    return result
 
 
 def data(op):
@@ -155,16 +161,19 @@ def capture(references, output, kind, major):
             sources.append((case['id'], image, False))
         if kind == 'hfs':
             from image_building import create_signed_app
-            from image_mutation import copy_disk
             journaled = source_manifest['contract'].startswith('journaled-')
             for case_id, native_fs in (('hfsplus', 'HFS+'), ('hfsx', 'Case-sensitive HFS+')):
                 case_id += '-empty-attributes'
-                dmg = work / (case_id + '.dmg')
-                if journaled:
-                    native_fs = native_fs.replace('HFS+', 'Journaled HFS+')
-                command('hdiutil', 'create', '-size', str(engine.CAPACITY), '-layout', 'NONE',
-                        '-fs', native_fs, '-fsargs', '-I a=0', '-volname', 'Metadata', dmg)
-                device = engine.attach(dmg, command, writable=True)
+                image = work / (case_id + '-source.raw')
+                with image.open('xb') as raw:
+                    raw.truncate(engine.CAPACITY)
+                device = engine.attach(image, command, writable=True)
+                # newfs_hfs's -I a=0 explicitly omits the initial attributes
+                # file. Use the disposable raw device directly, as the existing
+                # HFS family does, instead of DiskImages' formatting wrapper.
+                command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
+                        *(['-J'] if journaled else []), '-b', '4096', '-I', 'a=0', '-v', 'Metadata',
+                        device.replace('/dev/disk', '/dev/rdisk'))
                 directory = work / (case_id + '-create')
                 directory.mkdir()
                 try:
@@ -180,8 +189,6 @@ def capture(references, output, kind, major):
                     create_signed_app(root, command)
                 finally:
                     command('hdiutil', 'detach', device)
-                image = work / (case_id + '-source.raw')
-                copy_disk(dmg, image, command)
                 sources.append((case_id, image, True))
         for case_id, image, empty_attributes in sources:
             before = engine.observe(image, work, command, observer=metadata_files)
