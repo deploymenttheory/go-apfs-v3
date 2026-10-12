@@ -2,9 +2,11 @@ import importlib
 import copy
 import json
 from pathlib import Path
+import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import image_copy
 import verify_image_copy
@@ -54,9 +56,10 @@ class ImageCopyControls(unittest.TestCase):
                          accessNS=stamp + 1000 * 10**9)
         before = {'entries': [old]}
         after = {'entries': [existing, preserved, generated]}
+        setter = Mock()
         with patch.object(image_copy, 'require_disposable_host'), \
              patch.object(image_copy, 'metadata_files', side_effect=[before, copy.deepcopy(after), after]), \
-             patch('metadata_edits.set_metadata') as setter, \
+             patch.dict(sys.modules, metadata_edits=SimpleNamespace(set_metadata=setter)), \
              patch.object(image_copy.time, 'time', return_value=image_copy.STAMP + 1000), \
              patch.object(image_copy.time, 'time_ns', return_value=stamp + 1000 * 10**9):
             clocks = image_copy.apply(Path('/disposable/Fixture'), [], None, None)
@@ -98,6 +101,7 @@ class ImageCopyControls(unittest.TestCase):
         clocks = {'1': ['changeNS', 'modifyNS'], '2': ['changeNS', 'modifyNS']}
         with patch.object(image_copy, 'require_disposable_host'), \
              patch.object(image_copy, 'metadata_files', side_effect=[before, after, after]), \
+             patch.dict(sys.modules, metadata_edits=SimpleNamespace(set_metadata=Mock())), \
              patch.object(image_copy.time, 'time', return_value=image_copy.STAMP + 1000), \
              patch.object(image_copy.time, 'time_ns', return_value=stamp + 1000 * 10**9):
             image_copy.apply(Path('/disposable/Fixture'), [], None, None, clocks)
