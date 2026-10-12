@@ -28,6 +28,8 @@ def operations(phase):
             {'op': 'xattr-remove', 'path': 'alias', 'attribute': ATTRIBUTE + '.continued'},
             {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 17},
             {'op': 'chflags', 'path': 'independent', 'flags': 0},
+            {'op': 'xattr', 'path': 'independent', 'attribute': 'com.apple.ResourceFork', 'size': 8193},
+            {'op': 'xattr', 'path': 'independent', 'attribute': 'com.apple.ResourceFork', 'size': 0},
             {'op': 'touch', 'path': 'symlink', 'modifyNS': TIME_NS, 'accessNS': TIME_NS + 999999999},
         ]
     if phase == 'metadata':
@@ -161,7 +163,7 @@ def capture(references, output, kind, major):
                 if journaled:
                     native_fs = native_fs.replace('HFS+', 'Journaled HFS+')
                 command('hdiutil', 'create', '-size', str(engine.CAPACITY), '-layout', 'NONE',
-                        '-fs', native_fs, '-volname', 'Metadata', dmg)
+                        '-fs', native_fs, '-fsargs', '-I a=0', '-volname', 'Metadata', dmg)
                 device = engine.attach(dmg, command, writable=True)
                 directory = work / (case_id + '-create')
                 directory.mkdir()
