@@ -97,9 +97,16 @@ int main(int argc, char **argv) {
     while (now() < deadline) {
         if (pread(input, state, sizeof(state), header) != sizeof(state)) return 1;
         if (!tail && little64(state + 8) != little64(state + 16) && little64(state + 16) != original_end) break;
-        if (tail && original_end < journal_size && little64(state + 16) == original_end) {
+        if (tail && little64(state + 16) != original_end) {
+            // The log keeps committing while we acquire this window. Follow
+            // its current free cursor instead of waiting at a retired one.
+            original_end = little64(state + 16);
+            original_sequence = little32(state + 44);
+        }
+        if (tail && original_end <= journal_size) {
             unsigned char list[32];
-            if (pread(input, list, sizeof(list), header + original_end) != sizeof(list)) return 1;
+            uint64_t position = original_end == journal_size ? 512 : original_end;
+            if (pread(input, list, sizeof(list), header + position) != sizeof(list)) return 1;
             uint32_t stored = little32(list + 8);
             memset(list + 8, 0, 4);
             uint32_t sequence = little32(list + 28);
