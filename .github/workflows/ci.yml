@@ -38,7 +38,7 @@ jobs:
       - run: go vet ./...
 
   portable_acceptance:
-    name: Retained acceptance (${{ matrix.family }}, ${{ matrix.os }})
+    name: Retained acceptance (${{ matrix.family }}, ${{ matrix.source == 'all' && 'all sources' || format('macOS {0} sources', matrix.source) }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -46,6 +46,16 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
         family: [image construction, image repacking, existing HFS edits, existing APFS edits]
+        source: [all, 15, 26, 27]
+        exclude:
+          - {family: image construction, source: 15}
+          - {family: image construction, source: 26}
+          - {family: image construction, source: 27}
+          - {family: image repacking, source: 15}
+          - {family: image repacking, source: 26}
+          - {family: image repacking, source: 27}
+          - {family: existing HFS edits, source: all}
+          - {family: existing APFS edits, source: all}
         include:
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
@@ -64,29 +74,29 @@ jobs:
       - name: Compare the complete family with retained Apple observations
         if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
-      # Each APFS group replays all three source versions. Separate invocations
-      # keep a bounded deadline per group on Windows without adding more jobs.
+      # Source-version jobs keep the growing edit suites within the same bounded
+      # deadlines on every host. All three versions remain required by quality.
       - name: Compare APFS file edits with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS directory edits with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS metadata with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS link lifetimes with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
       - name: Compare HFS files and catalogs with retained Apple observations
         if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
       - name: Compare HFS metadata with retained Apple observations
         if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
       - name: Compare HFS link lifetimes with retained Apple observations
         if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
