@@ -101,7 +101,7 @@ def apply_native(root, phase, command):
         os.chmod(root / 'small', 0o755)
 
 
-def observe(image, work, command):
+def observe(image, work, command, observer=None):
     require_disposable_host()
     before = sha256(image)
     native = raw_command(command, image)
@@ -111,7 +111,7 @@ def observe(image, work, command):
         check_filesystem(physical, native)
         directory = work / ('read-' + image.stem)
         mount(inventory['Volumes'][0], directory, native, readonly=True)
-        observed = files(directory / 'Fixture')
+        observed = (observer or files)(directory / 'Fixture')
         native('codesign', '--verify', '--deep', '--strict', directory / 'Fixture/Example.app')
         ranges = {name: native_extents(str(directory / 'Fixture' / name) +
                   ('/..namedfork/rsrc' if name == 'fragmented-resource' else ''))

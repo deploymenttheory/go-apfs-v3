@@ -570,7 +570,7 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 	if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
 		return fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
 	}
-	flags := uint32(b[40])<<16 | uint32(b[41])
+	flags := catalogBSDFlags(b)
 	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
 		return fmt.Errorf("locked, immutable, append-only or dataless target: %w", filesystem.ErrUnsupported)
 	}

@@ -257,6 +257,9 @@ func (m *mutation) destination(path string) (uint64, string, error) {
 	return parent.id, p[len(p)-1], nil
 }
 func (m *mutation) protectEntry(e *mutationEntry, root bool) error {
+	return m.protectMetadataEntry(e, root, false)
+}
+func (m *mutation) protectMetadataEntry(e *mutationEntry, root, flags bool) error {
 	if e == nil {
 		return fs.ErrNotExist
 	}
@@ -267,7 +270,11 @@ func (m *mutation) protectEntry(e *mutationEntry, root bool) error {
 	if err != nil {
 		return err
 	}
-	if le.Uint32(r.value[68:])&0x60006 != 0 || le.Uint64(r.value[48:])&(1|0x80|0x200000|0x400000) != 0 {
+	mask := uint32(0x60006)
+	if flags {
+		mask &^= 6
+	}
+	if le.Uint32(r.value[68:])&mask != 0 || le.Uint64(r.value[48:])&(1|0x80|0x200000|0x400000) != 0 {
 		return fmt.Errorf("protected APFS inode: %w", filesystem.ErrUnsupported)
 	}
 	for cursor, depth := e, 0; cursor.id != 2; depth++ {
@@ -443,6 +450,13 @@ func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
 		if c.Data == nil && c.Mode != "" {
 			op = "chmod"
 		}
+	}
+	if op == "chown" || op == "chflags" || op == "touch" || op == "xattr" || op == "chmod" {
+		c.Operation = op
+		return m.editMetadata(c, stamp)
+	}
+	if c.Metadata != nil || c.Flags != "" || c.Attribute != "" || c.AttributeMode != "" || c.DeleteAttribute || c.NoCreate || c.NoFollow || c.Reference != "" || c.Access || c.Modify {
+		return 0, fs.ErrInvalid
 	}
 	if (op != "mv" && c.Destination != "") || (op != "mkdir" && c.Parents) || (op != "rm" && (c.Recursive || c.Force)) || ((op != "cp" && op != "mv") && c.NoClobber) || (op != "cp" && (c.Name != "" || c.ResourceFork || c.Data != nil)) || ((op == "rm" || op == "mv") && c.Mode != "") {
 		return 0, fs.ErrInvalid

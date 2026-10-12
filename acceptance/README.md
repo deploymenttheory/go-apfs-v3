@@ -804,3 +804,23 @@ and file-content replay use separate bounded jobs within `.github/workflows/hfs-
 The retained `hfs-catalog-editing` and `hfs-journaled-catalog-editing` corpora provide
 file-only local regression evidence. Capture-only dispatch records Apple fixtures
 without claiming portable/native qualification and never changes retained inputs.
+
+## Existing-image metadata qualification
+
+The APFS and HFS editing pipelines additionally qualify `chown`, `touch`,
+`chflags` and ordinary `xattr` edits of existing records. One comparison handles
+all original identities, precise native clocks, complete raw attributes, forks,
+links and signatures; only individually recorded offline clock effects differ.
+Both HFS journal profiles and native name policies remain required. Actual native
+images include long-key tree growth, empty values, inline/stream transitions and
+reclamation/reuse. Newly formatted HFS controls retain actual native service
+attribute counts rather than assuming a wholly empty attributes tree.
+
+Retained corpora live under `apfs-metadata-editing`, `hfs-metadata-editing` and
+`hfs-journaled-metadata-editing`. Their exact capture scripts, reference-manifest
+hashes, native transcripts and OS/tool versions accompany before/after images.
+Fresh Linux/Windows/macOS outputs have equal plaintext hashes; every Mac checks
+exact raw copies and actual continued writes. A separate Apple-only copy supplies
+the complete expectation for each subsequent Go re-edit, followed by native
+qualification. Native commands remain restricted to disposable VMs. Retained
+metadata groups have bounded individual invocations within the existing CI jobs.

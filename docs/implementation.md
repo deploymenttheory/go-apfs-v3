@@ -665,3 +665,23 @@ synthetic stress covers fourteen growth/removal cycles and every write boundary.
 The single ordinary volume/1 GiB profile remains. Directory-stat maintenance,
 ACL/set-ID inheritance, snapshots, clones, encrypted mutation and physical
 power-loss qualification require later independently proven increments.
+
+## Existing-image metadata editing increment
+
+APFS, HFS+ and HFSX now expose ownership, timestamp, qualified BSD flag and
+ordinary attribute changes through existing `--image` commands. Both engines
+use shared command grammar/admission, current mutable inode/catalog indexes,
+existing allocation/tree operations and completed-output publication. Original
+inode identity, aliases, data and independent forks remain intact. Native C
+supplies HFS record semantics; independently captured metadata states supply
+APFS interpretation and cross-version evidence, including modern stream ownership.
+
+The existing edit families add precise native timestamps, FinderInfo/hidden
+behavior, long-key tree growth, empty attributes, inline/stream transitions,
+reclamation/reuse, newly initialized HFS trees and both admitted journal profiles.
+All hosts emit actual images for Apple verification. Kernel-created streams become
+Go inputs; separate Apple-only copies supply complete final native/Go/native
+continuation expectations. Retained capture recipes and images remain immutable.
+Current profile and credential limits, absent HFS attribute-file initialization,
+physical power-loss qualification and broader transaction profiles remain explicit.
+See [metadata contracts](image-metadata.md).

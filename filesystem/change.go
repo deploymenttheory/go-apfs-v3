@@ -14,4 +14,11 @@ type Change struct {
 	Data                                 block.Source
 	ResourceFork                         bool
 	Mode                                 string
+	// Metadata is a partial ownership/time patch. Flags uses the ordinary
+	// chflags expression; attributes borrow a complete value just like a fork.
+	Metadata                            *Metadata
+	Flags, Attribute, AttributeMode     string
+	DeleteAttribute, NoCreate, NoFollow bool
+	Reference                           string
+	Access, Modify                      bool
 }

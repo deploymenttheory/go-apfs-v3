@@ -49,7 +49,7 @@ func TestExistingImageFileCommands(t *testing.T) {
 			if got := invoke("cat", fork, "/file"); got != "replacement" {
 				t.Fatal("fork replacement changed data")
 			}
-			for _, args := range [][]string{{"cp", "--from-host", "-a", host, "/file"}, {"cp", host, "/file"}, {"chmod", "-R", "0755", "/file"}, {"chmod", "--session", "conflict", "0755", "/file"}, {"chmod", "0755", "/absent"}, {"chmod", "--time", "invalid", "0755", "/file"}} {
+			for _, args := range [][]string{{"cp", "--from-host", "-a", host, "/file"}, {"cp", host, "/file"}, {"chmod", "--session", "conflict", "0755", "/file"}, {"chmod", "0755", "/absent"}, {"chmod", "--time", "invalid", "0755", "/file"}} {
 				var out, diag bytes.Buffer
 				destination := filepath.Join(t.TempDir(), "failed.dmg")
 				args = append(args, "--image", source, "--output", destination)

@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,7 +9,6 @@ import (
 	"io"
 	"io/fs"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
@@ -49,7 +46,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	f := flag.NewFlagSet(verb, flag.ContinueOnError)
 	f.SetOutput(diagnostics)
 	common := addSessionFlags(f)
-	imagePath := f.String("image", "", "edit an existing clean HFS+/HFSX image")
+	imagePath := f.String("image", "", "edit an existing admitted APFS/HFS+/HFSX image")
 	imageOutput := f.String("output", "", "publish the completed edited image at a new path")
 	imagePartition := f.Int("partition", 0, "on-disk partition index to edit")
 	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
@@ -264,34 +261,11 @@ func sessionAttributes(ctx context.Context, s *session.Session, args []string, r
 	}
 	o := session.AttributeOptions{NoFollow: noFollow}
 	if write {
-		count := 3
-		if valueFile != "" {
-			count = 2
+		source, paths, close, e := attributeSource(args, valueFile, hexadecimal)
+		if e != nil {
+			return e
 		}
-		if len(args) < count {
-			return fs.ErrInvalid
-		}
-		var source block.Source
-		paths := args[2:]
-		if valueFile != "" {
-			f, e := block.Open(valueFile)
-			if e != nil {
-				return e
-			}
-			defer func() { err = errors.Join(err, f.Close()) }()
-			source = f
-			paths = args[1:]
-		} else {
-			data := []byte(args[1])
-			if hexadecimal {
-				var e error
-				data, e = hex.DecodeString(strings.ReplaceAll(args[1], " ", ""))
-				if e != nil {
-					return e
-				}
-			}
-			source = bytes.NewReader(data)
-		}
+		defer func() { err = errors.Join(err, close()) }()
 		r, e := s.SetAttribute(ctx, paths, args[0], source, o)
 		if e != nil {
 			return e
@@ -316,16 +290,7 @@ func sessionAttributes(ctx context.Context, s *session.Session, args []string, r
 		if e != nil {
 			return e
 		}
-		v, e := s.OpenAttribute(ctx, id, args[0])
-		if e != nil {
-			return e
-		}
-		var dst = out
-		if hexadecimal {
-			dst = hex.NewEncoder(out)
-		}
-		_, e = io.Copy(dst, io.NewSectionReader(v, 0, v.Size()))
-		return errors.Join(e, v.Close())
+		return attributeOutput(ctx, s, id, args[0], hexadecimal, out)
 	}
 	if len(args) != 1 || hexadecimal {
 		return fs.ErrInvalid

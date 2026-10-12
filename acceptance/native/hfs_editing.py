@@ -192,7 +192,7 @@ def read_journal(image):
                 'backingFiles': journal_backing_files(stream, volume)}
 
 
-def observe(image, work, command):
+def observe(image, work, command, observer=None):
     mount = work / ('read-' + image.stem)
     device = attach(image, command, readonly=True)
     try:
@@ -205,7 +205,7 @@ def observe(image, work, command):
                                   'totalNodes': struct.unpack_from('>I', tree, 36)[0]}
         mount.mkdir()
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
-        observed = files(mount / 'Fixture')
+        observed = (observer or files)(mount / 'Fixture')
         observed['rawAttributes'] = [{'object': item['object'], 'attributes': item['rawAttributes']}
                                      for item in observed['entries']]
         command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')

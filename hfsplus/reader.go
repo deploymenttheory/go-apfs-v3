@@ -111,11 +111,7 @@ func (v *Volume) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 	if uint64(be.Uint32(b[8:])) != id {
 		parent = v.privateID
 	}
-	m := filesystem.Metadata{Mode: filesystem.Observed(uint32(be.Uint16(b[42:]))), UID: filesystem.Observed(be.Uint32(b[32:])), GID: filesystem.Observed(be.Uint32(b[36:])), BSDFlags: filesystem.Observed(uint32(b[40])<<16 | uint32(b[41]))}
-	// UF_HIDDEN is persisted in Finder's kIsInvisible bit, outside BSDInfo.
-	if be.Uint16(b[56:])&0x4000 != 0 {
-		m.BSDFlags.Value |= 0x8000
-	}
+	m := filesystem.Metadata{Mode: filesystem.Observed(uint32(be.Uint16(b[42:]))), UID: filesystem.Observed(be.Uint32(b[32:])), GID: filesystem.Observed(be.Uint32(b[36:])), BSDFlags: filesystem.Observed(catalogBSDFlags(b))}
 	stamp := func(off int) filesystem.Observation[time.Time] {
 		return filesystem.Observed(time.Unix(int64(be.Uint32(b[off:]))-2082844800, 0).UTC())
 	}
