@@ -58,7 +58,7 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 		return snapshots(ctx, args[1:], input, out, diagnostics)
 	}
 	if args[0] == "journal" {
-		return journalCommand(ctx,args[1:],out,diagnostics)
+		return journalCommand(ctx, args[1:], out, diagnostics)
 	}
 	if args[0] == "workspace" {
 		return workspaceCommand(ctx, args[1:], out, diagnostics)

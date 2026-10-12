@@ -167,6 +167,8 @@ def recover(image, work, output, name, helper, command):
 def capture(expected_major, output):
     require_disposable_host()
     producer = version(expected_major)
+    producer['run'] = os.environ.get('GITHUB_SERVER_URL', '') + '/' + os.environ.get('GITHUB_REPOSITORY', '') + '/actions/runs/' + os.environ.get('GITHUB_RUN_ID', '')
+    producer['revision'] = os.environ.get('GITHUB_SHA', '')
     output.mkdir(parents=True)
     command = Commands(output / 'commands.json')
     cases = []
@@ -227,11 +229,13 @@ def capture(expected_major, output):
                     state = journal(candidate)
                     shape = 'wrapped' if state['start'] > state['end'] else 'linear'
                     changes = pending_changes(candidate, state) if state['start'] != state['end'] and shape not in snapshots else 0
+                    diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'journal': state,
+                                        'unappliedSectors': changes})
+                    if not changes and attempt == 0:
+                        retain_file(candidate, output / (filesystem + '-probe.raw.gz'))
                     if changes:
                         snapshots[shape] = candidate
                         retain_file(candidate, output / (filesystem + '-' + shape + '-interrupted.raw.gz'))
-                        diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'journal': state,
-                                            'unappliedSectors': changes})
                         print('Captured pending native journal:', filesystem, shape, state, flush=True)
                     else:
                         candidate.unlink()
@@ -267,7 +271,11 @@ def capture(expected_major, output):
     script_output.mkdir()
     for name in scripts:
         shutil.copyfile(Path(__file__).with_name(name), script_output / name)
-    (output / 'recovery.json').write_text(json.dumps({'producer': producer, 'cases': cases}, indent=2) + '\n')
+    producer['sources'] = {name: hashlib.sha256((script_output / name).read_bytes()).hexdigest() for name in scripts}
+    manifest = {'schema': 1, 'scenario': 'hfs-journal-recovery', 'major': expected_major, 'complete': True,
+                'producer': producer, 'cases': cases,
+                'commandsSHA256': hashlib.sha256((output / 'commands.json').read_bytes()).hexdigest()}
+    (output / 'recovery.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
 
 if __name__ == '__main__':

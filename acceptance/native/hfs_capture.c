@@ -50,15 +50,17 @@ int main(int argc, char **argv) {
     int input = open(argv[1], O_RDONLY);
     struct stat size;
     if (input < 0 || fstat(input, &size) || !S_ISREG(size.st_mode) || size.st_size != (64 << 20)) return 1;
+    if (fcntl(input, F_NOCACHE, 1)) { perror("F_NOCACHE"); return 1; }
     unsigned char state[48];
     if (pread(input, state, sizeof(state), header) != sizeof(state) || memcmp(state, "xLNJ", 4)) return 1;
     uint64_t original_end = little64(state + 16);
-    double deadline = now() + 5;
+    fprintf(stderr, "Watch journal: start=%llu end=%llu\n", (unsigned long long)little64(state + 8), (unsigned long long)original_end);
+    double deadline = now() + 15;
     while (now() < deadline) {
         if (pread(input, state, sizeof(state), header) != sizeof(state)) return 1;
         if (little64(state + 8) != little64(state + 16) && little64(state + 16) != original_end) break;
     }
-    if (now() >= deadline) { fprintf(stderr, "No new pending journal commit within deadline\n"); return 1; }
+    if (now() >= deadline) { fprintf(stderr, "No new pending journal commit: last start=%llu end=%llu\n", (unsigned long long)little64(state+8), (unsigned long long)little64(state+16)); return 1; }
     signal(SIGINT, interrupted); signal(SIGTERM, interrupted); signal(SIGHUP, interrupted);
     // An independent watchdog resumes the helper even if this process dies.
     pid_t watchdog = fork();
