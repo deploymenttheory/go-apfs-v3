@@ -173,7 +173,8 @@ def capture(references, output, kind, major):
                 # initialized tree. A later independent observation requires
                 # that no attribute records were created by the fixture setup.
                 command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
-                        *(['-J'] if journaled else []), '-b', '4096', '-v', 'Metadata',
+                        *(['-J'] if journaled else []), '-b', '4096', '-U', str(os.getuid()),
+                        '-G', str(os.getgid()), '-v', 'Metadata',
                         device.replace('/dev/disk', '/dev/rdisk'))
                 directory = work / (case_id + '-create')
                 directory.mkdir()
