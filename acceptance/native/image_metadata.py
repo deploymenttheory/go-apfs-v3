@@ -23,6 +23,13 @@ ATTRIBUTE = 'org.go-apfs.metadata'
 
 
 def operations(phase):
+    if phase == 'continued':
+        return [
+            {'op': 'xattr-remove', 'path': 'alias', 'attribute': ATTRIBUTE + '.continued'},
+            {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 17},
+            {'op': 'chflags', 'path': 'independent', 'flags': 0},
+            {'op': 'touch', 'path': 'symlink', 'modifyNS': TIME_NS, 'accessNS': TIME_NS + 999999999},
+        ]
     if phase == 'metadata':
         return [
             {'op': 'xattr', 'path': 'small', 'attribute': ATTRIBUTE, 'size': 65537},
@@ -60,6 +67,16 @@ def data(op):
     return (pattern * ((size + len(pattern) - 1) // len(pattern)))[:size]
 
 
+def metadata_files(root):
+    require_disposable_host()
+    from metadata_edits import birth_ns
+    observed = files(root)
+    for entry in observed['entries']:
+        ns = birth_ns(root.parent / entry['path'])
+        entry['birthNS'], entry['birthSeconds'] = ns, ns // 10**9
+    return observed
+
+
 def operate(root, op, command):
     require_disposable_host()
     from metadata_edits import set_attribute, remove_attribute
@@ -78,6 +95,26 @@ def operate(root, op, command):
         command('sudo', '-n', 'chown', '-h', f"{op['uid']}:{op['gid']}", path)
     else:
         raise ValueError(op['op'])
+
+
+def apply_operations(root, ops, command, clocks=None):
+    require_disposable_host()
+    clocks = {} if clocks is None else clocks
+    for op in ops:
+        path = root / op['path']
+        old = path.lstat()
+        operate(root, op, command)
+        new = path.lstat()
+        op['object'] = new.st_ino
+        fields = clocks.setdefault(str(new.st_ino), [])
+        if new.st_ctime_ns != old.st_ctime_ns and 'changeNS' not in fields:
+            fields.append('changeNS')
+        if op['op'] == 'touch':
+            if 'modifyNS' in fields:
+                fields.remove('modifyNS')
+        elif new.st_mtime_ns != old.st_mtime_ns and 'modifyNS' not in fields:
+            fields.append('modifyNS')
+    return clocks
 
 
 def capture(references, output, kind, major):
@@ -105,6 +142,7 @@ def capture(references, output, kind, major):
     cases = []
     with tempfile.TemporaryDirectory(prefix='image-metadata-') as tmp:
         work = Path(tmp)
+        sources = []
         for case in source_manifest['cases']:
             image = work / (case['id'] + '-source.raw')
             archive = references / case['source']['image']
@@ -112,36 +150,61 @@ def capture(references, output, kind, major):
             with gzip.open(archive, 'rb') as src, image.open('wb') as dst:
                 shutil.copyfileobj(src, dst, 128 << 10)
             require(sha256(image) == case['source']['uncompressedSHA256'], 'exact decoded source')
-            before = engine.observe(image, work, command)
-            source = engine.retain_file(image, output / (case['id'] + '-source.raw.gz'))
-            item = {'id': case['id'], 'source': source, 'before': before, 'states': {}}
+            sources.append((case['id'], image, False))
+        if kind == 'hfs':
+            from image_building import create_signed_app
+            from image_mutation import copy_disk
+            journaled = source_manifest['contract'].startswith('journaled-')
+            for case_id, native_fs in (('hfsplus', 'HFS+'), ('hfsx', 'Case-sensitive HFS+')):
+                case_id += '-empty-attributes'
+                dmg = work / (case_id + '.dmg')
+                if journaled:
+                    native_fs = native_fs.replace('HFS+', 'Journaled HFS+')
+                command('hdiutil', 'create', '-size', str(engine.CAPACITY), '-layout', 'NONE',
+                        '-fs', native_fs, '-volname', 'Metadata', dmg)
+                device = engine.attach(dmg, command, writable=True)
+                directory = work / (case_id + '-create')
+                directory.mkdir()
+                try:
+                    command('diskutil', 'mount', '-mountOptions', 'owners,noatime', '-mountPoint', directory, device)
+                    root = directory / 'Fixture'
+                    root.mkdir()
+                    for name in ('small', 'empty', 'independent', 'fragmented-data', 'fragmented-resource'):
+                        (root / name).write_bytes(b'ordinary metadata control\n')
+                    with open(str(root / 'fragmented-resource') + '/..namedfork/rsrc', 'wb') as fork:
+                        fork.write(b'independent resource fork\n')
+                    os.link(root / 'fragmented-data', root / 'alias')
+                    os.symlink('fragmented-data', root / 'symlink')
+                    create_signed_app(root, command)
+                finally:
+                    command('hdiutil', 'detach', device)
+                image = work / (case_id + '-source.raw')
+                copy_disk(dmg, image, command)
+                sources.append((case_id, image, True))
+        for case_id, image, empty_attributes in sources:
+            before = engine.observe(image, work, command, observer=metadata_files)
+            if empty_attributes:
+                require(before['headers']['primary']['forks']['attributes']['logicalSize'] == 0,
+                        'Apple control starts without an attributes B-tree')
+            source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
+            item = {'id': case_id, 'source': source, 'before': before, 'states': {},
+                    'emptyAttributeTree': empty_attributes}
             clocks = {}
             for phase in ('metadata', 'metadata-final'):
-                edited = work / (case['id'] + '-' + phase + '.raw')
+                edited = work / (case_id + '-' + phase + '.raw')
                 shutil.copyfile(image, edited)
-                directory = work / (case['id'] + '-' + phase + '-write')
+                directory = work / (case_id + '-' + phase + '-write')
                 cleanup, native = mounted(edited, directory)
                 ops = operations(phase)
+                if empty_attributes:
+                    ops = [op for op in ops if not op['path'].endswith('-compressed')]
                 try:
-                    for op in ops:
-                        path = directory / 'Fixture' / op['path']
-                        old = path.lstat()
-                        operate(directory / 'Fixture', op, native)
-                        new = path.lstat()
-                        op['object'] = new.st_ino
-                        fields = clocks.setdefault(str(new.st_ino), [])
-                        if new.st_ctime_ns != old.st_ctime_ns and 'changeNS' not in fields:
-                            fields.append('changeNS')
-                        if op['op'] == 'touch':
-                            if 'modifyNS' in fields:
-                                fields.remove('modifyNS')
-                        elif new.st_mtime_ns != old.st_mtime_ns and 'modifyNS' not in fields:
-                            fields.append('modifyNS')
+                    apply_operations(directory / 'Fixture', ops, native, clocks)
                 finally:
                     native('hdiutil', 'detach', cleanup)
-                state = engine.observe(edited, work, command)
+                state = engine.observe(edited, work, command, observer=metadata_files)
                 state.update(operations=ops, clockFields=json.loads(json.dumps(clocks)))
-                state['archive'] = engine.retain_file(edited, output / (case['id'] + '-' + phase + '.raw.gz'))
+                state['archive'] = engine.retain_file(edited, output / (case_id + '-' + phase + '.raw.gz'))
                 item['states'][phase] = state
                 image = edited
             cases.append(item)
