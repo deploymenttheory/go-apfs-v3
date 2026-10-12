@@ -74,6 +74,9 @@ func TestExistingImageCopyCommands(t *testing.T) {
 			edits("xattr", "-w", filesystem.ResourceFork, "source fork", "/Sub/file")
 			edits("xattr", "-w", "org.go-apfs.old", "stale", "/target")
 			edits("xattr", "-w", "org.go-apfs.old", "keep", "/plain")
+			// Establish filesystem metadata explicitly: Windows host files cannot
+			// supply a POSIX 0640 mode during the initial directory import.
+			edits("chmod", "0640", "/Sub/file")
 			edits("touch", "-d", "2001-02-03T04:05:06Z", "/Sub/file")
 			sourceID, targetID := read("/Sub/file").Identity, read("/target").Identity
 			original := current
