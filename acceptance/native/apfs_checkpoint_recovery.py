@@ -143,6 +143,47 @@ def apple_state(image, work, command):
         require(sha256(image) == before, 'Apple read-only selection changed original evidence')
 
 
+def damage_controls(source, filesystem, work, output, command):
+    """Explicitly derived corruption controls, distinct from genuine captures.
+
+    Flip one checksum byte in the newest map or mapped object. An independently
+    checked Apple control disables that damaged checkpoint's descriptor, leaving
+    the earlier Apple-created filesystem structures unchanged. This establishes
+    the complete earlier state without pretending the damaged disk was produced
+    by interruption, or that fsck performs the same fallback as the kernel.
+    """
+    state = checkpoints(source)
+    latest = state['latest']
+    mapping = state['descriptorBase'] + latest['descriptorIndex']
+    with source.open('rb') as stream:
+        stream.seek(mapping * 4096 + 40 + 32)
+        object_address = struct.unpack('<Q', stream.read(8))[0]
+    cases = []
+    for shape, address in (('bad-mapping', mapping), ('bad-object', object_address)):
+        name = filesystem + '-' + shape
+        damaged = work / (name + '-interrupted.raw')
+        shutil.copyfile(source, damaged)
+        with damaged.open('r+b') as stream:
+            stream.seek(address * 4096)
+            before = stream.read(1)[0]
+            stream.seek(address * 4096)
+            stream.write(bytes([before ^ 1]))
+        archive = retain_file(damaged, output / (name + '-interrupted.raw.gz'))
+        control = work / (name + '-apple-control.raw')
+        shutil.copyfile(damaged, control)
+        with control.open('r+b') as stream:
+            stream.seek(latest['address'] * 4096)
+            stream.write(bytes(4096))
+        native = apple_state(control, work, command)
+        require(native['selectedXID'] < latest['xid'], 'Apple independently checks an earlier complete checkpoint')
+        native['controlArchive'] = retain_file(control, output / (name + '-apple-control.raw.gz'))
+        cases.append({'id': name, 'source': archive, 'checkpoint': checkpoints(damaged), 'native': native,
+                      'damage': {'parentSHA256': sha256(source), 'offset': address * 4096,
+                                 'before': before, 'after': before ^ 1,
+                                 'disabledControlDescriptor': latest['address']}})
+    return cases
+
+
 def capture(expected_major, output):
     require_disposable_host()
     producer = version(expected_major)
@@ -193,6 +234,8 @@ def capture(expected_major, output):
                         accepted = (mode in state['future']) if mode in ('data', 'mapping') else state['latest']['xid'] == window['observedXID']
                         if mode == 'committed':
                             accepted = accepted and state['latest']['xid'] > state['blockZeroXID']
+                        if mode == 'wrapped':
+                            accepted = accepted and state['latest']['dataIndex'] < window['previousDataIndex']
                         diagnostics.append({'filesystem': filesystem, 'attempt': attempt, 'window': window, 'state': state, 'accepted': accepted})
                         attempt += 1
                         if accepted:
@@ -218,6 +261,7 @@ def capture(expected_major, output):
                 native_state = apple_state(source, work, command)
                 cases.append({'id': name, 'source': archive, 'checkpoint': checkpoints(source), 'native': native_state})
                 (output / 'recovery.json').write_text(json.dumps({'producer': producer, 'cases': cases}, indent=2) + '\n')
+            cases.extend(damage_controls(snapshots['committed'], filesystem, work, output, command))
     producer['tools'] = {name: sha256(Path(name)) for name in
                          ('/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs', '/usr/bin/hdiutil', '/usr/sbin/diskutil')}
     scripts = output / 'scripts'

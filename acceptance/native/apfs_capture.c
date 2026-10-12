@@ -111,6 +111,6 @@ int main(int argc, char **argv) {
     if (output >= 0 && close(output)) failed = 1;
     close(input);
     if (failed) unlink(argv[3]);
-    else printf("{\"helper\":%d,\"mode\":\"%s\",\"observedXID\":%llu,\"initialXID\":%llu}\n", helper, argv[4], (unsigned long long)little64(selected + 16), (unsigned long long)original);
+    else printf("{\"helper\":%d,\"mode\":\"%s\",\"observedXID\":%llu,\"initialXID\":%llu,\"previousDataIndex\":%u,\"observedDataIndex\":%u}\n", helper, argv[4], (unsigned long long)little64(selected + 16), (unsigned long long)original, previous_index, little32(selected + 144));
     return failed;
 }
