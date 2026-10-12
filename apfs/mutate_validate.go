@@ -194,6 +194,9 @@ func (m *mutation) validateOwnership() error {
 			if flags&^uint16(0x1f) != 0 || flags&3 != 1 && flags&3 != 2 || flags&0x10 != 0 && flags&3 != 1 {
 				return fmt.Errorf("APFS attribute %q flags %#x: %w", string(r.key[10:len(r.key)-1]), flags, filesystem.ErrUnsupported)
 			}
+			if string(r.key[10:len(r.key)-1]) == filesystem.ResourceFork && flags&3 != 1 {
+				return corrupt("resource fork is not stream based", 0)
+			}
 			if flags&1 != 0 {
 				if len(r.value) != 52 {
 					return corrupt("attribute stream bounds", 0)

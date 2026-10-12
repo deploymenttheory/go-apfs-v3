@@ -36,7 +36,9 @@ source are removed, except retained quarantine and filesystem-owned values.
 Recognized inactive compression metadata is copied as opaque bytes. Malformed or
 unsupported inactive headers are omitted with an explicit report, following
 Apple's copyfile header checks; they never substitute for ordinary file data.
-Copied forks replace their complete previous value, including shrinking. `-X`
+Copied forks replace their complete previous value, including shrinking. APFS
+resource forks remain stream-backed even when shorter than ordinary inline
+attributes; write admission rejects embedded forks, as Apple's checker does. `-X`
 keeps an independent existing fork; replacing compressed data still removes its
 compression-owned storage.
 

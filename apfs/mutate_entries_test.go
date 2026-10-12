@@ -199,6 +199,41 @@ func TestAPFSConstructedResourceForksRemainEditable(t *testing.T) {
 	if e != nil || !bytes.Equal(got, fork) {
 		t.Fatal("moving a constructed file changed its fork", e)
 	}
+	// Native fsck requires stream-backed resource forks even below the ordinary
+	// attribute embedding threshold. Shrinking and clearing must keep the image
+	// admitted for a subsequent transaction, with the same inode identity.
+	for _, size := range []int{1, 18, 3500, 3501, 0} {
+		payload := bytes.Repeat([]byte("f"), size)
+		if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Path: "/Moved/file", ResourceFork: true, Data: bytes.NewReader(payload)}}, options.Time); e != nil {
+			t.Fatal("resource fork replacement", size, e)
+		}
+		if e = apfs.ValidateMutation(ctx, disk); e != nil {
+			t.Fatal("resource fork storage is not editable", size, e)
+		}
+		after, e = apfs.Open(disk)
+		if e != nil {
+			t.Fatal(e)
+		}
+		gotID, e = filesystem.LookupExact(ctx, &after.Volumes[0], "/Moved/file")
+		if e != nil || gotID != identity {
+			t.Fatal("fork replacement changed identity", size, e)
+		}
+		value, e = after.Volumes[0].OpenAttribute(ctx, gotID, filesystem.ResourceFork)
+		if size == 0 {
+			if !errors.Is(e, fs.ErrNotExist) {
+				t.Fatal("empty replacement retained a resource fork", e)
+			}
+			continue
+		}
+		if e != nil {
+			t.Fatal(e)
+		}
+		got, e = io.ReadAll(io.NewSectionReader(value, 0, value.Size()))
+		value.Close()
+		if e != nil || !bytes.Equal(got, payload) {
+			t.Fatal("resource fork replacement bytes", size, e)
+		}
+	}
 	if _, e = apfs.Modify(ctx, disk, []apfs.Change{{Operation: "rm", Path: "/Moved", Recursive: true}}, options.Time); e != nil {
 		t.Fatal(e)
 	}
