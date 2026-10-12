@@ -122,6 +122,10 @@ def apply(root, ops, command, host, clocks=None):
     require(delay <= 1.1, 'copy baseline clock is not in the future')
     if delay > 0:
         time.sleep(delay + 0.01)
+    # Source values precede this whole-second boundary, including files with
+    # recent dates in the base image. Only times produced by these operations
+    # may be replaced with the reproducible construction clock.
+    clock_start = time.time_ns() // 10**9 * 10**9
     for op in ops:
         if op.get('op') == 'rm':
             command('/bin/rm', '-R', root / op['path'])
@@ -147,7 +151,7 @@ def apply(root, ops, command, host, clocks=None):
         if e['object'] not in old:
             patch = {}
             for field, native in [('birthTime', 'birthNS'), ('modifyTime', 'modifyNS'), ('accessTime', 'accessNS')]:
-                if e[native] > STAMP * 10**9:
+                if e[native] >= clock_start:
                     patch[field] = {'value': '2025-06-07T08:09:10.000000000Z'}
             if patch:
                 set_metadata(root.parent / e['path'], patch, command)
@@ -156,7 +160,7 @@ def apply(root, ops, command, host, clocks=None):
         prior = old.get(e['object'])
         fields = clocks.setdefault(str(e['object']), [])
         for field in ('changeNS', 'modifyNS'):
-            if (prior is None and field == 'changeNS' or prior is not None and e[field] != prior[field] and e[field] > STAMP * 10**9) and field not in fields:
+            if (prior is None and field == 'changeNS' or prior is not None and e[field] != prior[field] and e[field] >= clock_start) and field not in fields:
                 fields.append(field)
     return clocks
 
