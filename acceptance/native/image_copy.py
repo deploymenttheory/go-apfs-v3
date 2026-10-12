@@ -96,6 +96,10 @@ def prepare(root, command):
     paths += list((root / 'Example.app').rglob('*')) + [root / 'Example.app']
     paths += list((root / FRAMEWORK).rglob('*')) + [root / FRAMEWORK]
     paths += list((root / 'Copies').rglob('*')) + [root / 'Copies']
+    # The portable construction clock is 2025. Preserved source dates must
+    # precede both that clock and the native operation clock, so the filesystem
+    # birth<=mtime adjustment compares the same ordered dates on both sides.
+    paths += [root / name for name in ('independent', 'empty', 'inline-compressed', 'resource-compressed')]
     for p in reversed(paths):
         set_metadata(p, {'birthTime': stamp, 'modifyTime': stamp, 'accessTime': stamp}, command)
 
