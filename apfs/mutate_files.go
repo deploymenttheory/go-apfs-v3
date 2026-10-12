@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -12,47 +11,21 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
-func (m *mutation) lookup(path string) (uint64, error) {
-	if !strings.HasPrefix(path, "/") {
-		return 0, fs.ErrInvalid
-	}
-	id := uint64(2)
-	for _, name := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
-		if name == "" || name == "." || name == ".." {
-			return 0, fs.ErrInvalid
-		}
-		entry, e := m.v.Lookup(m.ctx, id, name)
-		if e != nil {
-			return 0, e
-		}
-		id = entry.Object
-		r, ok := m.fs.get(buildKey(id, 3, 0))
-		if !ok {
-			return 0, corrupt("missing change inode", 0)
-		}
-		if le.Uint16(r.value[80:])&0170000 == 0120000 {
-			return 0, filesystem.ErrUnsupported
-		}
-	}
-	return id, nil
-}
-func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
-	if c.Operation != "" && c.Operation != "cp" && c.Operation != "chmod" || c.Parents || c.Recursive || c.Force || c.Destination != "" {
-		return 0, filesystem.ErrUnsupported
-	}
-	id, e := m.lookup(c.Path)
-	if e != nil {
-		return 0, e
-	}
+func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
+	var e error
 	r, ok := m.fs.get(buildKey(id, 3, 0))
 	if !ok {
 		return 0, corrupt("change inode", 0)
 	}
 	value := bytes.Clone(r.value)
-	if le.Uint16(value[80:])&0170000 != 0100000 || le.Uint32(value[68:])&0x60006 != 0 || le.Uint64(value[48:])&(1|0x80|0x200000|0x400000) != 0 {
-		return 0, fmt.Errorf("APFS change requires an ordinary mutable regular file: %w", filesystem.ErrUnsupported)
+	kind := le.Uint16(value[80:]) & 0170000
+	if (kind != 0100000 && (kind != 0040000 || c.Data != nil)) || le.Uint32(value[68:])&0x60006 != 0 || le.Uint64(value[48:])&(1|0x80|0x200000|0x400000) != 0 {
+		return 0, fmt.Errorf("APFS change requires an ordinary mutable file or directory: %w", filesystem.ErrUnsupported)
 	}
 	if c.Data == nil {
+		if le.Uint64(value[48:])&0x40 != 0 {
+			return 0, fmt.Errorf("ACL mode interaction requires credential policy: %w", filesystem.ErrUnsupported)
+		}
 		if c.Operation == "cp" || c.ResourceFork {
 			return 0, fs.ErrInvalid
 		}
@@ -62,11 +35,11 @@ func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
 		}
 		le.PutUint16(value[80:], uint16(p.Apply(uint32(le.Uint16(value[80:])))))
 	} else {
+		if le.Uint16(value[80:])&06000 != 0 {
+			return 0, fmt.Errorf("set-ID replacement requires credential policy: %w", filesystem.ErrUnsupported)
+		}
 		if c.Operation == "chmod" || c.Mode != "" || c.Data.Size() < 0 {
 			return 0, fs.ErrInvalid
-		}
-		if c.NoClobber {
-			return 0, nil
 		}
 		if c.ResourceFork {
 			if le.Uint32(value[68:])&0x20 != 0 {
@@ -143,7 +116,7 @@ func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
 				stream = id
 				le.PutUint64(value[8:], stream)
 			}
-			blocks, e := m.replaceStream(stream, id, c.Data)
+			blocks, e := m.replaceStream(stream, stream, c.Data)
 			if e != nil {
 				return 0, e
 			}
@@ -198,7 +171,8 @@ func replaceInodeField(inode []byte, kind, flag byte, data []byte) ([]byte, erro
 			v := bytes.Clone(b[at : at+size])
 			if k == kind {
 				v = data
-				f = flag
+				// Flags include reserved bits that Apple's format requires us to
+				// retain. The supplied flag applies only when adding a new field.
 				found = true
 			}
 			types = append(types, k)
@@ -224,11 +198,7 @@ func (m *mutation) removeAttributeStream(attr buildRecord) error {
 	return m.removeStream(le.Uint64(attr.value[4:]))
 }
 func (m *mutation) removeStream(id uint64) error {
-	for _, r := range m.fs.all() {
-		p := prefix(r.key)
-		if p.id != id || p.kind != 8 {
-			continue
-		}
+	for _, r := range m.fs.records(id, 8) {
 		address := le.Uint64(r.value[8:])
 		blocks := (le.Uint64(r.value) & ((1 << 56) - 1)) / 4096
 		if address != 0 {
@@ -287,11 +257,8 @@ func (m *mutation) replaceStream(id, owner uint64, data block.Source) (uint64, e
 		if e = m.fs.put(key, value); e != nil {
 			return 0, e
 		}
-		ref := make([]byte, 20)
-		le.PutUint64(ref, 1<<60|count)
-		le.PutUint64(ref[8:], owner)
-		le.PutUint32(ref[16:], 1)
-		if e = m.extents.put(buildKey(address, 2, 0), ref); e != nil {
+		ref := buildExtentReference(address, count, owner)
+		if e = m.extents.put(ref.key, ref.value); e != nil {
 			return 0, e
 		}
 		logical += count * 4096

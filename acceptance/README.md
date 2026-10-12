@@ -68,8 +68,9 @@ go test -count=1 -run TestNativeHFSCatalogGrowth ./acceptance
 
 ## Editing existing APFS filesystems
 
-Purpose: replace data/resource forks or permissions in an existing APFS image
-while retaining its container, volume and file identities. Apple formats sources
+Purpose: create, move and remove files/directories or replace data/resource forks
+and permissions in an existing APFS image, retaining its container, volume and
+surviving file identities. Apple formats sources
 and supplies independent before/peak/final observations on macOS 15, 26 and 27.
 Both APFS name policies, fragmented forks, regular hard links, compressed files,
 independent forks, opaque attributes and a signed application are covered.
@@ -82,14 +83,27 @@ six-source family takes about 21 seconds locally and performs no native operatio
 
 `native.yml` requires the `apfs-edit.yml` family: three Apple captures, nine bounded
 source-version/portable-host editing jobs (Linux race instrumentation), and three
-independent Apple qualification jobs. Every Mac checks all 24 distinct images,
+independent Apple qualification jobs. Every Mac checks 24 distinct file-edit images and 24 directory-edit images,
 compares output triples across hosts, mounts exact raw copies, verifies signatures,
 performs further native allocation/tree changes, and qualifies Go re-edits of that
 state. Missing source versions or outputs fail. Native commands require disposable
 VMs; the working-host guard and verifier comparisons have file-only Python checks.
 
+`TestNativeAPFSImageDirectoryEditing` uses `testdata/apfs-directory-editing` or
+fresh `APFS_NATIVE_APFS_DIRECTORY_EDITS` captures. It grows 96 long-name entries,
+creates nested directories, moves entries and directories, performs a case-only
+rename, replaces a destination, updates directory permissions and unlinks primary
+hard links. Removal/reuse controls cover active compression and symlink entries.
+Existing identities remain exact; newly allocated IDs may differ from Apple's
+allocation history, but the complete equality relationship must match. Explicit
+creation and mutation clocks are the only timestamp adjustment. Unrelated metadata
+and all opaque attributes remain exact. The six-source retained directory family
+takes about 25 seconds locally using only file reads. The required continuation
+adds native hard-link and allocator changes, then qualifies another Go create,
+move, recursive removal and final-link deletion with Apple fsck/readback.
+
 ```sh
-go test -count=1 -run '^TestNativeAPFSImageEditing$' ./acceptance
+go test -count=1 -run '^TestNativeAPFSImage(Directory)?Editing$' ./acceptance
 ```
 
 ## Editing existing HFS+/HFSX filesystems

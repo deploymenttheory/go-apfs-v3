@@ -140,6 +140,9 @@ func (m *mutation) validateOwnership() error {
 			}
 			inodes[p.id] = r
 			flags := le.Uint64(r.value[48:])
+			if flags&(2|4) != 0 {
+				return fmt.Errorf("APFS directory-stat maintenance: %w", filesystem.ErrUnsupported)
+			}
 			if flags&(0x10|0x400) != 0 {
 				return fmt.Errorf("APFS clone history: %w", filesystem.ErrUnsupported)
 			}
@@ -178,7 +181,7 @@ func (m *mutation) validateOwnership() error {
 					return filesystem.ErrUnsupported
 				}
 				streams[stream] = true
-				owners[stream] = p.id
+				owners[stream] = stream // inode private_id; attribute owners use their record ID below
 			}
 		case 4:
 			if len(r.key) < 11 || len(r.value) < 4 || int(le.Uint16(r.value[2:])) != len(r.value)-4 {
@@ -214,7 +217,9 @@ func (m *mutation) validateOwnership() error {
 				return corrupt("mutation directory record", 0)
 			}
 			links[le.Uint64(r.value)]++
-		case 5, 7, 8, 10, 11, 12: // Preserved sibling, protection and directory-stat records.
+		case 10:
+			return fmt.Errorf("APFS directory-stat records: %w", filesystem.ErrUnsupported)
+		case 5, 7, 8, 11, 12: // Siblings are validated with their directory graph.
 		default:
 			return fmt.Errorf("APFS mutation record type %d: %w", p.kind, filesystem.ErrUnsupported)
 		}
@@ -262,6 +267,11 @@ func (m *mutation) validateOwnership() error {
 	for id, blocks := range streamBlocks {
 		if blocks != allocated[id] {
 			return corrupt("stream allocated-block accounting", 0)
+		}
+	}
+	for id := range references {
+		if !streams[id] {
+			return corrupt("orphan data-stream reference", 0)
 		}
 	}
 	for id, r := range inodes {

@@ -1,7 +1,7 @@
-# Editing existing APFS files
+# Editing existing APFS filesystems
 
-`cp --image` and `chmod --image` edit existing records in a private decoded disk
-copy. A completed UDRO/UDZO image is published without overwriting a destination.
+`cp`, `chmod`, `mkdir`, `mv` and `rm` with `--image` edit existing records
+in a private decoded disk copy. A completed UDRO/UDZO image is published without overwriting a destination.
 The source remains read-only; scratch is managed internally.
 
 ```sh
@@ -17,7 +17,7 @@ source bytes and operations produce byte-identical plaintext output across hosts
 
 ## Admitted profile
 
-The first increment handles one unencrypted, unsealed, ordinary APFS volume in a
+The admitted write profile handles one unencrypted, unsealed, ordinary APFS volume in a
 single-device container. It supports case-sensitive and case-insensitive native
 names, ordinary regular-file hard links, attributes, data and resource forks,
 and active decmpfs replacement. Containers are bounded to 1 GiB, 4096-byte blocks,
@@ -26,9 +26,10 @@ Every current and pending-free block must have validated ownership.
 
 Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
 reserves/quotas, Fusion, encrypted image envelopes/volumes, pending reapers and
-unrecognized write profiles are refused before disk staging. New-file creation,
-`mkdir`, `mv`, `rm`, directory permission changes and symlink traversal belong to
-later increments. Immutable, append-only and protected target objects are refused.
+unrecognized write profiles are refused before disk staging. Directory-stat
+maintenance and protected filesystem-owned directories are outside this profile.
+Immutable, append-only and protected target objects are refused. Symlinks can be
+moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
 construction capabilities.
 
@@ -40,7 +41,54 @@ fork is retained for attribute-only compression. Explicit resource-fork replacem
 on an actively compressed file is refused. Untouched applications retain their
 signature bytes; changing signed application contents requires subsequent signing.
 Birth/access times, ownership and unrelated metadata are preserved. Changed data
-and forks receive the requested mtime/ctime; chmod changes ctime only.
+and forks receive the requested mtime/ctime; chmod changes ctime only. ACL-bearing
+chmod targets and set-ID replacement targets await a qualified credential policy.
+
+## File and directory operations
+
+```sh
+apfs mkdir --image Original.dmg --output Directories.dmg -p -m 0750 /Payload/Resources
+apfs cp --image Directories.dmg --output Added.dmg --from-host ./asset /Payload/Resources
+apfs chmod --image Added.dmg --output Mode.dmg u=rwx,g=rx,o= /Payload/Resources
+apfs mv --image Mode.dmg --output Moved.dmg /Payload/Resources /Payload/Assets
+apfs rm --image Moved.dmg --output Removed.dmg -r /Payload/obsolete
+```
+
+`cp` creates a missing ordinary regular file or replaces existing logical contents.
+A directory destination uses the host basename. Resource-fork replacement requires
+an existing regular file. `cp -n` and `mv -n` refuse existing destinations without
+publishing output. Numeric and Apple symbolic modes use the shared mode parser.
+
+New files default to 0644 and directories to 0755; intermediate `mkdir -p`
+directories use 0755. Parent UID/GID and the supplied image clock determine new
+metadata independently of host credentials and umask. All four new timestamps
+use that clock. ACL/set-ID parent inheritance and set-ID creation are refused.
+Existing `mkdir -p` paths are a no-op and keep their metadata.
+
+`mv` preserves the inode, forks and attributes. An existing directory receives
+the source basename. A replacement must match file/directory kind; a replaced
+directory must be empty. Moving between equal hard-link inodes is a no-op.
+Case-only changes preserve identity and use the volume's native comparison rules.
+Moves update the named entry's date-added clock and the inode's ctime. Parent
+child counts and parent mtime/ctime change coherently. Root and self-descendant
+moves are refused. `rm -r`/`-R` is required for directories; `-f` ignores absent
+entries. Moving/removing a symlink addresses the entry and never follows it.
+
+Unlink updates the shared inode's link count and primary name/parent, removes the
+named sibling-link/map pair, and retains the surviving sibling records even at
+one link, matching Apple. Only final unlink retires the inode and every owned
+stream/attribute. Filesystem-owned private and service directories are protected.
+
+`apfs/mutate_entries.go` validates the complete directory parent graph, name hashes,
+child counts, primary inode links and matching sibling entry/link/map inventory.
+Its mutable index makes later operations see earlier edits in a batch. Both
+construction and mutation use `apfs/build_records.go` for inode, directory and
+sibling encoding. Physical extent references also share one encoder: attribute
+streams retain the owning attribute record ID, independently of their stream ID.
+A build/move/remove regression keeps Go-constructed resource forks editable.
+Mutation paths use the existing APFS name bounds (255 UTF-16
+units), at most 256 components, at most 2^20 indexed records and 4,096 operations.
+The existing tree, checkpoint and free-queue capacity limits continue to apply.
 
 ## Transaction machinery
 
@@ -77,3 +125,18 @@ Fresh independent captures remain required in CI. Linux, Windows and macOS produ
 actual edited images; each macOS version qualifies all output triples with Apple
 fsck, exact raw-copy native readback, codesign, continued native allocation and a
 further Go/native cycle. All native commands are restricted to disposable VMs.
+
+Directory creation/move/unlink and removal/reuse references were captured in
+[run 38177430983](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38177430983)
+and are retained separately under `acceptance/testdata/apfs-directory-editing`.
+The exact capture sources and native command/tool/OS evidence accompany them.
+Native captures retain siblings when the link count reaches one and qualify
+primary-name/parent repair. The same required APFS pipeline refreshes both file
+and directory controls; each native version checks all host output triples and
+continued Go/native directory edits. See [acceptance purpose and coverage](../acceptance/README.md).
+
+Record layouts and primary-link selection follow the
+[Apple File System Reference](https://developer.apple.com/support/apple-file-system/Apple-File-System-Reference.pdf).
+Apple's private APFS writer is not publicly available to port. These Go write
+rules interpret the published format and are qualified by independent native
+observations, rather than presented as a translation of private kernel C.

@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   capture:
-    name: Record Apple-created APFS file edits (macOS ${{ matrix.major }})
+    name: Record Apple-created APFS file and directory edits (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
@@ -38,6 +38,8 @@ jobs:
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Capture existing identities, native allocation and file edits
         run: python3 acceptance/native/apfs_editing.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-editing/macos-${{ matrix.major }}
+      - name: Capture native creation, rename, hard-link unlink and directory metadata
+        run: python3 acceptance/native/apfs_directory_editing.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-editing/directories/macos-${{ matrix.major }}
       - name: Retain source disks, native states and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -48,7 +50,7 @@ jobs:
 
   replay:
     if: ${{ !inputs.capture_only }}
-    name: Edit existing APFS files (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
+    name: Edit APFS files and directories (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
     needs: capture
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -76,12 +78,14 @@ jobs:
           name: apfs-edit-reference-${{ matrix.major }}
           path: artifacts/apfs-editing
       - name: Verify native file semantics, unchanged identities, source preservation and reproducibility
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '^TestNativeAPFSImageEditing$'
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSImage(Directory)?Editing$'
         env:
           CGO_ENABLED: ${{ matrix.host == 'Linux' && '1' || '0' }}
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_EDITS: ../artifacts/apfs-editing
           APFS_APFS_EDIT_OUTPUT: ../artifacts/apfs-edits-${{ matrix.host }}
+          APFS_NATIVE_APFS_DIRECTORY_EDITS: ../artifacts/apfs-editing/directories
+          APFS_APFS_DIRECTORY_OUTPUT: ../artifacts/apfs-directories-${{ matrix.host }}
       - name: Archive actual portable output images
         shell: bash
         run: |
@@ -89,7 +93,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }}
+          tar -czf artifacts/apfs-edits-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts apfs-edits-${{ matrix.host }} apfs-directories-${{ matrix.host }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
@@ -141,6 +145,15 @@ jobs:
           APFS_APFS_EDIT_CONTINUED_OUTPUT: ../artifacts/apfs-continued-go
       - name: Qualify Go re-edits with Apple fsck and remount
         run: python3 acceptance/native/verify_apfs_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/apfs-continued-go
+      - name: Qualify directory edits, native link changes and allocation reuse
+        run: python3 acceptance/native/verify_apfs_directory_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/apfs-editing/directories --outputs artifacts/outputs --continuation artifacts/apfs-directories-continued-native
+      - name: Create, move and remove entries in Apple's subsequent state with Go
+        run: go test -v -count=1 -timeout 2m ./acceptance -run '^TestNativeAPFSImageDirectoryEditingContinuation$'
+        env:
+          APFS_APFS_DIRECTORY_CONTINUATION: ../artifacts/apfs-directories-continued-native
+          APFS_APFS_DIRECTORY_CONTINUED_OUTPUT: ../artifacts/apfs-directories-continued-go
+      - name: Qualify subsequent Go directory edits with Apple fsck and remount
+        run: python3 acceptance/native/verify_apfs_directory_editing.py --expected-major "${{ matrix.major }}" --continued artifacts/apfs-directories-continued-go
       - name: Retain native verification diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -149,6 +162,7 @@ jobs:
           path: |
             artifacts/outputs/*.diagnostics.json
             artifacts/apfs-continued-go/*.diagnostics.json
+            artifacts/apfs-directories-continued-go/*.diagnostics.json
           if-no-files-found: error
 
   complete:

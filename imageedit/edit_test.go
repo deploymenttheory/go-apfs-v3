@@ -187,9 +187,6 @@ func (hugeInput) Size() int64 { return 1 << 40 }
 func TestInterruptedImageTransaction(t *testing.T) {
 	if os.Getenv("APFS_EDIT_INTERRUPT_CHILD") == "1" {
 		changes := []imageedit.Change{{Operation: "mkdir", Path: "/created"}, {Path: "/created/payload", Data: interruptedInput{}}}
-		if os.Getenv("APFS_EDIT_FILESYSTEM") == "APFS" {
-			changes = []imageedit.Change{{Path: "/file", Data: interruptedInput{}}}
-		}
 		_, _ = imageedit.Apply(context.Background(), os.Getenv("APFS_EDIT_SOURCE"), os.Getenv("APFS_EDIT_DESTINATION"), imageedit.Options{Time: clock}, changes)
 		os.Exit(99)
 	}

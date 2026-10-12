@@ -48,6 +48,7 @@ type buildObject struct {
 type buildStream struct {
 	reader                    filesystem.Reader
 	id, source, start, blocks uint64
+	owner                     uint64
 	attribute                 string
 	size                      int64
 	digest                    [32]byte
@@ -194,12 +195,14 @@ func (p *volumeLayout) collect(ctx context.Context) error {
 		for i := range obj.attrs {
 			if s := obj.attrs[i].stream; s != nil {
 				s.id = p.nextID
+				s.owner = obj.id
 				p.nextID++
 				p.streams = append(p.streams, s)
 			}
 		}
 		if obj.data != nil {
 			obj.data.id = obj.id
+			obj.data.owner = obj.id
 			p.streams = append(p.streams, obj.data)
 		}
 	}

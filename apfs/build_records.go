@@ -15,6 +15,16 @@ func buildKey(id uint64, kind uint64, extra int) []byte {
 	return b
 }
 func buildUint64(v uint64) []byte { b := make([]byte, 8); le.PutUint64(b, v); return b }
+
+// The extent owner identifies its inode/private ID or attribute record, not
+// the separate stream ID stored in an attribute's value (Apple Reference p.103).
+func buildExtentReference(address, blocks, owner uint64) buildRecord {
+	v := make([]byte, 20)
+	le.PutUint64(v, 1<<60|blocks)
+	le.PutUint64(v[8:], owner)
+	le.PutUint32(v[16:], 1)
+	return buildRecord{buildKey(address, 2, 0), v}
+}
 func buildStreamValue(s *buildStream) []byte {
 	b := make([]byte, 40)
 	le.PutUint64(b, uint64(s.size))
@@ -95,9 +105,14 @@ func buildInode(o *buildObject, documentID uint32) buildRecord {
 var buildNameCRC = crc32.MakeTable(crc32.Castagnoli)
 
 func (p *volumeLayout) directoryRecord(a buildAlias, id uint64, kind uint16) buildRecord {
+	ns, _ := buildTime(p.time)
+	return buildDirectoryRecord(a, id, kind, ns, p.options.CaseSensitive)
+}
+
+func buildDirectoryRecord(a buildAlias, id uint64, kind uint16, stamp uint64, caseSensitive bool) buildRecord {
 	key := buildKey(a.parent, 9, 4+len(a.name)+1)
 	h := uint32(0xffffffff)
-	for _, r := range names.APFS(a.name, p.options.CaseSensitive, true) {
+	for _, r := range names.APFS(a.name, caseSensitive, true) {
 		v := uint32(r)
 		for range 4 {
 			h = buildNameCRC[byte(h^v)] ^ (h >> 8)
@@ -108,13 +123,22 @@ func (p *volumeLayout) directoryRecord(a buildAlias, id uint64, kind uint16) bui
 	copy(key[12:], a.name)
 	b := make([]byte, 18)
 	le.PutUint64(b, id)
-	ns, _ := buildTime(p.time)
-	le.PutUint64(b[8:], ns)
+	le.PutUint64(b[8:], stamp)
 	le.PutUint16(b[16:], kind)
 	if a.id != 0 {
 		b = append(b, buildXFields([]byte{1}, []byte{2}, [][]byte{buildUint64(a.id)})...)
 	}
 	return buildRecord{key, b}
+}
+
+func buildSibling(id uint64, a buildAlias) buildRecord {
+	key := buildKey(id, 5, 8)
+	le.PutUint64(key[8:], a.id)
+	v := make([]byte, 10+len(a.name)+1)
+	le.PutUint64(v, a.parent)
+	le.PutUint16(v[8:], uint16(len(a.name)+1))
+	copy(v[10:], a.name)
+	return buildRecord{key, v}
 }
 func buildXattr(id uint64, name string, value []byte, flags uint16) buildRecord {
 	key := buildKey(id, 4, 2+len(name)+1)
@@ -145,13 +169,7 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 			for _, a := range o.aliases {
 				records = append(records, p.directoryRecord(a, o.id, uint16(o.node.Metadata.Mode.Value>>12)))
 				if a.id != 0 {
-					key := buildKey(o.id, 5, 8)
-					le.PutUint64(key[8:], a.id)
-					v := make([]byte, 10+len(a.name)+1)
-					le.PutUint64(v, a.parent)
-					le.PutUint16(v[8:], uint16(len(a.name)+1))
-					copy(v[10:], a.name)
-					records = append(records, buildRecord{key, v}, buildRecord{buildKey(a.id, 12, 0), buildUint64(o.id)})
+					records = append(records, buildSibling(o.id, a), buildRecord{buildKey(a.id, 12, 0), buildUint64(o.id)})
 				}
 			}
 		}
@@ -182,11 +200,7 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 		le.PutUint64(value, s.blocks*4096)
 		le.PutUint64(value[8:], s.start)
 		records = append(records, buildRecord{buildKey(s.id, 8, 8), value})
-		value = make([]byte, 20)
-		le.PutUint64(value, 1<<60|s.blocks)
-		le.PutUint64(value[8:], s.id)
-		le.PutUint32(value[16:], 1)
-		extents = append(extents, buildRecord{buildKey(s.start, 2, 0), value})
+		extents = append(extents, buildExtentReference(s.start, s.blocks, s.owner))
 	}
 	sort.Slice(records, func(i, j int) bool { return p.recordLess(records[i].key, records[j].key) })
 	return records, extents, documentID
