@@ -93,6 +93,7 @@ def prepare(root, command):
     # All preservation values precede operation clocks; source inode IDs are exact.
     stamp = {'value': '2001-02-03T04:05:06.000000000Z'}
     paths = list((root / 'CopySource').rglob('*')) + [root / 'CopySource']
+    paths += list((root / 'Example.app').rglob('*')) + [root / 'Example.app']
     paths += list((root / FRAMEWORK).rglob('*')) + [root / FRAMEWORK]
     paths += list((root / 'Copies').rglob('*')) + [root / 'Copies']
     for p in reversed(paths):
