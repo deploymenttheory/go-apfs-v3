@@ -8,6 +8,7 @@ import argparse
 import gzip
 import json
 import os
+import plistlib
 from pathlib import Path
 import shutil
 import struct
@@ -169,17 +170,25 @@ def capture(references, output, kind, major):
                 with image.open('xb') as raw:
                     raw.truncate(engine.CAPACITY)
                 device = engine.attach(image, command, writable=True)
-                # Format the disposable raw device with Apple's ordinary
-                # initialized tree. A later independent observation requires
-                # that no attribute records were created by the fixture setup.
-                command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
-                        *(['-J'] if journaled else []), '-b', '4096', '-U', str(os.getuid()),
-                        '-G', str(os.getgid()), '-v', 'Metadata',
-                        device.replace('/dev/disk', '/dev/rdisk'))
+                # Reprobe the completed format before mounting: the raw device
+                # was attached before newfs supplied its filesystem identity.
+                # HFS selects folder-count support from the HFSX signature at
+                # mount time, not just the catalog's case-sensitive comparator.
+                try:
+                    command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
+                            *(['-J'] if journaled else []), '-b', '4096', '-U', str(os.getuid()),
+                            '-G', str(os.getgid()), '-v', 'Metadata',
+                            device.replace('/dev/disk', '/dev/rdisk'))
+                finally:
+                    command('hdiutil', 'detach', device)
+                device = engine.attach(image, command, writable=True)
                 directory = work / (case_id + '-create')
                 directory.mkdir()
                 try:
                     command('diskutil', 'mount', '-mountOptions', 'owners,noatime', '-mountPoint', directory, device)
+                    identity = plistlib.loads(command('diskutil', 'info', '-plist', directory))
+                    require(('case-sensitive' in identity['FilesystemName'].lower()) == native_fs.startswith('Case'),
+                            'native mounted case policy matches the formatted source')
                     root = directory / 'Fixture'
                     root.mkdir()
                     for name in ('small', 'empty', 'independent', 'fragmented-data', 'fragmented-resource'):
@@ -193,6 +202,9 @@ def capture(references, output, kind, major):
                     command('hdiutil', 'detach', device)
                 sources.append((case_id, image, True))
         for case_id, image, empty_attributes in sources:
+            # Keep an Apple source even if its first checker verdict fails;
+            # only a successful complete capture publishes an oracle manifest.
+            source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
             before = engine.observe(image, work, command, observer=metadata_files)
             if empty_attributes:
                 attrs = before['headers']['primary']['forks']['attributes']
@@ -208,7 +220,6 @@ def capture(references, output, kind, major):
                 for entry in before['files']['entries']:
                     require(not any(name.startswith('org.go-apfs.') for name in entry['rawAttributes']),
                             'new-volume files begin without the tested attributes')
-            source = engine.retain_file(image, output / (case_id + '-source.raw.gz'))
             item = {'id': case_id, 'source': source, 'before': before, 'states': {},
                     'emptyAttributeTree': empty_attributes}
             clocks = {}
