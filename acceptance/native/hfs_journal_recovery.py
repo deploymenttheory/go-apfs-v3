@@ -7,6 +7,7 @@ separate copy; original interrupted bytes and every native verdict are retained.
 No Go code participates in producing these references.
 """
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -130,7 +131,11 @@ def churn(root, stop, errors):
             generation += 1
             descriptor = os.open(root / 'entry-0', os.O_RDONLY)
             try:
-                os.fsync(descriptor)
+                # hfs_fsync(HFS_FSYNC) deliberately skips catalog metasync
+                # on journaled volumes. F_FULLFSYNC enters HFS_FSYNC_FULL and
+                # hfs_flush(HFS_FLUSH_FULL), committing the buffered journal.
+                # Value 51 is Apple's SDK sys/fcntl.h, not a guessed ioctl.
+                fcntl.fcntl(descriptor, 51)
             finally:
                 os.close(descriptor)
     except BaseException as error:
