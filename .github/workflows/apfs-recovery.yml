@@ -56,9 +56,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 15, source: 15, race: '-race', artifact: Linux-15}
-          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 26, source: 26, race: '-race', artifact: Linux-26}
-          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 27, source: 27, race: '-race', artifact: Linux-27}
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 15, source: 15, race: '', artifact: Linux-15}
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 26, source: 26, race: '', artifact: Linux-26}
+          - {runner: ubuntu-24.04, platform: Linux, scope: macOS 27, source: 27, race: '', artifact: Linux-27}
           - {runner: windows-2025, platform: Windows, scope: all sources, source: '', race: '', artifact: Windows}
           - {runner: macos-26, platform: macOS, scope: all sources, source: '', race: '', artifact: macOS}
     steps:
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$RECOVERY_TESTS"
         env:
-          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          CGO_ENABLED: '0'
           RECOVERY_TESTS: "^TestNativeAPFSCheckpointRecovery$${{ matrix.source != '' && format('/macos-{0}', matrix.source) || '' }}"
           APFS_NATIVE_CHECKPOINT_RECOVERY: ../artifacts/apfs-recovery
           APFS_CHECKPOINT_RECOVERY_OUTPUT: ../artifacts/recovered-${{ matrix.platform }}

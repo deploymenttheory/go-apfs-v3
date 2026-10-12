@@ -935,11 +935,14 @@ scripts. The family produces actual output files when
 `APFS_CHECKPOINT_RECOVERY_OUTPUT` is set. Go interruption artifacts explicitly
 identify their separate producer and retain their real torn bytes and write traces.
 
-The dedicated workflow has three native captures, bounded Linux/source-version
-race comparisons and Windows/macOS comparisons, portable process-kill checks,
+The dedicated workflow has three native captures, complete Linux/source-version
+and Windows/macOS comparisons, portable process-kill checks,
 and nine native readback jobs. Each native version checks all three portable
 hosts against that source version's Apple controls. Every job describes what it
 proves; the family is excluded from duplicate default-library/reader race runs.
+Separate race jobs cover both name profiles, genuine data windows, damaged
+objects, ring wrap and all six interruption boundaries for every source version.
+Full functional/native output qualification always covers all 36 controls.
 Fresh captures never replace the repository baseline automatically.
 
 ```sh

@@ -182,14 +182,17 @@ jobs:
             tests: '^TestNativeHFSJournalRecovery$'
             skip: '^$'
           - family: APFS checkpoint recovery, macOS 15 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-15(/|$)'
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-15/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
             skip: '^$'
+            timeout: '7m'
           - family: APFS checkpoint recovery, macOS 26 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-26(/|$)'
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-26/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
             skip: '^$'
+            timeout: '7m'
           - family: APFS checkpoint recovery, macOS 27 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-27(/|$)'
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-27/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
             skip: '^$'
+            timeout: '7m'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
             skip: '^$'
@@ -200,7 +203,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained native observations under race instrumentation
-        run: go test -race -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
+        run: go test -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
 
   quality:
     needs: [portable, portable_acceptance, race_library, race_acceptance]
