@@ -135,17 +135,6 @@ jobs:
           APFS_NATIVE_HFS_JOURNALED_LINKS: ../artifacts/${{ matrix.prefix }}-editing/links
           APFS_HFS_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
           APFS_HFS_JOURNALED_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
-      - name: Compare preserved copying, recursive imports and copied application signatures
-        if: matrix.operations == 'file contents, modes and metadata'
-        shell: bash
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$COPY_TESTS"
-        env:
-          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
-          COPY_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageCopy$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
-          APFS_NATIVE_HFS_COPY: ../artifacts/${{ matrix.prefix }}-editing/copy
-          APFS_NATIVE_HFS_JOURNALED_COPY: ../artifacts/${{ matrix.prefix }}-editing/copy
-          APFS_HFS_COPY_OUTPUT: ../artifacts/${{ matrix.prefix }}-copy-${{ matrix.platform }}
-          APFS_HFS_JOURNALED_COPY_OUTPUT: ../artifacts/${{ matrix.prefix }}-copy-${{ matrix.platform }}
       - name: Archive actual portable output images
         env:
           HFS_OUTPUT_ARTIFACT: ${{ matrix.artifact }}
@@ -164,7 +153,6 @@ jobs:
           if [[ "$HFS_OUTPUT_ARTIFACT" != Catalog-* ]]; then
             output_directories+=("${{ matrix.prefix }}-metadata-${{ matrix.platform }}")
             output_directories+=("${{ matrix.prefix }}-links-${{ matrix.platform }}")
-            output_directories+=("${{ matrix.prefix }}-copy-${{ matrix.platform }}")
           fi
           tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${output_directories[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -173,10 +161,66 @@ jobs:
           path: artifacts/${{ matrix.prefix }}-edits-*.tar.gz
           if-no-files-found: error
 
+  replay_copy:
+    if: ${{ !inputs.capture_only }}
+    name: Copy applications and directories into existing HFS (${{ matrix.profile }}, ${{ matrix.platform }}, ${{ matrix.scope }})
+    needs: capture
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSImageCopy$/macos-15', artifact: Linux-15, prefix: hfs, profile: nonjournaled}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', tests: '^TestNativeHFSJournaledImageCopy$/macos-15', artifact: Linux-15, prefix: hfs-journaled, profile: journaled}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSImageCopy$/macos-26', artifact: Linux-26, prefix: hfs, profile: nonjournaled}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', tests: '^TestNativeHFSJournaledImageCopy$/macos-26', artifact: Linux-26, prefix: hfs-journaled, profile: journaled}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSImageCopy$/macos-27', artifact: Linux-27, prefix: hfs, profile: nonjournaled}
+          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', tests: '^TestNativeHFSJournaledImageCopy$/macos-27', artifact: Linux-27, prefix: hfs-journaled, profile: journaled}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCopy$', artifact: Windows, prefix: hfs, profile: nonjournaled}
+          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageCopy$', artifact: Windows, prefix: hfs-journaled, profile: journaled}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCopy$', artifact: macOS, prefix: hfs, profile: nonjournaled}
+          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageCopy$', artifact: macOS, prefix: hfs-journaled, profile: journaled}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: ${{ matrix.prefix }}-edit-reference-*
+          path: artifacts/${{ matrix.prefix }}-editing
+          merge-multiple: true
+      - name: Compare preserved copying, recursive imports and copied application signatures
+        # Copying owns a separate bounded job: adding it to the existing three
+        # race-instrumented edit families exceeded their ten-minute job budget.
+        shell: bash
+        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+        env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          APFS_NATIVE_HFS_COPY: ../artifacts/${{ matrix.prefix }}-editing/copy
+          APFS_NATIVE_HFS_JOURNALED_COPY: ../artifacts/${{ matrix.prefix }}-editing/copy
+          APFS_HFS_COPY_OUTPUT: ../artifacts/${{ matrix.prefix }}-copy-${{ matrix.platform }}
+          APFS_HFS_JOURNALED_COPY_OUTPUT: ../artifacts/${{ matrix.prefix }}-copy-${{ matrix.platform }}
+      - name: Archive actual portable copied images
+        shell: bash
+        run: |
+          archive_options=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            archive_options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf "artifacts/${{ matrix.prefix }}-edits-Copy-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${{ matrix.prefix }}-copy-${{ matrix.platform }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ${{ matrix.prefix }}-edits-Copy-${{ matrix.artifact }}
+          path: artifacts/${{ matrix.prefix }}-edits-Copy-*.tar.gz
+          if-no-files-found: error
+
   readback:
     if: ${{ !inputs.capture_only }}
     name: Qualify ${{ matrix.profile }} HFS edits and continued writes (macOS ${{ matrix.major }})
-    needs: replay
+    needs: [replay, replay_copy]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -322,12 +366,13 @@ jobs:
   complete:
     name: Require existing HFS edit qualification
     if: ${{ always() && !inputs.capture_only }}
-    needs: [capture, replay, readback]
+    needs: [capture, replay, replay_copy, readback]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every native reference, portable output and native continuation check
         env:
           CAPTURE: ${{ needs.capture.result }}
           REPLAY: ${{ needs.replay.result }}
+          COPY: ${{ needs.replay_copy.result }}
           READBACK: ${{ needs.readback.result }}
-        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success
+        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$COPY" = success && test "$READBACK" = success

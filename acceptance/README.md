@@ -92,6 +92,8 @@ The existing filesystem-edit pipelines compare output hashes on all three hosts
 and run complete Apple readback, fsck and signatures on all three Macs. Six final
 images per profile undergo subsequent native copying. Go copies from these native
 states; separate Apple-only images provide final expectations for native readback.
+HFS copying runs in its own bounded parallel jobs, with one source version per
+Linux race job, so it does not extend the existing edit families' job budget.
 Failure/interruption, changed host input and aggregate payload bounds have local
 controls. Native tools run exclusively in disposable CI VMs.
 
