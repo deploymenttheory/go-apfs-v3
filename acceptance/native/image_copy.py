@@ -39,6 +39,10 @@ def operations(phase):
             {'sources': ['empty'], 'destination': 'Copies/existing', 'preserve': True},
             {'sources': ['independent'], 'destination': 'Copies/no-attrs', 'noAttributes': True},
             {'sources': ['Copies/Example.app'], 'destination': 'Copies/Second.app', 'archive': True},
+            # Native APFS can coalesce this existing inode's adjacent data/fork
+            # ranges into one physical ownership record. Replace only its data;
+            # -X keeps the independent fork and both original aliases intact.
+            {'sources': ['independent'], 'destination': 'CopySource/data', 'noAttributes': True},
             {'op': 'rm', 'path': 'Copies/Example.app', 'recursive': True},
             {'op': 'mv', 'path': 'Copies/forked', 'destination': 'Copies/renamed'},
         ]
