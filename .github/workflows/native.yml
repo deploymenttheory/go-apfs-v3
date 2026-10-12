@@ -213,11 +213,13 @@ jobs:
           path: artifacts/hfs-references
           merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
+        # Required recovery subworkflows own their complete fresh/retained
+        # corpus comparisons; do not duplicate full-disk recovery here.
         # The required hfs_edits subworkflow separately replays fresh HFS edit
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$)'
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
