@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import tempfile
 import time
 
@@ -27,6 +28,8 @@ def operations(phase):
             {'sources': ['inline-compressed'], 'destination': 'Copies/inline', 'preserve': True},
             {'sources': ['resource-compressed'], 'destination': 'Copies/resource', 'preserve': True},
             {'sources': ['inline-fork-compressed'], 'destination': 'Copies/inline-fork', 'preserve': True},
+            {'sources': ['inactive-valid'], 'destination': 'Copies/inactive-valid', 'preserve': True},
+            {'sources': ['inactive-malformed'], 'destination': 'Copies/inactive-malformed', 'preserve': True},
             {'sources': ['CopySource/'], 'destination': 'Copies/Merged', 'recursive': True},
             {'sources': ['independent'], 'destination': 'Copies/existing', 'preserve': True},
             {'sources': ['independent'], 'destination': 'Copies/no-attrs', 'noAttributes': True},
@@ -44,6 +47,8 @@ def operations(phase):
             # ranges into one physical ownership record. Replace only its data;
             # -X keeps the independent fork and both original aliases intact.
             {'sources': ['independent'], 'destination': 'CopySource/data', 'noAttributes': True},
+            {'sources': ['empty'], 'destination': 'Copies/inactive-valid', 'preserve': True},
+            {'sources': ['empty'], 'destination': 'resource-compressed', 'preserve': True},
             {'op': 'rm', 'path': 'Copies/Example.app', 'recursive': True},
             {'op': 'mv', 'path': 'Copies/forked', 'destination': 'Copies/renamed'},
         ]
@@ -80,6 +85,10 @@ def prepare(root, command):
     compressed.touch()
     xattr(compressed, RESOURCE, b'Independent compressed copy fork\x00\xff')
     install(compressed, 3, plain(1200), payload=encode(3, plain(1200)))
+    for name, header in [('inactive-valid', struct.pack('<IIQ', 0x636d7066, 9, 99) + b'\xccstale'),
+                         ('inactive-malformed', b'not a compression header')]:
+        (root / name).write_bytes(b'Ordinary data is authoritative.\n')
+        xattr(root / name, 'com.apple.decmpfs', header)
     for target, name in [('A', 'Versions/Current'), ('Versions/Current/Example', 'Example'),
                          ('Versions/Current/Resources', 'Resources')]:
         command('/bin/ln', '-s', '--', target, root / FRAMEWORK / name)
@@ -111,7 +120,7 @@ def prepare(root, command):
     # The portable construction clock is 2025. Preserved source dates must
     # precede both that clock and the native operation clock, so the filesystem
     # birth<=mtime adjustment compares the same ordered dates on both sides.
-    paths += [root / name for name in ('independent', 'empty', 'inline-compressed', 'resource-compressed', 'inline-fork-compressed')]
+    paths += [root / name for name in ('independent', 'empty', 'inline-compressed', 'resource-compressed', 'inline-fork-compressed', 'inactive-valid', 'inactive-malformed')]
     for p in reversed(paths):
         set_metadata(p, {'birthTime': stamp, 'modifyTime': stamp, 'accessTime': stamp}, command)
 
