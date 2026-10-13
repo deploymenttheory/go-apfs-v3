@@ -34,17 +34,26 @@ class Commands:
         self.path = diagnostics
         self.records = []
 
-    def __call__(self, *argv, fixture_input=None, expected_success=True):
+    def __call__(self, *argv, fixture_input=None, expected_success=True, timeout=120):
         display = [str(a) if len(str(a)) <= 256 else f'<{len(str(a))} characters>' for a in argv]
         for attempt in range(6):
             print('native:', *display, flush=True)
             record = {'argv': list(map(str, argv)), 'status': 'started', 'expectedSuccess': expected_success}
+            if timeout != 120:
+                record['timeoutSeconds'] = timeout
             self.records.append(record)
             self.save()
             try:
-                r = subprocess.run(list(map(str, argv)), input=fixture_input, capture_output=True, timeout=120)
+                r = subprocess.run(list(map(str, argv)), input=fixture_input, capture_output=True, timeout=timeout)
             except BaseException as error:
-                record.update(status='failed', error=str(error)); self.save(); raise
+                record.update(status='failed', error=str(error)); self.save()
+                if isinstance(error, subprocess.TimeoutExpired):
+                    record.update(stdout=(error.stdout or b'').decode(errors='replace'),
+                                  stderr=(error.stderr or b'').decode(errors='replace'))
+                    self.save()
+                if expected_success and argv[:2] == ('hdiutil', 'create') and isinstance(error, Exception):
+                    self.record_creation_failure(argv)
+                raise
             record.update(status=r.returncode, stdout=r.stdout.decode(errors='replace'), stderr=r.stderr.decode(errors='replace'))
             self.save()
             # DiskImages can retain a disposable image briefly after unmount.
@@ -54,8 +63,47 @@ class Commands:
                 time.sleep(1)
                 continue
             if (r.returncode == 0) != expected_success:
+                if expected_success and argv[:2] == ('hdiutil', 'create'):
+                    self.record_creation_failure(argv)
                 raise RuntimeError(f'command failed: {argv}: {record["stdout"]} {record["stderr"]}')
             return r.stdout
+
+    def record_creation_failure(self, argv):
+        # Observe a failed native creation without retrying it, changing its
+        # result, or touching any device/partial image. These commands supply
+        # context, not expected filesystem semantics.
+        context = {'argv': list(map(str, argv)), 'creationAttempts': 1, 'probeTimeoutSeconds': 10,
+                   'runner': {key: os.environ.get(key) for key in
+                              ('RUNNER_ENVIRONMENT', 'RUNNER_NAME', 'RUNNER_OS',
+                               'RUNNER_ARCH', 'ImageOS', 'ImageVersion')}}
+        diagnostics = self.path.with_name('creation-failure.json')
+        try:
+            from container_building import require_disposable_host
+            require_disposable_host()
+            tool = shutil.which('hdiutil')
+            context['tool'] = {'path': tool, 'sha256': sha256(tool)} if tool else None
+            partial = Path(argv[-1])
+            context['partialOutput'] = {'path': str(partial), 'exists': False}
+            try:
+                details = partial.lstat()
+                context['partialOutput'].update(exists=True, size=details.st_size,
+                    regularFile=stat.S_ISREG(details.st_mode), symlink=stat.S_ISLNK(details.st_mode))
+            except FileNotFoundError:
+                pass
+            for probe in (('sw_vers',), ('hdiutil', 'info', '-plist'), ('diskutil', 'list', '-plist')):
+                try:
+                    self(*probe, timeout=10)
+                except Exception:
+                    # The recorder retains failed probes too. Their outcomes
+                    # must not replace the original creation failure.
+                    pass
+        except Exception as error:
+            context['diagnosticError'] = str(error)
+        try:
+            diagnostics.write_text(json.dumps(context, indent=2) + '\n')
+        except OSError:
+            # Original command diagnostics have already been persisted.
+            pass
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
