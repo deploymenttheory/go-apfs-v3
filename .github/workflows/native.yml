@@ -124,6 +124,9 @@ jobs:
   offline_edits:
     if: ${{ inputs.offline_edits_only || (!inputs.offline_reference_capture && !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
     uses: ./.github/workflows/offline-editing.yml
+    with:
+      readback_run: ${{ inputs.offline_edits_only && inputs.readback_run || '' }}
+      readback_family: ${{ inputs.offline_edits_only && inputs.readback_run != '' && (inputs.offline_reference_kind == 'stats' && 'statistics' || inputs.offline_reference_kind == 'stats-transitions' && 'statistics-transitions' || inputs.offline_reference_kind) || '' }}
 
   apfs_recovery:
     if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}

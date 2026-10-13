@@ -2,12 +2,23 @@ name: Offline image editing compatibility
 
 on:
   workflow_call:
+    inputs:
+      readback_run:
+        description: Completed run whose captures and portable output jobs must have passed
+        type: string
+        default: ''
+      readback_family:
+        description: One offline editing capability to verify, or empty for every capability
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   capture:
+    if: inputs.readback_run == ''
     name: Record Apple ${{ matrix.family }} editing controls (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -54,6 +65,7 @@ jobs:
           if-no-files-found: error
 
   replay:
+    if: inputs.readback_run == ''
     name: Edit offline editing ${{ matrix.family }} controls (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
     needs: capture
     runs-on: ${{ matrix.runner }}
@@ -111,15 +123,31 @@ jobs:
           path: artifacts/offline-editing-${{ matrix.family }}-*.tar.gz
           if-no-files-found: error
 
+  archive:
+    name: Validate archived native controls and portable outputs
+    if: inputs.readback_run != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require successful captures and replays with unchanged construction inputs
+        run: python3 acceptance/native/readback_source.py
+        env:
+          READBACK_RUN: ${{ inputs.readback_run }}
+          READBACK_SCOPE: offline-editing
+          READBACK_FAMILY: ${{ inputs.readback_family }}
+          GH_TOKEN: ${{ github.token }}
+
   readback:
     name: Apple checks and continued writes of offline editing ${{ matrix.family }} outputs (macOS ${{ matrix.major }})
-    needs: replay
+    if: ${{ always() && !cancelled() && ((inputs.readback_run == '' && needs.replay.result == 'success') || (inputs.readback_run != '' && needs.archive.result == 'success')) }}
+    needs: [replay, archive]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        family: [apfs, hfs, hfs-fragmented, permissions, statistics, copy-permissions, statistics-transitions]
+        family: ${{ inputs.readback_run != '' && inputs.readback_family != '' && fromJSON(format('["{0}"]', inputs.readback_family)) || fromJSON('["apfs", "hfs", "hfs-fragmented", "permissions", "statistics", "copy-permissions", "statistics-transitions"]') }}
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -131,11 +159,15 @@ jobs:
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - uses: actions/download-artifact@v7
         with:
+          run-id: ${{ inputs.readback_run || github.run_id }}
+          github-token: ${{ github.token }}
           pattern: offline-editing-${{ matrix.family }}-reference-*
           path: artifacts/offline-editing-${{ matrix.family }}
           merge-multiple: true
       - uses: actions/download-artifact@v7
         with:
+          run-id: ${{ inputs.readback_run || github.run_id }}
+          github-token: ${{ github.token }}
           pattern: offline-editing-${{ matrix.family }}-output-*
           path: artifacts/outputs
           merge-multiple: true
@@ -176,7 +208,7 @@ jobs:
   qualified:
     name: Require offline image capture, portable editing and Apple readback
     if: always()
-    needs: [capture, replay, readback]
+    needs: [capture, replay, archive, readback]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every job to succeed
@@ -184,4 +216,11 @@ jobs:
           CAPTURE: ${{ needs.capture.result }}
           REPLAY: ${{ needs.replay.result }}
           READBACK: ${{ needs.readback.result }}
-        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success
+          ARCHIVED_RUN: ${{ inputs.readback_run }}
+          ARCHIVE: ${{ needs.archive.result }}
+        run: |
+          if [ -n "$ARCHIVED_RUN" ]; then
+            test "$ARCHIVE" = success && test "$READBACK" = success
+          else
+            test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success
+          fi

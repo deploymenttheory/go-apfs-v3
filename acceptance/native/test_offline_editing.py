@@ -11,7 +11,7 @@ import permission_inheritance as permissions
 import apfs_directory_statistics as statistics
 import verify_permission_inheritance as verify_permissions
 import verify_directory_statistics as verify_statistics
-from verify_apfs_offline_editing import compare_statistics
+from verify_apfs_offline_editing import compare_statistics, original_directory_statistics
 
 
 class DirectoryStatistics(unittest.TestCase):
@@ -32,6 +32,40 @@ class DirectoryStatistics(unittest.TestCase):
                 compare_statistics(before, after, actual)
         with self.assertRaises(ValueError):
             compare_statistics(before, before, self.values(2, 4096, 11))
+
+    def test_new_directory_has_no_before_generation(self):
+        before = {'files': {'entries': [{'path': 'Fixture', 'object': 2, 'mode': 0o40755}]},
+                  'directoryStatistics': {'Fixture': self.values(2, 4096, 10)}}
+        after = {'files': {'entries': [{'path': 'Fixture/created', 'object': 50, 'mode': 0o40755}]}}
+        original = original_directory_statistics(before, after, 'Fixture/created')
+        self.assertIsNone(original)
+        expected = self.values(1, 4096, 0)
+        compare_statistics(original, expected, expected)
+        for actual in (self.values(2, 4096, 0), self.values(1, 0, 0),
+                       self.values(1, 4096, 1)):
+            with self.subTest(actual=actual), self.assertRaises(ValueError):
+                compare_statistics(original, expected, actual)
+
+    def test_new_statistics_origin_requires_a_nonzero_generation(self):
+        compare_statistics(None, self.values(1, 4096, 4), self.values(1, 4096, 1))
+        with self.assertRaises(ValueError):
+            compare_statistics(None, self.values(1, 4096, 4), self.values(1, 4096, 0))
+
+    def test_moved_directory_uses_its_original_identity(self):
+        text = self.values(2, 4096, 10)
+        before = {'files': {'entries': [{'path': 'Fixture/old', 'object': 5, 'mode': 0o40755}]},
+                  'directoryStatistics': {'Fixture/old': text}}
+        after = {'files': {'entries': [{'path': 'Fixture/new', 'object': 5, 'mode': 0o40755}]}}
+        self.assertEqual(original_directory_statistics(before, after, 'Fixture/new'), text)
+
+    def test_existing_directory_cannot_lose_before_evidence(self):
+        entries = [{'path': 'Fixture', 'object': 2, 'mode': 0o40755}]
+        before = {'files': {'entries': entries}, 'directoryStatistics': {}}
+        after = {'files': {'entries': entries}}
+        with self.assertRaisesRegex(ValueError, 'original statistics directory'):
+            original_directory_statistics(before, after, 'Fixture')
+        with self.assertRaisesRegex(ValueError, 'directory identity'):
+            original_directory_statistics(before, after, 'Fixture/missing')
 
 
 class CaptureGuard(unittest.TestCase):
