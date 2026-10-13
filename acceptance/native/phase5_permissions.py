@@ -124,7 +124,21 @@ def create(root, command):
         command('sudo', 'chmod', permission, directory)
 
 
-def operate(root, command):
+def create_copy_controls(root, command):
+    require_disposable_host()
+    from metadata_edits import set_metadata
+    (root / 'plain-copy-source').write_bytes(b'Native ordinary copy source\n')
+    (root / 'source-inherited').mkdir()
+    command('chmod', '+a', f'user:{pwd.getpwuid(os.getuid()).pw_name} allow read,write,file_inherit,directory_inherit',
+            root / 'source-inherited')
+    (root / 'source-inherited/data').write_bytes(b'Native inherited copy source\n')
+    for path in (root / 'plain-copy-source', root / 'acl-file', root / 'source-inherited', root / 'source-inherited/data'):
+        set_metadata(path, {'birthTime': {'value': '2022-01-01T00:00:00.000000000Z'},
+                            'modifyTime': {'value': '2023-01-01T00:00:00.000000000Z'},
+                            'accessTime': {'value': '2024-01-01T00:00:00.000000000Z'}}, command)
+
+
+def operate(root, command, copies=False):
     require_disposable_host()
     from metadata_edits import metadata
     operations = []
@@ -139,6 +153,19 @@ def operate(root, command):
 
     perform({'op': 'chmod', 'path': 'acl-alias', 'mode': '0751'},
             lambda: os.chmod(root / 'acl-alias', 0o751))
+    if copies:
+        for source, destination, preserve, no_attributes in (
+                ('plain-copy-source', 'acl-alias', False, False),
+                ('acl-file', 'inherited/copied', False, False),
+                ('acl-file', 'inherited/preserved', True, False),
+                ('acl-file', 'inherited/preserved-no-xattrs', True, True),
+                ('source-inherited/data', 'inherited/without-source-inheritance', True, False),
+                ('source-inherited/data', 'without-inheritance', True, False)):
+            perform({'op': 'copy', 'path': destination, 'source': source,
+                     'preserve': preserve, 'noAttributes': no_attributes, 'actorUID': os.getuid()},
+                    lambda s=source, d=destination, p=preserve, x=no_attributes:
+                    command('cp', *(['-p'] if p else []), *(['-X'] if x else []), root / s, root / d))
+        return operations
     payload = b'Written permission contents\n'
     perform({'op': 'replace', 'path': 'write-user', 'actorUID': os.getuid()},
             lambda: (root / 'write-user').write_bytes(payload))
@@ -162,7 +189,7 @@ def operate(root, command):
     return operations
 
 
-def capture(major, output):
+def capture(major, output, copies=False):
     require_disposable_host()
     producer = version(major)
     producer.update(revision=os.environ['GITHUB_SHA'], run=os.environ['GITHUB_RUN_ID'],
@@ -180,6 +207,8 @@ def capture(major, output):
             cleanup, _ = mount(dmg, directory, command)
             try:
                 create(directory / 'Fixture', command)
+                if copies:
+                    create_copy_controls(directory / 'Fixture', command)
             finally:
                 command('hdiutil', 'detach', cleanup)
             source = work / 'source.raw'
@@ -192,7 +221,7 @@ def capture(major, output):
             directory = work / 'edit'
             cleanup, _ = mount(edited, directory, native)
             try:
-                operations = operate(directory / 'Fixture', native)
+                operations = operate(directory / 'Fixture', native, copies)
             finally:
                 native('hdiutil', 'detach', cleanup)
             after = observe(edited, work, command, 'after')
@@ -205,7 +234,7 @@ def capture(major, output):
     producer['sources'] = {name: sha256(Path(__file__).with_name(name)) for name in SOURCES}
     for name in SOURCES:
         shutil.copyfile(Path(__file__).with_name(name), output / name)
-    manifest = {'schema': 1, 'contract': 'phase5-permission-inheritance', 'major': major,
+    manifest = {'schema': 1, 'contract': ('phase5-copy-permissions' if copies else 'phase5-permission-inheritance'), 'major': major,
                 'producer': producer, 'cases': cases, 'commandsSHA256': sha256(output / 'commands.json')}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 
@@ -214,5 +243,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--expected-major', type=int, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--copy-only', action='store_true')
     args = parser.parse_args()
-    capture(args.expected_major, args.output)
+    capture(args.expected_major, args.output, args.copy_only)
