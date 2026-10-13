@@ -19,7 +19,7 @@ from verify_preservation import require
 CAPACITY = 96 << 20
 GROWTH_CAPACITY = 512 << 20
 MAP_CAPACITY = (4096 - 256) * 8
-GROWTH_FILES = 60000
+GROWTH_FILES = 120000
 SOURCES = ('phase5_hfs_capture.py', 'build_hfs_reference.py', 'capture.py',
            'container_building.py', 'hfs_header_growth.py', 'image_repacking.py',
            'image_building.py', 'image_mutation.py', 'file_compression.py',
@@ -88,7 +88,11 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             command('sudo', '/sbin/mount_hfs', '-o', 'owners,noatime,nobrowse', device, path)
             # This direct mount is outside Disk Arbitration's mount bookkeeping.
             command('sudo', '/sbin/umount', path)
-        check(device, command)
+        if not journaled:
+            check(device, command)
+        # A direct writable mount may still hold the raw device just after
+        # umount. Journaled images receive the same full read-only check in
+        # observe after this attachment has been detached and reopened.
     finally:
         command('hdiutil', 'detach', device)
 
@@ -154,6 +158,8 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
     finally:
         command('hdiutil', 'detach', device)
     final = observe(after, work, command, 'after')
+    (output / (case_id + '-allocation-observations.json')).write_text(json.dumps({
+        'before': before['headers'], 'after': final['headers']}, indent=2) + '\n')
     if growth:
         require(before['headers']['catalog']['totalNodes'] == MAP_CAPACITY,
                 'initial catalog exactly fits its header map')
