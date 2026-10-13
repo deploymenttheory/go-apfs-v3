@@ -147,7 +147,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        family: ${{ inputs.readback_family != '' && fromJSON(format('["{0}"]', inputs.readback_family)) || fromJSON('["apfs", "hfs", "hfs-fragmented", "permissions", "statistics", "copy-permissions", "statistics-transitions"]') }}
+        family: ${{ inputs.readback_run != '' && inputs.readback_family != '' && fromJSON(format('["{0}"]', inputs.readback_family)) || fromJSON('["apfs", "hfs", "hfs-fragmented", "permissions", "statistics", "copy-permissions", "statistics-transitions"]') }}
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
