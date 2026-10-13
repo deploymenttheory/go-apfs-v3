@@ -11,6 +11,7 @@ from build_hfs_reference import build
 from capture import sha256
 from container_building import require_disposable_host
 from hfs_header_growth import attach, read_headers, retain_file
+from hfs_editing import read_journal
 from image_repacking import Commands, files, version
 from verify_preservation import require
 
@@ -19,7 +20,7 @@ SOURCES = ('phase5_hfs_capture.py', 'build_hfs_reference.py', 'capture.py',
            'container_building.py', 'hfs_header_growth.py', 'image_repacking.py',
            'image_building.py', 'image_mutation.py', 'file_compression.py',
            'verify_preservation.py', 'preservation.py', 'metadata_edits.py',
-           'content_replacement.py', 'snapshot_reading.py')
+           'content_replacement.py', 'snapshot_reading.py', 'hfs_editing.py')
 
 
 def check(device, command):
@@ -44,7 +45,8 @@ def observe(image, work, command, label):
         path = work / label
         mount(device, path, command, readonly=True)
         values = files(path / 'Fixture') if (path / 'Fixture').exists() else {'entries': []}
-        return {'headers': headers, 'files': values, 'checkerStatus': 0}
+        return {'headers': headers, 'files': values, 'checkerStatus': 0,
+                'journal': read_journal(image)}
     finally:
         command('hdiutil', 'detach', device)
         require(sha256(image) == original, 'HFS observation changed source')
@@ -73,7 +75,9 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             # read-only mounts BEFORE handling kJIJournalNeedInitMask. fsck_hfs
             # does not initialize the formatter's zero journal. Let the kernel
             # initialize it through a first ordinary writable mount/unmount.
-            # The later control asserts that the attributes file remains absent.
+            # hfs_xattr_init also creates the attributes tree on this mount.
+            # This journaled control therefore covers the initialized native
+            # profile, while nonjournaled controls prove absent-tree creation.
             path = image.parent / 'initialize-journal'
             path.mkdir()
             command('sudo', '/sbin/mount_hfs', '-o', 'owners,noatime,nobrowse', device, path)
@@ -109,9 +113,12 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         finally:
             command('hdiutil', 'detach', device)
     before = observe(source, work, command, 'before')
-    if not growth:
+    if not growth and not journaled:
         require(before['headers']['primary']['forks']['attributes']['logicalSize'] == 0,
                 'original Apple debug image must have no attributes file')
+    elif journaled:
+        require(before['headers']['primary']['forks']['attributes']['logicalSize'] > 0,
+                'native journal initialization also initializes the attributes tree')
     saved_source = retain_file(source, output / source.name.replace('.raw', '.raw.gz'))
     after = work / (case_id + '-after.raw')
     shutil.copyfile(source, after)
@@ -143,7 +150,9 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
     return {'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
             'before': before, 'after': final, 'sensitive': sensitive,
             'journaled': journaled, 'growth': growth,
-            'operation': 'catalog-node-map-growth' if growth else 'first-attribute-initialization'}
+            'operation': ('catalog-node-map-growth' if growth else
+                          'first-attribute-on-initialized-journal' if journaled else
+                          'first-attribute-initialization')}
 
 
 def capture(major, output):
