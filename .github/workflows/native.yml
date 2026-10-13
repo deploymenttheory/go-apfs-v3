@@ -67,7 +67,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-${{ github.event_name }}-${{ github.ref }}
+  group: native-${{ github.event_name }}-${{ github.ref }}-${{ inputs.phase5_edits_only && 'phase5' || inputs.phase5_reference_capture && format('phase5-reference-{0}', inputs.phase5_reference_kind) || 'full' }}
   cancel-in-progress: true
 
 env:
