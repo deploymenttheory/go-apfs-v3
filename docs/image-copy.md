@@ -77,7 +77,8 @@ replacement operation; it cannot be combined with archive flags.
 Sessions and images use `internal/copyfile` for copy policy and the same logical
 edit tree. Image copying reuses existing allocation, tree, link and metadata
 writers. Payloads stream into one owned scratch file before disk mutation, with
-128 KiB buffers and a 1 GiB aggregate payload limit across a library batch.
+128 KiB buffers and an aggregate image-copy payload bound derived from the
+selected partition geometry. Namespace and object bounds remain separate.
 Existing image capacity, ownership and metadata limits still apply. Fixed mutation
 batches remain private until a single final publication. An error or interrupted
 copy publishes no partial destination; abrupt process death can leave private

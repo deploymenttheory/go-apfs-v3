@@ -629,15 +629,20 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 	}
 	if c.options.Preserve {
-		var security []byte
 		if !c.options.FromHost {
-			security, err = filesec.Read(ctx, c.backend.Tree, e.node.Identity.Object)
+			security, err := filesec.Read(ctx, c.backend.Tree, e.node.Identity.Object)
 			if err != nil {
 				return err
 			}
-		}
-		if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
-			return err
+			if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
+				return err
+			}
+		} else if c.backend.Omitted != nil {
+			// Host stat/xattr observations do not capture Darwin filesec.
+			// Uncaptured security must never be treated as an observed absent
+			// ACL and remove a destination's existing security information.
+			c.backend.Omitted(Omission{e.path, dst, filesec.Attribute,
+				"host Darwin ACL was not captured; destination ACL retained"})
 		}
 		m.ChangeTime = filesystem.Observation[time.Time]{}
 		// Birth time preservation is qualified independently from runtime ctime.
@@ -681,7 +686,22 @@ func (c *copier) creation(ctx context.Context, dst string, kind uint32) (filesys
 	if c.backend.CreateMetadata != nil {
 		return c.backend.CreateMetadata(ctx, dst, kind)
 	}
-	return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: filesystem.Observed(c.backend.UID), GID: filesystem.Observed(c.backend.GID), BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(c.backend.Time), ModifyTime: filesystem.Observed(c.backend.Time), ChangeTime: filesystem.Observed(c.backend.Time), AccessTime: filesystem.Observed(c.backend.Time)}, nil
+	parent, err := resolve(ctx, c.backend.Tree, path.Dir(dst), true)
+	if err != nil {
+		return filesystem.Metadata{}, err
+	}
+	node, err := c.backend.Tree.Stat(ctx, parent.id)
+	if err != nil {
+		return filesystem.Metadata{}, err
+	}
+	// vnode_authattr_new_internal uses the logical creator UID and parent GID,
+	// independently of the parent's setgid mode. Configuration supplies a
+	// default only when the parent's group was not captured.
+	group := node.Metadata.GID
+	if group.State != filesystem.Present {
+		group = filesystem.Observed(c.backend.GID)
+	}
+	return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: filesystem.Observed(c.backend.UID), GID: group, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(c.backend.Time), ModifyTime: filesystem.Observed(c.backend.Time), ChangeTime: filesystem.Observed(c.backend.Time), AccessTime: filesystem.Observed(c.backend.Time)}, nil
 }
 func (c *copier) changeTime(ctx context.Context, id uint64) error {
 	return c.backend.Tree.Times(ctx, id, nil, nil, &c.backend.Time)

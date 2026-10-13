@@ -64,3 +64,8 @@ delivery labels are compressed without changing their decoded bytes. Digest
 checks accept either the original filename or its `.gz` archive and verify the
 decoded bytes against the original capture digest. New CI captures use the
 capability names directly.
+
+The [admission inventory](offline-editing-limits.md) groups remaining refusals by
+required context, protected objects, unsupported storage, resource bounds and
+corruption. The [compatibility workflow](../.github/workflows/offline-editing.yml)
+requires all seven native scenario families and every portable host/source pair.

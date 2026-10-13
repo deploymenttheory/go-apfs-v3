@@ -80,7 +80,7 @@ jobs:
           name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ matrix.family }}
       - name: Compare exact native contents, identities, metadata and volume policy
-        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNativePermissionInheritance$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || matrix.family == 'copy-permissions' && '^TestNativeCopyPermissions$' || matrix.family == 'statistics-transitions' && '^TestNativeAPFSDirectoryStatisticsTransitions$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
+        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNative(PermissionInheritance|SessionPermissionInheritance)$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || matrix.family == 'copy-permissions' && '^TestNativeCopyPermissions$' || matrix.family == 'statistics-transitions' && '^TestNativeAPFSDirectoryStatisticsTransitions$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
         env:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_GEOMETRY: ../artifacts/offline-editing-apfs
