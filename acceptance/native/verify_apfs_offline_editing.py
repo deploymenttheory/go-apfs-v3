@@ -28,15 +28,32 @@ def statistics_values(text):
 
 
 def compare_statistics(before, expected, actual):
-    old, want, got = map(statistics_values, (before, expected, actual))
+    want, got = map(statistics_values, (expected, actual))
+    old = statistics_values(before) if before is not None else None
     require(got[:2] == want[:2], 'exact native directory counts and allocated bytes')
     # Apple's public format requires monotonic invalidation, not a fixed stride.
     # The same fork truncation/deletion has different strides across kernels.
     require((got[2] == 0) == (want[2] == 0), 'statistics origin/inherited generation')
-    if old[2] != 0 and want[2] != 0:
+    if old is not None and old[2] != 0 and want[2] != 0:
         require(want[2] >= old[2] and got[2] >= old[2] and
                 (want[2] == old[2]) == (got[2] == old[2]),
                 'native statistics monotonic invalidation')
+
+
+def original_directory_statistics(before, after, name):
+    directory = next((entry for entry in after['files']['entries']
+                      if entry['path'] == name), None)
+    require(directory is not None and directory['mode'] & 0o170000 == 0o040000,
+            'native statistics directory identity: ' + name)
+    original = next((entry for entry in before['files']['entries']
+                     if entry['object'] == directory['object']), None)
+    if original is None:
+        # A new directory has no earlier generation. Its captured after-state
+        # still supplies exact counts, allocated bytes and origin/inheritance.
+        return None
+    text = before['directoryStatistics'].get(original['path'])
+    require(text is not None, 'original statistics directory: ' + original['path'])
+    return text
 
 
 def compare(actual, before, expected, changed):
@@ -104,8 +121,7 @@ def inspect(raw, case, command, work, continued=False):
                         before['files'], target)
                 for name, expected in state.get('directoryStatistics', {}).items():
                     actual = native(APFS_UTIL, '-S', path / name).decode(errors='strict')
-                    original = before['directoryStatistics'].get(name)
-                    require(original is not None, 'original statistics directory: ' + name)
+                    original = original_directory_statistics(before, state, name)
                     compare_statistics(original, expected, actual)
             native('codesign', '--verify', '--deep', '--strict', path / 'Fixture/Example.app')
     finally:

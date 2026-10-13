@@ -53,3 +53,68 @@ class ArchivedReadback(unittest.TestCase):
             with self.assertRaises(ValueError):
                 readback_source.main()
             network.assert_not_called()
+
+
+class ArchivedOfflineReadback(unittest.TestCase):
+    def run_source(self, changes=b'', missing=None, paginated=False):
+        run = {'status': 'completed', 'path': '.github/workflows/native.yml',
+               'head_sha': 'b' * 40}
+        required = readback_source.offline_required_jobs('statistics')
+        jobs = [{'name': 'offline_edits / ' + name, 'conclusion': 'success'}
+                for name in sorted(required) if name != missing]
+        pages = [jobs]
+        if paginated:
+            pages.insert(0, [{'name': f'Unrelated job {n}', 'conclusion': 'success'}
+                             for n in range(100)])
+        responses = [io.BytesIO(json.dumps(run).encode())]
+        responses += [io.BytesIO(json.dumps({'jobs': page}).encode()) for page in pages]
+        with ExitStack() as stack:
+            stack.enter_context(patch.dict('os.environ', {
+                'READBACK_RUN': '123', 'READBACK_SCOPE': 'offline-editing',
+                'READBACK_FAMILY': 'statistics', 'GITHUB_API_URL': 'https://api.example.invalid',
+                'GITHUB_REPOSITORY': 'test/repo', 'GH_TOKEN': 'public-test-token'}, clear=True))
+            network = stack.enter_context(patch('urllib.request.urlopen', side_effect=responses))
+            fetch = stack.enter_context(patch('subprocess.run'))
+            diff = stack.enter_context(patch('subprocess.check_output', return_value=changes))
+            if missing:
+                with self.assertRaises(ValueError):
+                    readback_source.main()
+                fetch.assert_not_called()
+                diff.assert_not_called()
+            else:
+                readback_source.main()
+                self.assertEqual(fetch.call_args.args[0][-1], run['head_sha'])
+                if paginated:
+                    self.assertTrue(network.call_args.args[0].full_url.endswith('page=2'))
+
+    def test_selected_family_reuses_all_source_versions_and_hosts(self):
+        self.run_source(b'acceptance/native/verify_apfs_offline_editing.py\0'
+                        b'acceptance/native/test_offline_editing.py\0'
+                        b'.github/workflows/offline-editing.yml\0')
+
+    def test_required_jobs_can_be_beyond_the_first_api_page(self):
+        self.run_source(paginated=True)
+
+    def test_every_selected_capture_and_portable_output_must_have_passed(self):
+        for name in readback_source.offline_required_jobs('statistics'):
+            with self.subTest(name=name):
+                self.run_source(missing=name)
+
+    def test_changed_construction_inputs_require_fresh_outputs(self):
+        for path in ('apfs/mutate.go', 'acceptance/apfs_directory_statistics_test.go',
+                     'acceptance/testdata/apfs-directory-statistics/macos-15/manifest.json',
+                     'go.mod', 'acceptance/native/apfs_geometry.py',
+                     'acceptance/native/hfs_metadata_growth.py',
+                     'acceptance/native/permission_inheritance.py',
+                     'acceptance/native/container_building.py'):
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                self.run_source(path.encode() + b'\0')
+
+    def test_unknown_family_never_uses_network(self):
+        with patch.dict('os.environ', {'READBACK_RUN': '123',
+                                     'READBACK_SCOPE': 'offline-editing',
+                                     'READBACK_FAMILY': '../statistics'}), \
+                patch('urllib.request.urlopen') as network:
+            with self.assertRaises(ValueError):
+                readback_source.main()
+            network.assert_not_called()

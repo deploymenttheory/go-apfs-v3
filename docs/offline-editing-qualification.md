@@ -69,3 +69,30 @@ The [admission inventory](offline-editing-limits.md) groups remaining refusals b
 required context, protected objects, unsupported storage, resource bounds and
 corruption. The [compatibility workflow](../.github/workflows/offline-editing.yml)
 requires all seven native scenario families and every portable host/source pair.
+
+## Verifier corrections
+
+A verifier correction can recheck archived portable images without collecting
+new native controls or rebuilding identical outputs. The source Actions run must
+be completed, and every capture and Linux/Windows/macOS output job for the selected
+capability must have succeeded for macOS 15, 26 and 27 sources. The admission check
+reads every page of job results and compares the source commit with the current
+commit. Changes to Go code, Go tests, fixtures, dependencies or native construction
+code require fresh outputs.
+
+For example, recheck directory statistics on all three disposable macOS runners:
+
+```sh
+gh workflow run native.yml --ref BRANCH \
+  -f offline_edits_only=true \
+  -f readback_run=SOURCE_RUN_ID \
+  -f offline_reference_kind=stats
+```
+
+The rerun verifies the original Linux, Windows and macOS output bytes and performs
+the same Apple checks and subsequent native modifications. It qualifies the
+selected capability; the full compatibility gate still requires all capabilities.
+Existing directories bind their earlier statistics to native object identity,
+including across moves. New directories have no before-generation, so their
+independent native after-state supplies exact counts, allocated bytes and
+origin/inheritance requirements.
