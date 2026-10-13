@@ -69,11 +69,15 @@ def format_image(image, binary, command, sensitive, journaled, growth):
         command('sudo', binary, *args, '-v', 'Phase5',
                 device.replace('/dev/disk', '/dev/rdisk'))
         if journaled:
-            # The source formatter leaves a new journal marked for initialization.
-            # Ask Apple's checker to prepare it before any read-only observation;
-            # retain the actual commands and journal state, never synthesize it.
-            command('sudo', '/sbin/fsck_hfs', '-fy',
-                    device.replace('/dev/disk', '/dev/rdisk'))
+            # hfs_vfsutils.c:hfs_early_journal_init checks journal_is_clean on
+            # read-only mounts BEFORE handling kJIJournalNeedInitMask. fsck_hfs
+            # does not initialize the formatter's zero journal. Let the kernel
+            # initialize it through a first ordinary writable mount/unmount.
+            # The later control asserts that the attributes file remains absent.
+            path = image.parent / 'initialize-journal'
+            path.mkdir()
+            command('sudo', '/sbin/mount_hfs', '-o', 'owners,noatime,nobrowse', device, path)
+            command('diskutil', 'unmount', device)
         check(device, command)
     finally:
         command('hdiutil', 'detach', device)
@@ -144,6 +148,7 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
 def capture(major, output):
     require_disposable_host()
     producer = version(major)
+    producer.update(revision=os.environ['GITHUB_SHA'], run=os.environ['GITHUB_RUN_ID'])
     output.mkdir(parents=True)
     command = Commands(output / 'commands.json')
     cases = []

@@ -154,6 +154,7 @@ def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
 def capture(major, output):
     require_disposable_host()
     producer = version(major)
+    producer.update(revision=os.environ['GITHUB_SHA'], run=os.environ['GITHUB_RUN_ID'])
     output.mkdir(parents=True)
     command = Commands(output / 'commands.json')
     cases = []
