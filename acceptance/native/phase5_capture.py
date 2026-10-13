@@ -27,8 +27,8 @@ SOURCES = ('phase5_capture.py', 'capture.py', 'container_building.py',
 PROFILES = (
     ('apfs-large', 1536 << 20, 'APFS', False),
     ('apfs-case-sensitive-large', 1536 << 20, 'APFSX', False),
-    ('apfs-volumes', 256 << 20, 'APFS', True),
-    ('apfs-case-sensitive-volumes', 256 << 20, 'APFSX', True),
+    ('apfs-volumes', 768 << 20, 'APFS', True),
+    ('apfs-case-sensitive-volumes', 768 << 20, 'APFSX', True),
 )
 
 
