@@ -6,6 +6,12 @@ import "github.com/deploymenttheory/go-apfs-v3/block"
 // Paths never follow symlinks. Data is borrowed for the call; Mode uses Apple's
 // setmode grammar. Individual filesystem engines admit their supported verbs.
 type Change struct {
+	// ActorUID is a logical Darwin creator/writer identity, independent of the
+	// executing host. Ordinary creation defaults to its parent's stored UID for
+	// compatibility; an explicit value uses Darwin's creator-UID behavior. Writes
+	// to set-ID files require an explicit identity (root retains bits, others clear).
+	// This models metadata effects, not process authorization or account lookup.
+	ActorUID                             Observation[uint32]
 	Name                                 string
 	Operation                            string
 	Destination                          string

@@ -17,9 +17,11 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/internal/completeoutput"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 type Options struct {
+	ActorUID  filesystem.Observation[uint32] // logical creator/writer, independent of host credentials
 	Partition int
 	Volume    string    // APFS UUID or HFS volume ID; required when ambiguous
 	Format    string    // UDRO or UDZO; default UDZO
@@ -48,11 +50,19 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 		return Report{}, fs.ErrInvalid
 	}
 	return editImage(ctx, sourcePath, destination, o, func(view *mutablePartition, isAPFS bool) (Report, error) {
-		return modify(ctx, view, isAPFS, changes, o.Time, o.Volume)
+		return modify(ctx, view, isAPFS, changes, o.Time, o.Volume, o.ActorUID)
 	})
 }
 
-func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []Change, when time.Time, volume string) (report Report, err error) {
+func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []Change, when time.Time, volume string, actor filesystem.Observation[uint32]) (report Report, err error) {
+	if actor.State != filesystem.Uncaptured {
+		changes = append([]Change(nil), changes...)
+		for i := range changes {
+			if changes[i].ActorUID.State == filesystem.Uncaptured {
+				changes[i].ActorUID = actor
+			}
+		}
+	}
 	if isAPFS {
 		changed, e := apfs.ModifyVolume(ctx, view, volume, changes, when)
 		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
@@ -66,6 +76,9 @@ func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []
 func editImage(ctx context.Context, sourcePath, destination string, o Options, mutation func(*mutablePartition, bool) (Report, error)) (report Report, err error) {
 	if o.Time.IsZero() || o.Time.Nanosecond() != 0 {
 		return report, fs.ErrInvalid
+	}
+	if err := filesec.ValidateActor(o.ActorUID); err != nil {
+		return report, err
 	}
 	return transformImage(ctx, sourcePath, destination, o, nil, mutation)
 }

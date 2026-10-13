@@ -1463,6 +1463,51 @@
         "apfs/mutate.go"
       ],
       "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. No Go directory-stat updater is qualified yet."
+    },
+    {
+      "id": "apple-xnu-filesec",
+      "kind": "source-port",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "license": "APSL-2.0",
+      "licenseFile": "LICENSES/APSL-2.0.txt",
+      "components": [
+        "internal/filesec/filesec.go"
+      ],
+      "files": [
+        {
+          "path": "bsd/kern/kern_authorization.c",
+          "sha256": "6909f51300732fe195252b9de1ce0a2fb5d086af9072dc5746269a8ffeb2e249"
+        },
+        {
+          "path": "bsd/sys/kauth.h",
+          "sha256": "9009cb706a24501dff4f47024c63dc730618249d85dd050f2bf97515a3ca6098"
+        },
+        {
+          "path": "bsd/vfs/kpi_vfs.c",
+          "sha256": "26cd0285298c7eafe9ff86387d9fe273f5cbdf965f850458357eba4328303e53"
+        },
+        {
+          "path": "bsd/vfs/vfs_subr.c",
+          "sha256": "4c82b3ca60884b954e921cb15b3df35a08ce70bc99d22ec6035c40df6cae72db"
+        }
+      ],
+      "basis": "Bounded Go adaptation of kauth_filesec/kauth_acl layouts, canonical network byte order and kauth_acl_inherit for ordinary creation with no initial ACL. GUIDs, rights and private flags remain opaque; matching inheritance flags and limited/file propagation follow Apple C. New owner/group GUIDs default to null through vnode_setattr_fallback. Ordinary chown mode clearing follows vnode_authattr, including unchanged numeric ownership and root. Account-name resolution and process authorization are not emulated. Independent macOS 15/26/27 controls are required before qualification."
+    },
+    {
+      "id": "native-phase5-permission-inheritance",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38348173841",
+      "evidence": [
+        "acceptance/testdata/phase5-permissions"
+      ],
+      "components": [
+        "internal/filesec/filesec.go",
+        "apfs/mutate_security.go",
+        "hfsplus/mutate_security.go",
+        "acceptance/phase5_permissions_test.go"
+      ],
+      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable output/native continued-write qualification remains required before phase closure."
     }
   ]
 }

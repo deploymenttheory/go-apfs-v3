@@ -44,6 +44,7 @@ type mutation struct {
 	allocated, freed        uint64
 	entries                 map[uint64]map[string]*mutationEntry
 	links                   map[uint64]map[*mutationEntry]bool
+	actor                   filesystem.Observation[uint32]
 }
 type readOnlyMutation struct{ block.Source }
 

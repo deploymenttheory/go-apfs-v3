@@ -68,6 +68,7 @@ type mutation struct {
 	catalog         map[uint32]*catalogItem
 	children        map[uint32]map[string]*catalogItem
 	reservedIDs     map[uint32]bool
+	actor           filesystem.Observation[uint32]
 }
 
 func (m *mutation) write(p []byte, off uint64) error {

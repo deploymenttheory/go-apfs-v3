@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -302,8 +303,12 @@ func (m *mutation) writableParent(id uint64) error {
 		return e
 	}
 	r, _ := m.inodeRecord(id)
-	if le.Uint16(r.value[80:])&06000 != 0 || le.Uint64(r.value[48:])&(2|4|0x40) != 0 {
-		return fmt.Errorf("directory ACL, set-ID or directory-stat policy: %w", filesystem.ErrUnsupported)
+	if le.Uint64(r.value[48:])&(2|4) != 0 {
+		return fmt.Errorf("directory-stat policy: %w", filesystem.ErrUnsupported)
+	}
+	if le.Uint64(r.value[48:])&0x40 != 0 {
+		_, err := m.security(id)
+		return err
 	}
 	return nil
 }
@@ -375,7 +380,7 @@ func (m *mutation) createEntryKind(parent uint64, name string, kind uint32, perm
 		}
 		perm = p.Apply(perm)
 	}
-	if perm&06000 != 0 {
+	if perm&06000 != 0 && m.actor.State != filesystem.Present {
 		return nil, fmt.Errorf("set-ID creation requires credential policy: %w", filesystem.ErrUnsupported)
 	}
 	id, e := m.nextFileID()
@@ -383,11 +388,25 @@ func (m *mutation) createEntryKind(parent uint64, name string, kind uint32, perm
 		return nil, e
 	}
 	p, _ := m.inodeRecord(parent)
+	uid := le.Uint32(p.value[72:])
+	if m.actor.State == filesystem.Present {
+		uid = m.actor.Value
+	}
+	security, e := m.inheritSecurity(parent, kind == 0040000)
+	if e != nil {
+		return nil, e
+	}
 	clock := filesystem.Observed(time.Unix(0, int64(stamp)).UTC())
 	raw := buildInode(&buildObject{id: id, aliases: []buildAlias{{parent: parent, name: name}}, node: filesystem.Node{Metadata: filesystem.Metadata{
-		Mode: filesystem.Observed(perm), UID: filesystem.Observed(le.Uint32(p.value[72:])), GID: filesystem.Observed(le.Uint32(p.value[76:])),
+		Mode: filesystem.Observed(perm), UID: filesystem.Observed(uid), GID: filesystem.Observed(le.Uint32(p.value[76:])),
 		BirthTime: clock, ModifyTime: clock, ChangeTime: clock, AccessTime: clock,
 	}}}, 0)
+	if security != nil {
+		if e = m.setAttribute(id, filesec.Attribute, bytes.NewReader(security)); e != nil {
+			return nil, e
+		}
+		le.PutUint64(raw.value[48:], le.Uint64(raw.value[48:])|0x40)
+	}
 	if e = m.fs.put(raw.key, raw.value); e != nil {
 		return nil, e
 	}
@@ -454,6 +473,10 @@ func (m *mutation) children(id uint64) []*mutationEntry {
 }
 
 func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
+	if err := filesec.ValidateActor(c.ActorUID); err != nil {
+		return 0, err
+	}
+	m.actor = c.ActorUID
 	if c.Operation == "copy-metadata" {
 		return m.copyMetadata(c, stamp)
 	}

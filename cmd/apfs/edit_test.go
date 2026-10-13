@@ -38,7 +38,7 @@ func TestOrderedImageCommandsPublishOnce(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			args := []string{"edit", "--image", source, "--output", destination, "--time", "2025-06-07T08:09:10Z", "--",
+			args := []string{"edit", "--image", source, "--output", destination, "--uid", "60001", "--time", "2025-06-07T08:09:10Z", "--",
 				"mkdir", "/Bundle", "--next", "cp", "--from-host", host, "/Bundle/file", "--next", "chmod", "0755", "/Bundle/file",
 				"--next", "ln", "/Bundle/file", "/Bundle/alias", "--next", "mv", "/Bundle/file", "/Bundle/renamed",
 				"--next", "xattr", "-w", "org.go-apfs.batch", "retained", "/Bundle/alias"}
@@ -63,7 +63,7 @@ func TestOrderedImageCommandsPublishOnce(t *testing.T) {
 				t.Fatal("batch separated aliases", err)
 			}
 			node, err := r.Stat(ctx, alias)
-			if err != nil || node.Metadata.Mode.Value&07777 != 0755 {
+			if err != nil || node.Metadata.Mode.Value&07777 != 0755 || node.Metadata.UID.Value != 60001 {
 				t.Fatal("ordered permissions", node, err)
 			}
 			after, err := os.ReadFile(source)

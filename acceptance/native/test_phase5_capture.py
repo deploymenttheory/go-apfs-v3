@@ -9,9 +9,19 @@ import phase5_capture as capture
 import phase5_hfs_capture as hfs_capture
 import phase5_permissions as permissions
 import phase5_statistics as statistics
+import verify_phase5_permissions as verify_permissions
 
 
 class CaptureGuard(unittest.TestCase):
+    def test_permission_verification_guards_before_native_tools(self):
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(verify_permissions, 'version') as version, \
+                patch.object(verify_permissions, 'Commands') as commands:
+            with self.assertRaises(RuntimeError):
+                verify_permissions.verify(Path('missing'), Path('absent'), 15)
+            version.assert_not_called()
+            commands.assert_not_called()
+
     def test_non_disposable_hosts_fail_before_tools_or_output(self):
         for collector in (capture, hfs_capture, permissions, statistics):
             self.check_collector(collector)

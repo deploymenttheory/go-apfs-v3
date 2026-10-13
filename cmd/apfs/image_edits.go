@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
@@ -16,6 +17,18 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 	"github.com/deploymenttheory/go-apfs-v3/internal/copyfile"
 )
+
+func imageActor(f *flag.FlagSet) (filesystem.Observation[uint32], error) {
+	option := f.Lookup("uid")
+	if option == nil || option.Value.String() == "" {
+		return filesystem.Observation[uint32]{}, nil
+	}
+	value, err := strconv.ParseUint(option.Value.String(), 10, 32)
+	if err != nil || value == 0xffffffff {
+		return filesystem.Observation[uint32]{}, fs.ErrInvalid
+	}
+	return filesystem.Observed(uint32(value)), nil
+}
 
 func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
 	return editImageCommandWithEditor(ctx, verb, f, common, source, destination, partition, format, operands, out, nil)
@@ -34,7 +47,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 	if common.name != "" || (editor == nil && destination == "") || partition < 0 {
 		return fmt.Errorf("image editing requires --image and --output, with no --session: %w", fs.ErrInvalid)
 	}
-	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "json": true}
+	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "uid": true, "json": true}
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
@@ -90,6 +103,11 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 		}
 	}
 	var changes []imageedit.Change
+	actor, err := imageActor(f)
+	if err != nil {
+		return err
+	}
+	options := imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock, ActorUID: actor}
 	switch verb {
 	case "ln":
 		if len(operands) != 2 {
@@ -140,7 +158,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 			if editor != nil {
 				report, err = editor.Copy([]imageedit.CopyCommand{{Sources: operands[:len(operands)-1], Destination: operands[len(operands)-1], Options: copyOptions}})
 			} else {
-				report, err = imageedit.Copy(ctx, source, destination, imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock}, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
+				report, err = imageedit.Copy(ctx, source, destination, options, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
 			}
 			if err != nil {
 				return err
@@ -171,7 +189,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 	if editor != nil {
 		report, err = editor.Apply(changes)
 	} else {
-		report, err = imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock}, changes)
+		report, err = imageedit.Apply(ctx, source, destination, options, changes)
 	}
 	if err != nil {
 		return err

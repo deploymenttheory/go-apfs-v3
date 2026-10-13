@@ -88,8 +88,17 @@ publishing output. Numeric and Apple symbolic modes use the shared mode parser.
 
 New files default to 0644 and directories to 0755; intermediate `mkdir -p`
 directories use 0755. Parent UID/GID and the supplied image clock determine new
-metadata independently of host credentials and umask. All four new timestamps
-use that clock. ACL/set-ID parent inheritance and set-ID creation are refused.
+metadata independently of host credentials and umask. `--uid N` supplies an
+explicit logical creator/writer UID; new objects then use that UID and their
+parent's GID, following Darwin creation behavior. Without `--uid`, the existing
+parent-UID creation policy remains the compatibility default. All four new
+timestamps use the supplied clock. Ordinary ACL inheritance follows Apple's
+`kauth_acl_inherit`; parent set-ID mode bits do not propagate. Set-ID creation
+and writes require an explicit logical UID. Root writes retain the bits;
+other writers and ordinary chown clear them. Numeric chmod preserves ACL bytes.
+These effects model offline metadata, without authorizing a host process or
+mapping stored GUIDs to host accounts. Fresh native qualification is required
+by the phase-5 completion gate.
 Existing `mkdir -p` paths are a no-op and keep their metadata.
 
 `mv` preserves the inode, forks and attributes. An existing directory receives

@@ -10,6 +10,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
@@ -106,7 +107,9 @@ func (m *mutation) metadataObject(c Change, e *mutationEntry, stamp uint64) erro
 	switch c.Operation {
 	case "chmod":
 		if le.Uint64(value[48:])&0x40 != 0 {
-			return filesystem.ErrUnsupported
+			if _, err := m.security(e.id); err != nil {
+				return err
+			}
 		}
 		program, err := mode.Parse(c.Mode, 0)
 		if err != nil {
@@ -114,9 +117,7 @@ func (m *mutation) metadataObject(c Change, e *mutationEntry, stamp uint64) erro
 		}
 		le.PutUint16(value[80:], uint16(program.Apply(uint32(le.Uint16(value[80:])))))
 	case "chown":
-		if le.Uint16(value[80:])&06000 != 0 {
-			return filesystem.ErrUnsupported
-		}
+		le.PutUint16(value[80:], uint16(filesec.ChownMode(uint32(le.Uint16(value[80:])))))
 		if c.Metadata.UID.State == filesystem.Present {
 			le.PutUint32(value[72:], c.Metadata.UID.Value)
 		}

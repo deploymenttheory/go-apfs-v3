@@ -11,6 +11,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
@@ -571,8 +572,10 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
 		return fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
 	}
-	if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
-		return fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
+	if c.Data != nil {
+		if _, err := filesec.WriteMode(uint32(be.Uint16(b[42:])), c.ActorUID); err != nil {
+			return err
+		}
 	}
 	flags := catalogBSDFlags(b)
 	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
@@ -583,7 +586,9 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 			return e
 		}
 		if be.Uint16(b[2:])&8 != 0 {
-			return fmt.Errorf("chmod of ACL-bearing file: %w", filesystem.ErrUnsupported)
+			if _, err := m.security(inode.id()); err != nil {
+				return err
+			}
 		}
 	}
 	if b[41]&0x20 != 0 && c.Data != nil {
@@ -608,9 +613,13 @@ func (m *mutation) modifyFile(c Change, target uint64, stamp uint32) (uint32, er
 		return 0, e
 	}
 	b := bytes.Clone(inode.value)
-	b = bytes.Clone(b)
 	id := be.Uint32(b[8:])
 	if c.Data != nil {
+		permission, err := filesec.WriteMode(uint32(be.Uint16(b[42:])), c.ActorUID)
+		if err != nil {
+			return 0, err
+		}
+		be.PutUint16(b[42:], uint16(permission))
 		if !c.ResourceFork && b[41]&0x20 != 0 {
 			h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, uint64(id), name) })
 			if e != nil {

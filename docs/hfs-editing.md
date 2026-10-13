@@ -69,9 +69,14 @@ apfs rm --image Moved.dmg --output Removed.dmg -r /Payload/obsolete
 regular files default to 0644; directories default to 0755. Intermediate `-p`
 directories use 0755. Creation uses the supplied image clock for all four times
 and inherits parent UID/GID, independently of the executing host's user/umask.
-ACL-bearing or set-ID parents and set-ID creation are refused until inheritance
-has an independently qualified credential policy. This is an offline packaging
-policy, not an emulation of the executing macOS process.
+`--uid N` overrides the logical creator/writer UID while retaining the parent's
+GID. The default parent-UID creation policy remains for compatibility. Ordinary
+ACL inheritance uses Apple's `kauth_acl_inherit`; parent set-ID modes do not
+propagate. Set-ID creation and writes require an explicit logical UID: root
+writes retain the bits, other writes and ordinary chown clear them. Numeric
+chmod preserves stored ACLs and GUIDs. Stored users and ACL identities are
+independent of host credentials and account-name resolution. The phase-5
+completion gate requires fresh Apple readback and continued inheritance.
 
 `mv` preserves the original CNID, forks, attributes, metadata and link chains.
 An existing directory destination receives the source basename. Replacement

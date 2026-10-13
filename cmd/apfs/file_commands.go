@@ -57,6 +57,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 	f.String("volume", "", "APFS UUID or HFS volume ID to edit; required when ambiguous")
 	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
 	f.String("time", "", "image-edit modification time (RFC3339, whole seconds); default current UTC time")
+	f.String("uid", "", "logical image creator/writer UID, independent of host credentials")
 	var walk *session.WalkOptions
 	var cp session.CopyOptions
 	var mkdir session.MkdirOptions
@@ -120,7 +121,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 	if editor != nil {
 		f.Visit(func(option *flag.Flag) {
 			switch option.Name {
-			case "image", "output", "partition", "volume", "format", "time", "session", "scratch-dir", "json":
+			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json":
 				err = fmt.Errorf("--%s belongs to the enclosing edit command", option.Name)
 			}
 		})
@@ -143,7 +144,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 		return fmt.Errorf("--output requires --image")
 	}
 	f.Visit(func(option *flag.Flag) {
-		if option.Name == "partition" || option.Name == "volume" || option.Name == "format" || option.Name == "time" {
+		if option.Name == "partition" || option.Name == "volume" || option.Name == "format" || option.Name == "time" || option.Name == "uid" {
 			err = fmt.Errorf("--%s requires --image", option.Name)
 		}
 	})

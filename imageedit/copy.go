@@ -105,7 +105,11 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 			if err != nil {
 				return filesystem.Metadata{}, err
 			}
-			return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: parent.Metadata.UID, GID: parent.Metadata.GID, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(o.Time), ModifyTime: filesystem.Observed(o.Time), ChangeTime: filesystem.Observed(o.Time), AccessTime: filesystem.Observed(o.Time)}, nil
+			uid := parent.Metadata.UID
+			if o.ActorUID.State == filesystem.Present {
+				uid = o.ActorUID
+			}
+			return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: uid, GID: parent.Metadata.GID, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(o.Time), ModifyTime: filesystem.Observed(o.Time), ChangeTime: filesystem.Observed(o.Time), AccessTime: filesystem.Observed(o.Time)}, nil
 		},
 		Modified: func(ctx context.Context, p string) error { plan.changed[p] = true; return ctx.Err() },
 		Omitted:  func(value copyfile.Omission) { result.OmittedAttributes = append(result.OmittedAttributes, value) },
@@ -125,7 +129,7 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	// a single command publication boundary. Payloads are already immutable.
 	for len(plan.changes) > 0 {
 		n := min(4096, len(plan.changes))
-		batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time, o.Volume)
+		batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time, o.Volume, o.ActorUID)
 		if err != nil {
 			return result, err
 		}

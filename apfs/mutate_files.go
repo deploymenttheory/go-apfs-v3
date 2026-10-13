@@ -8,6 +8,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
@@ -25,9 +26,11 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 		return 0, fs.ErrInvalid
 	}
 
-	if le.Uint16(value[80:])&06000 != 0 {
-		return 0, fmt.Errorf("set-ID replacement requires credential policy: %w", filesystem.ErrUnsupported)
+	permission, e := filesec.WriteMode(uint32(le.Uint16(value[80:])), c.ActorUID)
+	if e != nil {
+		return 0, e
 	}
+	le.PutUint16(value[80:], uint16(permission))
 	if c.Operation == "chmod" || c.Mode != "" || c.Data.Size() < 0 {
 		return 0, fs.ErrInvalid
 	}

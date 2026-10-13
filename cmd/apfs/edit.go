@@ -28,6 +28,7 @@ func editCommands(ctx context.Context, args []string, out, diagnostics io.Writer
 	volume := f.String("volume", "", "APFS UUID or HFS volume ID; required when ambiguous")
 	format := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
 	fixed := f.String("time", "", "one operation time for the batch, RFC3339 whole seconds")
+	f.String("uid", "", "logical creator/writer UID, independent of host credentials")
 	jsonOutput := f.Bool("json", false, "emit a machine-readable output report")
 	if err := f.Parse(args[:separator]); err != nil {
 		return err
@@ -60,6 +61,11 @@ func editCommands(ctx context.Context, args []string, out, diagnostics io.Writer
 		remaining = remaining[next+1:]
 	}
 	options := imageedit.Options{Partition: *partition, Volume: *volume, Format: *format, Time: clock}
+	actor, err := imageActor(f)
+	if err != nil {
+		return err
+	}
+	options.ActorUID = actor
 	report, err := imageedit.Edit(ctx, *source, *destination, options, func(editor *imageedit.Editor) error {
 		for index, command := range commands {
 			if err := fileCommandWithEditor(ctx, command, io.Discard, diagnostics, editor, options); err != nil {

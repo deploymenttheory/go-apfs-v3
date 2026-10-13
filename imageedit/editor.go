@@ -71,7 +71,7 @@ func (e *Editor) Apply(changes []Change) (Report, error) {
 	var result Report
 	for len(changes) > 0 {
 		n := min(4096, len(changes))
-		r, err := modify(e.ctx, e.view, e.isAPFS, changes[:n], e.options.Time, e.options.Volume)
+		r, err := modify(e.ctx, e.view, e.isAPFS, changes[:n], e.options.Time, e.options.Volume, e.options.ActorUID)
 		if err != nil {
 			e.failed = err
 			return result, err
