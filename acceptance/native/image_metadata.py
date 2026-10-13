@@ -153,7 +153,7 @@ def create_native_source(image, native_fs, journaled, command, capacity):
     # without native folder-count maintenance, even after detach/reattach.
     command('hdiutil', 'create', '-size', str(capacity), '-layout', 'NONE',
             '-fs', native_fs, '-fsargs', options, '-volname', 'Metadata',
-            '-format', 'UDRW', formatted)
+            formatted)
     writable_copy(formatted, image, command, disk_hash)
 
 

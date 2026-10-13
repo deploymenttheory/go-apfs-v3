@@ -26,6 +26,7 @@ class ImageMetadataTests(unittest.TestCase):
                                                     journaled, command, 64 << 20)
                 args = command.call_args.args
                 self.assertEqual(args[:2], ('hdiutil', 'create'))
+                self.assertNotIn('-format', args)
                 self.assertEqual(args[args.index('-fs') + 1], 'Case-sensitive HFS+')
                 self.assertEqual(' -J' in args[args.index('-fsargs') + 1], journaled)
                 self.assertEqual(copy_disk.call_args.args[:2], (Path('source.dmg'), Path('source.raw')))
