@@ -211,16 +211,24 @@ jobs:
           - family: readers and workspaces
             tests: '.'
             skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|Phase5(APFS|HFS(Fragmented)?))$'
-          - family: image construction, macOS 15 sources
-            tests: '^TestNative(ImageBuilding|ContainerBuilding)$/macos-15/'
-            source: '15'
+          - family: APFS image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/apfs$'
+            source: '27'
             skip: '^$'
-          - family: image construction, macOS 26 sources
-            tests: '^TestNative(ImageBuilding|ContainerBuilding)$/macos-26/'
-            source: '26'
+          - family: case-sensitive APFS image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/apfs-case-sensitive$'
+            source: '27'
             skip: '^$'
-          - family: image construction, macOS 27 sources
-            tests: '^TestNative(ImageBuilding|ContainerBuilding)$/macos-27/'
+          - family: HFS+ image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/hfsplus$'
+            source: '27'
+            skip: '^$'
+          - family: HFSX image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/hfsx$'
+            source: '27'
+            skip: '^$'
+          - family: APFS container construction
+            tests: '^TestNativeContainerBuilding$'
             source: '27'
             skip: '^$'
           - family: HFS journal recovery
@@ -250,7 +258,7 @@ jobs:
       - name: Compare the complete family with retained native observations under race instrumentation
         run: go test -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
         env:
-          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '15,26,27' }}
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
 
   quality:
     needs: [portable, portable_acceptance, phase5_retained, race_library, race_acceptance]
