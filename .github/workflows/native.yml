@@ -12,6 +12,7 @@ on:
       - '.github/workflows/hfs-recovery.yml'
       - '.github/workflows/apfs-edit.yml'
       - '.github/workflows/apfs-recovery.yml'
+      - '.github/workflows/offline-editing.yml'
   push:
     branches: [main]
   schedule:
@@ -282,7 +283,9 @@ jobs:
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$)'
+        # Offline editing has its own required capture/replay/readback matrix;
+        # replaying its retained full-disk controls here duplicates that work.
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
