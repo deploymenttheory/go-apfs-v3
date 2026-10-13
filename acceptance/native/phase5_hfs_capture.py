@@ -78,7 +78,7 @@ def format_image(image, binary, command, sensitive, journaled, growth, fragmente
             # both small trees. Actual native overflow is asserted below.
             args += ['-n', 'c=4096,a=4096', '-I', 'c=8,a=8,e=256',
                      '-c', 'c=8,a=8,e=256', '-E', 'c=8,a=8',
-                     '-O', 'c=2000,a=2008,e=2016']
+                     '-a', 'c=2000,a=2008,e=2016']
         else:
             args += ['-I', 'a=0']
         command('sudo', binary, *args, '-v', 'Phase5',
