@@ -167,6 +167,9 @@ func (m *mutation) loadCatalog() error {
 }
 
 func (m *mutation) logical(r *catalogItem) (*catalogItem, error) {
+	if r == nil {
+		return nil, fs.ErrNotExist
+	}
 	b, err := m.v.resolveLink(m.ctx, r.value)
 	if err != nil {
 		return nil, err

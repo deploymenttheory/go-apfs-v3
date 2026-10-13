@@ -12,6 +12,7 @@ type tree struct {
 	root, total uint32
 	nodeSize    uint16
 	idOffset    int
+	catalogKeys *catalogNames
 }
 type treeRecord struct{ key, value []byte }
 
@@ -21,6 +22,9 @@ func openTree(f *fork, idOffset int) (*tree, error) {
 		return nil, err
 	}
 	t := &tree{fork: f, root: be.Uint32(b[16:]), total: be.Uint32(b[36:]), nodeSize: be.Uint16(b[32:]), idOffset: idOffset}
+	if idOffset == 2 {
+		t.catalogKeys = newCatalogNames(b[51] == 0xbc)
+	}
 	if b[8] != 1 || t.nodeSize < 512 || t.nodeSize&(t.nodeSize-1) != 0 || t.total == 0 || t.root >= t.total || uint64(t.total)*uint64(t.nodeSize) > f.size {
 		return nil, bad("B-tree header")
 	}

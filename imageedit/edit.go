@@ -71,6 +71,12 @@ func editImage(ctx context.Context, sourcePath, destination string, o Options, m
 }
 
 func transformImage(ctx context.Context, sourcePath, destination string, o Options, admission func(block.Source, bool) error, mutation func(*mutablePartition, bool) (Report, error)) (report Report, err error) {
+	published := false
+	defer func() {
+		if published {
+			err = completeoutput.AfterPublication(destination, err)
+		}
+	}()
 	if sourcePath == "" || destination == "" || mutation == nil {
 		return report, fs.ErrInvalid
 	}
@@ -176,6 +182,8 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 		report.RepackReport, e = diskimage.Repack(ctx, out, disk, o.Format)
 		return e
 	})
+	var outcome *filesystem.PublishedOutputError
+	published = err == nil || errors.As(err, &outcome)
 	return report, err
 }
 

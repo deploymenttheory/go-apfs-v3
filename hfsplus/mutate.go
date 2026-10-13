@@ -172,6 +172,9 @@ func (t *tree) visitLeaves(ctx context.Context, yield func(uint32, []byte, []tre
 
 func (m *mutation) admit() error {
 	v := m.v
+	// The mutation view changes in place inside exclusive scratch. It must
+	// resolve current records through its own catalog, bypassing reader caches.
+	v.catalogCache = nil
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
@@ -560,10 +563,11 @@ func (m *mutation) removeCompression(id uint32, catalog []byte) error {
 }
 
 func (m *mutation) validateFile(c Change, id uint64) error {
-	b, e := m.v.catalogRecord(m.ctx, id)
+	inode, e := m.logical(m.catalog[uint32(id)])
 	if e != nil {
 		return e
 	}
+	b := inode.value
 	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
 		return fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
 	}
@@ -599,10 +603,11 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 }
 
 func (m *mutation) modifyFile(c Change, target uint64, stamp uint32) (uint32, error) {
-	b, e := m.v.catalogRecord(m.ctx, target)
+	inode, e := m.logical(m.catalog[uint32(target)])
 	if e != nil {
 		return 0, e
 	}
+	b := bytes.Clone(inode.value)
 	b = bytes.Clone(b)
 	id := be.Uint32(b[8:])
 	if c.Data != nil {

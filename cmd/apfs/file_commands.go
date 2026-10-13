@@ -13,6 +13,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
@@ -42,6 +43,10 @@ func parseOctal(s string, max uint32) (uint32, error) {
 }
 
 func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+	return fileCommandWithEditor(ctx, args, out, diagnostics, nil, imageedit.Options{})
+}
+
+func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics io.Writer, editor *imageedit.Editor, options imageedit.Options) (err error) {
 	verb := args[0]
 	f := flag.NewFlagSet(verb, flag.ContinueOnError)
 	f.SetOutput(diagnostics)
@@ -111,6 +116,25 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	operands, err := parseCommandFlags(f, args[1:])
 	if err != nil {
 		return err
+	}
+	if editor != nil {
+		f.Visit(func(option *flag.Flag) {
+			switch option.Name {
+			case "image", "output", "partition", "volume", "format", "time", "session", "scratch-dir", "json":
+				err = fmt.Errorf("--%s belongs to the enclosing edit command", option.Name)
+			}
+		})
+		if err != nil {
+			return err
+		}
+		// Reuse each verb's ordinary parser and its admitted image semantics.
+		if err := f.Set("volume", options.Volume); err != nil {
+			return err
+		}
+		if err := f.Set("time", options.Time.Format(time.RFC3339)); err != nil {
+			return err
+		}
+		return editImageCommandWithEditor(ctx, verb, f, common, "", "", options.Partition, options.Format, operands, out, editor)
 	}
 	if *imagePath != "" {
 		return editImageCommand(ctx, verb, f, common, *imagePath, *imageOutput, *imagePartition, *imageFormat, operands, out)

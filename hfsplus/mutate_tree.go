@@ -39,10 +39,8 @@ import (
 	"cmp"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
-	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
 type nodeMap struct {
@@ -90,14 +88,7 @@ func attributeCompare(a, b []byte) int {
 }
 
 func catalogCompare(sensitive bool) func([]byte, []byte) int {
-	return func(a, b []byte) int {
-		if n := cmp.Compare(be.Uint32(a[2:]), be.Uint32(b[2:])); n != 0 {
-			return n
-		}
-		left, _ := unicodeName(a[6:])
-		right, _ := unicodeName(b[6:])
-		return strings.Compare(names.HFSStored(left, sensitive), names.HFSStored(right, sensitive))
-	}
+	return newCatalogNames(sensitive).compare
 }
 
 func recordBounds(b []byte, index int) (int, int, error) {

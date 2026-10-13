@@ -52,49 +52,55 @@ func (v *Volume) rawCatalogRecord(ctx context.Context, id uint64) ([]byte, uint3
 	if err := v.readable(ctx, id); err != nil {
 		return nil, 0, err
 	}
-	var parent uint32
-	var name []byte
-	found := false
-	err := v.catalog.records(ctx, uint32(id), func(r treeRecord) error {
-		if len(r.key) != 8 || be.Uint16(r.key[6:]) != 0 {
-			return nil
+	if cache := v.catalogCache; cache != nil {
+		cache.mu.Lock()
+		value, ok := cache.values[id]
+		cache.mu.Unlock()
+		if ok {
+			return value.data, value.parent, nil
 		}
-		if found || len(r.value) < 10 || (be.Uint16(r.value) != 3 && be.Uint16(r.value) != 4) {
-			return bad("catalog thread")
-		}
-		found = true
-		parent = be.Uint32(r.value[4:])
-		name = bytes.Clone(r.value[8:])
-		_, err := unicodeName(name)
-		return err
-	})
+	}
+	thread, found, err := v.catalog.findCatalog(ctx, catalogKey(uint32(id), ""), v.CaseSensitive)
 	if err != nil {
 		return nil, 0, err
 	}
 	if !found {
 		return nil, 0, fs.ErrNotExist
 	}
-	var data []byte
-	err = v.catalog.records(ctx, parent, func(r treeRecord) error {
-		if len(r.key) < 8 {
-			return bad("catalog name key")
-		}
-		if bytes.Equal(r.key[6:], name) {
-			if data != nil || len(r.value) < 88 || (be.Uint16(r.value) != 1 && be.Uint16(r.value) != 2) || be.Uint32(r.value[8:]) != uint32(id) {
-				return bad("catalog object")
-			}
-			data = bytes.Clone(r.value)
-		}
-		return nil
-	})
+	if len(thread.value) < 10 || (be.Uint16(thread.value) != 3 && be.Uint16(thread.value) != 4) {
+		return nil, 0, bad("catalog thread")
+	}
+	parent, name := be.Uint32(thread.value[4:]), thread.value[8:]
+	if _, err := unicodeName(name); err != nil {
+		return nil, 0, err
+	}
+	key := make([]byte, 6+len(name))
+	be.PutUint16(key, uint16(len(key)-2))
+	be.PutUint32(key[2:], parent)
+	copy(key[6:], name)
+	record, found, err := v.catalog.findCatalog(ctx, key, v.CaseSensitive)
 	if err != nil {
 		return nil, 0, err
 	}
-	if data == nil {
+	if !found {
 		return nil, 0, bad("dangling catalog thread")
 	}
+	if !bytes.Equal(record.key[6:], name) || len(record.value) < 88 || (be.Uint16(record.value) != 1 && be.Uint16(record.value) != 2) || be.Uint32(record.value[8:]) != uint32(id) {
+		return nil, 0, bad("catalog object")
+	}
+	data := bytes.Clone(record.value)
 	if be.Uint16(data) == 2 && len(data) != 248 {
 		return nil, 0, bad("catalog file length")
+	}
+	if cache := v.catalogCache; cache != nil {
+		cache.mu.Lock()
+		// A stable reader often stats, reads and lists attributes for the same
+		// inode consecutively. Retain bounded metadata, never fork contents.
+		if len(cache.values) >= 1024 {
+			clear(cache.values)
+		}
+		cache.values[id] = cachedCatalogRecord{data: data, parent: parent}
+		cache.mu.Unlock()
 	}
 	return data, parent, nil
 }
