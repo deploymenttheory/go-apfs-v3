@@ -56,7 +56,7 @@ def observe(image, work, command, label):
         require(sha256(image) == original, 'HFS observation changed source')
 
 
-def format_image(image, binary, command, sensitive, journaled, growth):
+def format_image(image, binary, command, sensitive, journaled, growth, fragmented=False):
     require_disposable_host()
     with image.open('xb') as stream:
         stream.truncate(GROWTH_CAPACITY if growth else CAPACITY)
@@ -71,6 +71,14 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             # 30720 nodes exactly fill its header map (120 MiB catalog file).
             # Native insertion and subsequent Go insertion must cross that map.
             args += ['-n', 'c=4096', '-I', 'c=30720', '-c', 'c=4096']
+        elif fragmented:
+            # The unmodified Apple debug formatter creates eight resident
+            # extents per tree. Place attributes immediately after catalog,
+            # and extents after attributes, blocking contiguous extension of
+            # both small trees. Actual native overflow is asserted below.
+            args += ['-n', 'c=4096,a=4096', '-I', 'c=8,a=8,e=256',
+                     '-c', 'c=8,a=8,e=256', '-E', 'c=8,a=8',
+                     '-O', 'c=2000,a=2008,e=2016']
         else:
             args += ['-I', 'a=0']
         command('sudo', binary, *args, '-v', 'Phase5',
@@ -112,10 +120,10 @@ def retain_observation(value, target):
     return {'image': target.name, 'sha256': sha256(target)}
 
 
-def capture_case(case_id, sensitive, journaled, growth, binary, work, output, command):
+def capture_case(case_id, sensitive, journaled, growth, binary, work, output, command, fragmented=False):
     require_disposable_host()
     source = work / (case_id + '-source.raw')
-    format_image(source, binary, command, sensitive, journaled, growth)
+    format_image(source, binary, command, sensitive, journaled, growth, fragmented)
     (output / (case_id + '-format-headers.json')).write_text(json.dumps(
         read_headers(source, source.stat().st_size), indent=2) + '\n')
     # Retain original formatter bytes even if a subsequent native mount fails.
@@ -132,7 +140,7 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         finally:
             command('hdiutil', 'detach', device)
     before = observe(source, work, command, 'before')
-    if not growth and not journaled:
+    if not growth and not journaled and not fragmented:
         require(before['headers']['primary']['forks']['attributes']['logicalSize'] == 0,
                 'original Apple debug image must have no attributes file')
     elif journaled:
@@ -149,6 +157,13 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         if growth:
             for name in tree_names(1000, GROWTH_FILES):
                 (root / name).write_bytes(b'')
+        elif fragmented:
+            from file_compression import xattr
+            root.mkdir()
+            for name in tree_names(0, 256):
+                path = root / name
+                path.write_bytes(b'Metadata growth contents\n')
+                xattr(path, 'org.go-apfs.growth', bytes(range(256)) * 2)
         else:
             from file_compression import xattr
             root.mkdir()
@@ -165,6 +180,11 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
                 'initial catalog exactly fits its header map')
         require(final['headers']['catalog']['totalNodes'] > MAP_CAPACITY,
                 'native controls must actually grow beyond the initial node map')
+    elif fragmented:
+        for name in ('catalog', 'attributes'):
+            fork = final['headers']['primary']['forks'][name]
+            require(fork['totalBlocks'] > sum(e[1] for e in fork['extents']),
+                    'native metadata growth must actually use overflow extents: ' + name)
     else:
         require(final['headers']['primary']['forks']['attributes']['logicalSize'] > 0,
                 'Apple kernel must initialize the absent attributes file')
@@ -177,13 +197,15 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
     return {'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
             'before': before, 'after': final, 'sensitive': sensitive,
             'journaled': journaled, 'growth': growth,
+            'fragmented': fragmented,
             'growthFiles': GROWTH_FILES if growth else 0,
-            'operation': ('catalog-node-map-growth' if growth else
+            'operation': ('fragmented-metadata-growth' if fragmented else
+                          'catalog-node-map-growth' if growth else
                           'first-attribute-on-initialized-journal' if journaled else
                           'first-attribute-initialization')}
 
 
-def capture(major, output):
+def capture(major, output, fragmented_only=False):
     require_disposable_host()
     producer = version(major)
     producer.update(revision=os.environ['GITHUB_SHA'], run=os.environ['GITHUB_RUN_ID'])
@@ -195,6 +217,11 @@ def capture(major, output):
         binary, formatter = build(work / 'formatter', command)
         producer['formatter'] = formatter
         for sensitive, label in ((False, 'hfsplus'), (True, 'hfsx')):
+            if fragmented_only:
+                with tempfile.TemporaryDirectory(dir=work) as case_tmp:
+                    cases.append(capture_case(label + '-fragmented-metadata', sensitive,
+                        False, False, binary, Path(case_tmp), output, command, fragmented=True))
+                continue
             for journaled in (False, True):
                 case_id = label + ('-journaled' if journaled else '') + '-first-attribute'
                 with tempfile.TemporaryDirectory(dir=work) as case_tmp:
@@ -217,7 +244,8 @@ def capture(major, output):
         target = output / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
-    manifest = {'schema': 1, 'contract': 'phase5-hfs-allocation', 'major': major,
+    manifest = {'schema': 1, 'contract': ('phase5-hfs-fragmented' if fragmented_only else
+                                        'phase5-hfs-allocation'), 'major': major,
                 'producer': producer, 'cases': cases,
                 'commandsSHA256': sha256(output / 'commands.json')}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -227,5 +255,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--expected-major', required=True, type=int)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--fragmented-only', action='store_true')
     args = parser.parse_args()
-    capture(args.expected_major, args.output)
+    capture(args.expected_major, args.output, args.fragmented_only)
