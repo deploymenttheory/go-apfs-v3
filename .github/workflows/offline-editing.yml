@@ -1,0 +1,171 @@
+name: Offline image editing compatibility
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Record Apple ${{ matrix.family }} editing controls (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        runner: [macos-15, macos-26, xcode-27]
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Capture independent Apple before and after edits
+        if: matrix.family == 'apfs'
+        run: python3 acceptance/native/apfs_geometry.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-apfs/macos-${{ matrix.major }}
+      - name: Capture native attributes initialization and node-map extension
+        if: matrix.family == 'hfs'
+        run: python3 acceptance/native/hfs_metadata_growth.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-hfs/macos-${{ matrix.major }}
+      - name: Capture native fragmented metadata overflow
+        if: matrix.family == 'hfs-fragmented'
+        run: python3 acceptance/native/hfs_metadata_growth.py --fragmented-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-hfs-fragmented/macos-${{ matrix.major }}
+      - name: Capture native ACL inheritance, creator ownership and set-ID effects
+        if: matrix.family == 'permissions'
+        run: python3 acceptance/native/permission_inheritance.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-permissions/macos-${{ matrix.major }}
+      - name: Capture native directory-stat origins and inheritance
+        if: matrix.family == 'statistics'
+        run: python3 acceptance/native/apfs_geometry.py --directory-statistics --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics/macos-${{ matrix.major }}
+      - name: Retain original disks and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
+          path: artifacts/offline-editing-${{ matrix.family }}
+          if-no-files-found: error
+
+  replay:
+    name: Edit offline editing ${{ matrix.family }} controls (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
+    needs: capture
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [15, 26, 27]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        include:
+          - {runner: ubuntu-24.04, host: Linux}
+          - {runner: windows-2025, host: Windows}
+          - {runner: macos-26, host: macOS}
+        # Explicit Cartesian host/source axes keep runtime bounded per job.
+        runner: [ubuntu-24.04, windows-2025, macos-26]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
+          path: artifacts/offline-editing-${{ matrix.family }}
+      - name: Compare exact native contents, identities, metadata and volume policy
+        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNativePermissionInheritance$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
+        env:
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_APFS_GEOMETRY: ../artifacts/offline-editing-apfs
+          APFS_GEOMETRY_OUTPUT: ../artifacts/offline-editing-apfs-${{ matrix.host }}
+          APFS_NATIVE_HFS_METADATA_GROWTH: ../artifacts/offline-editing-hfs
+          APFS_HFS_METADATA_GROWTH_OUTPUT: ../artifacts/offline-editing-hfs-${{ matrix.host }}
+          APFS_NATIVE_HFS_FRAGMENTED_METADATA: ../artifacts/offline-editing-hfs-fragmented
+          APFS_HFS_FRAGMENTED_METADATA_OUTPUT: ../artifacts/offline-editing-hfs-fragmented-${{ matrix.host }}
+          APFS_NATIVE_PERMISSION_INHERITANCE: ../artifacts/offline-editing-permissions
+          APFS_PERMISSION_INHERITANCE_OUTPUT: ../artifacts/offline-editing-permissions-${{ matrix.host }}
+          APFS_NATIVE_DIRECTORY_STATISTICS: ../artifacts/offline-editing-statistics
+          APFS_DIRECTORY_STATISTICS_OUTPUT: ../artifacts/offline-editing-statistics-${{ matrix.host }}
+      - name: Archive portable outputs
+        shell: bash
+        run: |
+          archive_options=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            archive_options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf artifacts/offline-editing-${{ matrix.family }}-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts offline-editing-${{ matrix.family }}-${{ matrix.host }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ matrix.family }}-output-${{ matrix.host }}-${{ matrix.major }}
+          path: artifacts/offline-editing-${{ matrix.family }}-*.tar.gz
+          if-no-files-found: error
+
+  readback:
+    name: Apple checks and continued writes of offline editing ${{ matrix.family }} outputs (macOS ${{ matrix.major }})
+    needs: replay
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        runner: [macos-15, macos-26, xcode-27]
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: offline-editing-${{ matrix.family }}-reference-*
+          path: artifacts/offline-editing-${{ matrix.family }}
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: offline-editing-${{ matrix.family }}-output-*
+          path: artifacts/outputs
+          merge-multiple: true
+      - name: Unpack all source and host outputs
+        run: |
+          for archive_file in artifacts/outputs/*.tar.gz; do
+            tar -xzf "$archive_file" --no-mac-metadata --no-xattrs --no-acls --options '!mac-ext' -C artifacts/outputs
+          done
+      - name: Qualify output sectors, files, signatures, volume limits and further allocation
+        if: matrix.family == 'apfs'
+        run: python3 acceptance/native/verify_apfs_offline_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-apfs --outputs artifacts/outputs
+      - name: Qualify HFS metadata initialization, tree maps and continued writes
+        if: matrix.family == 'hfs'
+        run: python3 acceptance/native/verify_hfs_metadata_growth.py --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-hfs --outputs artifacts/outputs
+      - name: Qualify HFS fragmented metadata and overflow extents
+        if: matrix.family == 'hfs-fragmented'
+        run: python3 acceptance/native/verify_hfs_metadata_growth.py --fragmented --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-hfs-fragmented --outputs artifacts/outputs
+      - name: Qualify exact ACLs, set-ID transitions and continued native inheritance
+        if: matrix.family == 'permissions'
+        run: python3 acceptance/native/verify_permission_inheritance.py --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-permissions --outputs artifacts/outputs
+      - name: Qualify exact native directory statistics and continued writes
+        if: matrix.family == 'statistics'
+        run: python3 acceptance/native/verify_apfs_offline_editing.py --statistics --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-statistics --outputs artifacts/outputs
+      - name: Retain native verdicts and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ matrix.family }}-readback-${{ matrix.major }}
+          path: artifacts/outputs/*.json
+          if-no-files-found: error
+
+  qualified:
+    name: Require offline image capture, portable editing and Apple readback
+    if: always()
+    needs: [capture, replay, readback]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every job to succeed
+        env:
+          CAPTURE: ${{ needs.capture.result }}
+          REPLAY: ${{ needs.replay.result }}
+          READBACK: ${{ needs.readback.result }}
+        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success

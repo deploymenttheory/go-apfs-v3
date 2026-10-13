@@ -75,7 +75,7 @@ ACL inheritance uses Apple's `kauth_acl_inherit`; parent set-ID modes do not
 propagate. Set-ID creation and writes require an explicit logical UID: root
 writes retain the bits, other writes and ordinary chown clear them. Numeric
 chmod preserves stored ACLs and GUIDs. Stored users and ACL identities are
-independent of host credentials and account-name resolution. The phase-5
+independent of host credentials and account-name resolution. The offline editing
 completion gate requires fresh Apple readback and continued inheritance.
 
 `mv` preserves the original CNID, forks, attributes, metadata and link chains.

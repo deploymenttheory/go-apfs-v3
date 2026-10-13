@@ -4,6 +4,36 @@ Acceptance establishes interoperability with independent macOS observations.
 Reading an image with the same code that wrote it cannot establish this. No v2
 tests or harness helpers are reused.
 
+## Offline image editing controls
+
+These retained families check the allocation and metadata behavior needed to
+edit an existing image while preserving its filesystem and object identities.
+Their filenames, test names, fixture directories and CI jobs identify the
+capability being checked.
+
+| Test | Retained fixtures | Independent native expectation |
+| --- | --- | --- |
+| `TestNativeAPFSGeometryEditing` | `testdata/apfs-geometry` | Larger images, selected-volume edits, untouched peer volumes and reserve/quota policy |
+| `TestNativeHFSMetadataGrowth` | `testdata/hfs-metadata-growth` | First attributes, journal initialization and catalog node-map growth |
+| `TestNativeHFSFragmentedMetadataGrowth` | `testdata/hfs-fragmented-metadata` | Catalog and attributes growth into overflow extents |
+| `TestNativePermissionInheritance` | `testdata/permission-inheritance` | ACL inheritance, creator ownership, chmod/chown and set-ID effects |
+| `TestNativeAPFSDirectoryStatistics` | `testdata/apfs-directory-statistics` | Native directory counts, allocated data size, chained origins and generation counters |
+
+All families retain macOS 15/26/27 captures. File-only Go replay checks original
+hashes before comparing native observations. The offline editing compatibility
+workflow additionally checks fresh Linux/Windows/macOS outputs with Apple tools
+on disposable CI VMs, including continued native modification.
+
+Historical text evidence remains compressed with its original decoded digest;
+the readable manifest is a capability-named projection. See
+[the qualification requirements](../docs/offline-editing-qualification.md) for
+the exact preservation rules and outstanding work.
+
+```sh
+go test -count=1 ./acceptance -run '^TestNativeAPFSDirectoryStatistics$'
+go test -count=1 ./acceptance -run '^TestNativeHFSFragmentedMetadataGrowth$'
+```
+
 ## Volume inspection
 
 Purpose: identify filesystem and volume accurately before a forensic, packaging,
@@ -85,7 +115,7 @@ destination aliases while transferring the native copy view of metadata/forks.
 fresh `APFS_NATIVE_APFS_COPY`, `APFS_NATIVE_HFS_COPY` and
 `APFS_NATIVE_HFS_JOURNALED_COPY` controls. Each compares complete source/native
 states before generating deterministic UDRO/UDZO outputs. Whole namespace and
-identity bijections remain checked across phases; exact preserved dates are
+identity bijections remain checked across successive edits; exact preserved dates are
 separate from individually observed final operation clock effects.
 
 The existing filesystem-edit pipelines compare output hashes on all three hosts

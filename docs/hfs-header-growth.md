@@ -3,7 +3,7 @@
 This reference family establishes what native HFS modification actually changes,
 and separates construction defects from the storage route used to verify them.
 It supports forensic reads of retained states and the next existing-filesystem
-mutation phase. It does not qualify Go transactions or shadow-backed mutation.
+filesystem mutation. It does not qualify Go transactions or shadow-backed mutation.
 
 ## Matched filesystem controls
 

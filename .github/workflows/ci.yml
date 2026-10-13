@@ -34,10 +34,10 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|Phase5(APFS|HFS(Fragmented)?))$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|HFS(Fragmented)?MetadataGrowth)$'
       - run: go vet ./...
 
-  phase5_retained:
+  offline_retained:
     name: Retained offline editing (${{ matrix.family }}, macOS ${{ matrix.source }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -48,11 +48,11 @@ jobs:
         source: [15, 26, 27]
         family: [APFS geometry and volumes, HFS first attributes, HFS metadata overflow, HFS+ node-map boundary, HFSX node-map boundary]
         include:
-          - {family: APFS geometry and volumes, tests: '^TestNativePhase5APFS$'}
-          - {family: HFS first attributes, tests: '^TestNativePhase5HFS$/macos-SOURCE/(hfsplus|hfsx)(-journaled)?-first-attribute$'}
-          - {family: HFS metadata overflow, tests: '^TestNativePhase5HFSFragmented$'}
-          - {family: HFS+ node-map boundary, tests: '^TestNativePhase5HFS$/macos-SOURCE/hfsplus-catalog-map-growth$'}
-          - {family: HFSX node-map boundary, tests: '^TestNativePhase5HFS$/macos-SOURCE/hfsx-catalog-map-growth$'}
+          - {family: APFS geometry and volumes, tests: '^TestNativeAPFSGeometryEditing$'}
+          - {family: HFS first attributes, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/(hfsplus|hfsx)(-journaled)?-first-attribute$'}
+          - {family: HFS metadata overflow, tests: '^TestNativeHFSFragmentedMetadataGrowth$'}
+          - {family: HFS+ node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsplus-catalog-map-growth$'}
+          - {family: HFSX node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsx-catalog-map-growth$'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -67,7 +67,7 @@ jobs:
           SOURCE_MAJOR: ${{ matrix.source }}
         run: |
           test_pattern="${SELECTED_TESTS//SOURCE/$SOURCE_MAJOR}"
-          if [[ "$test_pattern" == '^TestNativePhase5APFS$' || "$test_pattern" == '^TestNativePhase5HFSFragmented$' ]]; then
+          if [[ "$test_pattern" == '^TestNativeAPFSGeometryEditing$' || "$test_pattern" == '^TestNativeHFSFragmentedMetadataGrowth$' ]]; then
             test_pattern="$test_pattern/macos-$SOURCE_MAJOR/"
           fi
           go test -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
@@ -211,7 +211,7 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|Phase5(APFS|HFS(Fragmented)?))$'
+            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|HFS(Fragmented)?MetadataGrowth)$'
           - family: APFS image construction
             tests: '^TestNativeImageBuilding$/macos-27/image-building/apfs$'
             source: '27'
@@ -262,7 +262,7 @@ jobs:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
 
   quality:
-    needs: [portable, portable_acceptance, phase5_retained, race_library, race_acceptance]
+    needs: [portable, portable_acceptance, offline_retained, race_library, race_acceptance]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -281,10 +281,10 @@ jobs:
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
       - name: Require every portable and race group
         if: always()
-        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$PHASE5_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
+        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
           PORTABLE: ${{ needs.portable.result }}
           RETAINED_ACCEPTANCE: ${{ needs.portable_acceptance.result }}
-          PHASE5_RETAINED: ${{ needs.phase5_retained.result }}
+          OFFLINE_RETAINED: ${{ needs.offline_retained.result }}
           LIBRARY_RACES: ${{ needs.race_library.result }}
           ACCEPTANCE_RACES: ${{ needs.race_acceptance.result }}

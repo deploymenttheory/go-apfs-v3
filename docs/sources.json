@@ -1200,7 +1200,7 @@
         "hfsplus/build.go",
         "hfsplus/mutate_copy.go"
       ],
-      "basis": "Bounded unpublished-copy adaptation of cat_create/buildrecord/buildthread, cat_rename, cat_delete, cat_acquire_cnid, hfs_makenode, hfs_unlink and catalog sibling chains. Thread and orphan-attribute collisions reserve CNIDs; wraparound is refused until qualified. Date-added and generation fields follow hfs_write_dateadded/hfs_write_gencount/hfs_incr_gencount. No vnodes, process-credential emulation, live journal callbacks or open-unlinked orphan staging: exclusively owned copies reclaim final-link storage immediately. New records use explicit clocks, parent UID/GID and fixed portable creation modes; ACL/set-ID inheritance is refused. Independent Apple namespace qualification is separate. Catalog metadata growth uses the same inline/overflow extent-record representation as ordinary forks; the extents tree remains self-describing. Native fragmented sources exposed the previous eight-inline-extents catalog growth limit and independently qualify this extension. Hard-link creation adapts hfs_makelink/createindirectlink/cat_createlink: first conversion moves the original CNID into private inode storage, creates indirect aliases, preserves legacy/current chain style and enforces HFS_LINK_MAX=32767. Shared indirectLinkRecord serves construction/mutation, with immutable alias catalog lock consistency. Symlinks adapt hfs_vnop_symlink's literal data fork and Finder type/creator. Source and alias storage are reclaimed only on final unlink. Phase-5 completion also adapts hfs_privatedir_init(FILE_HARDLINKS) for formatted inputs with no native writable mount: protected private directory defaults, birth-date linkage, folder counts and Finder flags use the same pinned hfs_link.c. Independent debug-formatter controls and Apple output checks qualify this addition."
+      "basis": "Bounded unpublished-copy adaptation of cat_create/buildrecord/buildthread, cat_rename, cat_delete, cat_acquire_cnid, hfs_makenode, hfs_unlink and catalog sibling chains. Thread and orphan-attribute collisions reserve CNIDs; wraparound is refused until qualified. Date-added and generation fields follow hfs_write_dateadded/hfs_write_gencount/hfs_incr_gencount. No vnodes, process-credential emulation, live journal callbacks or open-unlinked orphan staging: exclusively owned copies reclaim final-link storage immediately. New records use explicit clocks, parent UID/GID and fixed portable creation modes; ACL/set-ID inheritance is refused. Independent Apple namespace qualification is separate. Catalog metadata growth uses the same inline/overflow extent-record representation as ordinary forks; the extents tree remains self-describing. Native fragmented sources exposed the previous eight-inline-extents catalog growth limit and independently qualify this extension. Hard-link creation adapts hfs_makelink/createindirectlink/cat_createlink: first conversion moves the original CNID into private inode storage, creates indirect aliases, preserves legacy/current chain style and enforces HFS_LINK_MAX=32767. Shared indirectLinkRecord serves construction/mutation, with immutable alias catalog lock consistency. Symlinks adapt hfs_vnop_symlink's literal data fork and Finder type/creator. Source and alias storage are reclaimed only on final unlink. Offline editing completion also adapts hfs_privatedir_init(FILE_HARDLINKS) for formatted inputs with no native writable mount: protected private directory defaults, birth-date linkage, folder counts and Finder flags use the same pinned hfs_link.c. Independent debug-formatter controls and Apple output checks qualify this addition."
     },
     {
       "id": "apple-ln-command-semantics",
@@ -1412,14 +1412,14 @@
           "sha256": "7e93323baaf2a6fa15d20769f86096b475fc95ce425ec2745a4eb7531b7c1892"
         }
       ],
-      "basis": "Go adaptation of hfs_create_attr_btree, getnodecount and ExtendBTree, with unpublished owned storage replacing vnodes and journal callbacks. Extents Overflow B-tree resident extents are an Apple format constraint; attributes/catalog growth uses overflow extents. Metadata allocation preserves contiguous whole nodes. Native qualification remains pending in the phase-5 completion gate."
+      "basis": "Go adaptation of hfs_create_attr_btree, getnodecount and ExtendBTree, with unpublished owned storage replacing vnodes and journal callbacks. Extents Overflow B-tree resident extents are an Apple format constraint; attributes/catalog growth uses overflow extents. Metadata allocation preserves contiguous whole nodes. Native qualification remains pending in the offline editing completion gate."
     },
     {
-      "id": "native-phase5-apfs-geometry",
+      "id": "native-apfs-geometry",
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337086450",
       "evidence": [
-        "acceptance/testdata/phase5-apfs"
+        "acceptance/testdata/apfs-geometry"
       ],
       "components": [
         "apfs/mutate_ownership.go",
@@ -1429,11 +1429,11 @@
       "basis": "Apple-created macOS 15/26/27 larger and multiple-volume source/after disks and original command/source hashes. All portable builds and independent Apple readback/continued-write checks passed for b0c811e. Later editor/cache changes require the same gate again."
     },
     {
-      "id": "native-phase5-hfs-allocation",
+      "id": "native-hfs-allocation",
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38338429577",
       "evidence": [
-        "acceptance/testdata/phase5-hfs"
+        "acceptance/testdata/hfs-metadata-growth"
       ],
       "components": [
         "hfsplus/mutate_tree_growth.go",
@@ -1442,11 +1442,11 @@
       "basis": "Unmodified pinned Apple debug formatter creates independent absent-attributes and catalog-map boundary inputs. Apple native mounts, writes, checker verdicts and observations supply expectations on macOS 15/26/27. Native catalog growth from 30720 to 47104 nodes is actually observed. Capture success is not Go output qualification."
     },
     {
-      "id": "native-phase5-hfs-fragmented",
+      "id": "native-hfs-fragmented",
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38341294045",
       "evidence": [
-        "acceptance/testdata/phase5-hfs-fragmented"
+        "acceptance/testdata/hfs-fragmented-metadata"
       ],
       "components": [
         "hfsplus/mutate_allocation.go",
@@ -1455,16 +1455,16 @@
       "basis": "Apple debug formatter places eight-extent catalog and attributes files with occupied tails; native growth actually enters overflow extents in both metadata files, for HFS+/HFSX on macOS 15/26/27. Original formatter sources, SDK and binary hashes are retained. Go output qualification remains required."
     },
     {
-      "id": "native-phase5-apfs-directory-statistics",
+      "id": "native-apfs-directory-statistics",
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337765847",
       "evidence": [
-        "acceptance/testdata/phase5-directory-statistics"
+        "acceptance/testdata/apfs-directory-statistics"
       ],
       "components": [
         "apfs/statistics.go",
         "apfs/mutate_statistics.go",
-        "acceptance/phase5_statistics_test.go"
+        "acceptance/apfs_directory_statistics_test.go"
       ],
       "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. Original macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. Current native inodes carry an eight-byte shared statistics key on files and directories; origin records use separate IDs, chained totals, primary-inode counts and allocated data-fork bytes excluding resource forks. Go replay matches the original six profiles including exact generation counters, but fresh Apple output checks and continued writes remain required before qualification. No private APFS kernel C port is claimed."
     },
@@ -1499,19 +1499,19 @@
       "basis": "Bounded Go adaptation of kauth_filesec/kauth_acl layouts, canonical network byte order and kauth_acl_inherit for ordinary creation with no initial ACL. GUIDs, rights and private flags remain opaque; matching inheritance flags and limited/file propagation follow Apple C. New owner/group GUIDs default to null through vnode_setattr_fallback. Ordinary chown mode clearing follows vnode_authattr, including unchanged numeric ownership and root. Account-name resolution and process authorization are not emulated. Independent macOS 15/26/27 controls are required before qualification."
     },
     {
-      "id": "native-phase5-permission-inheritance",
+      "id": "native-permission-inheritance",
       "kind": "native-observation",
       "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38348173841",
       "evidence": [
-        "acceptance/testdata/phase5-permissions"
+        "acceptance/testdata/permission-inheritance"
       ],
       "components": [
         "internal/filesec/filesec.go",
         "apfs/mutate_security.go",
         "hfsplus/mutate_security.go",
-        "acceptance/phase5_permissions_test.go"
+        "acceptance/permission_inheritance_test.go"
       ],
-      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable output/native continued-write qualification remains required before phase closure."
+      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable output/native continued-write qualification remains required before offline editing qualification."
     }
   ]
 }

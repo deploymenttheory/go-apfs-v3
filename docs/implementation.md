@@ -1,19 +1,19 @@
-# Implementation sequence and qualification
+# Capabilities and qualification
 
-This is the complete agreed scope. A phase is not complete because its APIs
-compile. v2 production code and documentation were examined; its `_test` files
+This is the complete agreed scope. A capability requires independent native
+qualification before it is complete. v2 production code and documentation were examined; its `_test` files
 and harness were not imported.
 
-| Phase | Deliverable | Current status |
-| --- | --- | --- |
-| 1 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| 2 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| 3 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
-| 4 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| 5 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
-| 6 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
-| 7 | Read/write mounts on Linux/macOS/Windows | Pending |
-| 8 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
+| Capability | Current status |
+| --- | --- |
+| Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
+| Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
+| Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
+| Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
+| Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
+| Snapshot lifecycle, clones, encrypted modification/creation | Pending |
+| Read/write mounts on Linux/macOS/Windows | Pending |
+| Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
 
 ## Current evidence
 
@@ -84,7 +84,8 @@ not a declaration of support for every image in the wild.
 ## APFS snapshot reader increment
 
 Provide read-only enumeration and access to retained APFS snapshots. This is
-part of phase 2; snapshot creation, deletion and revert by Go remain in phase 6.
+part of filesystem reading; snapshot creation, deletion and revert by Go remain
+pending under snapshot lifecycle support.
 The user operation is to select a historical filesystem state and read its
 files and metadata on Linux or Windows, including files removed from the live
 volume after the snapshot was taken.
@@ -155,11 +156,11 @@ encryption, compression and filename profile.
 Sealed-system integrity verification, arbitrary checkpoint recovery, dataless
 snapshots and snapshot mutation are outside this increment. HFS+ retains its
 existing reader and regression coverage. Preservation-aware extraction and
-workspaces start phase 3 below.
+workspaces are described below.
 
 ## Preservation-aware extraction increment
 
-The first phase-3 increment adds an explicit portable extraction workspace and
+Preservation-aware extraction adds an explicit portable extraction workspace and
 a streaming AppleDouble codec. A workspace holds a usable host projection plus
 immutable, hashed logical/raw data and attributes, original byte names, metadata,
 symlink targets, hard-link identities and the selected source view. Opening it
@@ -224,7 +225,7 @@ unchanged objects and source provenance. The focused retained family takes about
 two seconds locally. Existing preservation and reader gates remain required.
 Unit controls cover partial/failed reads, cancellation, changing input, duplicate
 identities, limits, unknown ownership and output containment. Durable transactions,
-compression encoding and filesystem writes retain their later phase gates.
+compression encoding and filesystem writes require their own native qualification.
 Namespace edits are qualified by the following increment.
 
 ## Ordered workspace tree editing increment
@@ -531,8 +532,8 @@ capture/replay stays in the existing compatibility workflow; the compact retaine
 family runs locally without native operations. Exact native raw-copy admission
 continues to qualify HFS output modification. Caller capacities are preserved.
 
-This reference/research increment supplies the native foundation for the phase 5
-HFS+/HFSX existing-filesystem editor below. The reference family itself does not
+These references supply the native foundation for the HFS+/HFSX
+existing-filesystem editor below. The reference family itself does not
 implement writes or transactions.
 
 
@@ -588,27 +589,29 @@ parent/volume counts, existing hard-link chains, fork/attribute reclamation and
 B-tree changes remain one transaction in unpublished scratch. Native qualification
 extends the existing HFS scenario family, including both admitted journal profiles.
 
-## Required phase gates
+## Required qualification
 
-1. Independent native fixtures/observations, readable portable comparisons, and
+- Independent native fixtures/observations, readable portable comparisons, and
    every required macOS producer and Linux/Windows consumer in CI.
-2. Native-produced images read identically on all hosts, including metadata and
+- Native-produced images read identically on all hosts, including metadata and
    forks; malformed input and unsupported features fail explicitly.
-3. Extract/edit/rebuild retains all untouched values and relationships. Host
+- Extract/edit/rebuild retains all untouched values and relationships. Host
    limits produce preservation outcomes rather than silent loss.
-4. Native checkers and mounted readback accept every host's output. Controlled
+- Native checkers and mounted readback accept every host's output. Controlled
    inputs produce byte-identical deterministic builds.
-5. Repeated native/Go edits and fault-injected writes satisfy the documented
+- Repeated native/Go edits and fault-injected writes satisfy the documented
    durability contract, including interrupted commit, disk-full and flush errors.
-6. macOS recognizes and can continue modifying snapshots, clones, and encrypted
+- macOS recognizes and can continue modifying snapshots, clones, and encrypted
    output. Snapshot deletion preserves retained states and allocation accounting.
-7. Mounted workloads retain identity, links, attributes, forks, and durable writes
+- Mounted workloads retain identity, links, attributes, forks, and durable writes
    under concurrency and remounts. Drivers remain optional dependencies.
-8. Seeded deletions recover with provenance; packaging and downstream signing
+- Seeded deletions recover with provenance; packaging and downstream signing
    journeys pass native verification on macOS 15, 26, and 27.
 
 ## Rules
 
+- Name files, tests, fixtures, identifiers and workflows after the capability or
+  filesystem structure they cover. Delivery order does not belong in these names.
 - Tie every capability to a user operation, authoritative source, and independent
   acceptance result. Pin translated files/revisions and retain their licenses.
 - Use Apple names for format structures and idiomatic Go ownership and I/O.
@@ -700,7 +703,7 @@ removed. Native readback must accept restored signatures after Go creates them.
 Retained before/growth/removal images on macOS 15/26/27 and fresh required captures
 cover both name policies and both HFS journal profiles. Existing pipelines require
 all portable outputs, complete native/Go/native link cycles and original source
-preservation. Identity mappings persist across phases to detect accidental
+preservation. Identity mappings persist across successive edits to detect accidental
 recreation, separated aliases and conflation with retired objects. See
 [link contracts and profile bounds](image-links.md).
 
@@ -751,7 +754,7 @@ deterministic output and subsequent Go mutation. Fresh portable/native
 qualification is required by the compatibility workflow; process interruption
 checks are file-only and native operations remain restricted to disposable VMs.
 
-This completes the first HFS recovery increment in phase 5. The following APFS
+This implements recovery of the qualified HFS journal profiles. The following APFS
 checkpoint increment is described below. Durable in-place commit, broader journal
 profiles and physical power-loss qualification remain open. See [the contract and limits](hfs-journal-recovery.md).
 

@@ -98,7 +98,7 @@ and writes require an explicit logical UID. Root writes retain the bits;
 other writers and ordinary chown clear them. Numeric chmod preserves ACL bytes.
 These effects model offline metadata, without authorizing a host process or
 mapping stored GUIDs to host accounts. Fresh native qualification is required
-by the phase-5 completion gate.
+by the offline editing completion gate.
 Existing `mkdir -p` paths are a no-op and keep their metadata.
 
 `mv` preserves the inode, forks and attributes. An existing directory receives

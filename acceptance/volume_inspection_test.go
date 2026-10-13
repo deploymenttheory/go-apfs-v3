@@ -1,10 +1,13 @@
 package acceptance_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -182,6 +185,9 @@ func checkDigest(dir, name, want string) error {
 	}
 	defer root.Close()
 	f, err := root.Open(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return checkCompressedDigest(root, name, want, 32<<20)
+	}
 	if err != nil {
 		return err
 	}
@@ -189,6 +195,41 @@ func checkDigest(dir, name, want string) error {
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return err
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != want {
+		return fmt.Errorf("digest mismatch for %s: want %s, got %s", name, want, got)
+	}
+	return nil
+}
+
+// Historical text evidence is stored compressed, without rewriting captured
+// bytes. Manifest digests always describe the original decoded content. Image
+// archives retain their separate compressed and decoded disk digests.
+func checkCompressedDigest(root *os.Root, name, want string, bound int64) error {
+	f, err := root.Open(name + ".gz")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Size() > bound {
+		return fmt.Errorf("compressed evidence exceeds bound: %s", name)
+	}
+	z, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer z.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(z, bound+1))
+	if err != nil {
+		return err
+	}
+	if n > bound {
+		return fmt.Errorf("decoded evidence exceeds bound: %s", name)
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
 		return fmt.Errorf("digest mismatch for %s: want %s, got %s", name, want, got)
@@ -216,5 +257,56 @@ func TestCorpusRejectsMissingAndChangedEvidence(t *testing.T) {
 	}
 	if err := checkDigest(dir, "evidence", digest); err == nil {
 		t.Fatal("accepted changed evidence")
+	}
+
+	// Compression must preserve the original evidence digest and still reject
+	// altered or truncated captures, including a decoded size over the bound.
+	var archived bytes.Buffer
+	z := gzip.NewWriter(&archived)
+	if _, err := z.Write([]byte("original")); err != nil {
+		t.Fatal(err)
+	}
+	if err := z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "capture.gz")
+	if err := os.WriteFile(path, archived.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDigest(dir, "capture", digest); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDigest(dir, "capture", strings.Repeat("0", 64)); err == nil {
+		t.Fatal("accepted wrong decoded evidence digest")
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := checkCompressedDigest(root, "capture", digest, 4); err == nil {
+		t.Fatal("accepted oversized stored evidence")
+	}
+	if err := os.WriteFile(path, archived.Bytes()[:archived.Len()-4], 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDigest(dir, "capture", digest); err == nil {
+		t.Fatal("accepted truncated compressed evidence")
+	}
+	archived.Reset()
+	z = gzip.NewWriter(&archived)
+	large := bytes.Repeat([]byte("a"), 1024)
+	if _, err := z.Write(large); err != nil {
+		t.Fatal(err)
+	}
+	if err := z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, archived.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	sum = sha256.Sum256(large)
+	if err := checkCompressedDigest(root, "capture", hex.EncodeToString(sum[:]), 128); err == nil {
+		t.Fatal("accepted oversized decoded evidence")
 	}
 }

@@ -17,7 +17,7 @@ import (
 // are explicit corruption/overflow controls, not expected native edit outcomes.
 func nativeStatisticsMutation(t *testing.T) *mutation {
 	t.Helper()
-	f, err := os.Open("../acceptance/testdata/phase5-directory-statistics/macos-15/apfs-directory-statistics-source.raw.gz")
+	f, err := os.Open("../acceptance/testdata/apfs-directory-statistics/macos-15/apfs-directory-statistics-source.raw.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -72,7 +72,7 @@ targets and `..`. Resolution never escapes into the host filesystem.
 Generic writes to compression-owned, security or `com.apple.fs.*` attributes are
 rejected. FinderInfo and flags retain the qualified APFS/HFS+ coupling rules.
 Ordinary copies preserve opaque attributes; ACL editing and native process
-permission enforcement remain outside this phase.
+permission enforcement remain outside file-command sessions.
 
 Apple `cp -a` copies regular-file hard-link aliases independently.
 `--preserve-links` explicitly retains those relationships within one copy command.

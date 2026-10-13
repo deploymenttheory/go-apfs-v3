@@ -231,7 +231,7 @@ func compareFileCommands(t *testing.T, reader filesystem.Reader, before fileObse
 		n.ModifyNS = convert(n.ModifyNS)
 		n.ChangeNS = convert(n.ChangeNS)
 		n.AccessNS = convert(n.AccessNS)
-		// This phase makes new copies from logical contents; it does not encode
+		// File-command sessions make new copies from logical contents; they do not encode
 		// compression. Native copyfile may retain its own physical representation.
 		if got.Created && n.Mode&0170000 == 0100000 {
 			n.Flags &^= 32
