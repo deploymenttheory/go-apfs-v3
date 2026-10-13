@@ -270,6 +270,12 @@ func decodeEvidence(t *testing.T, path string, out any) {
 }
 
 func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
+	compareFilesAt(t, r, want, nil)
+}
+
+// known comes from a complete ReadDir enumeration of the immutable view. Large
+// catalog controls resolve names once instead of scanning a directory per file.
+func compareFilesAt(t *testing.T, r filesystem.Reader, want fileObservation, known map[string]uint64) {
 	t.Helper()
 	ctx := context.Background()
 	paths := map[string]bool{}
@@ -278,7 +284,16 @@ func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
 			t.Fatal("invalid or duplicate observed path", expected.Path)
 		}
 		paths[expected.Path] = true
-		id, err := filesystem.LookupExact(ctx, r, expected.Path)
+		var id uint64
+		var err error
+		if known == nil {
+			id, err = filesystem.LookupExact(ctx, r, expected.Path)
+		} else {
+			id = known[expected.Path]
+			if id == 0 {
+				err = fs.ErrNotExist
+			}
+		}
 		if err != nil {
 			t.Fatalf("%s lookup: %v", expected.Path, err)
 		}

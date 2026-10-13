@@ -202,7 +202,7 @@ func TestNativePhase5APFS(t *testing.T) {
 		if err = json.Unmarshal(data, &manifest); err != nil {
 			t.Fatal(err)
 		}
-		if manifest.Schema != 1 || manifest.Contract != "phase5-offline-editing" || len(manifest.Cases) != 4 || manifest.Producer.System != "macOS" || manifest.Producer.Build == "" || manifest.Producer.Architecture == "" || len(manifest.Producer.Sources) != 14 || len(manifest.Producer.Tools) != 3 || majors[manifest.Major] {
+		if manifest.Schema != 1 || manifest.Contract != "phase5-offline-editing" || len(manifest.Cases) != 4 || manifest.Producer.System != "macOS" || manifest.Producer.Build == "" || manifest.Producer.Architecture == "" || len(manifest.Producer.Revision) != 40 || manifest.Producer.Run == "" || len(manifest.Producer.Sources) != 14 || len(manifest.Producer.Tools) != 3 || majors[manifest.Major] {
 			t.Fatal("native completion inventory/provenance")
 		}
 		majors[manifest.Major] = true
@@ -216,6 +216,7 @@ func TestNativePhase5APFS(t *testing.T) {
 				if c.CapacityBytes != c.Source.UncompressedBytes || len(c.Operations) != 7 {
 					t.Fatal("native case geometry/operations")
 				}
+				verifyDigest(t, dir, c.NativeAfter.Image, c.NativeAfter.SHA256)
 				source := openPhase5Archive(t, dir, c.Source)
 				original := openAPFSEditVolume(t, source)
 				var target phase5VolumeState
@@ -242,7 +243,20 @@ func TestNativePhase5APFS(t *testing.T) {
 				when := time.Unix(1749283750, 0).UTC()
 				for _, format := range []string{"UDRO", "UDZO"} {
 					destination := filepath.Join(output, "edited-"+format+".dmg")
-					report, err := imageedit.Apply(context.Background(), source, destination, imageedit.Options{Volume: target.UUID, Format: format, Time: when}, phase5APFSChanges())
+					options := imageedit.Options{Volume: target.UUID, Format: format, Time: when}
+					var report imageedit.Report
+					if format == "UDZO" {
+						report, err = imageedit.Edit(context.Background(), source, destination, options, func(editor *imageedit.Editor) error {
+							for _, change := range phase5APFSChanges() {
+								if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
+									return err
+								}
+							}
+							return nil
+						})
+					} else {
+						report, err = imageedit.Apply(context.Background(), source, destination, options, phase5APFSChanges())
+					}
 					if err != nil {
 						t.Fatal(err)
 					}

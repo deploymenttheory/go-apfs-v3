@@ -128,6 +128,11 @@ func metadataReader(t *testing.T, path, kind string) filesystem.Reader {
 func compareMetadataState(t *testing.T, r filesystem.Reader, want fileObservation, kind string) {
 	t.Helper()
 	compareFiles(t, r, want)
+	compareRawMetadata(t, r, want)
+}
+
+func compareRawMetadata(t *testing.T, r filesystem.Reader, want fileObservation) {
+	t.Helper()
 	// Check all raw attributes including compression-owned values, not just
 	// selected edited attributes. Symlink storage is internal to APFS.
 	for _, entry := range want.Entries {

@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "hfsRevision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+  "libutilRevision": "0f4264d617b0a94d8905521fa444e2aa215f0a4d",
+  "license": "APSL-2.0",
+  "files": [
+    {
+      "path": "newfs_hfs/newfs_hfs.c",
+      "sha256": "af2c68ca6d5ea469982d085ea231734a3d4b7867ddb4324ede321acd1a4807c3"
+    },
+    {
+      "path": "newfs_hfs/makehfs.c",
+      "sha256": "170d748c26c56cda566cf0321b34c3ab3e6b97d14643db8a8229b7841a19a597"
+    },
+    {
+      "path": "newfs_hfs/hfs_endian.c",
+      "sha256": "5125cba9c9b804a06d07ed5b8e19bb99f048c4d955718b2331aceec262df45c5"
+    },
+    {
+      "path": "newfs_hfs/hfs_endian.h",
+      "sha256": "25c1d743e2e406d6219a02bf101635c073cb112c966825e73f562ad27df0caf0"
+    },
+    {
+      "path": "newfs_hfs/newfs_hfs.h",
+      "sha256": "e0197d0fcdc81064294fa813ede63d64ccd8aa0f2c1e42c4bec020ecd48d1b30"
+    },
+    {
+      "path": "core/hfs_format.h",
+      "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+    },
+    {
+      "path": "core/hfs_mount.h",
+      "sha256": "665c064e92254bb2537c9a42c644cf937f9b4e28eeff03324394d484a3d4f40d"
+    },
+    {
+      "path": "core/hfs_unistr.h",
+      "sha256": "fe22ca3ff255369fe5d45e4b749bfb4e1e7cac320e2269ced432890953752d81"
+    }
+  ],
+  "wipefsSHA256": "da725c8b798850e71a0995eef74ac4b94a22a96ce6d33c87dbb470b23b02c011",
+  "basis": "Unmodified Apple formatter compiled with DEBUG_BUILD=1. Apple debug initialization marks each metadata fork individually, permitting absent attributes and explicit fragmentation. No Go generator supplies native expected state."
+}

@@ -1,0 +1,482 @@
+[
+  {
+    "argv": [
+      "xcrun",
+      "clang",
+      "-std=gnu17",
+      "-DDEBUG_BUILD=1",
+      "-Wno-deprecated-declarations",
+      "-I",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/formatter/include",
+      "-I",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/makehfs.c",
+      "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/hfs_endian.c",
+      "-framework",
+      "CoreFoundation",
+      "-framework",
+      "CoreServices",
+      "-framework",
+      "IOKit",
+      "-lutil",
+      "-o",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/formatter/newfs_hfs_debug"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "",
+    "stderr": "/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:199:1: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n  199 | main(argc, argv)\n      | ^\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:839:66: warning: format specifies type 'long long' but the argument has type 'uint32_t' (aka 'unsigned int') [-Wformat]\n  839 |                         fatal(\"%s: block size is too small for %lld sectors\", optarg, gBlockSize, sectorCount);\n      |                                                                ~~~~                   ^~~~~~~~~~\n      |                                                                %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:839:78: warning: data argument not used by format string [-Wformat-extra-args]\n  839 |                         fatal(\"%s: block size is too small for %lld sectors\", optarg, gBlockSize, sectorCount);\n      |                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                      ^\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1195:64: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1195 |                         fatal(\"c=%ld: clump size is not a multiple of node size\\n\", clumpSize/gBlockSize);\n      |                                  ~~~                                                ^~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1203:66: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1203 |                         fatal(\"c=%ld: initial size is not a multiple of node size\\n\", initialSize/gBlockSize);\n      |                                  ~~~                                                  ^~~~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1206:58: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1206 |                 fatal(\"c=%ld: initial size is less than clump size\\n\", initialSize/gBlockSize);\n      |                          ~~~                                           ^~~~~~~~~~~~~~~~~~~~~~\n      |                          %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1223:64: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1223 |                         fatal(\"e=%ld: clump size is not a multiple of node size\\n\", clumpSize/gBlockSize);\n      |                                  ~~~                                                ^~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1231:66: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1231 |                         fatal(\"e=%ld: initial size is not a multiple of node size\\n\", initialSize/gBlockSize);\n      |                                  ~~~                                                  ^~~~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1234:58: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1234 |                 fatal(\"e=%ld: initial size is less than clump size\\n\", initialSize/gBlockSize);\n      |                          ~~~                                           ^~~~~~~~~~~~~~~~~~~~~~\n      |                          %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1255:64: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1255 |                         fatal(\"a=%ld: clump size is not a multiple of node size\\n\", clumpSize/gBlockSize);\n      |                                  ~~~                                                ^~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1268:66: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1268 |                         fatal(\"a=%ld: initial size is not a multiple of node size\\n\", initialSize/gBlockSize);\n      |                                  ~~~                                                  ^~~~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1272:59: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1272 |                         fatal(\"a=%ld: initial size is less than clump size\\n\", initialSize/gBlockSize);\n      |                                  ~~~                                           ^~~~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1307:53: warning: format specifies type 'long' but the argument has type 'unsigned int' [-Wformat]\n 1307 |                         fatal(\"b=%ld: bitmap clump size is too small\\n\", clumpSize/gBlockSize);\n      |                                  ~~~                                     ^~~~~~~~~~~~~~~~~~~~\n      |                                  %u\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1373:52: warning: values of type 'UInt32' should not be used as format arguments; add an explicit cast to 'unsigned int' instead [-Wformat]\n 1373 |                 fatal(\"=%ld: too many blocks for initial size!\", initialblocks);\n      |                         ~~~                                      ^~~~~~~~~~~~~\n      |                         %u                                       (unsigned int)\n/Users/runner/work/go-apfs-v3/go-apfs-v3/acceptance/native/reference/hfs/newfs_hfs/newfs_hfs.c:1387:50: warning: values of type 'UInt32' should not be used as format arguments; add an explicit cast to 'unsigned int' instead [-Wformat]\n 1387 |                 fatal(\"=%ld: too many blocks for clump size!\", clumpblocks);\n      |                         ~~~                                    ^~~~~~~~~~~\n      |                         %u                                     (unsigned int)\n15 warnings generated.\n"
+  },
+  {
+    "argv": [
+      "xcrun",
+      "--show-sdk-version"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "27.0\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/hfsplus-fragmented-metadata-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/formatter/newfs_hfs_debug",
+      "-U",
+      "501",
+      "-G",
+      "20",
+      "-n",
+      "c=4096,a=4096",
+      "-I",
+      "c=8,a=8,e=256",
+      "-c",
+      "c=8,a=8,e=256",
+      "-E",
+      "c=8,a=8",
+      "-a",
+      "c=2000,a=2008,e=2016",
+      "-v",
+      "Phase5",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "allocationFile: (         1,          1)\nextentsFile   : (      2016,        256)\nattributesFile: (      2008,          8)\ncatalogFile   : (      2000,          8)\n\nInitialized /dev/rdisk5 as a 96 MB case-insensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/hfsplus-fragmented-metadata-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/before",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/hfsplus-fragmented-metadata-after.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/write",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/hfsplus-fragmented-metadata-after.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmptdilnagr/after",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/hfsx-fragmented-metadata-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<false/>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/formatter/newfs_hfs_debug",
+      "-s",
+      "-U",
+      "501",
+      "-G",
+      "20",
+      "-n",
+      "c=4096,a=4096",
+      "-I",
+      "c=8,a=8,e=256",
+      "-c",
+      "c=8,a=8,e=256",
+      "-E",
+      "c=8,a=8",
+      "-a",
+      "c=2000,a=2008,e=2016",
+      "-v",
+      "Phase5",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "allocationFile: (         1,          1)\nextentsFile   : (      2016,        256)\nattributesFile: (      2008,          8)\ncatalogFile   : (      2000,          8)\n\nInitialized /dev/rdisk5 as a 96 MB case-sensitive HFS Plus volume\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/hfsx-fragmented-metadata-source.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/before",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/hfsx-fragmented-metadata-after.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount ...' is deprecated. Please use 'diskutil image attach --noMount ...' instead.\n"
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/write",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "attach",
+      "-plist",
+      "-imagekey",
+      "diskimage-class=CRawDiskImage",
+      "-nomount",
+      "-noautofsck",
+      "-readonly",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/hfsx-fragmented-metadata-after.raw"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n\t<key>system-entities</key>\n\t<array>\n\t\t<dict>\n\t\t\t<key>dev-entry</key>\n\t\t\t<string>/dev/disk5</string>\n\t\t\t<key>potentially-mountable</key>\n\t\t\t<true/>\n\t\t\t<key>volume-kind</key>\n\t\t\t<string>hfs</string>\n\t\t</dict>\n\t</array>\n</dict>\n</plist>\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil attach -nomount -readonly ...' is deprecated. Please use 'diskutil image attach --noMount --readOnly ...' instead.\n"
+  },
+  {
+    "argv": [
+      "sudo",
+      "/sbin/fsck_hfs",
+      "-fn",
+      "/dev/rdisk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Can't open /dev/rdisk5: Permission denied\n** /dev/rdisk5 (NO WRITE)\n   Executing fsck_hfs (version hfs-751).\n** Checking non-journaled HFS Plus Volume.\n** Detected a case-sensitive volume.\n   The volume name is Phase5\n** Checking extents overflow file.\n** Checking catalog file.\n** Checking multi-linked files.\n** Checking catalog hierarchy.\n** Checking extended attributes file.\n** Checking volume bitmap.\n** Checking volume information.\n** The volume Phase5 appears to be OK.\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "diskutil",
+      "mount",
+      "readOnly",
+      "-mountOptions",
+      "owners,noatime",
+      "-mountPoint",
+      "/var/folders/5n/5t77mfb93jd7q8v9s6f0dn0m0000gn/T/phase5-hfs-u9_vz9dk/tmpx1qhn_fk/after",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "Volume Phase5 on /dev/disk5 mounted\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "hdiutil",
+      "detach",
+      "/dev/disk5"
+    ],
+    "status": 0,
+    "expectedSuccess": true,
+    "stdout": "\"disk5\" ejected.\n",
+    "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+  }
+]

@@ -1,0 +1,5743 @@
+{
+  "schema": 1,
+  "contract": "phase5-hfs-allocation",
+  "major": 15,
+  "producer": {
+    "system": "macOS",
+    "version": "15.7.9",
+    "build": "24G830",
+    "architecture": "arm64",
+    "revision": "3a5503597b117b94b2e5383ae30118ab0784bd22",
+    "run": "38338429577",
+    "formatter": {
+      "schema": 1,
+      "hfsRevision": "d1bac2f062e6e9c0dfcce302d9aacb10173d0eea",
+      "libutilRevision": "0f4264d617b0a94d8905521fa444e2aa215f0a4d",
+      "license": "APSL-2.0",
+      "files": [
+        {
+          "path": "newfs_hfs/newfs_hfs.c",
+          "sha256": "af2c68ca6d5ea469982d085ea231734a3d4b7867ddb4324ede321acd1a4807c3"
+        },
+        {
+          "path": "newfs_hfs/makehfs.c",
+          "sha256": "170d748c26c56cda566cf0321b34c3ab3e6b97d14643db8a8229b7841a19a597"
+        },
+        {
+          "path": "newfs_hfs/hfs_endian.c",
+          "sha256": "5125cba9c9b804a06d07ed5b8e19bb99f048c4d955718b2331aceec262df45c5"
+        },
+        {
+          "path": "newfs_hfs/hfs_endian.h",
+          "sha256": "25c1d743e2e406d6219a02bf101635c073cb112c966825e73f562ad27df0caf0"
+        },
+        {
+          "path": "newfs_hfs/newfs_hfs.h",
+          "sha256": "e0197d0fcdc81064294fa813ede63d64ccd8aa0f2c1e42c4bec020ecd48d1b30"
+        },
+        {
+          "path": "core/hfs_format.h",
+          "sha256": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db"
+        },
+        {
+          "path": "core/hfs_mount.h",
+          "sha256": "665c064e92254bb2537c9a42c644cf937f9b4e28eeff03324394d484a3d4f40d"
+        },
+        {
+          "path": "core/hfs_unistr.h",
+          "sha256": "fe22ca3ff255369fe5d45e4b749bfb4e1e7cac320e2269ced432890953752d81"
+        }
+      ],
+      "wipefsSHA256": "da725c8b798850e71a0995eef74ac4b94a22a96ce6d33c87dbb470b23b02c011",
+      "basis": "Unmodified Apple formatter compiled with DEBUG_BUILD=1. Apple debug initialization marks each metadata fork individually, permitting absent attributes and explicit fragmentation. No Go generator supplies native expected state.",
+      "binarySHA256": "4ab72abfd6eb650cdec48183a4f3ecb4854371d137778c7d9ba3d21c0e2500ef",
+      "sdkVersion": "15.5"
+    },
+    "tools": {
+      "/sbin/fsck_hfs": "86995a55c6dd0e3da37ec0f9216370cb6babb7774ba4a9435e643c8f4ea90fdf",
+      "/usr/bin/hdiutil": "a2b0c889bfd49f99958c0a88ad16a77a58f230c9da20bbaae86e594e8109e6c8"
+    },
+    "sources": {
+      "phase5_hfs_capture.py": "6e82b0a472ce8e3eb49b6aa60a438b7f64f00c3fd09b89bc95180978044c78f0",
+      "build_hfs_reference.py": "227115c103cae31cd15f79d7ee7335b6d731cd9b540a9fd33b1845c9aa778c47",
+      "capture.py": "d4af5119024280dff03a262e0d759c8ccac8e0e52badba357d4627f8489ad15b",
+      "container_building.py": "4c3dd9834fb4f204ccdfbcadff7056af599dc2656e9392ccb8070cad2df51dde",
+      "hfs_header_growth.py": "1d23caf642883a4a9f275a39a11cf928f970fd22ee6c75955fb2aac78b3b8c62",
+      "image_repacking.py": "bac4818fa3c5fd21021d7465aa4570251501bd92f2e277ea26405686e43ec041",
+      "image_building.py": "17d077df2302ec0977c2648428138e5ce28543c5db2b86ca27a616340f3116b9",
+      "image_mutation.py": "70205f2a4dbb5bfc4172371d21e0c4cb55c88f6de867f26bd4a1dcc5a0099fa3",
+      "file_compression.py": "a8efd89a3a854b8fc8265a696be45f48bb6475401968ce4418810c8c115d1049",
+      "verify_preservation.py": "cd3583091bbd947c57870d899d86b94ea871b9b294935daf7416e301675655d0",
+      "preservation.py": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75",
+      "metadata_edits.py": "7e8543ac291445facdf7b9529f367e5ed83b400794c81ed1e3ecd74326499137",
+      "content_replacement.py": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3",
+      "snapshot_reading.py": "1824d7e669a6584e20cc3d30918a304845c9414f12b8ae6d3c753d9da95454be",
+      "hfs_editing.py": "17058549ee1711b868face31112b013406e84c004f6d062935553e2ff509c77c",
+      "reference/hfs/core/hfs_format.h": "114e5349032cd7169331760a5c601b5dea5d0cb9f955cc00e8f53577e74b36db",
+      "reference/hfs/core/hfs_mount.h": "665c064e92254bb2537c9a42c644cf937f9b4e28eeff03324394d484a3d4f40d",
+      "reference/hfs/core/hfs_unistr.h": "fe22ca3ff255369fe5d45e4b749bfb4e1e7cac320e2269ced432890953752d81",
+      "reference/hfs/newfs_hfs/hfs_endian.c": "5125cba9c9b804a06d07ed5b8e19bb99f048c4d955718b2331aceec262df45c5",
+      "reference/hfs/newfs_hfs/hfs_endian.h": "25c1d743e2e406d6219a02bf101635c073cb112c966825e73f562ad27df0caf0",
+      "reference/hfs/newfs_hfs/makehfs.c": "170d748c26c56cda566cf0321b34c3ab3e6b97d14643db8a8229b7841a19a597",
+      "reference/hfs/newfs_hfs/newfs_hfs.c": "af2c68ca6d5ea469982d085ea231734a3d4b7867ddb4324ede321acd1a4807c3",
+      "reference/hfs/newfs_hfs/newfs_hfs.h": "e0197d0fcdc81064294fa813ede63d64ccd8aa0f2c1e42c4bec020ecd48d1b30",
+      "reference/hfs/newfs_hfs/wipefs.h": "da725c8b798850e71a0995eef74ac4b94a22a96ce6d33c87dbb470b23b02c011",
+      "reference/hfs/source.json": "b55959ffea3f35c7d01b76ab56f82e3de8fdf8b90cd7da0b5bd802448cae1cbc"
+    }
+  },
+  "cases": [
+    {
+      "id": "hfsplus-first-attribute",
+      "source": {
+        "image": "hfsplus-first-attribute-source.raw.gz",
+        "sha256": "5cdcb5d49465f5378238a24bcab3f009e57e38d161817493b5c3379569aca971",
+        "uncompressedSHA256": "3a2d5c020221bba3dbc27e49ed94bfe75b75261cc15340f70cd76f675a0ac305",
+        "uncompressedBytes": 100663296
+      },
+      "nativeAfter": {
+        "image": "hfsplus-first-attribute-after.raw.gz",
+        "sha256": "0aad8a6f302c30d2773a0e416f14fd945fb14e995cadbc85f0adb3e35ecb2db8",
+        "uncompressedSHA256": "9e558304794620f9830021c1bdbfef9199e3f4b5a61b37fe6d1278924f43a5ea",
+        "uncompressedBytes": 100663296
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 24189,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 24189,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "entries": []
+        },
+        "checkerStatus": 0,
+        "journal": null
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 6,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 23993,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2306,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147483648,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 23997,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2306,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 18,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859564,
+              "modifyNS": 1791859564000000000,
+              "changeNS": 1791859564000000000,
+              "accessNS": 1791859564000000000,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859564,
+              "modifyNS": 1791859564000000000,
+              "changeNS": 1791859564000000000,
+              "accessNS": 1791859564000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            },
+            {
+              "path": "Fixture/data",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859564,
+              "modifyNS": 1791859564000000000,
+              "changeNS": 1791859564000000000,
+              "accessNS": 1791859564000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "journal": null
+      },
+      "sensitive": false,
+      "journaled": false,
+      "growth": false,
+      "growthFiles": 0,
+      "operation": "first-attribute-initialization"
+    },
+    {
+      "id": "hfsplus-journaled-first-attribute",
+      "source": {
+        "image": "hfsplus-journaled-first-attribute-source.raw.gz",
+        "sha256": "e8beff14b8c916d372f14f24d2b83cab6a8279be7926141616fa3446507b9349",
+        "uncompressedSHA256": "4e794aa0424e3068e2126ffeff7b6bf130a5011e9d5b069319c3fa86bb404fe3",
+        "uncompressedBytes": 100663296
+      },
+      "nativeAfter": {
+        "image": "hfsplus-journaled-first-attribute-after.raw.gz",
+        "sha256": "1725b6893ff810712fd9e5fc1f05755deb87b1b14b0938357c8c0fadee0d9237",
+        "uncompressedSHA256": "01afee1dd4c2d0c7af5d07328bccbb94d394fc89cf97a0c7b7ef40bd25654bf4",
+        "uncompressedBytes": 100663296
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147492096,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147491840,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "entries": []
+        },
+        "checkerStatus": 0,
+        "journal": {
+          "infoBlock": 2,
+          "flags": 1,
+          "offset": 12288,
+          "size": 8388608,
+          "start": 219136,
+          "end": 219136,
+          "headerSize": 512,
+          "blockListSize": 98304,
+          "checksum": 177352406,
+          "sequence": 1914903,
+          "byteOrder": "<",
+          "sha256": "6e080f07d4c8de3686c9bbb9d94fd8ea6fc3da10fb533009f1da21ed9a28e839",
+          "infoSHA256": "d6c8d84c30ecf78881fe91e2d83cce18916f16122c9cedb7482ada24d21bba65",
+          "backingFiles": {
+            ".journal": {
+              "object": 16,
+              "size": 8388608
+            },
+            ".journal_info_block": {
+              "object": 17,
+              "size": 4096
+            }
+          }
+        }
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147492096,
+            "lastMountedVersion": "HFSJ",
+            "files": 8,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21944,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147491840,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 20,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859567,
+              "modifyNS": 1791859567000000000,
+              "changeNS": 1791859567000000000,
+              "accessNS": 1791859567000000000,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859567,
+              "modifyNS": 1791859567000000000,
+              "changeNS": 1791859567000000000,
+              "accessNS": 1791859567000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            },
+            {
+              "path": "Fixture/data",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859567,
+              "modifyNS": 1791859567000000000,
+              "changeNS": 1791859567000000000,
+              "accessNS": 1791859567000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "journal": {
+          "infoBlock": 2,
+          "flags": 1,
+          "offset": 12288,
+          "size": 8388608,
+          "start": 445440,
+          "end": 445440,
+          "headerSize": 512,
+          "blockListSize": 98304,
+          "checksum": 198069736,
+          "sequence": 1914905,
+          "byteOrder": "<",
+          "sha256": "1f77ee319b08de9b52b526dc9993380e508dc96f7d4cd4f0a4f43de41254b6c4",
+          "infoSHA256": "d6c8d84c30ecf78881fe91e2d83cce18916f16122c9cedb7482ada24d21bba65",
+          "backingFiles": {
+            ".journal": {
+              "object": 16,
+              "size": 8388608
+            },
+            ".journal_info_block": {
+              "object": 17,
+              "size": 4096
+            }
+          }
+        }
+      },
+      "sensitive": false,
+      "journaled": true,
+      "growth": false,
+      "growthFiles": 0,
+      "operation": "first-attribute-on-initialized-journal"
+    },
+    {
+      "id": "hfsplus-catalog-map-growth",
+      "source": {
+        "image": "hfsplus-catalog-map-growth-source.raw.gz",
+        "sha256": "d1a2566443d9ecce3404d59cf121f1618c99edfbc06f2e15e70e90934a748731",
+        "uncompressedSHA256": "998d073addd5574e0ada5b91d1199d216277f5852a1b32bee6e64f19ac33168a",
+        "uncompressedBytes": 536870912
+      },
+      "nativeAfter": {
+        "image": "hfsplus-catalog-map-growth-after.raw.gz",
+        "sha256": "bee49e50421f279c7985b29e1e1a886e3b56f1b70198dc1acec2ad9f3f864dcb",
+        "uncompressedSHA256": "ab9ac47a8172bf79d22d95815d2d96d4ffe2e60c562414da015681a595bf3865",
+        "uncompressedBytes": 536870912
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 1003,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 98293,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 125829120,
+                "clumpSize": 16777216,
+                "totalBlocks": 30720,
+                "extents": [
+                  [
+                    12293,
+                    30720
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 98298,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 125829120,
+                "clumpSize": 16777216,
+                "totalBlocks": 30720,
+                "extents": [
+                  [
+                    12293,
+                    30720
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 30720,
+            "freeNodes": 30344,
+            "clumpSize": 16777216
+          }
+        },
+        "checkerStatus": 0,
+        "journal": null,
+        "fileArchive": {
+          "image": "hfsplus-catalog-map-growth-before-files.json.gz",
+          "sha256": "344cad682aad8a9c6a3cdb69aaafd24a5f4281c2ebc9150ac4d2651cf33741ea"
+        }
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "H+",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 120048,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 81646,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 192937984,
+                "clumpSize": 16777216,
+                "totalBlocks": 47104,
+                "extents": [
+                  [
+                    12293,
+                    47104
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "H+",
+            "attributes": 2147483648,
+            "lastMountedVersion": "10.0",
+            "files": 114922,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 81669,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 192937984,
+                "clumpSize": 16777216,
+                "totalBlocks": 47104,
+                "extents": [
+                  [
+                    12293,
+                    47104
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 47104,
+            "freeNodes": 2114,
+            "clumpSize": 16777216
+          }
+        },
+        "checkerStatus": 0,
+        "journal": null,
+        "fileArchive": {
+          "image": "hfsplus-catalog-map-growth-after-files.json.gz",
+          "sha256": "8f97be78f09862da019b49d47da43d859fddd951cdbd695dbdbdab9cb23afef3"
+        }
+      },
+      "sensitive": false,
+      "journaled": false,
+      "growth": true,
+      "growthFiles": 120000,
+      "operation": "catalog-node-map-growth"
+    },
+    {
+      "id": "hfsx-first-attribute",
+      "source": {
+        "image": "hfsx-first-attribute-source.raw.gz",
+        "sha256": "72e4570cfaafe24162e33df573dd0ebe032b44b3505df0051eb27cb477611cec",
+        "uncompressedSHA256": "189c14871b8bfae0e36c934273d92a3a79f4d6493e507e8d9f9310d3352ba5af",
+        "uncompressedBytes": 100663296
+      },
+      "nativeAfter": {
+        "image": "hfsx-first-attribute-after.raw.gz",
+        "sha256": "c255c1a0e00156e7bceacce168cd5dc3ddc1e974558f1d38a0be54299e835593",
+        "uncompressedSHA256": "22381bc55a45a540d24ed176dfa739700fb27064471ba6204bc065eb16ccd903",
+        "uncompressedBytes": 100663296
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 24189,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 24189,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "entries": []
+        },
+        "checkerStatus": 0,
+        "journal": null
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 6,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 23993,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2306,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147483648,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 23997,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    194,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2306,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 18,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859632,
+              "modifyNS": 1791859632000000000,
+              "changeNS": 1791859632000000000,
+              "accessNS": 1791859632000000000,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859632,
+              "modifyNS": 1791859632000000000,
+              "changeNS": 1791859632000000000,
+              "accessNS": 1791859632000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            },
+            {
+              "path": "Fixture/data",
+              "object": 19,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859632,
+              "modifyNS": 1791859632000000000,
+              "changeNS": 1791859632000000000,
+              "accessNS": 1791859632000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "journal": null
+      },
+      "sensitive": true,
+      "journaled": false,
+      "growth": false,
+      "growthFiles": 0,
+      "operation": "first-attribute-initialization"
+    },
+    {
+      "id": "hfsx-journaled-first-attribute",
+      "source": {
+        "image": "hfsx-journaled-first-attribute-source.raw.gz",
+        "sha256": "31707c1148e364e801566a55bf0b1e6bfa0272dbac7bdaef3c79c686b1e774ca",
+        "uncompressedSHA256": "0c4239dda64c2286a21e67e44364489fab388a3efb88e1b901baaeaaf3ffed62",
+        "uncompressedBytes": 100663296
+      },
+      "nativeAfter": {
+        "image": "hfsx-journaled-first-attribute-after.raw.gz",
+        "sha256": "6188534caeba0c3fcca2cbdb6f5787370ce3203739fda9405d135eaef9d86a9d",
+        "uncompressedSHA256": "e6c33851b175b44355a343a08d3a56266e2212c5a1256df0c0e55525ed8c81a2",
+        "uncompressedBytes": 100663296
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147492096,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147491840,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "entries": []
+        },
+        "checkerStatus": 0,
+        "journal": {
+          "infoBlock": 2,
+          "flags": 1,
+          "offset": 12288,
+          "size": 8388608,
+          "start": 219136,
+          "end": 219136,
+          "headerSize": 512,
+          "blockListSize": 98304,
+          "checksum": 177352406,
+          "sequence": 8699399,
+          "byteOrder": "<",
+          "sha256": "8c404e10de0f3aaf2a1dc44df68b9146e241f5d11ad47d6a0394a3bb2269de2a",
+          "infoSHA256": "d6c8d84c30ecf78881fe91e2d83cce18916f16122c9cedb7482ada24d21bba65",
+          "backingFiles": {
+            ".journal": {
+              "object": 16,
+              "size": 8388608
+            },
+            ".journal_info_block": {
+              "object": 17,
+              "size": 4096
+            }
+          }
+        }
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147492096,
+            "lastMountedVersion": "HFSJ",
+            "files": 8,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21944,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147491840,
+            "lastMountedVersion": "HFSJ",
+            "files": 2,
+            "directories": 2,
+            "blockSize": 4096,
+            "totalBlocks": 24576,
+            "freeBlocks": 21948,
+            "forks": {
+              "allocation": {
+                "logicalSize": 4096,
+                "clumpSize": 4096,
+                "totalBlocks": 1,
+                "extents": [
+                  [
+                    1,
+                    1
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2051,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    2243,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 786432,
+                "clumpSize": 786432,
+                "totalBlocks": 192,
+                "extents": [
+                  [
+                    4355,
+                    192
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 192,
+            "freeNodes": 190,
+            "clumpSize": 786432
+          }
+        },
+        "files": {
+          "schema": 1,
+          "root": "Fixture",
+          "entries": [
+            {
+              "path": "Fixture",
+              "object": 20,
+              "mode": 16877,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859635,
+              "modifyNS": 1791859635000000000,
+              "changeNS": 1791859635000000000,
+              "accessNS": 1791859635000000000,
+              "attributes": {},
+              "rawAttributes": {}
+            },
+            {
+              "path": "Fixture/alias",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859635,
+              "modifyNS": 1791859635000000000,
+              "changeNS": 1791859635000000000,
+              "accessNS": 1791859635000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            },
+            {
+              "path": "Fixture/data",
+              "object": 21,
+              "mode": 33188,
+              "uid": 501,
+              "gid": 20,
+              "flags": 0,
+              "birthSeconds": 1791859635,
+              "modifyNS": 1791859635000000000,
+              "changeNS": 1791859635000000000,
+              "accessNS": 1791859635000000000,
+              "size": 24,
+              "links": 2,
+              "attributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              },
+              "sha256": "59abd591920b8af75f0bf916fbc60dfb814a4cdeea1231c1beb85a1f88771df6",
+              "rawAttributes": {
+                "org.go-apfs.first": {
+                  "size": 24,
+                  "sha256": "73b199a7a88c7eb29e7e0ffc0865933759eb89f8bba89d6377ecc6acb9d4fdff"
+                }
+              }
+            }
+          ]
+        },
+        "checkerStatus": 0,
+        "journal": {
+          "infoBlock": 2,
+          "flags": 1,
+          "offset": 12288,
+          "size": 8388608,
+          "start": 445440,
+          "end": 445440,
+          "headerSize": 512,
+          "blockListSize": 98304,
+          "checksum": 198069736,
+          "sequence": 8699401,
+          "byteOrder": "<",
+          "sha256": "90460fff726af173f2eeaf43b5f1638e5138ec96c6334451e2f1c76eb16c0d3d",
+          "infoSHA256": "d6c8d84c30ecf78881fe91e2d83cce18916f16122c9cedb7482ada24d21bba65",
+          "backingFiles": {
+            ".journal": {
+              "object": 16,
+              "size": 8388608
+            },
+            ".journal_info_block": {
+              "object": 17,
+              "size": 4096
+            }
+          }
+        }
+      },
+      "sensitive": true,
+      "journaled": true,
+      "growth": false,
+      "growthFiles": 0,
+      "operation": "first-attribute-on-initialized-journal"
+    },
+    {
+      "id": "hfsx-catalog-map-growth",
+      "source": {
+        "image": "hfsx-catalog-map-growth-source.raw.gz",
+        "sha256": "5ecd1f0521eb35b17677a5430ba114bb8bff3b96b00945c49eb1ee802817b574",
+        "uncompressedSHA256": "20dfc4d6125a5e36e86c0728b3af335c49f8c9cb407b35c88075d4e2993d26c6",
+        "uncompressedBytes": 536870912
+      },
+      "nativeAfter": {
+        "image": "hfsx-catalog-map-growth-after.raw.gz",
+        "sha256": "012797f05ffd4ad0952b55f521962418d760163295ea79ac96bc0cff5b5b2f56",
+        "uncompressedSHA256": "97952005eb649228f4936a99cd6aa8f5aa266d79dcc530d49d113c372dcfc5e2",
+        "uncompressedBytes": 536870912
+      },
+      "before": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 1003,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 98293,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 125829120,
+                "clumpSize": 16777216,
+                "totalBlocks": 30720,
+                "extents": [
+                  [
+                    12293,
+                    30720
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 0,
+            "directories": 0,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 98298,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 125829120,
+                "clumpSize": 16777216,
+                "totalBlocks": 30720,
+                "extents": [
+                  [
+                    12293,
+                    30720
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 30720,
+            "freeNodes": 30344,
+            "clumpSize": 16777216
+          }
+        },
+        "checkerStatus": 0,
+        "journal": null,
+        "fileArchive": {
+          "image": "hfsx-catalog-map-growth-before-files.json.gz",
+          "sha256": "47bf81762817d3f3639725bc8592ae173f8b09b343f176e9142e7cd21b213046"
+        }
+      },
+      "after": {
+        "headers": {
+          "primary": {
+            "signature": "HX",
+            "attributes": 2147483904,
+            "lastMountedVersion": "10.0",
+            "files": 120048,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 81646,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 192937984,
+                "clumpSize": 16777216,
+                "totalBlocks": 47104,
+                "extents": [
+                  [
+                    12293,
+                    47104
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "alternate": {
+            "signature": "HX",
+            "attributes": 2147483648,
+            "lastMountedVersion": "10.0",
+            "files": 114923,
+            "directories": 4,
+            "blockSize": 4096,
+            "totalBlocks": 131072,
+            "freeBlocks": 81663,
+            "forks": {
+              "allocation": {
+                "logicalSize": 16384,
+                "clumpSize": 16384,
+                "totalBlocks": 4,
+                "extents": [
+                  [
+                    1,
+                    4
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "extents": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    5,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "catalog": {
+                "logicalSize": 192937984,
+                "clumpSize": 16777216,
+                "totalBlocks": 47104,
+                "extents": [
+                  [
+                    12293,
+                    47104
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "attributes": {
+                "logicalSize": 4194304,
+                "clumpSize": 4194304,
+                "totalBlocks": 1024,
+                "extents": [
+                  [
+                    1029,
+                    1024
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              },
+              "startup": {
+                "logicalSize": 0,
+                "clumpSize": 0,
+                "totalBlocks": 0,
+                "extents": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ]
+              }
+            }
+          },
+          "catalog": {
+            "nodeSize": 4096,
+            "totalNodes": 47104,
+            "freeNodes": 2114,
+            "clumpSize": 16777216
+          }
+        },
+        "checkerStatus": 0,
+        "journal": null,
+        "fileArchive": {
+          "image": "hfsx-catalog-map-growth-after-files.json.gz",
+          "sha256": "05f43e80010df729fd7497fa6e4679cc71fd5dffd6c54c97670700b71ad18c42"
+        }
+      },
+      "sensitive": true,
+      "journaled": false,
+      "growth": true,
+      "growthFiles": 120000,
+      "operation": "catalog-node-map-growth"
+    }
+  ],
+  "commandsSHA256": "6610232682b6d79ea43bf5d547c1aa03c75eae2b4610c967da6891942dcf702b"
+}
