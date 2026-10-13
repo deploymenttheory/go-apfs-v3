@@ -229,8 +229,10 @@ def capture(major, output, copies=False):
             require(sha256(source) == saved['uncompressedSHA256'], 'permission edits changed source')
             cases.append({'id': case_id, 'source': saved, 'before': before,
                           'nativeAfter': saved_after, 'after': after, 'operations': operations})
-    producer['tools'] = {path: sha256(Path(path)) for path in
-                         ('/usr/bin/hdiutil', '/usr/sbin/diskutil', '/bin/chmod', '/usr/sbin/chown')}
+    tools = ('/usr/bin/hdiutil', '/usr/sbin/diskutil', '/bin/chmod', '/usr/sbin/chown')
+    if copies:
+        tools += ('/bin/cp',)
+    producer['tools'] = {path: sha256(Path(path)) for path in tools}
     producer['sources'] = {name: sha256(Path(__file__).with_name(name)) for name in SOURCES}
     for name in SOURCES:
         shutil.copyfile(Path(__file__).with_name(name), output / name)
