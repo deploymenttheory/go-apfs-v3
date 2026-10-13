@@ -82,8 +82,9 @@ def inspect(raw, case, command, work, before, expected, continued=False, lifecyc
             wanted = case[lifecycle]['treeHeaders']
             # Native writable mounts may create filesystem-owned catalog and
             # security records outside Fixture. Their tree topology is not a
-            # user-visible value. Both independent trees must collapse/reuse;
-            # exact Fixture entries and raw attributes are checked below.
+            # user-visible value. The attributes root must collapse; catalog
+            # depth can remain unchanged when protected records span leaves.
+            # Exact Fixture entries and raw attributes are checked below.
             peak = case['after']['treeHeaders']
             require(trees['catalog']['depth'] <= peak['catalog']['depth'],
                     'bounded catalog depth after deletion/reuse')

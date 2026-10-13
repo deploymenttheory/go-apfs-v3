@@ -207,14 +207,22 @@ func TestNativePermissionInheritance(t *testing.T) {
 }
 
 func TestNativeCopyPermissions(t *testing.T) {
-	testNativePermissions(t, "APFS_NATIVE_COPY_PERMISSIONS", "testdata/copy-permissions", "copy-permissions", "APFS_COPY_PERMISSIONS_OUTPUT", true)
+	var required []string
+	if os.Getenv("APFS_NATIVE_COPY_PERMISSIONS") != "" {
+		required = []string{"truncate"}
+	}
+	testNativePermissions(t, "APFS_NATIVE_COPY_PERMISSIONS", "testdata/copy-permissions", "copy-permissions", "APFS_COPY_PERMISSIONS_OUTPUT", true, required...)
 }
 
 func TestNativeCopySetIDPermissions(t *testing.T) {
 	testNativePermissions(t, "APFS_NATIVE_COPY_SETID_PERMISSIONS", "testdata/copy-setid-permissions", "copy-permissions", "APFS_COPY_SETID_PERMISSIONS_OUTPUT", true)
 }
 
-func testNativePermissions(t *testing.T, env, retained, contract, outputEnv string, copies bool) {
+func TestNativeCopyTruncationPermissions(t *testing.T) {
+	testNativePermissions(t, "APFS_NATIVE_COPY_TRUNCATION_PERMISSIONS", "testdata/copy-truncation-permissions", "copy-permissions", "APFS_COPY_TRUNCATION_PERMISSIONS_OUTPUT", true, "truncate")
+}
+
+func testNativePermissions(t *testing.T, env, retained, contract, outputEnv string, copies bool, requiredOperations ...string) {
 	root := os.Getenv(env)
 	if root == "" {
 		root = retained
@@ -239,6 +247,17 @@ func testNativePermissions(t *testing.T, env, retained, contract, outputEnv stri
 			manifest.Producer.System != "macOS" || manifest.Producer.Build == "" || manifest.Producer.Architecture == "" ||
 			len(manifest.Producer.Sources) != 13 || len(manifest.Producer.Tools) != tools || majors[manifest.Major] {
 			t.Fatal("native permission provenance")
+		}
+		for _, c := range manifest.Cases {
+			for _, required := range requiredOperations {
+				found := false
+				for _, op := range c.Operations {
+					found = found || op.Op == required
+				}
+				if !found {
+					t.Fatal("native permission control omits", required, c.ID)
+				}
+			}
 		}
 		if copies && os.Getenv(env) != "" {
 			for _, c := range manifest.Cases {

@@ -225,14 +225,18 @@ func compareHFSEditedState(t *testing.T, reader filesystem.Reader, before, expec
 }
 
 func TestNativeHFSMetadataGrowth(t *testing.T) {
-	testNativeHFSMetadataGrowth(t, "APFS_NATIVE_HFS_METADATA_GROWTH", "testdata/hfs-metadata-growth", "hfs-metadata-growth", 6)
+	testNativeHFSMetadataGrowth(t, "APFS_NATIVE_HFS_METADATA_GROWTH", "testdata/hfs-metadata-growth", "hfs-metadata-growth", 6, false)
 }
 
 func TestNativeHFSFragmentedMetadataGrowth(t *testing.T) {
-	testNativeHFSMetadataGrowth(t, "APFS_NATIVE_HFS_FRAGMENTED_METADATA", "testdata/hfs-fragmented-metadata", "hfs-fragmented-metadata", 2)
+	testNativeHFSMetadataGrowth(t, "APFS_NATIVE_HFS_FRAGMENTED_METADATA", "testdata/hfs-fragmented-metadata", "hfs-fragmented-metadata", 2, false)
 }
 
-func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract string, count int) {
+func TestNativeHFSMetadataLifecycle(t *testing.T) {
+	testNativeHFSMetadataGrowth(t, "APFS_NATIVE_HFS_METADATA_LIFECYCLE", "testdata/hfs-metadata-lifecycle", "hfs-fragmented-metadata", 2, true)
+}
+
+func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract string, count int, requireLifecycle bool) {
 	root := os.Getenv(environment)
 	if root == "" {
 		root = retained
@@ -297,7 +301,7 @@ func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract s
 					}
 					compareHFSEditedState(t, metadataReader(t, destination, "hfs"), before, want, when)
 					if c.Fragmented {
-						if os.Getenv(environment) != "" && (c.Collapsed == nil || c.Reused == nil) {
+						if (requireLifecycle || os.Getenv(environment) != "") && (c.Collapsed == nil || c.Reused == nil) {
 							t.Fatal("fresh fragmented controls omit root collapse and reuse")
 						}
 						if c.Collapsed != nil && c.Reused != nil {

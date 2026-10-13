@@ -1559,6 +1559,37 @@
         "acceptance/permission_inheritance_test.go"
       ],
       "basis": "Original macOS 15/26/27 Apple cp controls for APFS/APFSX/HFS+/HFSX. Ordinary new copies strip set-ID; -p restores source mode. Existing-target ordinary cp retains set-ID on APFS and clears it on HFS, consistent with cp opening O_TRUNC before fcopyfile snapshots/restores destination mode and pinned hfs_truncate clearing at truncate. The shared logical policy models this filesystem difference. Original source timestamps copied with -p remain exact even when later than the reproducible construction clock. Native output qualification remains required."
+    },
+    {
+      "id": "native-copy-truncation-modes",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38383702487",
+      "evidence": [
+        "acceptance/testdata/copy-truncation-permissions"
+      ],
+      "components": [
+        "internal/filesec/filesec.go",
+        "apfs/mutate_files.go",
+        "session/commands.go",
+        "internal/copyfile/copy.go",
+        "acceptance/permission_inheritance_test.go"
+      ],
+      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX before/after controls on macOS 15/26/27. Eleven operations independently separate cp descriptor-mode restoration from O_TRUNC with no subsequent data write. Truncation retains APFS set-ID bits and clears HFS bits for non-root actors. All original controls pass file-only image replay in both DMG encodings and persisted session replay. Captured source, command, compressed disk and decoded disk hashes are preserved, with the original manifest archived verbatim. Earlier copy captures remain unchanged. Fresh Apple verification of portable outputs remains required."
+    },
+    {
+      "id": "native-hfs-metadata-lifecycle",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38383709983",
+      "evidence": [
+        "acceptance/testdata/hfs-metadata-lifecycle"
+      ],
+      "components": [
+        "hfsplus/mutate_tree.go",
+        "hfsplus/mutate_tree_growth.go",
+        "acceptance/hfs_metadata_growth_test.go",
+        "acceptance/native/verify_hfs_metadata_growth.py"
+      ],
+      "basis": "Original macOS 15/26/27 HFS+/HFSX disks, headers and file observations before insertion, after fragmented overflow growth, after deleting all 256 user files, and after reuse. Native attributes roots split to depth two and collapse to depth one with a filesystem-owned record remaining. Native catalog depth stays three because protected records occupy several leaves; pinned DeleteTree/CollapseTree only collapses a root with one child, without forcing sibling redistribution. Exact Fixture contents, attributes, metadata and identities supply the user-visible oracle. Original disk, formatter, collector and command hashes remain unchanged. Fresh Apple checks and subsequent native writes remain required before qualification."
     }
   ]
 }

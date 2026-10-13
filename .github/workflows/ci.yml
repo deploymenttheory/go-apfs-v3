@@ -34,7 +34,7 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
       - run: go vet ./...
 
   offline_retained:
@@ -46,14 +46,16 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
         source: [15, 26, 27]
-        family: [APFS geometry and volumes, HFS first attributes, HFS metadata overflow, HFS+ node-map boundary, HFSX node-map boundary, APFS directory statistics]
+        family: [APFS geometry and volumes, HFS first attributes, HFS metadata overflow, HFS+ node-map boundary, HFSX node-map boundary, APFS directory statistics, ACL inheritance, copy permissions]
         include:
-          - {family: APFS geometry and volumes, tests: '^TestNativeAPFSGeometryEditing$'}
+          - {family: APFS geometry and volumes, tests: '^TestNativeAPFSGeometryEditing$/macos-SOURCE/'}
           - {family: APFS directory statistics, tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-SOURCE/'}
           - {family: HFS first attributes, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/(hfsplus|hfsx)(-journaled)?-first-attribute$'}
-          - {family: HFS metadata overflow, tests: '^TestNativeHFSFragmentedMetadataGrowth$'}
+          - {family: HFS metadata overflow, tests: '^TestNativeHFS(FragmentedMetadataGrowth|MetadataLifecycle)$/macos-SOURCE/'}
           - {family: HFS+ node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsplus-catalog-map-growth$'}
           - {family: HFSX node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsx-catalog-map-growth$'}
+          - {family: ACL inheritance, tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance)$/macos-SOURCE/'}
+          - {family: copy permissions, tests: '^TestNativeCopy(SetID|Truncation)?Permissions$/macos-SOURCE/'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -68,9 +70,6 @@ jobs:
           SOURCE_MAJOR: ${{ matrix.source }}
         run: |
           test_pattern="${SELECTED_TESTS//SOURCE/$SOURCE_MAJOR}"
-          if [[ "$test_pattern" == '^TestNativeAPFSGeometryEditing$' || "$test_pattern" == '^TestNativeHFSFragmentedMetadataGrowth$' ]]; then
-            test_pattern="$test_pattern/macos-$SOURCE_MAJOR/"
-          fi
           go test -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
 
   portable_acceptance:
@@ -212,7 +211,19 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth)$'
+            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
+          - family: ACL inheritance and copy permissions, macOS 15 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-15/'
+            source: '15'
+            skip: '^$'
+          - family: ACL inheritance and copy permissions, macOS 26 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-26/'
+            source: '26'
+            skip: '^$'
+          - family: ACL inheritance and copy permissions, macOS 27 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-27/'
+            source: '27'
+            skip: '^$'
           - family: APFS directory statistics, macOS 15 sources
             tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-15/'
             source: '15'
