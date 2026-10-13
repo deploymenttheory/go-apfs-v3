@@ -19,7 +19,7 @@ def build(output, command):
             == inventory['wipefsSHA256'], 'pinned Apple libutil header changed')
     include = output / 'include/hfs'
     include.mkdir(parents=True)
-    for name in ('hfs_format.h', 'hfs_mount.h'):
+    for name in ('hfs_format.h', 'hfs_mount.h', 'hfs_unistr.h'):
         shutil.copyfile(source / 'core' / name, include / name)
     binary = output / 'newfs_hfs_debug'
     command('xcrun', 'clang', '-std=gnu17', '-DDEBUG_BUILD=1',

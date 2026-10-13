@@ -31,6 +31,10 @@
     {
       "path": "core/hfs_mount.h",
       "sha256": "665c064e92254bb2537c9a42c644cf937f9b4e28eeff03324394d484a3d4f40d"
+    },
+    {
+      "path": "core/hfs_unistr.h",
+      "sha256": "fe22ca3ff255369fe5d45e4b749bfb4e1e7cac320e2269ced432890953752d81"
     }
   ],
   "wipefsSHA256": "da725c8b798850e71a0995eef74ac4b94a22a96ce6d33c87dbb470b23b02c011",
