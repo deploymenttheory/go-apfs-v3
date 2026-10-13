@@ -1,0 +1,703 @@
+[
+  {
+    "filesystem": "apfs",
+    "attempt": 0,
+    "window": {
+      "helper": 4288,
+      "mode": "data",
+      "observedXID": 4,
+      "initialXID": 4,
+      "previousDataIndex": 10,
+      "observedDataIndex": 10
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 4,
+        "address": 8,
+        "descriptorIndex": 6,
+        "descriptorLength": 2,
+        "dataIndex": 10,
+        "dataLength": 4,
+        "nextDescriptor": 0,
+        "nextData": 14
+      },
+      "candidates": [
+        {
+          "xid": 4,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 10,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 14
+        },
+        {
+          "xid": 3,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 6,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 10
+        },
+        {
+          "xid": 2,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        },
+        {
+          "xid": 1,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 0,
+          "dataLength": 2,
+          "nextDescriptor": 2,
+          "nextData": 2
+        }
+      ],
+      "future": {
+        "mapping": {
+          "address": 1,
+          "xid": 5,
+          "type": 1073741836
+        },
+        "data": {
+          "address": 23,
+          "xid": 5,
+          "type": 2147483653
+        }
+      }
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs",
+    "attempt": 1,
+    "window": {
+      "helper": 4288,
+      "mode": "mapping",
+      "observedXID": 25,
+      "initialXID": 25,
+      "previousDataIndex": 94,
+      "observedDataIndex": 94
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 25,
+        "address": 2,
+        "descriptorIndex": 0,
+        "descriptorLength": 2,
+        "dataIndex": 94,
+        "dataLength": 4,
+        "nextDescriptor": 2,
+        "nextData": 98
+      },
+      "candidates": [
+        {
+          "xid": 25,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 94,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 98
+        },
+        {
+          "xid": 24,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 90,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 94
+        },
+        {
+          "xid": 23,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 86,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 90
+        },
+        {
+          "xid": 22,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 82,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 86
+        }
+      ],
+      "future": {
+        "mapping": {
+          "address": 3,
+          "xid": 26,
+          "type": 1073741836
+        },
+        "data": {
+          "address": 107,
+          "xid": 26,
+          "type": 2147483653
+        }
+      }
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs",
+    "attempt": 2,
+    "window": {
+      "helper": 4288,
+      "mode": "committed",
+      "observedXID": 69,
+      "initialXID": 68,
+      "previousDataIndex": 266,
+      "observedDataIndex": 270
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 69,
+        "address": 2,
+        "descriptorIndex": 0,
+        "descriptorLength": 2,
+        "dataIndex": 270,
+        "dataLength": 4,
+        "nextDescriptor": 2,
+        "nextData": 274
+      },
+      "candidates": [
+        {
+          "xid": 69,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 270,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 274
+        },
+        {
+          "xid": 68,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 266,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 270
+        },
+        {
+          "xid": 67,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 262,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 266
+        },
+        {
+          "xid": 66,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 258,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 262
+        }
+      ],
+      "future": {}
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs",
+    "attempt": 3,
+    "window": {
+      "helper": 4288,
+      "mode": "wrapped",
+      "observedXID": 154,
+      "initialXID": 114,
+      "previousDataIndex": 302,
+      "observedDataIndex": 2
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 154,
+        "address": 4,
+        "descriptorIndex": 2,
+        "descriptorLength": 2,
+        "dataIndex": 2,
+        "dataLength": 4,
+        "nextDescriptor": 4,
+        "nextData": 6
+      },
+      "candidates": [
+        {
+          "xid": 154,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        },
+        {
+          "xid": 153,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 302,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 2
+        },
+        {
+          "xid": 152,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 298,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 302
+        },
+        {
+          "xid": 151,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 294,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 298
+        }
+      ],
+      "future": {}
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs-case-sensitive",
+    "attempt": 0,
+    "window": {
+      "helper": 4999,
+      "mode": "data",
+      "observedXID": 4,
+      "initialXID": 4,
+      "previousDataIndex": 10,
+      "observedDataIndex": 10
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 5,
+        "address": 2,
+        "descriptorIndex": 0,
+        "descriptorLength": 2,
+        "dataIndex": 14,
+        "dataLength": 4,
+        "nextDescriptor": 2,
+        "nextData": 18
+      },
+      "candidates": [
+        {
+          "xid": 5,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 14,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 18
+        },
+        {
+          "xid": 4,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 10,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 14
+        },
+        {
+          "xid": 3,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 6,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 10
+        },
+        {
+          "xid": 2,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        }
+      ],
+      "future": {}
+    },
+    "accepted": false
+  },
+  {
+    "filesystem": "apfs-case-sensitive",
+    "attempt": 1,
+    "window": {
+      "helper": 4999,
+      "mode": "data",
+      "observedXID": 5,
+      "initialXID": 5,
+      "previousDataIndex": 14,
+      "observedDataIndex": 14
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 5,
+        "address": 2,
+        "descriptorIndex": 0,
+        "descriptorLength": 2,
+        "dataIndex": 14,
+        "dataLength": 4,
+        "nextDescriptor": 2,
+        "nextData": 18
+      },
+      "candidates": [
+        {
+          "xid": 5,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 14,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 18
+        },
+        {
+          "xid": 4,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 10,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 14
+        },
+        {
+          "xid": 3,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 6,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 10
+        },
+        {
+          "xid": 2,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        }
+      ],
+      "future": {
+        "mapping": {
+          "address": 3,
+          "xid": 6,
+          "type": 1073741836
+        },
+        "data": {
+          "address": 27,
+          "xid": 6,
+          "type": 2147483653
+        }
+      }
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs-case-sensitive",
+    "attempt": 2,
+    "window": {
+      "helper": 4999,
+      "mode": "mapping",
+      "observedXID": 28,
+      "initialXID": 28,
+      "previousDataIndex": 106,
+      "observedDataIndex": 106
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 28,
+        "address": 8,
+        "descriptorIndex": 6,
+        "descriptorLength": 2,
+        "dataIndex": 106,
+        "dataLength": 4,
+        "nextDescriptor": 0,
+        "nextData": 110
+      },
+      "candidates": [
+        {
+          "xid": 28,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 106,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 110
+        },
+        {
+          "xid": 27,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 102,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 106
+        },
+        {
+          "xid": 26,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 98,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 102
+        },
+        {
+          "xid": 25,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 94,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 98
+        }
+      ],
+      "future": {
+        "mapping": {
+          "address": 1,
+          "xid": 29,
+          "type": 1073741836
+        },
+        "data": {
+          "address": 119,
+          "xid": 29,
+          "type": 2147483653
+        }
+      }
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs-case-sensitive",
+    "attempt": 3,
+    "window": {
+      "helper": 4999,
+      "mode": "committed",
+      "observedXID": 79,
+      "initialXID": 78,
+      "previousDataIndex": 2,
+      "observedDataIndex": 6
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 79,
+        "address": 6,
+        "descriptorIndex": 4,
+        "descriptorLength": 2,
+        "dataIndex": 6,
+        "dataLength": 4,
+        "nextDescriptor": 6,
+        "nextData": 10
+      },
+      "candidates": [
+        {
+          "xid": 79,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 6,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 10
+        },
+        {
+          "xid": 78,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        },
+        {
+          "xid": 77,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 302,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 2
+        },
+        {
+          "xid": 76,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 298,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 302
+        }
+      ],
+      "future": {}
+    },
+    "accepted": true
+  },
+  {
+    "filesystem": "apfs-case-sensitive",
+    "attempt": 4,
+    "window": {
+      "helper": 4999,
+      "mode": "wrapped",
+      "observedXID": 154,
+      "initialXID": 132,
+      "previousDataIndex": 302,
+      "observedDataIndex": 2
+    },
+    "state": {
+      "blockZeroXID": 4,
+      "descriptorBase": 1,
+      "descriptorBlocks": 8,
+      "dataBase": 9,
+      "dataBlocks": 304,
+      "latest": {
+        "xid": 154,
+        "address": 4,
+        "descriptorIndex": 2,
+        "descriptorLength": 2,
+        "dataIndex": 2,
+        "dataLength": 4,
+        "nextDescriptor": 4,
+        "nextData": 6
+      },
+      "candidates": [
+        {
+          "xid": 154,
+          "address": 4,
+          "descriptorIndex": 2,
+          "descriptorLength": 2,
+          "dataIndex": 2,
+          "dataLength": 4,
+          "nextDescriptor": 4,
+          "nextData": 6
+        },
+        {
+          "xid": 153,
+          "address": 2,
+          "descriptorIndex": 0,
+          "descriptorLength": 2,
+          "dataIndex": 302,
+          "dataLength": 4,
+          "nextDescriptor": 2,
+          "nextData": 2
+        },
+        {
+          "xid": 152,
+          "address": 8,
+          "descriptorIndex": 6,
+          "descriptorLength": 2,
+          "dataIndex": 298,
+          "dataLength": 4,
+          "nextDescriptor": 0,
+          "nextData": 302
+        },
+        {
+          "xid": 151,
+          "address": 6,
+          "descriptorIndex": 4,
+          "descriptorLength": 2,
+          "dataIndex": 294,
+          "dataLength": 4,
+          "nextDescriptor": 6,
+          "nextData": 298
+        }
+      ],
+      "future": {}
+    },
+    "accepted": true
+  }
+]

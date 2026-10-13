@@ -34,7 +34,7 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
       - run: go vet ./...
 
   portable_acceptance:
@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
-        family: [image construction, image repacking, existing HFS edits, existing APFS edits, HFS journal recovery]
+        family: [image construction, image repacking, existing HFS edits, existing APFS edits, HFS journal recovery, APFS checkpoint recovery]
         source: [all, 15, 26, 27]
         exclude:
           - {family: image construction, source: 15}
@@ -57,6 +57,7 @@ jobs:
           - {family: HFS journal recovery, source: 15}
           - {family: HFS journal recovery, source: 26}
           - {family: HFS journal recovery, source: 27}
+          - {family: APFS checkpoint recovery, source: all}
           - {family: existing HFS edits, source: all}
           - {family: existing APFS edits, source: all}
         include:
@@ -66,6 +67,8 @@ jobs:
             tests: '^TestNativeImageRepacking$'
           - family: HFS journal recovery
             tests: '^TestNativeHFSJournalRecovery$'
+          - family: APFS checkpoint recovery
+            tests: '^TestNativeAPFSCheckpointRecovery$'
           - family: existing APFS edits
             tests: '^TestNativeAPFSImage(Directory|Metadata|Link)?Editing(Continuation)?$'
           - family: existing HFS edits
@@ -77,8 +80,11 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained Apple observations
-        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits'
+        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits' && matrix.family != 'APFS checkpoint recovery'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+      - name: Compare APFS checkpoint recovery with this retained native source version
+        if: matrix.family == 'APFS checkpoint recovery'
+        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
       # Source-version jobs keep the growing edit suites within the same bounded
       # deadlines on every host. All three versions remain required by quality.
       - name: Compare APFS file edits with retained Apple observations
@@ -169,13 +175,25 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
           - family: image construction
             tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
             skip: '^$'
           - family: HFS journal recovery
             tests: '^TestNativeHFSJournalRecovery$'
             skip: '^$'
+          - family: APFS checkpoint recovery, macOS 15 sources
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-15/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
+            skip: '^$'
+            timeout: '7m'
+          - family: APFS checkpoint recovery, macOS 26 sources
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-26/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
+            skip: '^$'
+            timeout: '7m'
+          - family: APFS checkpoint recovery, macOS 27 sources
+            tests: '^TestNativeAPFSCheckpointRecovery$/macos-27/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
+            skip: '^$'
+            timeout: '7m'
           - family: image repacking
             tests: '^TestNativeImageRepacking$'
             skip: '^$'
@@ -186,7 +204,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained native observations under race instrumentation
-        run: go test -race -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
+        run: go test -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
 
   quality:
     needs: [portable, portable_acceptance, race_library, race_acceptance]

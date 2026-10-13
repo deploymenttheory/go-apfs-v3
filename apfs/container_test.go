@@ -37,17 +37,63 @@ func seal(b []byte) {
 	le.PutUint64(b, y<<32|x)
 }
 
+// Complete mapping/object sets keep selection tests about transaction choice,
+// rather than accidentally depending on acceptance of an incomplete checkpoint.
+// Object bodies are deliberately opaque: these tests qualify structural
+// checkpoint validation, not space-manager health or mutation admission.
+func checkpointDisk() []byte {
+	data := make([]byte, 17*4096)
+	for i, xid := range []uint64{1, 3, 2, 4} {
+		nx := checkpoint(xid)
+		le.PutUint64(nx[40:], 17)
+		le.PutUint32(nx[104:], 8)
+		le.PutUint32(nx[108:], 8)
+		le.PutUint64(nx[120:], 9)
+		le.PutUint32(nx[128:], uint32((2*i+2)%8))
+		le.PutUint32(nx[132:], uint32((2*i+2)%8))
+		le.PutUint32(nx[136:], uint32(2*i))
+		le.PutUint32(nx[140:], 2)
+		le.PutUint32(nx[144:], uint32(2*i))
+		le.PutUint32(nx[148:], 2)
+		le.PutUint64(nx[152:], 1024)
+		le.PutUint64(nx[168:], 1025)
+		seal(nx)
+		copy(data[(2+2*i)*4096:], nx)
+		if i == 0 {
+			copy(data, nx)
+		}
+		address := 1 + 2*i
+		mapping := data[address*4096 : (address+1)*4096]
+		le.PutUint64(mapping[8:], uint64(address))
+		le.PutUint64(mapping[16:], xid)
+		le.PutUint32(mapping[24:], 0x4000000c)
+		le.PutUint32(mapping[32:], 1)
+		le.PutUint32(mapping[36:], 2)
+		for j, kind := range []uint32{0x80000005, 0x80000011} {
+			r := mapping[40+j*40 : 80+j*40]
+			le.PutUint32(r, kind)
+			le.PutUint32(r[8:], 4096)
+			le.PutUint64(r[24:], uint64(1024+j))
+			le.PutUint64(r[32:], uint64(9+2*i+j))
+			object := data[(9+2*i+j)*4096 : (10+2*i+j)*4096]
+			le.PutUint64(object[8:], uint64(1024+j))
+			le.PutUint64(object[16:], xid)
+			le.PutUint32(object[24:], kind)
+			seal(object)
+		}
+		seal(mapping)
+	}
+	return data
+}
+
 func TestSelectLatestValidCheckpoint(t *testing.T) {
-	b := append(checkpoint(1), checkpoint(3)...)
-	b = append(b, checkpoint(2)...)
-	broken := checkpoint(4)
-	broken[80] ^= 1
-	b = append(b, broken...)
+	b := checkpointDisk()
+	b[8*4096+80] ^= 1
 	c, err := Open(bytes.NewReader(b))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.XID != 3 || c.Checkpoint != 1 {
+	if c.XID != 3 || c.Checkpoint != 4 {
 		t.Fatalf("selected xid %d at %d", c.XID, c.Checkpoint)
 	}
 }
@@ -61,18 +107,17 @@ func TestRejectInvalidBlockZero(t *testing.T) {
 }
 
 func TestDoNotFallBackWhenNewestCheckpointIsUnreadable(t *testing.T) {
-	b := append(checkpoint(1), checkpoint(2)...)
-	b = append(b, make([]byte, 2*4096)...)
-	le.PutUint64(b[4096+184:], 100)
-	le.PutUint64(b[4096+160:], 99)
-	seal(b[4096:8192])
+	b := checkpointDisk()
+	le.PutUint64(b[8*4096+184:], 100)
+	le.PutUint64(b[8*4096+160:], 99)
+	seal(b[8*4096 : 9*4096])
 	if _, err := Open(bytes.NewReader(b)); !errors.Is(err, filesystem.ErrCorrupt) {
 		t.Fatalf("expected unresolved latest checkpoint, got %v", err)
 	}
 }
 
 func FuzzContainer(f *testing.F) {
-	f.Add(append(checkpoint(1), make([]byte, 3*4096)...))
+	f.Add(checkpointDisk())
 	f.Fuzz(func(t *testing.T, b []byte) {
 		if len(b) > 1<<20 {
 			return
@@ -116,7 +161,12 @@ func TestObjectMapUsesRequestedTransaction(t *testing.T) {
 		seal(sb)
 	}
 	seal(node)
-	c, err := Open(bytes.NewReader(b))
+	// Isolate object-map lookup from checkpoint admission. Public Open is
+	// qualified separately with complete checkpoints and native filesystem disks.
+	c, _, err := containerGeometry(bytes.NewReader(b))
+	if err == nil {
+		c, err = c.openSuperblock(b[:4096])
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +177,7 @@ func TestObjectMapUsesRequestedTransaction(t *testing.T) {
 	// earlier/live or later/future mapping.
 	le.PutUint32(node[4040:], 1)
 	seal(node)
-	if _, err := Open(bytes.NewReader(b)); !errors.Is(err, filesystem.ErrCorrupt) {
+	if _, err := c.openSuperblock(b[:4096]); !errors.Is(err, filesystem.ErrCorrupt) {
 		t.Fatal("accepted deleted mapping", err)
 	}
 }
@@ -139,11 +189,11 @@ func TestChecksumUsesEntireContainerBlock(t *testing.T) {
 	le.PutUint32(b[36:], size)
 	le.PutUint32(b[104:], 0)
 	seal(b[:size])
-	if _, err := Open(bytes.NewReader(b)); err != nil {
+	if _, _, err := containerGeometry(bytes.NewReader(b)); err != nil {
 		t.Fatal(err)
 	}
 	b[size-1] ^= 1
-	if _, err := Open(bytes.NewReader(b)); !errors.Is(err, filesystem.ErrCorrupt) {
+	if _, _, err := containerGeometry(bytes.NewReader(b)); !errors.Is(err, filesystem.ErrCorrupt) {
 		t.Fatal("ignored checksum tail", err)
 	}
 }

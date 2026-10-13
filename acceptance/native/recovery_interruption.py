@@ -17,10 +17,11 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def check(executable, references, diagnostics):
+def check(executable, references, diagnostics, filesystem='hfs'):
     diagnostics.mkdir(parents=True)
     manifest = json.loads((references / 'recovery.json').read_text())
-    source = next(case['source'] for case in manifest['cases'] if case['id'] == 'hfsplus-linear')
+    case_name = 'apfs-committed' if filesystem == 'apfs' else 'hfsplus-linear'
+    source = next(case['source'] for case in manifest['cases'] if case['id'] == case_name)
     if digest(references / source['image']) != source['sha256']:
         raise ValueError('native interruption source digest')
     records = []
@@ -36,7 +37,8 @@ def check(executable, references, diagnostics):
             scratch.mkdir()
             output = work / f'recovered-{attempt}.dmg'
             environment = dict(os.environ, TMPDIR=str(scratch), TMP=str(scratch), TEMP=str(scratch))
-            argv = [str(executable.resolve()), 'journal', 'replay', '--image', str(original), '--output', str(output)]
+            operation = ['checkpoint', 'recover'] if filesystem == 'apfs' else ['journal', 'replay']
+            argv = [str(executable.resolve()), *operation, '--image', str(original), '--output', str(output)]
             record = {'argv': argv, 'interrupted': False}
             with (diagnostics / f'output-{attempt}.log').open('wb') as log:
                 process = subprocess.Popen(argv, env=environment, stdout=log, stderr=log)
@@ -72,5 +74,6 @@ if __name__ == '__main__':
     parser.add_argument('--apfs', type=Path, required=True)
     parser.add_argument('--references', type=Path, required=True)
     parser.add_argument('--diagnostics', type=Path, required=True)
+    parser.add_argument('--filesystem', choices=('hfs', 'apfs'), default='hfs')
     arguments = parser.parse_args()
-    check(arguments.apfs, arguments.references, arguments.diagnostics)
+    check(arguments.apfs, arguments.references, arguments.diagnostics, arguments.filesystem)

@@ -219,56 +219,22 @@ func (m *mutation) readObject(address uint64, kind, storage uint32) ([]byte, err
 	return b, nil
 }
 func (m *mutation) loadEphemeral() error {
-	n := le.Uint32(m.nx[140:])
-	base, count, index := le.Uint64(m.nx[112:]), le.Uint32(m.nx[104:]), le.Uint32(m.nx[136:])
-	if n < 2 || n > count || index >= count {
-		return corrupt("checkpoint descriptor geometry", 0)
+	objects, err := m.c.checkpointObjects(m.ctx, m.nx)
+	if err != nil {
+		return err
 	}
-	for i := uint32(0); i < n-1; i++ {
-		address := base + uint64((index+i)%count)
-		b, e := m.c.object(PhysicalAddress(address), 12)
-		if e != nil {
-			return e
+	for _, object := range objects {
+		if object.volume != 0 {
+			return fmt.Errorf("volume-owned ephemeral object: %w", filesystem.ErrUnsupported)
 		}
-		if le.Uint64(b[16:]) != uint64(m.c.XID) || le.Uint32(b[32:]) != func() uint32 {
-			if i == n-2 {
-				return 1
-			}
-			return 0
-		}() {
-			return corrupt("checkpoint mapping sequence", 0)
-		}
-		entries := le.Uint32(b[36:])
-		if entries > 101 {
-			return corrupt("checkpoint mapping count", 0)
-		}
-		for j := uint32(0); j < entries; j++ {
-			r := b[40+j*40:]
-			ep := ephemeral{kind: le.Uint32(r), subtype: le.Uint32(r[4:]), oid: le.Uint64(r[24:]), address: le.Uint64(r[32:])}
-			size := le.Uint32(r[8:])
-			db, dc := le.Uint64(m.nx[120:]), uint64(le.Uint32(m.nx[108:]))
-			if size == 0 || size%4096 != 0 || size > 64<<10 || ep.address < db || ep.address >= db+dc || uint64(size/4096) > db+dc-ep.address || le.Uint64(r[16:]) != 0 {
-				return filesystem.ErrUnsupported
-			}
-			if _, ok := m.ephemeral[ep.oid]; ok {
-				return corrupt("duplicate ephemeral object", 0)
-			}
-			ep.data = make([]byte, size)
-			if e := block.ReadFull(m.disk, ep.data, int64(ep.address)*4096); e != nil {
-				return e
-			}
-			if !validChecksum(ep.data) || le.Uint64(ep.data[8:]) != ep.oid || le.Uint64(ep.data[16:]) != uint64(m.c.XID) || le.Uint32(ep.data[24:]) != ep.kind {
-				return corrupt("ephemeral object header", 0)
-			}
-			m.ephemeral[ep.oid] = ep
-		}
+		m.ephemeral[object.oid] = object.ephemeral
 	}
 	reaper, ok := m.ephemeral[le.Uint64(m.nx[168:])]
 	if !ok || reaper.kind != 0x80000011 || len(reaper.data) < 112 || le.Uint64(reaper.data[48:]) != 0 || le.Uint64(reaper.data[56:]) != 0 || le.Uint32(reaper.data[64:]) != 1 || le.Uint32(reaper.data[68:]) != 0 {
 		return fmt.Errorf("APFS pending reaper: %w", filesystem.ErrUnsupported)
 	}
 	for _, ep := range m.ephemeral {
-		if ep.oid != le.Uint64(m.nx[152:]) && ep.oid != reaper.oid && ep.subtype != 9 {
+		if ep.oid != le.Uint64(m.nx[152:]) && ep.oid != reaper.oid && (ep.subtype != 9 || (ep.kind != 0x80000002 && ep.kind != 0x80000003)) {
 			return filesystem.ErrUnsupported
 		}
 	}
