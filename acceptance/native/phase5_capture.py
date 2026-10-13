@@ -30,6 +30,11 @@ PROFILES = (
     ('apfs-volumes', 768 << 20, 'APFS', True),
     ('apfs-case-sensitive-volumes', 768 << 20, 'APFSX', True),
 )
+STATS_PROFILES = (
+    ('apfs-directory-statistics', 128 << 20, 'APFS', False),
+    ('apfs-case-sensitive-directory-statistics', 128 << 20, 'APFSX', False),
+)
+APFS_UTIL = '/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util'
 
 
 def mounted(volume, path, command, readonly=False):
@@ -40,7 +45,7 @@ def mounted(volume, path, command, readonly=False):
             volume['DeviceIdentifier'])
 
 
-def create(root, command):
+def create(root, command, statistics=False):
     require_disposable_host()
     # Darwin metadata bindings remain behind the disposable VM guard.
     from file_compression import RESOURCE, xattr
@@ -50,6 +55,10 @@ def create(root, command):
     # stored identities through a noowners mount.
     command('sudo', 'mkdir', root)
     command('sudo', 'chown', f'{os.getuid()}:{os.getgid()}', root)
+    if statistics:
+        # Apple's installed apfs.util(8) documents -M for enabling statistics
+        # on an empty directory. No private ioctl number is inferred here.
+        command('sudo', APFS_UTIL, '-M', root)
     (root / 'data').write_bytes(b'Original linked contents\n')
     os.link(root / 'data', root / 'alias')
     os.symlink('data', root / 'symlink')
@@ -58,6 +67,20 @@ def create(root, command):
     (root / 'mode').write_bytes(b'Permissions\n')
     os.chmod(root / 'mode', 0o644)
     create_signed_app(root, command, source_directory=root.parent.parent)
+    if statistics:
+        origin = root / 'nested-origin'
+        origin.mkdir()
+        command('sudo', APFS_UTIL, '-M', origin)
+        (origin / 'child').mkdir()
+        (origin / 'child/data').write_bytes(b'Nested statistics contents\n')
+        os.link(root / 'data', origin / 'cross-directory-alias')
+
+
+def directory_statistics(root, command):
+    require_disposable_host()
+    directories = [root, *sorted(p for p in root.rglob('*') if p.is_dir() and not p.is_symlink())]
+    return {str(p.relative_to(root.parent)): command(APFS_UTIL, '-S', p).decode(errors='strict')
+            for p in directories}
 
 
 def edit(root, command):
@@ -76,7 +99,7 @@ def edit(root, command):
     os.link(root / 'data', root / 'another-alias')
 
 
-def observe(image, work, command, label):
+def observe(image, work, command, label, statistics=False):
     require_disposable_host()
     from image_repacking import files
     original = sha256(image)
@@ -91,18 +114,21 @@ def observe(image, work, command, label):
             observed = files(path / 'Fixture')
             native('codesign', '--verify', '--deep', '--strict',
                    path / 'Fixture/Example.app')
-            result.append({
+            state = {
                 'name': volume['Name'], 'uuid': volume['APFSVolumeUUID'],
                 'reserveBytes': volume.get('CapacityReserve', 0),
                 'quotaBytes': volume.get('CapacityQuota', 0),
-                'files': observed, 'checkerStatus': 0, 'signatureStatus': 0})
+                'files': observed, 'checkerStatus': 0, 'signatureStatus': 0}
+            if statistics:
+                state['directoryStatistics'] = directory_statistics(path / 'Fixture', native)
+            result.append(state)
         return result
     finally:
         native('hdiutil', 'detach', cleanup)
         require(sha256(image) == original, 'native read-only observation changed source')
 
 
-def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
+def capture_case(case_id, capacity, native_fs, multiple, work, output, command, statistics=False):
     require_disposable_host()
     image = work / (case_id + '.dmg')
     # diskutil accepts APFSX; hdiutil requires the filesystem display name.
@@ -121,12 +147,12 @@ def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
         for volume in inventory['Volumes']:
             path = work / (case_id + '-create-' + volume['Name'])
             mounted(volume, path, command)
-            create(path / 'Fixture', command)
+            create(path / 'Fixture', command, statistics)
     finally:
         command('hdiutil', 'detach', cleanup)
     source = work / (case_id + '-source.raw')
     copy_disk(image, source, command)
-    before = observe(source, work, command, case_id + '-before')
+    before = observe(source, work, command, case_id + '-before', statistics)
     retained_source = retain_file(source, output / (case_id + '-source.raw.gz'))
     edited = work / (case_id + '-after.raw')
     shutil.copyfile(source, edited)
@@ -140,7 +166,7 @@ def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
         edit(path / 'Fixture', native)
     finally:
         native('hdiutil', 'detach', cleanup)
-    after = observe(edited, work, command, case_id + '-after')
+    after = observe(edited, work, command, case_id + '-after', statistics)
     retained_after = retain_file(edited, output / (case_id + '-after.raw.gz'))
     require(sha256(source) == retained_source['uncompressedSHA256'],
             'native edit changed original evidence')
@@ -151,27 +177,30 @@ def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
                            'mkdir', 'create-file', 'rename', 'hard-link-create']}
 
 
-def capture(major, output):
+def capture(major, output, statistics=False):
     require_disposable_host()
     producer = version(major)
     producer.update(revision=os.environ['GITHUB_SHA'], run=os.environ['GITHUB_RUN_ID'])
     output.mkdir(parents=True)
     command = Commands(output / 'commands.json')
     cases = []
-    for profile in PROFILES:
+    for profile in STATS_PROFILES if statistics else PROFILES:
         # Keep large decoded images for only one case at a time.
         with tempfile.TemporaryDirectory(prefix='phase5-reference-') as tmp:
-            cases.append(capture_case(*profile, Path(tmp), output, command))
+            cases.append(capture_case(*profile, Path(tmp), output, command, statistics))
         (output / 'capture-progress.json').write_text(json.dumps({
             'major': major, 'complete': False, 'cases': cases}, indent=2) + '\n')
     producer['tools'] = {name: sha256(Path(name)) for name in (
         '/usr/bin/hdiutil', '/usr/sbin/diskutil',
         '/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs')}
+    if statistics:
+        producer['tools'][APFS_UTIL] = sha256(Path(APFS_UTIL))
     producer['sources'] = {name: sha256(Path(__file__).with_name(name))
                            for name in SOURCES}
     for name in SOURCES:
         shutil.copyfile(Path(__file__).with_name(name), output / name)
-    manifest = {'schema': 1, 'contract': 'phase5-offline-editing', 'major': major,
+    manifest = {'schema': 1, 'contract': ('phase5-directory-statistics' if statistics else
+                                        'phase5-offline-editing'), 'major': major,
                 'producer': producer, 'cases': cases,
                 'commandsSHA256': sha256(output / 'commands.json')}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -181,5 +210,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--expected-major', type=int, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--directory-statistics', action='store_true')
     args = parser.parse_args()
-    capture(args.expected_major, args.output)
+    capture(args.expected_major, args.output, args.directory_statistics)
