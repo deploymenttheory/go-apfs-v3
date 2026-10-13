@@ -77,7 +77,8 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             path = image.parent / 'initialize-journal'
             path.mkdir()
             command('sudo', '/sbin/mount_hfs', '-o', 'owners,noatime,nobrowse', device, path)
-            command('diskutil', 'unmount', device)
+            # This direct mount is outside Disk Arbitration's mount bookkeeping.
+            command('sudo', '/sbin/umount', path)
         check(device, command)
     finally:
         command('hdiutil', 'detach', device)
