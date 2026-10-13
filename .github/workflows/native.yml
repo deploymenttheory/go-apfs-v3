@@ -25,7 +25,7 @@ on:
       phase5_reference_kind:
         description: Phase-5 native references to collect
         type: choice
-        options: [apfs, hfs, stats, hfs-fragmented, permissions]
+        options: [apfs, hfs, stats, hfs-fragmented, permissions, stats-transitions]
         default: apfs
       phase5_reference_capture:
         description: Capture Apple larger-image and multiple-volume phase-5 controls only
@@ -106,6 +106,9 @@ jobs:
       - name: Capture Apple ACL inheritance, creator ownership and set-ID transitions
         if: ${{ inputs.phase5_reference_kind == 'permissions' }}
         run: python3 acceptance/native/phase5_permissions.py --expected-major "${{ matrix.major }}" --output artifacts/phase5/macos-${{ matrix.major }}
+      - name: Capture Apple directory-stat transitions across origins and hard links
+        if: ${{ inputs.phase5_reference_kind == 'stats-transitions' }}
+        run: python3 acceptance/native/phase5_statistics.py --expected-major "${{ matrix.major }}" --output artifacts/phase5/macos-${{ matrix.major }}
       - name: Retain original disks, observations and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

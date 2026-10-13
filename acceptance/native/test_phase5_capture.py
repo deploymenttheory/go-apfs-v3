@@ -8,11 +8,12 @@ from unittest.mock import patch
 import phase5_capture as capture
 import phase5_hfs_capture as hfs_capture
 import phase5_permissions as permissions
+import phase5_statistics as statistics
 
 
 class CaptureGuard(unittest.TestCase):
     def test_non_disposable_hosts_fail_before_tools_or_output(self):
-        for collector in (capture, hfs_capture, permissions):
+        for collector in (capture, hfs_capture, permissions, statistics):
             self.check_collector(collector)
 
     def check_collector(self, collector):
