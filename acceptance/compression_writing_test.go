@@ -21,7 +21,10 @@ import (
 // archives. Apple's final verifier observes storage independently of this replay.
 func buildCompressionOutputs(t *testing.T, r filesystem.Reader, want fileObservation, output string, clock time.Time) {
 	t.Helper()
-	if os.Getenv("APFS_REQUIRED_NATIVE_MAJORS") != "" {
+	// Source-version coverage and fresh compression controls are separate
+	// contracts. The older retained construction corpus predates these added
+	// boundary files; fresh Apple captures must contain every required control.
+	if os.Getenv("APFS_NATIVE_IMAGE_BUILDING") != "" {
 		paths := map[string]bool{}
 		for _, entry := range want.Entries {
 			paths[entry.Path] = true
