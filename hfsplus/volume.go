@@ -46,6 +46,28 @@ type cachedCatalogRecord struct {
 type catalogRecordCache struct {
 	mu     sync.Mutex
 	values map[uint64]cachedCatalogRecord
+	bytes  int
+}
+
+func (v *Volume) rememberCatalogRecord(id uint64, data []byte, parent uint32) {
+	cache := v.catalogCache
+	if cache == nil {
+		return
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if _, ok := cache.values[id]; ok {
+		return
+	}
+	// Metadata only: bound both retained bytes and dictionary entries. Large
+	// directory enumeration can prime subsequent stat/data/attribute operations.
+	if cache.bytes+len(data) > 32<<20 || len(cache.values) >= 1<<18 {
+		clear(cache.values)
+		cache.bytes = 0
+	}
+	owned := append([]byte(nil), data...)
+	cache.values[id] = cachedCatalogRecord{data: owned, parent: parent}
+	cache.bytes += len(owned)
 }
 
 // Open borrows a stable source and reads its header and catalog root thread.

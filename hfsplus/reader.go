@@ -92,16 +92,7 @@ func (v *Volume) rawCatalogRecord(ctx context.Context, id uint64) ([]byte, uint3
 	if be.Uint16(data) == 2 && len(data) != 248 {
 		return nil, 0, bad("catalog file length")
 	}
-	if cache := v.catalogCache; cache != nil {
-		cache.mu.Lock()
-		// A stable reader often stats, reads and lists attributes for the same
-		// inode consecutively. Retain bounded metadata, never fork contents.
-		if len(cache.values) >= 1024 {
-			clear(cache.values)
-		}
-		cache.values[id] = cachedCatalogRecord{data: data, parent: parent}
-		cache.mu.Unlock()
-	}
+	v.rememberCatalogRecord(id, data, parent)
 	return data, parent, nil
 }
 
@@ -178,6 +169,23 @@ func (v *Volume) ReadDir(ctx context.Context, id uint64, yield func(filesystem.D
 		}
 		if be.Uint32(b[8:]) == 0 {
 			return bad("zero catalog object ID")
+		}
+		if v.catalogCache != nil && be.Uint32(b[8:]) == be.Uint32(r.value[8:]) {
+			// Enumeration already holds the named record. Verify its thread
+			// once before retaining it; metadata reads then need no repeated
+			// named-key search. Proxies keep their separate resolution path.
+			object := be.Uint32(b[8:])
+			thread, found, err := v.catalog.findCatalog(ctx, catalogKey(object, ""), v.CaseSensitive)
+			if err != nil {
+				return err
+			}
+			if !found || len(thread.value) < 10 || be.Uint16(thread.value) != kind+2 || be.Uint32(thread.value[4:]) != uint32(id) || !bytes.Equal(thread.value[8:], r.key[6:]) {
+				return bad("enumerated catalog thread disagreement")
+			}
+			if (kind == 1 && len(b) != 88) || (kind == 2 && len(b) != 248) {
+				return bad("enumerated catalog record length")
+			}
+			v.rememberCatalogRecord(uint64(object), b, uint32(id))
 		}
 		// HFS stores slash where the POSIX interface presents colon.
 		name = strings.ReplaceAll(strings.ReplaceAll(name, "/", ":"), "\x00", "\u2400")
