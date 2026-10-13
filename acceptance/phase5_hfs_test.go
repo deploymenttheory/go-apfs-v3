@@ -108,12 +108,12 @@ func verifyPhase5Source(t *testing.T, directory, name, digest string) {
 // Catalog-map controls contain many long names by necessity. Cache one complete
 // enumeration of each immutable directory so comparison remains linear. The
 // expected identities/metadata still come entirely from Apple's observations.
-type phase5Reader struct {
+type comparisonReader struct {
 	filesystem.Reader
 	children map[uint64][]filesystem.DirEntry
 }
 
-func (r *phase5Reader) ReadDir(ctx context.Context, id uint64, yield func(filesystem.DirEntry) error) error {
+func (r *comparisonReader) ReadDir(ctx context.Context, id uint64, yield func(filesystem.DirEntry) error) error {
 	values, ok := r.children[id]
 	if !ok {
 		if err := r.Reader.ReadDir(ctx, id, func(e filesystem.DirEntry) error { values = append(values, e); return nil }); err != nil {
@@ -164,7 +164,7 @@ func phase5HFSChanges(c phase5HFSCase) []imageedit.Change {
 
 func comparePhase5HFS(t *testing.T, reader filesystem.Reader, before, expected fileObservation, when time.Time) {
 	t.Helper()
-	r := &phase5Reader{Reader: reader, children: map[uint64][]filesystem.DirEntry{}}
+	r := &comparisonReader{Reader: reader, children: map[uint64][]filesystem.DirEntry{}}
 	// Resolve the large flat namespace once, rather than scan it per object.
 	ids := map[string]uint64{}
 	root, err := filesystem.LookupExact(context.Background(), r, "Fixture")
