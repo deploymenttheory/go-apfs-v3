@@ -63,9 +63,13 @@ Image source and destination symlinks resolve inside the selected logical volume
 including absolute targets. Literal recursive links are copied without opening
 their target on the host. Traversal is limited to 40 symlink expansions and 128
 directory levels. Same-inode copies, copying a directory into itself, cycles,
-native name collisions and incompatible destination kinds are refused. ACL,
-set-ID and protected filesystem metadata retain the existing write-profile
-restrictions. Volume-root metadata assignment is refused by these profiles;
+native name collisions and incompatible destination kinds are refused. Ordinary
+copies retain destination ACLs. `-p` copies direct source ACL entries followed by
+inherited destination entries, independently of `-X`; source inherited entries
+do not travel to the new parent. Empty ACLs remain distinct from absent ones.
+Set-ID writes and preservation require an explicit logical `--uid`; root writes
+retain existing bits and other writers clear them before any requested copied
+mode is restored. Protected filesystem metadata retains its write restrictions. Volume-root metadata assignment is refused by these profiles;
 copy into an existing directory beneath the root or create a new root entry instead.
 `--resource-fork --from-host` remains the separate single-file complete fork
 replacement operation; it cannot be combined with archive flags.
@@ -73,7 +77,8 @@ replacement operation; it cannot be combined with archive flags.
 Sessions and images use `internal/copyfile` for copy policy and the same logical
 edit tree. Image copying reuses existing allocation, tree, link and metadata
 writers. Payloads stream into one owned scratch file before disk mutation, with
-128 KiB buffers and a 1 GiB aggregate payload limit across a library batch.
+128 KiB buffers and an aggregate image-copy payload bound derived from the
+selected partition geometry. Namespace and object bounds remain separate.
 Existing image capacity, ownership and metadata limits still apply. Fixed mutation
 batches remain private until a single final publication. An error or interrupted
 copy publishes no partial destination; abrupt process death can leave private
@@ -95,3 +100,10 @@ readback and codesign. Native copying then produces Go continuation inputs;
 separate Apple-only copies supply complete expected results for another native
 check. All native filesystem tools run on disposable CI VMs. Local replay uses
 ordinary file reads and Go writes only.
+
+Ordinary `cp` uses Apple's descriptor-copy mode policy. `cp` opens an existing
+file with `O_TRUNC`, then `fcopyfile` snapshots and restores its destination mode
+after transferring data. HFS+ clears set-ID bits during truncation for a non-root
+writer; native APFS copy controls retain the original bits. The shared copier
+models those filesystem effects explicitly. A direct data write has its own
+metadata effects; it does not restore the copy-mode snapshot.

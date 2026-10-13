@@ -13,6 +13,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
@@ -42,6 +43,10 @@ func parseOctal(s string, max uint32) (uint32, error) {
 }
 
 func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
+	return fileCommandWithEditor(ctx, args, out, diagnostics, nil, imageedit.Options{})
+}
+
+func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics io.Writer, editor *imageedit.Editor, options imageedit.Options) (err error) {
 	verb := args[0]
 	f := flag.NewFlagSet(verb, flag.ContinueOnError)
 	f.SetOutput(diagnostics)
@@ -49,8 +54,10 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	imagePath := f.String("image", "", "edit an existing admitted APFS/HFS+/HFSX image")
 	imageOutput := f.String("output", "", "publish the completed edited image at a new path")
 	imagePartition := f.Int("partition", 0, "on-disk partition index to edit")
+	f.String("volume", "", "APFS UUID or HFS volume ID to edit; required when ambiguous")
 	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
 	f.String("time", "", "image-edit modification time (RFC3339, whole seconds); default current UTC time")
+	f.String("uid", "", "logical image creator/writer UID, independent of host credentials")
 	var walk *session.WalkOptions
 	var cp session.CopyOptions
 	var mkdir session.MkdirOptions
@@ -111,6 +118,25 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	if err != nil {
 		return err
 	}
+	if editor != nil {
+		f.Visit(func(option *flag.Flag) {
+			switch option.Name {
+			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json":
+				err = fmt.Errorf("--%s belongs to the enclosing edit command", option.Name)
+			}
+		})
+		if err != nil {
+			return err
+		}
+		// Reuse each verb's ordinary parser and its admitted image semantics.
+		if err := f.Set("volume", options.Volume); err != nil {
+			return err
+		}
+		if err := f.Set("time", options.Time.Format(time.RFC3339)); err != nil {
+			return err
+		}
+		return editImageCommandWithEditor(ctx, verb, f, common, "", "", options.Partition, options.Format, operands, out, editor)
+	}
 	if *imagePath != "" {
 		return editImageCommand(ctx, verb, f, common, *imagePath, *imageOutput, *imagePartition, *imageFormat, operands, out)
 	}
@@ -118,7 +144,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		return fmt.Errorf("--output requires --image")
 	}
 	f.Visit(func(option *flag.Flag) {
-		if option.Name == "partition" || option.Name == "format" || option.Name == "time" {
+		if option.Name == "partition" || option.Name == "volume" || option.Name == "format" || option.Name == "time" || option.Name == "uid" {
 			err = fmt.Errorf("--%s requires --image", option.Name)
 		}
 	})

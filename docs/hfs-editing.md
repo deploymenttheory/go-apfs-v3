@@ -1,5 +1,10 @@
 # Editing existing HFS+/HFSX filesystems
 
+Ordered commands also support `apfs edit --image SOURCE --output NEW_DMG --
+COMMAND ... --next COMMAND ...`. They share one private decoded copy and final
+publication, retaining existing filesystem geometry and identities; see the
+[ordered editing example](apfs-editing.md).
+
 This capability changes the original filesystem records in a new output image.
 It retains volume identity, catalog file IDs, hard-link relationships, geometry,
 unrelated metadata and unrelated disk sectors. It does not reformat the volume.
@@ -30,18 +35,18 @@ allocation ownership, catalog/extent/attribute keys, node allocation maps and tr
 reachability before writing. Unsupported or inconsistent state is refused.
 Dirty volumes, pending/external/uninitialized journals, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
-Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 requested
-operations. Catalog growth uses inline and overflow extents. Extents/attribute metadata-file
-growth remains limited to eight inline extents; every tree must remain within
-the existing node-map capacity; exceeding a bound fails without publishing output.
+Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 operations
+per engine batch. Ordered commands split larger plans into bounded batches within
+the same unpublished copy. Catalog and attributes files can grow into overflow extents and extend their
+node maps. The Extents Overflow B-tree retains Apple's eight resident-extents
+constraint. Exceeding a resource or format bound fails without publishing output.
 
 Replacement retains inode IDs, birth/access times, owner/group, destination
 permissions, ordinary flags, FinderInfo and unrelated attributes. Data/fork
 changes set modification and change times; chmod changes the mode and change
 time. The volume modification time and write count advance once per transaction.
-Immutable, append-only, locked and dataless targets are refused. Replacement of
-set-ID files awaits a qualified credential policy. Chmod of a file
-with stored ACL security is refused until the ACL interaction is qualified.
+Immutable, append-only, locked and dataless targets are refused. Set-ID replacement requires an explicit logical writer UID: root retains the
+bits and other writers clear them. Numeric chmod preserves stored ACL security.
 This offline policy does not emulate the executing host's macOS credentials.
 
 Replacing actively compressed data removes its decmpfs attribute and flag and
@@ -64,9 +69,14 @@ apfs rm --image Moved.dmg --output Removed.dmg -r /Payload/obsolete
 regular files default to 0644; directories default to 0755. Intermediate `-p`
 directories use 0755. Creation uses the supplied image clock for all four times
 and inherits parent UID/GID, independently of the executing host's user/umask.
-ACL-bearing or set-ID parents and set-ID creation are refused until inheritance
-has an independently qualified credential policy. This is an offline packaging
-policy, not an emulation of the executing macOS process.
+`--uid N` overrides the logical creator/writer UID while retaining the parent's
+GID. The default parent-UID creation policy remains for compatibility. Ordinary
+ACL inheritance uses Apple's `kauth_acl_inherit`; parent set-ID modes do not
+propagate. Set-ID creation and writes require an explicit logical UID: root
+writes retain the bits, other writes and ordinary chown clear them. Numeric
+chmod preserves stored ACLs and GUIDs. Stored users and ACL identities are
+independent of host credentials and account-name resolution. The offline editing
+completion gate requires fresh Apple readback and continued inheritance.
 
 `mv` preserves the original CNID, forks, attributes, metadata and link chains.
 An existing directory destination receives the source basename. Replacement
@@ -203,9 +213,11 @@ in about 21 seconds locally. Fresh native verification remains a required gate.
 
 `chown`, `touch`, `chflags` and `xattr` now update original catalog/attribute
 records through the same allocator and completed-output transaction. See
-[metadata semantics and native evidence](image-metadata.md). Ordinary attributes
-require an initialized attributes tree; absent-file initialization remains
-unqualified. Newly formatted and populated trees retain native qualification.
+[metadata semantics and native evidence](image-metadata.md). The writer can
+initialize an absent attributes file using Apple's allocation, header and map
+rules. First-attribute and fragmented metadata controls are retained separately;
+the [offline editing gate](offline-editing-qualification.md) requires fresh native
+qualification, including tree growth, deletion, collapse and subsequent reuse.
 
 `ln` converts a first regular-file link into native private-inode storage, extends
 existing alias chains and creates literal symlinks. See [link lifecycle semantics](image-links.md).

@@ -65,7 +65,7 @@ def create(root, command, sensitive, create_files, apfs=False):
     create_signed_app(root, command)
 
 
-def create_signed_app(root, command):
+def create_signed_app(root, command, source_directory=None):
     app = root / 'Example.app'
     (app / 'Contents/MacOS').mkdir(parents=True)
     (app / 'Contents/Resources').mkdir()
@@ -73,7 +73,7 @@ def create_signed_app(root, command):
     (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
         'CFBundleIdentifier': 'org.go-apfs.acceptance', 'CFBundleExecutable': 'Example',
         'CFBundleName': 'Example', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1'}))
-    source = root.parent / 'example.c'
+    source = (Path(source_directory) if source_directory is not None else root.parent) / 'example.c'
     source.write_text('int main(void) { return 0; }\n')
     command('xcrun', 'clang', '-arch', 'arm64', '-arch', 'x86_64', '-mmacosx-version-min=11.0',
             source, '-o', app / 'Contents/MacOS/Example')

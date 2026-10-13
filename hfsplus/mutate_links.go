@@ -65,8 +65,11 @@ func (m *mutation) linkCatalog(c Change, stamp uint32) (uint32, error) {
 		if err != nil {
 			return 0, err
 		}
-		if be.Uint16(inode.value[42:])&0170000 != 0100000 || m.v.privateID == 0 {
+		if be.Uint16(inode.value[42:])&0170000 != 0100000 {
 			return 0, filesystem.ErrUnsupported
+		}
+		if err = m.initializePrivateDirectory(stamp); err != nil {
+			return 0, err
 		}
 	}
 	var parent *catalogItem
@@ -183,6 +186,37 @@ func (m *mutation) linkCatalog(c Change, stamp uint32) (uint32, error) {
 	be.PutUint32(value[44:], be.Uint32(value[44:])+1)
 	be.PutUint32(value[20:], stamp)
 	return inode.id(), m.patchCatalog(inode.id(), value)
+}
+
+// hfs_privatedir_init(FILE_HARDLINKS), from the pinned Apple hfs_link.c.
+// Native writable mounts initialize this directory; offline edits must also
+// handle original formatted images which have only been mounted read-only.
+func (m *mutation) initializePrivateDirectory(stamp uint32) error {
+	if m.v.privateID != 0 {
+		return nil
+	}
+	id, err := m.allocateCNID()
+	if err != nil {
+		return err
+	}
+	value := make([]byte, 88)
+	be.PutUint16(value, 1)
+	be.PutUint16(value[2:], 0x10) // kHFSHasFolderCountMask
+	be.PutUint32(value[8:], id)
+	created := be.Uint32(m.header[16:]) // hfsmp->hfs_itime
+	be.PutUint32(value[12:], created)
+	be.PutUint16(value[42:], 0040000)
+	be.PutUint32(value[44:], 1)
+	setCatalogBSDFlags(value, 0x8002) // UF_IMMUTABLE | UF_HIDDEN
+	be.PutUint16(value[56:], 0x5000)  // kIsInvisible | kNameLocked
+	be.PutUint16(value[58:], 16384)
+	be.PutUint16(value[60:], 16384)
+	item := &catalogItem{catalogKey(2, privateDirectory), value}
+	if err = m.insertCatalog(item, stamp); err != nil {
+		return err
+	}
+	m.v.privateID, m.v.privateCreated = id, created
+	return nil
 }
 
 func (m *mutation) indirectLink(parent uint32, name string, reference, next uint32, chain bool, stamp uint32) (*catalogItem, error) {

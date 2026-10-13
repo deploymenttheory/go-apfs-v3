@@ -15,12 +15,16 @@ func (m *mutation) validateOwnership() error {
 		if start >= m.c.BlockCount || count > m.c.BlockCount-start {
 			return corrupt("owned extent range", 0)
 		}
-		for i := uint64(0); i < count; i++ {
-			a := start + i
-			if !m.space.used(a) || littleBit(main, a) {
-				return corrupt("unallocated or cross-linked APFS block", int64(a)*4096)
+		for at := start; at < start+count; {
+			if err := m.ctx.Err(); err != nil {
+				return err
 			}
-			setLittleBit(main, a, true)
+			chunk := m.space.chunks[at/32768]
+			take := min(start+count-at, chunk.start+uint64(chunk.count)-at)
+			if offset, ok := claimBits(chunk.bitmap, main, at-chunk.start, at, take); !ok {
+				return corrupt("unallocated or cross-linked APFS block", int64(at+offset)*4096)
+			}
+			at += take
 		}
 		return nil
 	}
@@ -28,12 +32,8 @@ func (m *mutation) validateOwnership() error {
 		if start < m.space.pool || start >= m.space.pool+m.space.poolCount || count > m.space.pool+m.space.poolCount-start {
 			return corrupt("pool ownership range", 0)
 		}
-		for i := uint64(0); i < count; i++ {
-			p := start + i - m.space.pool
-			if !littleBit(m.space.poolBits, p) || littleBit(pool, p) {
-				return corrupt("pool ownership conflict", 0)
-			}
-			setLittleBit(pool, p, true)
+		if _, ok := claimBits(m.space.poolBits, pool, start-m.space.pool, start-m.space.pool, count); !ok {
+			return corrupt("pool ownership conflict", 0)
 		}
 		return nil
 	}
@@ -64,17 +64,61 @@ func (m *mutation) validateOwnership() error {
 			return e
 		}
 	}
-	for _, a := range []uint64{le.Uint64(m.nx[160:]), m.volumeAddress, uint64(m.v.omap)} {
-		if e := claim(a, 1); e != nil {
-			return e
+	if err := claim(le.Uint64(m.nx[160:]), 1); err != nil {
+		return err
+	}
+	for _, node := range m.cmap.nodes {
+		if err := claim(node.address, 1); err != nil {
+			return err
 		}
 	}
-
-	// With no snapshots, every map record must describe exactly one reachable
-	// current virtual object. An extra/stale pointer cannot qualify ownership.
-	if len(m.cmap.all()) != 1 {
+	volumes := m.volumes
+	if len(volumes) == 0 {
+		volumes = []*mutation{m}
+	}
+	current := make(map[uint64]uint64, len(volumes))
+	for _, volume := range volumes {
+		current[uint64(volume.v.OID)] = volume.volumeAddress
+	}
+	if len(m.cmap.all()) != len(current) {
 		return fmt.Errorf("container map inventory: %w", filesystem.ErrUnsupported)
 	}
+	for _, record := range m.cmap.all() {
+		id, xid := le.Uint64(record.key), le.Uint64(record.key[8:])
+		if le.Uint32(record.value) != 0 || le.Uint32(record.value[4:]) != 4096 || xid > uint64(m.c.XID) || current[id] != le.Uint64(record.value[8:]) {
+			return corrupt("container object map ownership", 0)
+		}
+		delete(current, id)
+	}
+	if len(current) != 0 {
+		return corrupt("missing container map ownership", 0)
+	}
+	for _, volume := range volumes {
+		if err := volume.validateVolumeOwnership(claim); err != nil {
+			return err
+		}
+	}
+	for _, chunk := range m.space.chunks {
+		if err := m.ctx.Err(); err != nil {
+			return err
+		}
+		if !equalBitmap(chunk.bitmap, main[chunk.start/8:], uint64(chunk.count)) {
+			return fmt.Errorf("APFS chunk at %d has unaccounted ownership: %w", chunk.start, filesystem.ErrUnsupported)
+		}
+	}
+	if !equalBitmap(m.space.poolBits, pool, m.space.poolCount) {
+		return corrupt("unaccounted pool ownership", 0)
+	}
+	return m.ctx.Err()
+}
+
+func (m *mutation) validateVolumeOwnership(claim func(uint64, uint64) error) error {
+	for _, address := range []uint64{m.volumeAddress, uint64(m.v.omap)} {
+		if err := claim(address, 1); err != nil {
+			return err
+		}
+	}
+	// Snapshot-free maps describe each current virtual object exactly once.
 	current := map[uint64]uint64{}
 	for _, n := range m.fs.nodes {
 		current[n.oid] = n.address
@@ -94,14 +138,12 @@ func (m *mutation) validateOwnership() error {
 	}
 
 	var volumeBlocks uint64 = 1
-	for _, t := range []*cowTree{m.fs, m.extents, m.vmap, m.cmap} {
+	for _, t := range []*cowTree{m.fs, m.extents, m.vmap} {
 		for _, n := range t.nodes {
 			if e := claim(n.address, 1); e != nil {
 				return e
 			}
-			if t != m.cmap {
-				volumeBlocks++
-			}
+			volumeBlocks++
 		}
 	}
 	if root := le.Uint64(m.super[152:]); root != 0 {
@@ -140,8 +182,8 @@ func (m *mutation) validateOwnership() error {
 			}
 			inodes[p.id] = r
 			flags := le.Uint64(r.value[48:])
-			if flags&(2|4) != 0 {
-				return fmt.Errorf("APFS directory-stat maintenance: %w", filesystem.ErrUnsupported)
+			if _, err := statisticsForInode(r.value); err != nil {
+				return err
 			}
 			if flags&(0x10|0x400) != 0 {
 				return fmt.Errorf("APFS clone history: %w", filesystem.ErrUnsupported)
@@ -224,13 +266,15 @@ func (m *mutation) validateOwnership() error {
 			}
 			links[le.Uint64(r.value)]++
 		case 10:
-			return fmt.Errorf("APFS directory-stat records: %w", filesystem.ErrUnsupported)
+			if len(r.key) != 8 || len(r.value) != 32 {
+				return corrupt("directory statistics record bounds", 0)
+			}
 		case 5, 7, 8, 11, 12: // Siblings are validated with their directory graph.
 		default:
 			return fmt.Errorf("APFS mutation record type %d: %w", p.kind, filesystem.ErrUnsupported)
 		}
 	}
-	physicalOwners := map[uint64]uint64{}
+	var physicalOwners, streamOwners []ownedRange
 	for _, r := range m.extents.all() {
 		p := prefix(r.key)
 		if p.kind != 2 || len(r.key) != 8 || len(r.value) != 20 || le.Uint64(r.value)>>60 != 1 || le.Uint32(r.value[16:]) != 1 {
@@ -241,12 +285,7 @@ func (m *mutation) validateOwnership() error {
 		if length == 0 || p.id >= m.c.BlockCount || length > m.c.BlockCount-p.id || owner == 0 {
 			return corrupt("physical extent range", 0)
 		}
-		for at := p.id; at < p.id+length; at++ {
-			if physicalOwners[at] != 0 {
-				return corrupt("overlapping physical extents", 0)
-			}
-			physicalOwners[at] = owner
-		}
+		physicalOwners = append(physicalOwners, ownedRange{p.id, p.id + length, owner})
 	}
 	allocated := map[uint64]uint64{}
 	for _, r := range m.fs.all() {
@@ -269,20 +308,15 @@ func (m *mutation) validateOwnership() error {
 		if address >= m.c.BlockCount || blocks > m.c.BlockCount-address {
 			return corrupt("file extent range", 0)
 		}
-		for at := address; at < address+blocks; at++ {
-			if physicalOwners[at] != owners[p.id] {
-				return fmt.Errorf("file/physical ownership at %d: stream=%d owner=%d: %w", at, p.id, physicalOwners[at], filesystem.ErrCorrupt)
-			}
-			delete(physicalOwners, at)
-		}
+		streamOwners = append(streamOwners, ownedRange{address, address + blocks, owners[p.id]})
 		if e := claim(address, blocks); e != nil {
 			return e
 		}
 		allocated[p.id] += blocks
 		volumeBlocks += blocks
 	}
-	if len(physicalOwners) != 0 {
-		return corrupt("unowned physical extent", 0)
+	if err := validateExtentOwners(physicalOwners, streamOwners); err != nil {
+		return err
 	}
 	for id, blocks := range streamBlocks {
 		if blocks != allocated[id] {
@@ -302,16 +336,6 @@ func (m *mutation) validateOwnership() error {
 	}
 	if files != le.Uint64(m.super[184:]) || dirs != le.Uint64(m.super[192:]) || symlinks != le.Uint64(m.super[200:]) || others != le.Uint64(m.super[208:]) || volumeBlocks != le.Uint64(m.super[88:]) {
 		return fmt.Errorf("APFS volume counters: computed files=%d directories=%d symlinks=%d other=%d blocks=%d; recorded=%d/%d/%d/%d/%d: %w", files, dirs, symlinks, others, volumeBlocks, le.Uint64(m.super[184:]), le.Uint64(m.super[192:]), le.Uint64(m.super[200:]), le.Uint64(m.super[208:]), le.Uint64(m.super[88:]), filesystem.ErrCorrupt)
-	}
-	for a := uint64(0); a < m.c.BlockCount; a++ {
-		if m.space.used(a) != littleBit(main, a) {
-			return fmt.Errorf("APFS block %d has unaccounted ownership: %w", a, filesystem.ErrUnsupported)
-		}
-	}
-	for a := uint64(0); a < m.space.poolCount; a++ {
-		if littleBit(m.space.poolBits, a) != littleBit(pool, a) {
-			return corrupt("unaccounted pool ownership", 0)
-		}
 	}
 	return m.ctx.Err()
 }

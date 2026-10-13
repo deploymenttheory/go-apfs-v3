@@ -271,6 +271,48 @@ func decodeEvidence(t *testing.T, path string, out any) {
 
 func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
 	t.Helper()
+	// Each immutable directory is decoded once. Resolving every expected path
+	// with LookupExact repeatedly enumerates the same siblings, making complete
+	// metadata comparisons quadratic (especially under race instrumentation).
+	view := &comparisonReader{Reader: r, children: map[uint64][]filesystem.DirEntry{}}
+	indexes := map[uint64]map[string]uint64{}
+	known := map[string]uint64{}
+	for _, entry := range want.Entries {
+		if !fs.ValidPath(entry.Path) {
+			t.Fatal("invalid observed path", entry.Path)
+		}
+		id := r.Root()
+		if entry.Path != "." {
+			for _, component := range strings.Split(entry.Path, "/") {
+				index, ok := indexes[id]
+				if !ok {
+					index = map[string]uint64{}
+					if err := view.ReadDir(context.Background(), id, func(e filesystem.DirEntry) error {
+						if _, exists := index[e.Name]; exists || e.Object == 0 {
+							return filesystem.ErrCorrupt
+						}
+						index[e.Name] = e.Object
+						return nil
+					}); err != nil {
+						t.Fatal(entry.Path, err)
+					}
+					indexes[id] = index
+				}
+				id = index[component]
+				if id == 0 {
+					t.Fatal("native path missing", entry.Path)
+				}
+			}
+		}
+		known[entry.Path] = id
+	}
+	compareFilesAt(t, view, want, known)
+}
+
+// known comes from a complete ReadDir enumeration of the immutable view. Large
+// catalog controls resolve names once instead of scanning a directory per file.
+func compareFilesAt(t *testing.T, r filesystem.Reader, want fileObservation, known map[string]uint64) {
+	t.Helper()
 	ctx := context.Background()
 	paths := map[string]bool{}
 	for _, expected := range want.Entries {
@@ -278,7 +320,16 @@ func compareFiles(t *testing.T, r filesystem.Reader, want fileObservation) {
 			t.Fatal("invalid or duplicate observed path", expected.Path)
 		}
 		paths[expected.Path] = true
-		id, err := filesystem.LookupExact(ctx, r, expected.Path)
+		var id uint64
+		var err error
+		if known == nil {
+			id, err = filesystem.LookupExact(ctx, r, expected.Path)
+		} else {
+			id = known[expected.Path]
+			if id == 0 {
+				err = fs.ErrNotExist
+			}
+		}
 		if err != nil {
 			t.Fatalf("%s lookup: %v", expected.Path, err)
 		}

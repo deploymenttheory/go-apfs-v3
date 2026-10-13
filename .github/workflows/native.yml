@@ -12,12 +12,27 @@ on:
       - '.github/workflows/hfs-recovery.yml'
       - '.github/workflows/apfs-edit.yml'
       - '.github/workflows/apfs-recovery.yml'
+      - '.github/workflows/offline-editing.yml'
   push:
     branches: [main]
   schedule:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      offline_edits_only:
+        description: Only offline editing completion capture, portable editing and Apple readback
+        type: boolean
+        default: false
+      offline_reference_kind:
+        description: Offline editing native references to collect
+        type: choice
+        options: [apfs, hfs, stats, hfs-fragmented, permissions, stats-transitions, copy-permissions]
+        default: apfs
+      offline_reference_capture:
+        description: Capture Apple larger-image and multiple-volume offline editing controls only
+        required: false
+        type: boolean
+        default: false
       apfs_checkpoint_capture:
         description: 'Capture actual interrupted Apple checkpoints and native selected states only'
         required: false
@@ -53,7 +68,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-${{ github.event_name }}-${{ github.ref }}
+  group: native-${{ github.event_name }}-${{ github.ref }}-${{ inputs.offline_edits_only && 'offline-editing' || inputs.offline_reference_capture && format('offline-editing-reference-{0}', inputs.offline_reference_kind) || 'full' }}
   cancel-in-progress: true
 
 env:
@@ -61,28 +76,77 @@ env:
   CGO_ENABLED: "0"
 
 jobs:
+  offline_reference:
+    if: ${{ inputs.offline_reference_capture }}
+    name: Record offline editing ${{ inputs.offline_reference_kind }} edit controls (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Capture Apple larger-image and multiple-volume edit references
+        if: ${{ inputs.offline_reference_kind == 'apfs' }}
+        run: python3 acceptance/native/apfs_geometry.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple HFS attribute initialization and node-map growth
+        if: ${{ inputs.offline_reference_kind == 'hfs' }}
+        run: python3 acceptance/native/hfs_metadata_growth.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple directory statistics and inherited policies
+        if: ${{ inputs.offline_reference_kind == 'stats' }}
+        run: python3 acceptance/native/apfs_geometry.py --directory-statistics --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple fragmented metadata growth and overflow extents
+        if: ${{ inputs.offline_reference_kind == 'hfs-fragmented' }}
+        run: python3 acceptance/native/hfs_metadata_growth.py --fragmented-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple ACL inheritance, creator ownership and set-ID transitions
+        if: ${{ inputs.offline_reference_kind == 'permissions' }}
+        run: python3 acceptance/native/permission_inheritance.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple directory-stat transitions across origins and hard links
+        if: ${{ inputs.offline_reference_kind == 'stats-transitions' }}
+        run: python3 acceptance/native/apfs_directory_statistics.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Capture Apple cp ACL preservation and inheritance composition
+        if: ${{ inputs.offline_reference_kind == 'copy-permissions' }}
+        run: python3 acceptance/native/permission_inheritance.py --copy-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Retain original disks, observations and command diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-reference-${{ matrix.major }}
+          path: artifacts/offline-editing
+          if-no-files-found: error
+
+  offline_edits:
+    if: ${{ inputs.offline_edits_only || (!inputs.offline_reference_capture && !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    uses: ./.github/workflows/offline-editing.yml
+
   apfs_recovery:
-    if: ${{ inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
     uses: ./.github/workflows/apfs-recovery.yml
     with:
       capture_only: ${{ inputs.apfs_checkpoint_capture || false }}
 
   apfs_edits:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '' }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '') }}
     uses: ./.github/workflows/apfs-edit.yml
     with:
       capture_only: ${{ inputs.apfs_reference_capture || false }}
 
   hfs_edits:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
     uses: ./.github/workflows/hfs-edit.yml
 
   hfs_recovery:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '' }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
     uses: ./.github/workflows/hfs-recovery.yml
 
   produce:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -219,7 +283,9 @@ jobs:
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$)'
+        # Offline editing has its own required capture/replay/readback matrix;
+        # replaying its retained full-disk controls here duplicates that work.
+        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -335,7 +401,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '') }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '')) }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
@@ -355,7 +421,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Validate archived capture and replay evidence for a verifier-only rerun
-        if: ${{ inputs.readback_run != '' }}
+        if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && inputs.readback_run != '' }}
         run: python3 acceptance/native/readback_source.py
         env:
           READBACK_RUN: ${{ inputs.readback_run }}
@@ -454,8 +520,8 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only }}
-    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery]
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
+    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery, offline_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -469,9 +535,10 @@ jobs:
           HFS_RECOVERY: ${{ needs.hfs_recovery.result }}
           APFS_EDITS: ${{ needs.apfs_edits.result }}
           APFS_RECOVERY: ${{ needs.apfs_recovery.result }}
+          OFFLINE_EDITS: ${{ needs.offline_edits.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
-          if [ -z "$REUSED_RUN" ]; then test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
+          if [ -z "$REUSED_RUN" ]; then test "$OFFLINE_EDITS" = success && test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
           test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,
@@ -482,7 +549,7 @@ jobs:
           fi
 
   hfs_reference:
-    if: ${{ !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture) }}
+    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture)) }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15

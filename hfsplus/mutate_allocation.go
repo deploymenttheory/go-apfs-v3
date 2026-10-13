@@ -68,6 +68,7 @@ type mutation struct {
 	catalog         map[uint32]*catalogItem
 	children        map[uint32]map[string]*catalogItem
 	reservedIDs     map[uint32]bool
+	actor           filesystem.Observation[uint32]
 }
 
 func (m *mutation) write(p []byte, off uint64) error {
@@ -184,6 +185,15 @@ func forkRuns(f *fork, bs uint32) []allocationRun {
 // allocate scans each bitmap bit at most once per request. The preferred tail
 // extends an existing extent where possible; the remainder uses ascending runs.
 func (m *mutation) allocate(count, preferred uint32) ([]allocationRun, error) {
+	return m.allocateMultiple(count, preferred, 1)
+}
+
+// Metadata nodes must occupy contiguous allocation runs. Physical starts need
+// not be aligned; each run's logical length is a multiple of the node size.
+func (m *mutation) allocateMultiple(count, preferred, multiple uint32) ([]allocationRun, error) {
+	if multiple == 0 || count%multiple != 0 {
+		return nil, fs.ErrInvalid
+	}
 	if count > be.Uint32(m.header[48:]) {
 		return nil, fmt.Errorf("HFS+ allocation: %w", syscall.ENOSPC)
 	}
@@ -202,7 +212,11 @@ func (m *mutation) allocate(count, preferred uint32) ([]allocationRun, error) {
 			for i < end && i-first < remaining && !bitmapBit(m.bitmap, i) {
 				i++
 			}
-			r := allocationRun{first, i - first}
+			n := (i - first) / multiple * multiple
+			if n == 0 {
+				continue
+			}
+			r := allocationRun{first, n}
 			if err := m.mark(r, true); err != nil {
 				return err
 			}
@@ -227,7 +241,7 @@ func (m *mutation) allocate(count, preferred uint32) ([]allocationRun, error) {
 		return nil, err
 	}
 	if remaining != 0 {
-		return nil, bad("bitmap free count")
+		return nil, fmt.Errorf("HFS+ contiguous metadata allocation: %w", syscall.ENOSPC)
 	}
 	if len(runs) > 0 {
 		last := runs[len(runs)-1]
@@ -237,6 +251,9 @@ func (m *mutation) allocate(count, preferred uint32) ([]allocationRun, error) {
 }
 
 func (m *mutation) resizeRuns(old []allocationRun, blocks uint32) ([]allocationRun, error) {
+	return m.resizeRunsMultiple(old, blocks, 1)
+}
+func (m *mutation) resizeRunsMultiple(old []allocationRun, blocks, multiple uint32) ([]allocationRun, error) {
 	var runs []allocationRun
 	remaining := blocks
 	for _, r := range old {
@@ -255,7 +272,7 @@ func (m *mutation) resizeRuns(old []allocationRun, blocks uint32) ([]allocationR
 			last := runs[len(runs)-1]
 			preferred = last.start + last.count
 		}
-		more, err := m.allocate(remaining, preferred)
+		more, err := m.allocateMultiple(remaining, preferred, multiple)
 		if err != nil {
 			return nil, err
 		}
@@ -300,16 +317,16 @@ func (m *mutation) growTree(t *mutableTree) error {
 	if add == 0 || add > math.MaxUint32 || uint64(blocks)+add > math.MaxUint32 {
 		return filesystem.ErrLimit
 	}
-	runs, err := m.resizeRuns(old, blocks+uint32(add))
+	runs, err := m.resizeRunsMultiple(old, blocks+uint32(add), max(1, uint32(t.nodeSize)/m.v.BlockSize))
 	if err != nil {
 		return err
 	}
-	if len(runs) > 8 && t.id != 4 {
-		return fmt.Errorf("fragmented metadata-file extension: %w", filesystem.ErrUnsupported)
+	if len(runs) > 8 && t.id == 3 {
+		return fmt.Errorf("HFS extents B-tree resident extent capacity: %w", filesystem.ErrLimit)
 	}
 	size := uint64(blocks+uint32(add)) * uint64(m.v.BlockSize)
 	newTotal := uint32(size / uint64(t.nodeSize))
-	if newTotal > 1<<18 || newTotal > t.mapBits {
+	if newTotal > 1<<18 {
 		return filesystem.ErrLimit
 	}
 	f := forkFromRuns(m.disk, m.v.BlockSize, size, runs)
@@ -319,13 +336,14 @@ func (m *mutation) growTree(t *mutableTree) error {
 			return err
 		}
 	}
-	if t.id == 4 {
-		if err = m.storeExtentRuns(4, 0, m.header[t.descriptor:t.descriptor+80], size, runs); err != nil {
+	if t.id != 3 {
+		if err = m.storeExtentRuns(t.id, 0, m.header[t.descriptor:t.descriptor+80], size, runs); err != nil {
 			return err
 		}
 	} else {
 		encodeRuns(m.header[t.descriptor:t.descriptor+80], size, runs)
 	}
+	oldTotal := t.total
 	be.PutUint32(t.header[40:], be.Uint32(t.header[40:])+newTotal-t.total)
 	t.total = newTotal
 	be.PutUint32(t.header[36:], newTotal)
@@ -341,7 +359,7 @@ func (m *mutation) growTree(t *mutableTree) error {
 	if t.id == 8 {
 		m.v.attributeFork = bytesCopy(m.header[352:432])
 	}
-	return nil
+	return t.extendNodeMap(oldTotal)
 }
 
 func bytesCopy(p []byte) []byte { return append([]byte(nil), p...) }

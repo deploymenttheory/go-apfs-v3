@@ -19,7 +19,9 @@ import (
 )
 
 const maxChunk = 64 << 20
-const maxCachedChunks = 8
+const maxCachedChunks = 16
+const maxCachedRawChunk = 4 << 20
+const rawCacheRegion = 64 << 10
 
 type chunk struct {
 	kind                             uint32
@@ -35,8 +37,9 @@ type udif struct {
 }
 
 type decodedChunk struct {
-	index int
-	data  []byte
+	index  int
+	offset int64 // raw-run region; compressed chunks always begin at zero
+	data   []byte
 }
 
 // The UDIF layer exposes the complete logical disk, including all partitions.
@@ -265,7 +268,13 @@ func (u *udif) readChunk(i int, p []byte, off int64) error {
 		clear(p)
 		return nil
 	case 1:
-		return block.ReadFull(u.source, p, c.stored+off)
+		// Bounded raw runs benefit from the same nearby-chunk cache as
+		// compressed runs during metadata traversal. Large native raw runs
+		// continue to stream directly rather than allocating their full size.
+		if c.size > maxCachedRawChunk || len(p) >= rawCacheRegion {
+			return block.ReadFull(u.source, p, c.stored+off)
+		}
+		return u.readRawRegion(i, p, off)
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -309,8 +318,47 @@ func (u *udif) readChunk(i int, p []byte, off int64) error {
 		clear(b)
 		return corrupt("UDIF decoded chunk length")
 	}
-	u.cache = append(u.cache, decodedChunk{i, b})
+	u.cache = append(u.cache, decodedChunk{index: i, data: b})
 	u.cacheSize += int64(len(b))
 	copy(p, b[off:off+int64(len(p))])
+	return nil
+}
+
+// Metadata paths may span many distant runs. Cache bounded regions of raw
+// runs rather than prefetching several MiB for every small node read. Streaming
+// reads bypass this cache; raw and compressed entries share one byte budget.
+func (u *udif) readRawRegion(i int, p []byte, off int64) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	c := u.chunks[i]
+	for len(p) > 0 {
+		start := off / rawCacheRegion * rawCacheRegion
+		size := min(int64(rawCacheRegion), c.size-start)
+		var data []byte
+		for n, entry := range u.cache {
+			if entry.index == i && entry.offset == start {
+				copy(u.cache[n:], u.cache[n+1:])
+				u.cache[len(u.cache)-1] = entry
+				data = entry.data
+				break
+			}
+		}
+		if data == nil {
+			for len(u.cache) != 0 && (len(u.cache) >= maxCachedChunks || u.cacheSize+size > maxChunk) {
+				u.evictChunk()
+			}
+			data = make([]byte, size)
+			if err := block.ReadFull(u.source, data, c.stored+start); err != nil {
+				clear(data)
+				return err
+			}
+			u.cache = append(u.cache, decodedChunk{index: i, offset: start, data: data})
+			u.cacheSize += size
+		}
+		length := min(int64(len(p)), start+size-off)
+		copy(p[:length], data[off-start:off-start+length])
+		p = p[length:]
+		off += length
+	}
 	return nil
 }

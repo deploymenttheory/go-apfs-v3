@@ -55,6 +55,8 @@ type NameRules struct {
 
 // Reader borrows its backing store for its lifetime. Operations never follow symlinks
 // implicitly. Enumeration is incremental and stops when yield returns an error.
+// The backing view's contents must remain stable for that lifetime; readers may
+// retain bounded, validated metadata. Mutation opens a new view after a commit.
 // Opened values have independent lifetimes but still borrow that backing store.
 // Extended attributes include the resource fork under its native name.
 type Reader interface {

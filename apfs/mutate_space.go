@@ -51,8 +51,15 @@ func (m *mutation) loadSpace() error {
 	s := &mutationSpace{owner: m, data: bytes.Clone(ep.data)}
 	m.space = s
 	b := s.data
-	if le.Uint32(b[32:]) != 4096 || le.Uint32(b[36:]) != 32768 || le.Uint32(b[40:]) != 126 || le.Uint32(b[44:]) != 507 || le.Uint64(b[48:]) != m.c.BlockCount || le.Uint32(b[68:]) != 0 || le.Uint64(b[88:]) != 0 || le.Uint32(b[144:])&^uint32(1) != 0 || le.Uint64(b[184:]) != 0 || le.Uint64(b[192:]) != 0 {
+	if le.Uint32(b[32:]) != 4096 || le.Uint32(b[36:]) != 32768 || le.Uint32(b[40:]) != 126 || le.Uint32(b[44:]) != 507 || le.Uint64(b[48:]) != m.c.BlockCount || le.Uint32(b[68:]) != 0 || le.Uint64(b[88:]) != 0 || le.Uint32(b[144:])&^uint32(1) != 0 {
 		return fmt.Errorf("space manager geometry/reservations: %w", filesystem.ErrUnsupported)
+	}
+	reserved, allocated, err := m.reservations()
+	if err != nil {
+		return err
+	}
+	if reserved != le.Uint64(b[184:]) || allocated != le.Uint64(b[192:]) {
+		return corrupt("space manager volume reservations", 0)
 	}
 	s.pool, s.poolCount, s.bitmapBase = le.Uint64(b[176:]), le.Uint64(b[152:]), le.Uint64(b[168:])
 	s.free = le.Uint64(b[72:])

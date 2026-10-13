@@ -15,23 +15,51 @@ an explicit whole-second modification clock; fixing that clock makes identical
 source bytes and operations produce byte-identical plaintext output across hosts.
 `--format UDRO|UDZO` controls the output DMG encoding.
 
+Several ordinary commands can share one managed copy and publish once:
+
+```sh
+apfs edit --image Original.dmg --output Edited.dmg --time 2025-06-07T08:09:10Z -- \
+  mkdir -p /Payload/Resources \
+  --next cp --from-host ./asset /Payload/Resources \
+  --next chmod 0755 /Payload/Resources/asset
+```
+
+`--next` separates commands; each keeps its normal arguments and flags. Image,
+volume, partition, output format and operation time belong to the enclosing
+`edit` command. Later commands see earlier changes. A failed command discards the
+whole unpublished copy. The library equivalent is `imageedit.Edit` with an
+`Editor` callback; a failed editor cannot publish even if its caller ignores the
+command's error. This edits existing structures rather than rebuilding a logical
+session into a new filesystem.
+
 ## Admitted profile
 
-The admitted write profile handles one unencrypted, unsealed, ordinary APFS volume in a
+The admitted write profile handles an unencrypted, unsealed, ordinary APFS volume in a
 single-device container. It supports case-sensitive and case-insensitive native
 names, ordinary regular-file hard links, attributes, data and resource forks,
-and active decmpfs replacement. Containers are bounded to 1 GiB, 4096-byte blocks,
+and active decmpfs replacement. Select `--volume UUID` when a container has several
+volumes; all ordinary volumes are accounted and untouched volumes retain their
+original structures. Native reserves and quotas remain in force. Geometry uses
+4096-byte blocks with a bounded allocation bitmap (64 MiB),
 contiguous checkpoint regions, inline CIB addresses and one internal-pool bitmap.
 Every current and pending-free block must have validated ownership.
 
 Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
-reserves/quotas, Fusion, encrypted image envelopes/volumes, pending reapers and
-unrecognized write profiles are refused before disk staging. Directory-stat
-maintenance and protected filesystem-owned directories are outside this profile.
+Fusion, encrypted image envelopes/volumes, pending reapers and
+unrecognized write profiles are refused before disk staging. Tracked directories
+retain their statistics and inheritance; protected filesystem-owned directories
+remain outside user mutation.
 Immutable, append-only and protected target objects are refused. Symlinks can be
 moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
 construction capabilities.
+
+The larger and multiple-volume controls were independently qualified at
+[run 38337086450](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337086450):
+1.5 GiB ordinary containers and 768 MiB two-volume containers, both native name
+policies, all three portable hosts, and Apple readback/continued writes on
+macOS 15/26/27. The bitmap budget is a resource limit, not qualification of every
+larger container shape. Subsequent editor/cache changes require the same gate.
 
 Data replacement retains the existing inode and every hard-link alias. Independent
 resource forks and unrelated attributes remain intact. Replacing active compressed
@@ -41,8 +69,9 @@ fork is retained for attribute-only compression. Explicit resource-fork replacem
 on an actively compressed file is refused. Untouched applications retain their
 signature bytes; changing signed application contents requires subsequent signing.
 Birth/access times, ownership and unrelated metadata are preserved. Changed data
-and forks receive the requested mtime/ctime; chmod changes ctime only. ACL-bearing
-chmod targets and set-ID replacement targets await a qualified credential policy.
+and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
+chmod preserves ACLs. Set-ID writes require the explicit logical UID described
+below; these metadata effects do not emulate process authorization.
 
 ## File and directory operations
 
@@ -61,8 +90,19 @@ publishing output. Numeric and Apple symbolic modes use the shared mode parser.
 
 New files default to 0644 and directories to 0755; intermediate `mkdir -p`
 directories use 0755. Parent UID/GID and the supplied image clock determine new
-metadata independently of host credentials and umask. All four new timestamps
-use that clock. ACL/set-ID parent inheritance and set-ID creation are refused.
+metadata independently of host credentials and umask. `--uid N` supplies an
+explicit logical creator/writer UID; new objects then use that UID and their
+parent's GID, following Darwin creation behavior. Without `--uid`, the existing
+parent-UID creation policy remains the compatibility default. All four new
+timestamps use the supplied clock. Ordinary ACL inheritance follows Apple's
+`kauth_acl_inherit`; parent set-ID mode bits do not propagate. Set-ID creation
+and writes require an explicit logical UID. Root writes retain the bits;
+other data writes and ordinary chown clear them. APFS truncation to empty contents
+without a subsequent write retains set-ID bits. Ordinary cp restores the mode
+captured after truncation, while `-p` applies source metadata. Numeric chmod preserves ACL bytes.
+These effects model offline metadata, without authorizing a host process or
+mapping stored GUIDs to host accounts. Fresh native qualification is required
+by the offline editing completion gate.
 Existing `mkdir -p` paths are a no-op and keep their metadata.
 
 `mv` preserves the inode, forks and attributes. An existing directory receives
@@ -152,3 +192,20 @@ Ownership, clocks, flags and attributes use the same transaction engine; see
 
 `ln` adds original-inode aliases and literal symlinks through that same directory
 index and transaction. See [link creation and lifecycle semantics](image-links.md).
+
+## Directory statistics
+
+Tracked directories retain exact primary-inode descendant counts, allocated
+uncompressed data-fork bytes, group identities and chained origins. Resource
+forks do not contribute to these byte totals, but writes to them invalidate the
+containing group's generation. Moving an inherited directory across groups
+promotes it to an origin; existing origins retain their identity through moves.
+Hard links contribute through the primary inode, and final unlink retires storage.
+
+Generation counters preserve the original native value and advance monotonically
+when statistics change. They are invalidation tokens, rather than command or
+extent counts: Apple kernels use different strides for the same truncation or
+deletion. Unchanged generations remain unchanged, and overflow is refused.
+Counts and byte totals are compared exactly with retained macOS 15/26/27 controls.
+See Apple's [format reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)
+and the independently captured [transition controls](sources.json).

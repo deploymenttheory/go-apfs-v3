@@ -4,6 +4,46 @@ Acceptance establishes interoperability with independent macOS observations.
 Reading an image with the same code that wrote it cannot establish this. No v2
 tests or harness helpers are reused.
 
+## Offline image editing controls
+
+These retained families check the allocation and metadata behavior needed to
+edit an existing image while preserving its filesystem and object identities.
+Their filenames, test names, fixture directories and CI jobs identify the
+capability being checked.
+
+| Test | Retained fixtures | Independent native expectation |
+| --- | --- | --- |
+| `TestNativeAPFSGeometryEditing` | `testdata/apfs-geometry` | Larger images, selected-volume edits, untouched peer volumes and reserve/quota policy |
+| `TestNativeHFSMetadataGrowth` | `testdata/hfs-metadata-growth` | First attributes, journal initialization and catalog node-map growth |
+| `TestNativeHFSFragmentedMetadataGrowth` | `testdata/hfs-fragmented-metadata` | Catalog and attributes growth into overflow extents |
+| `TestNativeHFSMetadataLifecycle` | `testdata/hfs-metadata-lifecycle` | Attribute-root splitting, deletion, root collapse and reuse, with protected native catalog records |
+| `TestNativePermissionInheritance` | `testdata/permission-inheritance` | ACL inheritance, creator ownership, chmod/chown and set-ID effects |
+| `TestNativeCopySetIDPermissions` | `testdata/copy-setid-permissions` | Native cp mode snapshots, filesystem-specific truncation effects and source timestamps |
+| `TestNativeCopyTruncationPermissions` | `testdata/copy-truncation-permissions` | O_TRUNC without a subsequent write retains APFS set-ID bits and clears HFS bits; copy and session effects remain exact |
+| `TestNativeCopyPermissions` | `testdata/copy-permissions` | Apple cp ACL composition, -p/-X interaction, aliases and preserved dates in images and persisted sessions |
+| `TestNativeAPFSDirectoryStatisticsTransitions` | `testdata/apfs-directory-statistics-transitions` | 37 ordered operations, resource/empty forks, moves, origins, hard links and monotonic generations |
+| `TestNativeAPFSDirectoryStatistics` | `testdata/apfs-directory-statistics` | Native directory counts, allocated data size, chained origins and generation counters |
+
+All families retain macOS 15/26/27 captures. File-only Go replay checks original
+hashes before comparing native observations. The offline editing compatibility
+workflow additionally checks fresh Linux/Windows/macOS outputs with Apple tools
+on disposable CI VMs, including continued native modification.
+
+Portable and race permission jobs select a single native source version. Full-
+disk permission edits have their own jobs, so they cannot consume the reader
+suite's deadline. All source versions, original captures and assertions remain
+required; later captures add controls without replacing earlier evidence.
+
+Historical text evidence remains compressed with its original decoded digest;
+the readable manifest is a capability-named projection. See
+[the qualification requirements](../docs/offline-editing-qualification.md) for
+the exact preservation rules and outstanding work.
+
+```sh
+go test -count=1 ./acceptance -run '^TestNativeAPFSDirectoryStatistics$'
+go test -count=1 ./acceptance -run '^TestNativeHFSFragmentedMetadataGrowth$'
+```
+
 ## Volume inspection
 
 Purpose: identify filesystem and volume accurately before a forensic, packaging,
@@ -17,8 +57,8 @@ The recipe creates ordinary files, directories and a symlink but this scenario
 asserts volume properties. The separate file-reading family asserts their semantics.
 
 ```sh
-# All hosts: small retained fixtures, no native tools.
-go test -v ./acceptance
+# All hosts: retained inspection fixtures, no native tools.
+go test -v ./acceptance -run '^TestNativeVolumeInspection$'
 
 # macOS only; the output directory must not exist.
 python3 acceptance/native/capture.py --expected-major 27 --output artifacts/native/macos-27
@@ -85,7 +125,7 @@ destination aliases while transferring the native copy view of metadata/forks.
 fresh `APFS_NATIVE_APFS_COPY`, `APFS_NATIVE_HFS_COPY` and
 `APFS_NATIVE_HFS_JOURNALED_COPY` controls. Each compares complete source/native
 states before generating deterministic UDRO/UDZO outputs. Whole namespace and
-identity bijections remain checked across phases; exact preserved dates are
+identity bijections remain checked across successive edits; exact preserved dates are
 separate from individually observed final operation clock effects.
 
 The existing filesystem-edit pipelines compare output hashes on all three hosts

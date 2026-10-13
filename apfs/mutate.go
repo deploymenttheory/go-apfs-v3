@@ -27,6 +27,7 @@ type ChangeReport struct {
 	Transaction uint64   `json:"transaction"`
 }
 type mutation struct {
+	volumes                 []*mutation
 	ctx                     context.Context
 	disk                    MutableSource
 	c                       *Container
@@ -43,6 +44,7 @@ type mutation struct {
 	allocated, freed        uint64
 	entries                 map[uint64]map[string]*mutationEntry
 	links                   map[uint64]map[*mutationEntry]bool
+	actor                   filesystem.Observation[uint32]
 }
 type readOnlyMutation struct{ block.Source }
 
@@ -55,6 +57,13 @@ func ValidateMutation(ctx context.Context, source block.Source) error {
 	return e
 }
 func Modify(ctx context.Context, disk MutableSource, changes []Change, when time.Time) (ChangeReport, error) {
+	return ModifyVolume(ctx, disk, "", changes, when)
+}
+
+// ModifyVolume selects a UUID explicitly when a container has several volumes.
+// All ordinary volumes are accounted before writing; untouched volumes retain
+// their original superblocks, maps, trees and streams.
+func ModifyVolume(ctx context.Context, disk MutableSource, volumeUUID string, changes []Change, when time.Time) (ChangeReport, error) {
 	var report ChangeReport
 	if disk == nil || len(changes) == 0 || len(changes) > 4096 || when.IsZero() || when.Nanosecond() != 0 {
 		return report, fs.ErrInvalid
@@ -63,9 +72,12 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 	if e != nil {
 		return report, e
 	}
-	m, e := openMutation(ctx, disk)
+	m, e := openMutationVolume(ctx, disk, volumeUUID)
 	if e != nil {
 		return report, e
+	}
+	if volumeUUID == "" && len(m.c.Volumes) > 1 {
+		return report, fmt.Errorf("select an APFS volume UUID in a multiple-volume container: %w", fs.ErrInvalid)
 	}
 	report.VolumeID = m.v.UUID
 	initialFree := m.space.free
@@ -95,6 +107,9 @@ func Modify(ctx context.Context, disk MutableSource, changes []Change, when time
 	return report, nil
 }
 func openMutation(ctx context.Context, disk MutableSource) (*mutation, error) {
+	return openMutationVolume(ctx, disk, "")
+}
+func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID string) (*mutation, error) {
 	if e := ctx.Err(); e != nil {
 		return nil, e
 	}
@@ -102,12 +117,24 @@ func openMutation(ctx context.Context, disk MutableSource) (*mutation, error) {
 	if e != nil {
 		return nil, e
 	}
-	if c.BlockSize != 4096 || c.BlockCount > 1<<18 || len(c.Volumes) != 1 || c.Checkpoint == 0 {
-		return nil, fmt.Errorf("mutation requires a bounded single-volume APFS checkpoint: %w", filesystem.ErrUnsupported)
+	if c.BlockSize != 4096 || len(c.Volumes) == 0 || c.Checkpoint == 0 {
+		return nil, fmt.Errorf("APFS mutation checkpoint geometry: %w", filesystem.ErrUnsupported)
+	}
+	if (c.BlockCount+7)/8 > maxMutationBitmapBytes {
+		return nil, fmt.Errorf("APFS allocation bitmap budget: %w", filesystem.ErrLimit)
 	}
 	v := &c.Volumes[0]
-	if v.Encrypted || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.ReserveBlocks != 0 || v.QuotaBlocks != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
-		return nil, fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
+	if volumeUUID != "" {
+		found := false
+		for i := range c.Volumes {
+			if c.Volumes[i].UUID == volumeUUID {
+				v, found = &c.Volumes[i], true
+				break
+			}
+		}
+		if !found {
+			return nil, fs.ErrNotExist
+		}
 	}
 	nx, e := c.object(c.Checkpoint, 1)
 	if e != nil {
@@ -141,50 +168,19 @@ func openMutation(ctx context.Context, disk MutableSource) (*mutation, error) {
 	if e != nil {
 		return nil, e
 	}
-	mapping, e := c.resolve(PhysicalAddress(le.Uint64(nx[160:])), v.OID, c.XID)
-	if e != nil {
+	if e = m.loadVolume(); e != nil {
 		return nil, e
 	}
-	m.volumeAddress = uint64(mapping.address)
-	m.super, e = c.object(mapping.address, 13)
-	if e != nil {
-		return nil, e
-	}
-	m.super = bytes.Clone(m.super)
-	if le.Uint64(m.super[160:]) != 0 || le.Uint64(m.super[168:]) != 0 || le.Uint32(m.super[120:]) != 0x40000002 {
-		return nil, fmt.Errorf("APFS unmount/revert/extent-tree profile: %w", filesystem.ErrUnsupported)
-	}
-	m.volumeMap, e = m.readObject(uint64(v.omap), 11, 0x40000000)
-	if e != nil {
-		return nil, e
-	}
-	if le.Uint32(m.volumeMap[36:]) != 0 || le.Uint32(m.volumeMap[32:])&^uint32(1) != 0 {
-		return nil, fmt.Errorf("APFS mutation structural profile: %w", filesystem.ErrUnsupported)
-	}
-	m.vmap, e = loadCOWTree(ctx, le.Uint64(m.volumeMap[48:]), 11, 0x40000000, physical, orderedPair, m.nextOID)
-	if e != nil {
-		return nil, e
-	}
-	ordering := (&volumeLayout{options: VolumeSpec{CaseSensitive: v.CaseSensitive}}).recordLess
-	virtual := func(id uint64) ([]byte, uint64, error) {
-		mapping, e := c.resolve(v.omap, OID(id), v.xid)
-		if e != nil {
-			return nil, 0, e
+	for i := range c.Volumes {
+		if &c.Volumes[i] == v {
+			m.volumes = append(m.volumes, m)
+			continue
 		}
-		if mapping.encrypted {
-			return nil, 0, filesystem.ErrUnsupported
+		other := &mutation{ctx: ctx, disk: disk, c: c, v: &c.Volumes[i], nx: m.nx, xid: m.xid, next: m.next, ephemeral: m.ephemeral, mappings: map[uint64]uint64{}}
+		if e = other.loadVolume(); e != nil {
+			return nil, e
 		}
-		b := make([]byte, 4096)
-		e = block.ReadFull(disk, b, int64(mapping.address)*4096)
-		return b, uint64(mapping.address), e
-	}
-	m.fs, e = loadCOWTree(ctx, uint64(v.root), 14, 0, virtual, ordering, m.nextOID)
-	if e != nil {
-		return nil, e
-	}
-	m.extents, e = loadCOWTree(ctx, le.Uint64(m.super[144:]), 15, 0x40000000, physical, ordering, m.nextOID)
-	if e != nil {
-		return nil, e
+		m.volumes = append(m.volumes, other)
 	}
 	if e = m.loadSpace(); e != nil {
 		return nil, fmt.Errorf("space manager: %w", e)
@@ -192,11 +188,71 @@ func openMutation(ctx context.Context, disk MutableSource) (*mutation, error) {
 	if e = m.validateOwnership(); e != nil {
 		return nil, fmt.Errorf("ownership: %w", e)
 	}
-	if e = m.loadEntries(); e != nil {
-		return nil, fmt.Errorf("directory graph: %w", e)
+	for _, volume := range m.volumes {
+		volume.space = m.space
+		if e = volume.loadEntries(); e != nil {
+			return nil, fmt.Errorf("directory graph in volume %s: %w", volume.v.UUID, e)
+		}
+		if e = volume.updateStatistics(true); e != nil {
+			return nil, fmt.Errorf("directory statistics in volume %s: %w", volume.v.UUID, e)
+		}
 	}
 	return m, nil
 }
+func (m *mutation) loadVolume() error {
+	v := m.v
+	if v.Encrypted || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
+		return fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
+	}
+	physical := func(id uint64) ([]byte, uint64, error) { b, e := m.readObject(id, 0, 0x40000000); return b, id, e }
+	mapping, e := m.c.resolve(PhysicalAddress(le.Uint64(m.nx[160:])), v.OID, m.c.XID)
+	if e != nil {
+		return e
+	}
+	m.volumeAddress = uint64(mapping.address)
+	m.super, e = m.c.object(mapping.address, 13)
+	if e != nil {
+		return e
+	}
+	m.super = bytes.Clone(m.super)
+	if le.Uint64(m.super[160:]) != 0 || le.Uint64(m.super[168:]) != 0 || le.Uint32(m.super[120:]) != 0x40000002 {
+		return fmt.Errorf("APFS unmount/revert/extent-tree profile: %w", filesystem.ErrUnsupported)
+	}
+	m.volumeMap, e = m.readObject(uint64(v.omap), 11, 0x40000000)
+	if e != nil {
+		return e
+	}
+	if le.Uint32(m.volumeMap[36:]) != 0 || le.Uint32(m.volumeMap[32:])&^uint32(1) != 0 {
+		return fmt.Errorf("APFS mutation structural profile: %w", filesystem.ErrUnsupported)
+	}
+	m.vmap, e = loadCOWTree(m.ctx, le.Uint64(m.volumeMap[48:]), 11, 0x40000000, physical, orderedPair, m.nextOID)
+	if e != nil {
+		return e
+	}
+	ordering := (&volumeLayout{options: VolumeSpec{CaseSensitive: v.CaseSensitive}}).recordLess
+	virtual := func(id uint64) ([]byte, uint64, error) {
+		mapping, e := m.c.resolve(v.omap, OID(id), v.xid)
+		if e != nil {
+			return nil, 0, e
+		}
+		if mapping.encrypted {
+			return nil, 0, filesystem.ErrUnsupported
+		}
+		b := make([]byte, 4096)
+		e = block.ReadFull(m.disk, b, int64(mapping.address)*4096)
+		return b, uint64(mapping.address), e
+	}
+	m.fs, e = loadCOWTree(m.ctx, uint64(v.root), 14, 0, virtual, ordering, m.nextOID)
+	if e != nil {
+		return e
+	}
+	m.extents, e = loadCOWTree(m.ctx, le.Uint64(m.super[144:]), 15, 0x40000000, physical, ordering, m.nextOID)
+	if e != nil {
+		return e
+	}
+	return nil
+}
+
 func (m *mutation) nextOID() (uint64, error) {
 	if m.next == 0 || m.next >= objectMask {
 		return 0, filesystem.ErrLimit

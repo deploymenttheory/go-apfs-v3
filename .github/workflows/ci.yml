@@ -34,8 +34,43 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
+        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
       - run: go vet ./...
+
+  offline_retained:
+    name: Retained offline editing (${{ matrix.family }}, macOS ${{ matrix.source }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-26]
+        source: [15, 26, 27]
+        family: [APFS geometry and volumes, HFS first attributes, HFS metadata overflow, HFS+ node-map boundary, HFSX node-map boundary, APFS directory statistics, ACL inheritance, copy permissions]
+        include:
+          - {family: APFS geometry and volumes, tests: '^TestNativeAPFSGeometryEditing$/macos-SOURCE/'}
+          - {family: APFS directory statistics, tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-SOURCE/'}
+          - {family: HFS first attributes, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/(hfsplus|hfsx)(-journaled)?-first-attribute$'}
+          - {family: HFS metadata overflow, tests: '^TestNativeHFS(FragmentedMetadataGrowth|MetadataLifecycle)$/macos-SOURCE/'}
+          - {family: HFS+ node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsplus-catalog-map-growth$'}
+          - {family: HFSX node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsx-catalog-map-growth$'}
+          - {family: ACL inheritance, tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance)$/macos-SOURCE/'}
+          - {family: copy permissions, tests: '^TestNativeCopy(SetID|Truncation)?Permissions$/macos-SOURCE/'}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Compare source immutability, geometry, identities, links, forks and metadata
+        shell: bash
+        env:
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source }}
+          SELECTED_TESTS: ${{ matrix.tests }}
+          SOURCE_MAJOR: ${{ matrix.source }}
+        run: |
+          test_pattern="${SELECTED_TESTS//SOURCE/$SOURCE_MAJOR}"
+          go test -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
 
   portable_acceptance:
     name: Retained acceptance (${{ matrix.family }}, ${{ matrix.source == 'all' && 'all sources' || format('macOS {0} sources', matrix.source) }}, ${{ matrix.os }})
@@ -45,7 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
-        family: [image construction, image repacking, existing HFS edits, existing APFS edits, HFS journal recovery, APFS checkpoint recovery]
+        family: [image construction, image repacking, HFS files and catalogs, HFS metadata, HFS links, HFS copy, existing APFS edits, HFS journal recovery, APFS checkpoint recovery]
         source: [all, 15, 26, 27]
         exclude:
           - {family: image construction, source: 15}
@@ -54,11 +89,12 @@ jobs:
           - {family: image repacking, source: 15}
           - {family: image repacking, source: 26}
           - {family: image repacking, source: 27}
-          - {family: HFS journal recovery, source: 15}
-          - {family: HFS journal recovery, source: 26}
-          - {family: HFS journal recovery, source: 27}
+          - {family: HFS journal recovery, source: all}
           - {family: APFS checkpoint recovery, source: all}
-          - {family: existing HFS edits, source: all}
+          - {family: HFS files and catalogs, source: all}
+          - {family: HFS metadata, source: all}
+          - {family: HFS links, source: all}
+          - {family: HFS copy, source: all}
           - {family: existing APFS edits, source: all}
         include:
           - family: image construction
@@ -71,8 +107,14 @@ jobs:
             tests: '^TestNativeAPFSCheckpointRecovery$'
           - family: existing APFS edits
             tests: '^TestNativeAPFSImage(Directory|Metadata|Link)?Editing(Continuation)?$'
-          - family: existing HFS edits
-            tests: '^TestNativeHFS(Journaled)?Image(Catalog|Metadata|Link)?Editing(Continuation)?$'
+          - family: HFS files and catalogs
+            tests: '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
+          - family: HFS metadata
+            tests: '^TestNativeHFS(Journaled)?ImageMetadataEditing$'
+          - family: HFS links
+            tests: '^TestNativeHFS(Journaled)?ImageLinkEditing$'
+          - family: HFS copy
+            tests: '^TestNativeHFS(Journaled)?ImageCopy$'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -80,8 +122,11 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained Apple observations
-        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits' && matrix.family != 'APFS checkpoint recovery'
+        if: matrix.source == 'all'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+      - name: Compare each HFS journal source version independently
+        if: matrix.family == 'HFS journal recovery'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFSJournalRecovery$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS checkpoint recovery with this retained native source version
         if: matrix.family == 'APFS checkpoint recovery'
         run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
@@ -102,18 +147,12 @@ jobs:
       - name: Compare APFS preserved copying with retained Apple observations
         if: matrix.family == 'existing APFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS files and catalogs with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS metadata with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS link lifetimes with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS preserved copying with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageCopy$/macos-${{ matrix.source }}(/|$)'
+      # Each HFS capability gets one five-minute test budget inside its own
+      # ten-minute job. Sequential budgets previously exhausted the job while
+      # passing on slower Windows runners, before preserved copying could run.
+      - name: Compare this HFS capability with retained Apple observations
+        if: startsWith(matrix.family, 'HFS ') && matrix.family != 'HFS journal recovery'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}/macos-${{ matrix.source }}(/|$)'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -175,9 +214,50 @@ jobs:
           # Fresh HFS edits have their own required, source-version race jobs.
           - family: readers and workspaces
             tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking)$'
-          - family: image construction
-            tests: '^TestNative(ImageBuilding|ContainerBuilding)$'
+            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
+          - family: ACL inheritance and copy permissions, macOS 15 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-15/'
+            source: '15'
+            skip: '^$'
+          - family: ACL inheritance and copy permissions, macOS 26 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-26/'
+            source: '26'
+            skip: '^$'
+          - family: ACL inheritance and copy permissions, macOS 27 sources
+            tests: '^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-27/'
+            source: '27'
+            skip: '^$'
+          - family: APFS directory statistics, macOS 15 sources
+            tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-15/'
+            source: '15'
+            skip: '^$'
+          - family: APFS directory statistics, macOS 26 sources
+            tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-26/'
+            source: '26'
+            skip: '^$'
+          - family: APFS directory statistics, macOS 27 sources
+            tests: '^TestNativeAPFSDirectoryStatisticsTransitions$/macos-27/'
+            source: '27'
+            skip: '^$'
+          - family: APFS image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/apfs$'
+            source: '27'
+            skip: '^$'
+          - family: case-sensitive APFS image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/apfs-case-sensitive$'
+            source: '27'
+            skip: '^$'
+          - family: HFS+ image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/hfsplus$'
+            source: '27'
+            skip: '^$'
+          - family: HFSX image construction
+            tests: '^TestNativeImageBuilding$/macos-27/image-building/hfsx$'
+            source: '27'
+            skip: '^$'
+          - family: APFS container construction
+            tests: '^TestNativeContainerBuilding$'
+            source: '27'
             skip: '^$'
           - family: HFS journal recovery
             tests: '^TestNativeHFSJournalRecovery$'
@@ -205,9 +285,11 @@ jobs:
           cache: false
       - name: Compare the complete family with retained native observations under race instrumentation
         run: go test -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
+        env:
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
 
   quality:
-    needs: [portable, portable_acceptance, race_library, race_acceptance]
+    needs: [portable, portable_acceptance, offline_retained, race_library, race_acceptance]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -226,9 +308,10 @@ jobs:
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
       - name: Require every portable and race group
         if: always()
-        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
+        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
           PORTABLE: ${{ needs.portable.result }}
           RETAINED_ACCEPTANCE: ${{ needs.portable_acceptance.result }}
+          OFFLINE_RETAINED: ${{ needs.offline_retained.result }}
           LIBRARY_RACES: ${{ needs.race_library.result }}
           ACCEPTANCE_RACES: ${{ needs.race_acceptance.result }}

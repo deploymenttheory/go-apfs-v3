@@ -9,6 +9,28 @@ import verify_image_metadata
 
 
 class ImageMetadataTests(unittest.TestCase):
+    def test_native_source_requires_vm_before_formatting(self):
+        command = MagicMock()
+        with patch.object(image_metadata, 'require_disposable_host', side_effect=RuntimeError('disposable VM required')):
+            with self.assertRaisesRegex(RuntimeError, 'disposable VM'):
+                image_metadata.create_native_source(Path('source.raw'), 'HFS+', False, command, 64 << 20)
+        command.assert_not_called()
+
+    def test_new_source_is_formatted_before_raw_attachment(self):
+        command = MagicMock()
+        for journaled in (False, True):
+            with self.subTest(journaled=journaled), \
+                    patch.object(image_metadata, 'require_disposable_host'), \
+                    patch('image_mutation.writable_copy') as copy_disk:
+                image_metadata.create_native_source(Path('source.raw'), 'Case-sensitive HFS+',
+                                                    journaled, command, 64 << 20)
+                args = command.call_args.args
+                self.assertEqual(args[:2], ('hdiutil', 'create'))
+                self.assertNotIn('-format', args)
+                self.assertEqual(args[args.index('-fs') + 1], 'Case-sensitive HFS+')
+                self.assertEqual(' -J' in args[args.index('-fsargs') + 1], journaled)
+                self.assertEqual(copy_disk.call_args.args[:2], (Path('source.dmg'), Path('source.raw')))
+
     def test_guards_precede_native_actions_and_output(self):
         with patch.object(image_metadata, 'require_disposable_host', side_effect=RuntimeError('disposable VM required')):
             with self.assertRaisesRegex(RuntimeError, 'disposable VM'):

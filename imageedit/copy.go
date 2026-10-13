@@ -55,72 +55,89 @@ func CopyBatch(ctx context.Context, sourcePath, destination string, o Options, c
 	if len(commands) == 0 || len(commands) > 4096 {
 		return result, fs.ErrInvalid
 	}
-	result.Report, err = editImage(ctx, sourcePath, destination, o, func(view *mutablePartition, isAPFS bool) (report Report, err error) {
-		var reader filesystem.Reader
-		if isAPFS {
-			container, e := apfs.Open(view)
-			if e != nil {
-				return report, e
-			}
-			reader = &container.Volumes[0]
-		} else {
-			volume, e := hfsplus.Open(view)
-			if e != nil {
-				return report, e
-			}
-			reader = volume
-		}
-		limits := edit.DefaultLimits()
-		// Existing write profiles are bounded; owned payload storage has the
-		// same 1 GiB bound independently of traversal and disk scratch.
-		limits.ValueBytes, limits.TotalBytes = 1<<30, 1<<30
-		tree, e := edit.New(ctx, reader, limits)
-		if e != nil {
-			return report, e
-		}
-		plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits}
-		defer func() { err = errors.Join(err, plan.close()) }()
-		backend := copyfile.Backend{Tree: tree, Time: o.Time, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
-			CreateMetadata: func(ctx context.Context, dst string, kind uint32) (filesystem.Metadata, error) {
-				id, _, err := copyfile.Resolve(ctx, tree, path.Dir(dst), true)
-				if err != nil {
-					return filesystem.Metadata{}, err
-				}
-				parent, err := tree.Stat(ctx, id)
-				if err != nil {
-					return filesystem.Metadata{}, err
-				}
-				return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: parent.Metadata.UID, GID: parent.Metadata.GID, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(o.Time), ModifyTime: filesystem.Observed(o.Time), ChangeTime: filesystem.Observed(o.Time), AccessTime: filesystem.Observed(o.Time)}, nil
-			},
-			Modified: func(ctx context.Context, p string) error { plan.changed[p] = true; return ctx.Err() },
-			Omitted:  func(value copyfile.Omission) { result.OmittedAttributes = append(result.OmittedAttributes, value) },
-		}
-		for _, command := range commands {
-			if len(command.Sources) == 0 || command.Destination == "" {
-				return report, fs.ErrInvalid
-			}
-			if err = copyfile.Run(ctx, backend, command.Sources, command.Destination, command.Options); err != nil {
-				return report, err
-			}
-		}
-		if err = plan.finish(ctx, &result); err != nil {
-			return report, err
-		}
-		// Fixed batches retain existing mutation limits while larger trees keep
-		// a single command publication boundary. Payloads are already immutable.
-		for len(plan.changes) > 0 {
-			n := min(4096, len(plan.changes))
-			batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time)
-			if err != nil {
-				return report, err
-			}
-			report.VolumeID, report.FreeBlocks, report.Transaction = batch.VolumeID, batch.FreeBlocks, batch.Transaction
-			report.Changed = append(report.Changed, batch.Changed...)
-			plan.changes = plan.changes[n:]
-		}
-		return report, nil
+	result.Report, err = Edit(ctx, sourcePath, destination, o, func(editor *Editor) error {
+		copied, e := editor.Copy(commands)
+		result.Copied, result.Defaulted = copied.Copied, copied.Defaulted
+		result.AttributesUnavailable, result.OmittedAttributes = copied.AttributesUnavailable, copied.OmittedAttributes
+		return e
 	})
 	return result, err
+}
+
+func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options, commands []CopyCommand) (result CopyReport, err error) {
+	if len(commands) == 0 || len(commands) > 4096 {
+		return result, fs.ErrInvalid
+	}
+	var reader filesystem.Reader
+	if isAPFS {
+		container, e := apfs.Open(view)
+		if e != nil {
+			return result, e
+		}
+		reader, e = selectAPFSVolume(container, o.Volume)
+		if e != nil {
+			return result, e
+		}
+	} else {
+		volume, e := hfsplus.Open(view)
+		if e != nil {
+			return result, e
+		}
+		reader = volume
+	}
+	limits := edit.DefaultLimits()
+	// Payload admission follows the validated partition geometry. Traversal
+	// and record counts retain independent bounds; payloads stream to disk.
+	limits.ValueBytes, limits.TotalBytes = view.Size(), view.Size()
+	tree, e := edit.New(ctx, reader, limits)
+	if e != nil {
+		return result, e
+	}
+	plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits}
+	defer func() { err = errors.Join(err, plan.close()) }()
+	backend := copyfile.Backend{Tree: tree, Time: o.Time, ActorUID: o.ActorUID, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
+		CreateMetadata: func(ctx context.Context, dst string, kind uint32) (filesystem.Metadata, error) {
+			id, _, err := copyfile.Resolve(ctx, tree, path.Dir(dst), true)
+			if err != nil {
+				return filesystem.Metadata{}, err
+			}
+			parent, err := tree.Stat(ctx, id)
+			if err != nil {
+				return filesystem.Metadata{}, err
+			}
+			uid := parent.Metadata.UID
+			if o.ActorUID.State == filesystem.Present {
+				uid = o.ActorUID
+			}
+			return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: uid, GID: parent.Metadata.GID, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(o.Time), ModifyTime: filesystem.Observed(o.Time), ChangeTime: filesystem.Observed(o.Time), AccessTime: filesystem.Observed(o.Time)}, nil
+		},
+		Modified: func(ctx context.Context, p string) error { plan.changed[p] = true; return ctx.Err() },
+		Omitted:  func(value copyfile.Omission) { result.OmittedAttributes = append(result.OmittedAttributes, value) },
+	}
+	for _, command := range commands {
+		if len(command.Sources) == 0 || command.Destination == "" {
+			return result, fs.ErrInvalid
+		}
+		if err = copyfile.Run(ctx, backend, command.Sources, command.Destination, command.Options); err != nil {
+			return result, err
+		}
+	}
+	if err = plan.finish(ctx, &result); err != nil {
+		return result, err
+	}
+	// Fixed batches retain existing mutation limits while larger trees keep
+	// a single command publication boundary. Payloads are already immutable.
+	for len(plan.changes) > 0 {
+		n := min(4096, len(plan.changes))
+		batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time, o.Volume, o.ActorUID)
+		if err != nil {
+			return result, err
+		}
+		result.VolumeID, result.FreeBlocks, result.Transaction = batch.VolumeID, batch.FreeBlocks, batch.Transaction
+		result.Changed = append(result.Changed, batch.Changed...)
+		plan.changes = plan.changes[n:]
+	}
+	return result, nil
 }
 
 type copyPlan struct {

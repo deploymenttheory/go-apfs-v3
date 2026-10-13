@@ -18,6 +18,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 // CopyOptions uses Apple cp's logical behavior. PreserveLinks is an explicit
@@ -51,6 +52,7 @@ type Backend struct {
 	Tree            *edit.Tree
 	Time            time.Time
 	UID, GID, Umask uint32
+	ActorUID        filesystem.Observation[uint32]
 	Limits          edit.Limits
 	Own             func(context.Context, filesystem.Value, *int64) (block.Source, error)
 	Apply           func(context.Context, edit.Change) error
@@ -285,6 +287,11 @@ func (c *copier) attributes(ctx context.Context, e *copyEntry, dst string) (map[
 		removed = r
 	}
 	for _, name := range names {
+		// Apple's ordinary COPYFILE_XATTR view hides filesec. ACL copying is
+		// requested separately by cp -p; never treat it as an ordinary xattr.
+		if name == filesec.Attribute {
+			continue
+		}
 		if removed[name] {
 			continue
 		}
@@ -554,8 +561,26 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 		if exists {
 			dst = current.path
+			node, err := c.backend.Tree.Stat(ctx, current.id)
+			if err != nil {
+				return err
+			}
+			mode, err := filesec.TruncateMode(c.backend.Tree.NameRules().Format, node.Metadata.Mode.Value, c.backend.ActorUID)
+			if err != nil {
+				return err
+			}
+			// cp opens O_TRUNC before fcopyfile snapshots destination mode.
+			// fcopyfile restores that snapshot after COPYFILE_DATA. Native
+			// APFS keeps set-ID at truncate, while hfs_truncate clears it for
+			// non-root callers; the same copy therefore has different effects.
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: dst, Data: data}); err != nil {
 				return err
+			}
+			if node.Metadata.Mode.Value&06000 != 0 {
+				patch := filesystem.Metadata{Mode: filesystem.Observed(mode)}
+				if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: dst, Metadata: &patch}); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateFile, Path: dst, Data: data, Metadata: &m}); err != nil {
@@ -608,6 +633,21 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 	}
 	if c.options.Preserve {
+		if !c.options.FromHost {
+			security, err := filesec.Read(ctx, c.backend.Tree, e.node.Identity.Object)
+			if err != nil {
+				return err
+			}
+			if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
+				return err
+			}
+		} else if c.backend.Omitted != nil {
+			// Host stat/xattr observations do not capture Darwin filesec.
+			// Uncaptured security must never be treated as an observed absent
+			// ACL and remove a destination's existing security information.
+			c.backend.Omitted(Omission{e.path, dst, filesec.Attribute,
+				"host Darwin ACL was not captured; destination ACL retained"})
+		}
 		m.ChangeTime = filesystem.Observation[time.Time]{}
 		// Birth time preservation is qualified independently from runtime ctime.
 		if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: at.path, Metadata: &m}); err != nil {
@@ -650,7 +690,22 @@ func (c *copier) creation(ctx context.Context, dst string, kind uint32) (filesys
 	if c.backend.CreateMetadata != nil {
 		return c.backend.CreateMetadata(ctx, dst, kind)
 	}
-	return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: filesystem.Observed(c.backend.UID), GID: filesystem.Observed(c.backend.GID), BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(c.backend.Time), ModifyTime: filesystem.Observed(c.backend.Time), ChangeTime: filesystem.Observed(c.backend.Time), AccessTime: filesystem.Observed(c.backend.Time)}, nil
+	parent, err := resolve(ctx, c.backend.Tree, path.Dir(dst), true)
+	if err != nil {
+		return filesystem.Metadata{}, err
+	}
+	node, err := c.backend.Tree.Stat(ctx, parent.id)
+	if err != nil {
+		return filesystem.Metadata{}, err
+	}
+	// vnode_authattr_new_internal uses the logical creator UID and parent GID,
+	// independently of the parent's setgid mode. Configuration supplies a
+	// default only when the parent's group was not captured.
+	group := node.Metadata.GID
+	if group.State != filesystem.Present {
+		group = filesystem.Observed(c.backend.GID)
+	}
+	return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: filesystem.Observed(c.backend.UID), GID: group, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(c.backend.Time), ModifyTime: filesystem.Observed(c.backend.Time), ChangeTime: filesystem.Observed(c.backend.Time), AccessTime: filesystem.Observed(c.backend.Time)}, nil
 }
 func (c *copier) changeTime(ctx context.Context, id uint64) error {
 	return c.backend.Tree.Times(ctx, id, nil, nil, &c.backend.Time)

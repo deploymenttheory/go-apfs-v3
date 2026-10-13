@@ -14,7 +14,7 @@ type CopyOmission = copyfile.Omission
 func (s *Session) Copy(ctx context.Context, sources []string, to string, options CopyOptions) (Report, error) {
 	var omitted []copyfile.Omission
 	report, err := s.mutate(ctx, func(c *command) error {
-		backend := copyfile.Backend{Tree: c.tree, Time: c.now, UID: s.document.Config.UID, GID: s.document.Config.GID, Umask: s.document.Config.Umask, Limits: s.document.Config.Limits, Apply: c.apply, Omitted: func(value copyfile.Omission) { omitted = append(omitted, value) },
+		backend := copyfile.Backend{Tree: c.tree, Time: c.now, ActorUID: filesystem.Observed(s.document.Config.UID), UID: s.document.Config.UID, GID: s.document.Config.GID, Umask: s.document.Config.Umask, Limits: s.document.Config.Limits, Apply: c.apply, Omitted: func(value copyfile.Omission) { omitted = append(omitted, value) },
 			Own: func(ctx context.Context, v filesystem.Value, total *int64) (block.Source, error) {
 				b, err := s.store(ctx, v, total)
 				if err != nil {

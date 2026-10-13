@@ -5,7 +5,9 @@ import (
 	"math"
 	"strings"
 
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 )
 
@@ -21,7 +23,13 @@ func ValidateMetadata(c filesystem.Change) error {
 			return fs.ErrInvalid
 		}
 	}
-	if m.UID.Value == math.MaxUint32 || m.GID.Value == math.MaxUint32 || m.Mode.Value&^uint32(0177777) != 0 || m.Mode.Value&06000 != 0 || m.BSDFlags.Value&^metadata.UserFlags != 0 || m.ChangeTime.State != filesystem.Uncaptured {
+	if m.UID.Value == math.MaxUint32 || m.GID.Value == math.MaxUint32 || m.Mode.Value&^uint32(0177777) != 0 || m.BSDFlags.Value&^metadata.UserFlags != 0 || m.ChangeTime.State != filesystem.Uncaptured {
+		return filesystem.ErrUnsupported
+	}
+	if err := filesec.ValidateActor(c.ActorUID); err != nil {
+		return err
+	}
+	if m.Mode.Value&06000 != 0 && c.ActorUID.State != filesystem.Present {
 		return filesystem.ErrUnsupported
 	}
 	if m.BirthTime.State != filesystem.Present || m.ModifyTime.State != filesystem.Present || m.AccessTime.State != filesystem.Present {
@@ -36,7 +44,7 @@ func ValidateMetadata(c filesystem.Change) error {
 			return fs.ErrInvalid
 		}
 		seen[name] = true
-		if name != filesystem.Decmpfs {
+		if name != filesystem.Decmpfs && name != filesec.Attribute {
 			if err := metadata.AttributeName(name); err != nil {
 				return err
 			}
@@ -46,7 +54,18 @@ func ValidateMetadata(c filesystem.Change) error {
 		if seen[name] || value == nil || value.Size() < 0 {
 			return fs.ErrInvalid
 		}
-		if name == filesystem.Decmpfs {
+		if name == filesec.Attribute {
+			if value.Size() < 44 || value.Size() > filesec.MaxSize {
+				return filesystem.ErrCorrupt
+			}
+			data := make([]byte, value.Size())
+			if err := block.ReadFull(value, data, 0); err != nil {
+				return err
+			}
+			if err := filesec.Validate(data); err != nil {
+				return err
+			}
+		} else if name == filesystem.Decmpfs {
 			valid, err := CopyableCompression(value)
 			if err != nil {
 				return err

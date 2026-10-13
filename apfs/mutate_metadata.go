@@ -10,6 +10,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	forkvalue "github.com/deploymenttheory/go-apfs-v3/internal/fork"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
@@ -106,7 +107,9 @@ func (m *mutation) metadataObject(c Change, e *mutationEntry, stamp uint64) erro
 	switch c.Operation {
 	case "chmod":
 		if le.Uint64(value[48:])&0x40 != 0 {
-			return filesystem.ErrUnsupported
+			if _, err := m.security(e.id); err != nil {
+				return err
+			}
 		}
 		program, err := mode.Parse(c.Mode, 0)
 		if err != nil {
@@ -114,9 +117,7 @@ func (m *mutation) metadataObject(c Change, e *mutationEntry, stamp uint64) erro
 		}
 		le.PutUint16(value[80:], uint16(program.Apply(uint32(le.Uint16(value[80:])))))
 	case "chown":
-		if le.Uint16(value[80:])&06000 != 0 {
-			return filesystem.ErrUnsupported
-		}
+		le.PutUint16(value[80:], uint16(filesec.ChownMode(uint32(le.Uint16(value[80:])))))
 		if c.Metadata.UID.State == filesystem.Present {
 			le.PutUint32(value[72:], c.Metadata.UID.Value)
 		}
@@ -245,6 +246,24 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 				c.Data = combined
 			}
 		}
+		changed := !c.DeleteAttribute && c.Data.Size() != 0
+		if exists {
+			base, err := m.attributeValue(old)
+			if err != nil {
+				return err
+			}
+			changed = changed || base.Size() != 0
+			if err = base.Close(); err != nil {
+				return err
+			}
+		}
+		// Resource bytes do not enter TotalSize, but a changed fork still
+		// invalidates the containing group's cached statistics.
+		if changed {
+			if err := m.bumpInodeStatistics(id, 1); err != nil {
+				return err
+			}
+		}
 	}
 	remove := c.DeleteAttribute || c.Attribute == filesystem.ResourceFork && c.Operation != "xattr" && c.Data.Size() == 0
 	if remove {
@@ -269,6 +288,12 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 	}
 	flags := le.Uint64(value[48:])
 	switch c.Attribute {
+	case filesec.Attribute:
+		if remove {
+			flags &^= 0x40
+		} else {
+			flags |= 0x40
+		}
 	case filesystem.FinderInfo:
 		if remove {
 			flags &^= 0x100

@@ -128,6 +128,11 @@ func metadataReader(t *testing.T, path, kind string) filesystem.Reader {
 func compareMetadataState(t *testing.T, r filesystem.Reader, want fileObservation, kind string) {
 	t.Helper()
 	compareFiles(t, r, want)
+	compareRawMetadata(t, r, want)
+}
+
+func compareRawMetadata(t *testing.T, r filesystem.Reader, want fileObservation) {
+	t.Helper()
 	// Check all raw attributes including compression-owned values, not just
 	// selected edited attributes. Symlink storage is internal to APFS.
 	for _, entry := range want.Entries {
@@ -146,6 +151,24 @@ func compareMetadataState(t *testing.T, r filesystem.Reader, want fileObservatio
 			}
 			compareValue(t, name, value, v)
 			delete(names, name)
+		}
+		// Apple-captured APFS disks can retain a zero-length resource-fork
+		// record after native truncation, while both native listxattr views
+		// omit it. The reader preserves that physical record for forensics.
+		// Only an empty fork is equivalent to the native-visible absence;
+		// nonempty forks and every other unexpected attribute still fail.
+		if names[filesystem.ResourceFork] {
+			fork, err := r.OpenAttribute(context.Background(), entry.Object, filesystem.ResourceFork)
+			if err != nil {
+				t.Fatal(err)
+			}
+			empty := fork.Size() == 0
+			if err := fork.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if empty {
+				delete(names, filesystem.ResourceFork)
+			}
 		}
 		if len(names) != 0 {
 			t.Fatal(entry.Path, "unexpected attributes", names)

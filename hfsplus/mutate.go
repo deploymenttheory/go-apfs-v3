@@ -11,6 +11,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/decmpfs"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 )
 
@@ -172,6 +173,9 @@ func (t *tree) visitLeaves(ctx context.Context, yield func(uint32, []byte, []tre
 
 func (m *mutation) admit() error {
 	v := m.v
+	// The mutation view changes in place inside exclusive scratch. It must
+	// resolve current records through its own catalog, bypassing reader caches.
+	v.catalogCache = nil
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
@@ -560,15 +564,18 @@ func (m *mutation) removeCompression(id uint32, catalog []byte) error {
 }
 
 func (m *mutation) validateFile(c Change, id uint64) error {
-	b, e := m.v.catalogRecord(m.ctx, id)
+	inode, e := m.logical(m.catalog[uint32(id)])
 	if e != nil {
 		return e
 	}
+	b := inode.value
 	if be.Uint16(b) != 2 || be.Uint16(b[42:])&0170000 != 0100000 {
 		return fmt.Errorf("existing regular file required: %w", filesystem.ErrUnsupported)
 	}
-	if c.Data != nil && be.Uint16(b[42:])&06000 != 0 {
-		return fmt.Errorf("replacement of set-ID file requires credential policy: %w", filesystem.ErrUnsupported)
+	if c.Data != nil {
+		if _, err := filesec.WriteMode(uint32(be.Uint16(b[42:])), c.ActorUID); err != nil {
+			return err
+		}
 	}
 	flags := catalogBSDFlags(b)
 	if flags&(0x00060006|0x40000000) != 0 || be.Uint16(b[2:])&1 != 0 {
@@ -579,7 +586,9 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 			return e
 		}
 		if be.Uint16(b[2:])&8 != 0 {
-			return fmt.Errorf("chmod of ACL-bearing file: %w", filesystem.ErrUnsupported)
+			if _, err := m.security(inode.id()); err != nil {
+				return err
+			}
 		}
 	}
 	if b[41]&0x20 != 0 && c.Data != nil {
@@ -599,13 +608,18 @@ func (m *mutation) validateFile(c Change, id uint64) error {
 }
 
 func (m *mutation) modifyFile(c Change, target uint64, stamp uint32) (uint32, error) {
-	b, e := m.v.catalogRecord(m.ctx, target)
+	inode, e := m.logical(m.catalog[uint32(target)])
 	if e != nil {
 		return 0, e
 	}
-	b = bytes.Clone(b)
+	b := bytes.Clone(inode.value)
 	id := be.Uint32(b[8:])
 	if c.Data != nil {
+		permission, err := filesec.WriteMode(uint32(be.Uint16(b[42:])), c.ActorUID)
+		if err != nil {
+			return 0, err
+		}
+		be.PutUint16(b[42:], uint16(permission))
 		if !c.ResourceFork && b[41]&0x20 != 0 {
 			h, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, uint64(id), name) })
 			if e != nil {

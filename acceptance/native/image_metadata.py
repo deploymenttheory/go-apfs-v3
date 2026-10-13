@@ -140,6 +140,23 @@ def apply_operations(root, ops, command, clocks=None):
     return clocks
 
 
+def create_native_source(image, native_fs, journaled, command, capacity):
+    require_disposable_host()
+    from image_mutation import writable_copy
+    from encrypted_output import disk_hash
+    formatted = image.with_suffix('.dmg')
+    options = f'-b 4096 -U {os.getuid()} -G {os.getgid()}'
+    if journaled:
+        options += ' -J'
+    # Supply an already formatted image to its first raw-device attachment.
+    # Formatting an attached blank device has produced HFSX catalog folders
+    # without native folder-count maintenance, even after detach/reattach.
+    command('hdiutil', 'create', '-size', str(capacity), '-layout', 'NONE',
+            '-fs', native_fs, '-fsargs', options, '-volname', 'Metadata',
+            formatted)
+    writable_copy(formatted, image, command, disk_hash)
+
+
 def capture(references, output, kind, major):
     require_disposable_host()
     producer = version(major)
@@ -180,20 +197,7 @@ def capture(references, output, kind, major):
             for case_id, native_fs in (('hfsplus', 'HFS+'), ('hfsx', 'Case-sensitive HFS+')):
                 case_id += '-empty-attributes'
                 image = work / (case_id + '-source.raw')
-                with image.open('xb') as raw:
-                    raw.truncate(engine.CAPACITY)
-                device = engine.attach(image, command, writable=True)
-                # Reprobe the completed format before mounting: the raw device
-                # was attached before newfs supplied its filesystem identity.
-                # HFS selects folder-count support from the HFSX signature at
-                # mount time, not just the catalog's case-sensitive comparator.
-                try:
-                    command('sudo', '/sbin/newfs_hfs', *(['-s'] if native_fs.startswith('Case') else []),
-                            *(['-J'] if journaled else []), '-b', '4096', '-U', str(os.getuid()),
-                            '-G', str(os.getgid()), '-v', 'Metadata',
-                            device.replace('/dev/disk', '/dev/rdisk'))
-                finally:
-                    command('hdiutil', 'detach', device)
+                create_native_source(image, native_fs, journaled, command, engine.CAPACITY)
                 device = engine.attach(image, command, writable=True)
                 directory = work / (case_id + '-create')
                 directory.mkdir()
@@ -254,7 +258,8 @@ def capture(references, output, kind, major):
                 item['states'][phase] = state
                 image = edited
             cases.append(item)
-    names = tuple(dict.fromkeys(('image_metadata.py', 'image_mutation.py', *engine.SOURCES)))
+    extra = ('encrypted_output.py',) if kind == 'hfs' else ()
+    names = tuple(dict.fromkeys(('image_metadata.py', 'image_mutation.py', *extra, *engine.SOURCES)))
     producer['sources'] = {name: sha256(Path(__file__).with_name(name)) for name in names}
     for name in names:
         shutil.copyfile(Path(__file__).with_name(name), output / name)

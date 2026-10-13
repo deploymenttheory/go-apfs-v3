@@ -8,6 +8,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/copyfile"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	linkcommand "github.com/deploymenttheory/go-apfs-v3/internal/link"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
@@ -59,8 +60,50 @@ func (s *Session) mutate(ctx context.Context, operation func(*command) error) (r
 	return s.Report(), nil
 }
 func (c *command) apply(ctx context.Context, change edit.Change) error {
+	var cleared *filesystem.Metadata
+	switch change.Op {
+	case edit.CreateDirectory, edit.CreateFile, edit.CreateSymlink:
+		at, err := resolve(ctx, c.tree, path.Dir(change.Path), true)
+		if err != nil {
+			return err
+		}
+		parent, err := c.tree.Stat(ctx, at.id)
+		if err != nil {
+			return err
+		}
+		m := *change.Metadata
+		m.UID = filesystem.Observed(c.s.document.Config.UID)
+		if parent.Metadata.GID.State == filesystem.Present {
+			m.GID = parent.Metadata.GID
+		}
+		change.Metadata = &m
+	case edit.ReplaceFileData, edit.ReplaceResourceFork:
+		at, err := resolve(ctx, c.tree, change.Path, true)
+		if err != nil {
+			return err
+		}
+		node, err := c.tree.Stat(ctx, at.id)
+		if err != nil {
+			return err
+		}
+		mode, err := filesec.WriteMode(node.Metadata.Mode.Value, filesystem.Observed(c.s.document.Config.UID))
+		if change.Op == edit.ReplaceFileData && change.Data != nil && change.Data.Size() == 0 {
+			mode, err = filesec.TruncateMode(c.s.NameRules().Format, node.Metadata.Mode.Value, filesystem.Observed(c.s.document.Config.UID))
+		}
+		if err != nil {
+			return err
+		}
+		if mode != node.Metadata.Mode.Value {
+			cleared = &filesystem.Metadata{Mode: filesystem.Observed(mode)}
+		}
+	}
 	if err := c.tree.ApplyCommand(ctx, change); err != nil {
 		return err
+	}
+	if cleared != nil {
+		if err := c.tree.ApplyCommand(ctx, edit.Change{Op: edit.SetMetadata, Path: change.Path, Metadata: cleared}); err != nil {
+			return err
+		}
 	}
 	c.changed = true
 	return nil
@@ -93,7 +136,11 @@ func (s *Session) Chown(ctx context.Context, paths []string, owner string, o Wal
 	if err != nil {
 		return Report{}, err
 	}
-	return s.patch(ctx, paths, o, func(filesystem.Node) (filesystem.Metadata, error) { return m, nil })
+	return s.patch(ctx, paths, o, func(node filesystem.Node) (filesystem.Metadata, error) {
+		patch := m
+		patch.Mode = filesystem.Observed(filesec.ChownMode(node.Metadata.Mode.Value))
+		return patch, nil
+	})
 }
 func (s *Session) Chflags(ctx context.Context, paths []string, flags string, o WalkOptions) (Report, error) {
 	return s.patch(ctx, paths, o, func(n filesystem.Node) (filesystem.Metadata, error) {
@@ -466,6 +513,23 @@ func (s *Session) attribute(ctx context.Context, paths []string, name string, va
 		return nil
 	})
 }
+
+// ReplaceData writes complete logical contents through an existing inode. Unlike
+// cp, this is a direct write: it does not restore fcopyfile's mode snapshot or
+// transfer source metadata. Source bytes remain borrowed for the call.
+func (s *Session) ReplaceData(ctx context.Context, p string, value block.Source) (Report, error) {
+	return s.mutate(ctx, func(c *command) error {
+		at, err := resolve(ctx, c.tree, p, true)
+		if err != nil {
+			return err
+		}
+		if err = c.apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: at.path, Data: value}); err != nil {
+			return err
+		}
+		return c.tree.Times(ctx, at.id, nil, &c.now, &c.now)
+	})
+}
+
 func (s *Session) ReplaceResourceFork(ctx context.Context, p string, value block.Source) (Report, error) {
 	return s.mutate(ctx, func(c *command) error {
 		at, err := resolve(ctx, c.tree, p, true)

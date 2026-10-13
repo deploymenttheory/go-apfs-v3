@@ -43,6 +43,7 @@ import (
 	"syscall"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
@@ -167,6 +168,9 @@ func (m *mutation) loadCatalog() error {
 }
 
 func (m *mutation) logical(r *catalogItem) (*catalogItem, error) {
+	if r == nil {
+		return nil, fs.ErrNotExist
+	}
 	b, err := m.v.resolveLink(m.ctx, r.value)
 	if err != nil {
 		return nil, err
@@ -336,8 +340,9 @@ func (m *mutation) writableParent(r *catalogItem) error {
 	if !r.directory() {
 		return fs.ErrInvalid
 	}
-	if be.Uint16(r.value[2:])&8 != 0 || be.Uint16(r.value[42:])&06000 != 0 {
-		return fmt.Errorf("directory ACL or set-ID inheritance requires credential policy: %w", filesystem.ErrUnsupported)
+	if be.Uint16(r.value[2:])&8 != 0 {
+		_, err := m.security(r.id())
+		return err
 	}
 	return nil
 }
@@ -449,7 +454,7 @@ func (m *mutation) createCatalogKind(parent *catalogItem, name string, fileType 
 		}
 		perm = p.Apply(perm)
 	}
-	if perm&06000 != 0 {
+	if perm&06000 != 0 && m.actor.State != filesystem.Present {
 		return nil, fmt.Errorf("set-ID creation requires credential policy: %w", filesystem.ErrUnsupported)
 	}
 	b := make([]byte, size)
@@ -460,6 +465,9 @@ func (m *mutation) createCatalogKind(parent *catalogItem, name string, fileType 
 		be.PutUint32(b[off:], stamp)
 	}
 	copy(b[32:40], parent.value[32:40])
+	if m.actor.State == filesystem.Present {
+		be.PutUint32(b[32:], m.actor.Value)
+	}
 	be.PutUint16(b[42:], uint16(perm))
 	be.PutUint32(b[44:], 1)
 	if fileType == 0120000 {
@@ -469,6 +477,16 @@ func (m *mutation) createCatalogKind(parent *catalogItem, name string, fileType 
 	be.PutUint32(b[68:], stamp-2082844800)
 	if fileType != 0040000 {
 		be.PutUint32(b[76:], 1)
+	}
+	security, err := m.inheritSecurity(parent, fileType == 0040000)
+	if err != nil {
+		return nil, err
+	}
+	if security != nil {
+		if err = m.changeAttribute(Change{Attribute: filesec.Attribute, Data: bytes.NewReader(security)}, id, b); err != nil {
+			return nil, err
+		}
+		be.PutUint16(b[2:], be.Uint16(b[2:])|8)
 	}
 	r := &catalogItem{key, b}
 	return r, m.insertCatalog(r, stamp)
@@ -821,6 +839,10 @@ func (m *mutation) relocateCatalog(r *catalogItem, parent uint32, name string, s
 	return nil
 }
 func (m *mutation) applyChange(c Change, stamp uint32) (uint32, error) {
+	if err := filesec.ValidateActor(c.ActorUID); err != nil {
+		return 0, err
+	}
+	m.actor = c.ActorUID
 	if c.Operation == "copy-metadata" {
 		return m.copyMetadata(c, stamp)
 	}

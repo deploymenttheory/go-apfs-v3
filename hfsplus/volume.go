@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"sync"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -35,9 +36,41 @@ type Volume struct {
 	privateID       uint32
 	privateCreated  uint32
 	journalReplayed bool // Private recovery validation only; Clean remains disk-derived.
+	catalogCache    *catalogRecordCache
 }
 
-// Open borrows source and reads its header and catalog root thread.
+type cachedCatalogRecord struct {
+	data   []byte
+	parent uint32
+}
+type catalogRecordCache struct {
+	mu     sync.Mutex
+	values map[uint64]cachedCatalogRecord
+	bytes  int
+}
+
+func (v *Volume) rememberCatalogRecord(id uint64, data []byte, parent uint32) {
+	cache := v.catalogCache
+	if cache == nil {
+		return
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if _, ok := cache.values[id]; ok {
+		return
+	}
+	// Metadata only: bound both retained bytes and dictionary entries. Large
+	// directory enumeration can prime subsequent stat/data/attribute operations.
+	if cache.bytes+len(data) > 32<<20 || len(cache.values) >= 1<<18 {
+		clear(cache.values)
+		cache.bytes = 0
+	}
+	owned := append([]byte(nil), data...)
+	cache.values[id] = cachedCatalogRecord{data: owned, parent: parent}
+	cache.bytes += len(owned)
+}
+
+// Open borrows a stable source and reads its header and catalog root thread.
 // Journal replay is not performed.
 func Open(source block.Source) (*Volume, error) {
 	if source == nil || source.Size() < 1536 {
@@ -68,6 +101,7 @@ func Open(source block.Source) (*Volume, error) {
 	a := be.Uint32(h[4:])
 	v := &Volume{Format: format, BlockSize: bs, BlockCount: count, FreeBlocks: free, Attributes: a, Journaled: a&0x2000 != 0, Clean: a&0x100 != 0 && a&0x4000 == 0, Files: be.Uint32(h[32:]), Directories: be.Uint32(h[36:]), VolumeID: fmt.Sprintf("%X", h[104:112])}
 	v.source = source
+	v.catalogCache = &catalogRecordCache{values: map[uint64]cachedCatalogRecord{}}
 	if v.Journaled {
 		var err error
 		v.Journal, err = readJournal(source, h, uint64(bs), uint64(count))
@@ -112,7 +146,7 @@ func Open(source block.Source) (*Volume, error) {
 		return nil, err
 	}
 	v.Name = name
-	v.catalog = &tree{fork: f, root: root, total: total, nodeSize: nodeSize, idOffset: 2}
+	v.catalog = &tree{fork: f, root: root, total: total, nodeSize: nodeSize, idOffset: 2, catalogKeys: newCatalogNames(v.CaseSensitive)}
 	v.attributeFork = append([]byte(nil), h[352:432]...)
 	if err := v.findPrivateDirectory(); err != nil {
 		return nil, err

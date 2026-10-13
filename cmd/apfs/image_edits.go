@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
@@ -17,17 +18,36 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/copyfile"
 )
 
+func imageActor(f *flag.FlagSet) (filesystem.Observation[uint32], error) {
+	option := f.Lookup("uid")
+	if option == nil || option.Value.String() == "" {
+		return filesystem.Observation[uint32]{}, nil
+	}
+	value, err := strconv.ParseUint(option.Value.String(), 10, 32)
+	if err != nil || value == 0xffffffff {
+		return filesystem.Observation[uint32]{}, fs.ErrInvalid
+	}
+	return filesystem.Observed(uint32(value)), nil
+}
+
 func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
+	return editImageCommandWithEditor(ctx, verb, f, common, source, destination, partition, format, operands, out, nil)
+}
+
+func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer, editor *imageedit.Editor) (err error) {
 	if verb == "xattr" && f.Lookup("w").Value.String() != "true" && f.Lookup("d").Value.String() != "true" {
+		if editor != nil {
+			return fmt.Errorf("edit batches require mutation commands: %w", fs.ErrInvalid)
+		}
 		return readImageAttributes(ctx, f, common, source, partition, operands, out)
 	}
 	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" && verb != "chown" && verb != "chflags" && verb != "touch" && verb != "xattr" && verb != "ln" {
 		return fmt.Errorf("existing-image %s: %w", verb, filesystem.ErrUnsupported)
 	}
-	if common.name != "" || destination == "" || partition < 0 {
+	if common.name != "" || (editor == nil && destination == "") || partition < 0 {
 		return fmt.Errorf("image editing requires --image and --output, with no --session: %w", fs.ErrInvalid)
 	}
-	allowed := map[string]bool{"image": true, "output": true, "partition": true, "format": true, "time": true, "json": true}
+	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "uid": true, "json": true}
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
@@ -83,6 +103,11 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		}
 	}
 	var changes []imageedit.Change
+	actor, err := imageActor(f)
+	if err != nil {
+		return err
+	}
+	options := imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock, ActorUID: actor}
 	switch verb {
 	case "ln":
 		if len(operands) != 2 {
@@ -129,7 +154,12 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		}
 		copyOptions := imageedit.CopyOptions{FromHost: f.Lookup("from-host").Value.String() == "true", Recursive: f.Lookup("R").Value.String() == "true", Preserve: f.Lookup("p").Value.String() == "true", Archive: f.Lookup("a").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true", NoAttributes: f.Lookup("X").Value.String() == "true", PreserveLinks: f.Lookup("preserve-links").Value.String() == "true", Follow: f.Lookup("P").Value.String()}
 		if f.Lookup("resource-fork").Value.String() != "true" {
-			report, err := imageedit.Copy(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
+			var report imageedit.CopyReport
+			if editor != nil {
+				report, err = editor.Copy([]imageedit.CopyCommand{{Sources: operands[:len(operands)-1], Destination: operands[len(operands)-1], Options: copyOptions}})
+			} else {
+				report, err = imageedit.Copy(ctx, source, destination, options, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
+			}
 			if err != nil {
 				return err
 			}
@@ -138,6 +168,9 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 			}
 			if err = copyOmissions(f.Output(), report.OmittedAttributes); err != nil {
 				return err
+			}
+			if editor != nil {
+				return nil
 			}
 			_, err = fmt.Fprintf(out, "Copied %d path(s) in volume %s; published %s (%s); %d free allocation blocks\n", report.Copied, report.VolumeID, destination, report.Format, report.FreeBlocks)
 			return err
@@ -152,9 +185,17 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		defer func() { err = errors.Join(err, data.Close()) }()
 		changes = []imageedit.Change{{Operation: verb, Path: operands[1], Name: filepath.Base(operands[0]), Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true"}}
 	}
-	report, err := imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, changes)
+	var report imageedit.Report
+	if editor != nil {
+		report, err = editor.Apply(changes)
+	} else {
+		report, err = imageedit.Apply(ctx, source, destination, options, changes)
+	}
 	if err != nil {
 		return err
+	}
+	if editor != nil {
+		return nil
 	}
 	if common.json {
 		return json.NewEncoder(out).Encode(report)

@@ -35,7 +35,6 @@ package hfsplus
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/fs"
 	"math"
 	"sort"
@@ -43,6 +42,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/finderinfo"
 	"github.com/deploymenttheory/go-apfs-v3/internal/metadata"
 	"github.com/deploymenttheory/go-apfs-v3/internal/mode"
@@ -146,7 +146,9 @@ func (m *mutation) metadataObject(c Change, item *catalogItem, stamp uint32) err
 	switch c.Operation {
 	case "chmod":
 		if be.Uint16(value[2:])&8 != 0 {
-			return filesystem.ErrUnsupported
+			if _, err := m.security(inode.id()); err != nil {
+				return err
+			}
 		}
 		program, err := mode.Parse(c.Mode, 0)
 		if err != nil {
@@ -154,9 +156,7 @@ func (m *mutation) metadataObject(c Change, item *catalogItem, stamp uint32) err
 		}
 		be.PutUint16(value[42:], uint16(program.Apply(uint32(be.Uint16(value[42:])))))
 	case "chown":
-		if be.Uint16(value[42:])&06000 != 0 {
-			return filesystem.ErrUnsupported
-		}
+		be.PutUint16(value[42:], uint16(filesec.ChownMode(uint32(be.Uint16(value[42:])))))
 		if c.Metadata.UID.State == filesystem.Present {
 			be.PutUint32(value[32:], c.Metadata.UID.Value)
 		}
@@ -233,7 +233,7 @@ func (m *mutation) attributeTree() (*mutableTree, error) {
 	if t := m.trees[8]; t != nil {
 		return t, nil
 	}
-	return nil, fmt.Errorf("HFS attributes-file initialization is unqualified: %w", filesystem.ErrUnsupported)
+	return m.initializeAttributeTree()
 }
 
 func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
@@ -402,6 +402,13 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 		}
 	}
 	flags := be.Uint16(value[2:])
+	if name == filesec.Attribute {
+		if c.DeleteAttribute {
+			flags &^= 8
+		} else {
+			flags |= 8
+		}
+	}
 	if others || !c.DeleteAttribute {
 		flags |= 4
 	} else {
