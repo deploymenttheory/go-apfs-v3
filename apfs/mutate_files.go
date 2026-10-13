@@ -27,6 +27,9 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 	}
 
 	permission, e := filesec.WriteMode(uint32(le.Uint16(value[80:])), c.ActorUID)
+	if !c.ResourceFork && c.Data.Size() == 0 {
+		permission, e = filesec.TruncateMode("APFS", uint32(le.Uint16(value[80:])), c.ActorUID)
+	}
 	if e != nil {
 		return 0, e
 	}

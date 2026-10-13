@@ -131,7 +131,7 @@ func ValidateActor(actor filesystem.Observation[uint32]) error {
 	return nil
 }
 
-// WriteMode follows Darwin's set-ID write/truncate distinction. An ordinary
+// WriteMode applies set-ID clearing after an actual data write. An ordinary
 // host UID cannot supply the logical actor of an offline image operation.
 func WriteMode(mode uint32, actor filesystem.Observation[uint32]) (uint32, error) {
 	if err := ValidateActor(actor); err != nil {
@@ -147,4 +147,20 @@ func WriteMode(mode uint32, actor filesystem.Observation[uint32]) (uint32, error
 		mode &^= 06000
 	}
 	return mode, nil
+}
+
+// TruncateMode describes O_TRUNC without a subsequent data write. Native APFS
+// retains set-ID bits; Apple's public hfs_truncate clears them for non-root
+// callers. cp opens O_TRUNC before fcopyfile captures its destination mode, so
+// this also supplies the snapshot restored after copying. The logical actor
+// remains explicit for a set-ID operation even when APFS retains the mode.
+func TruncateMode(format string, mode uint32, actor filesystem.Observation[uint32]) (uint32, error) {
+	cleared, err := WriteMode(mode, actor)
+	if err != nil {
+		return mode, err
+	}
+	if format == "APFS" {
+		return mode, nil
+	}
+	return cleared, nil
 }

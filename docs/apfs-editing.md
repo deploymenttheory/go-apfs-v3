@@ -46,8 +46,9 @@ Every current and pending-free block must have validated ownership.
 
 Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
 Fusion, encrypted image envelopes/volumes, pending reapers and
-unrecognized write profiles are refused before disk staging. Directory-stat
-maintenance and protected filesystem-owned directories are outside this profile.
+unrecognized write profiles are refused before disk staging. Tracked directories
+retain their statistics and inheritance; protected filesystem-owned directories
+remain outside user mutation.
 Immutable, append-only and protected target objects are refused. Symlinks can be
 moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
@@ -96,7 +97,9 @@ parent-UID creation policy remains the compatibility default. All four new
 timestamps use the supplied clock. Ordinary ACL inheritance follows Apple's
 `kauth_acl_inherit`; parent set-ID mode bits do not propagate. Set-ID creation
 and writes require an explicit logical UID. Root writes retain the bits;
-other writers and ordinary chown clear them. Numeric chmod preserves ACL bytes.
+other data writes and ordinary chown clear them. APFS truncation to empty contents
+without a subsequent write retains set-ID bits. Ordinary cp restores the mode
+captured after truncation, while `-p` applies source metadata. Numeric chmod preserves ACL bytes.
 These effects model offline metadata, without authorizing a host process or
 mapping stored GUIDs to host accounts. Fresh native qualification is required
 by the offline editing completion gate.

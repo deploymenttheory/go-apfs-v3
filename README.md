@@ -10,7 +10,7 @@ software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
-writes now support regular-file data/resource-fork replacement and chmod on clean HFS+/HFSX, including validated empty internal journals, preserving original identities in a new output image. Existing APFS files now support data/resource-fork replacement and chmod through copy-on-write transactions for the admitted single-volume plaintext profile. Explicit HFS+/HFSX journal recovery now produces a validated new image from interrupted internal journals. Explicit APFS checkpoint recovery also validates and publishes a new image from the newest complete admitted checkpoint. Broader mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
+writes support ordinary file commands on clean HFS+/HFSX, including validated empty internal journals, and admitted plaintext APFS volumes, preserving original identities in a new output image. APFS editing selects an ordinary volume by UUID in a multi-volume container and maintains directory statistics. Ordered commands share one managed scratch copy and publish once. Explicit HFS+/HFSX journal recovery produces a validated new image from interrupted internal journals. Explicit APFS checkpoint recovery validates and publishes a new image from the newest complete admitted checkpoint. Broader mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. The [offline editing qualification checklist](docs/offline-editing-qualification.md) records outstanding evidence. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -44,6 +44,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs cp --image Original.dmg --output Copied.dmg -a /Staging/Example.app /Applications
 ./bin/apfs cp --image Original.dmg --output Imported.dmg --from-host -RX ./payload /Payload
 ./bin/apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
+./bin/apfs edit --image Original.dmg --output Edited.dmg -- mkdir /Payload/Resources --next cp --from-host ./asset /Payload/Resources --next chmod 0755 /Payload/Resources/asset
 ./bin/apfs checkpoint inspect --image Interrupted.dmg
 ./bin/apfs checkpoint recover --image Interrupted.dmg --output Recovered.dmg
 ./bin/apfs journal inspect --image Interrupted.dmg

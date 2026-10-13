@@ -16,8 +16,10 @@ apfs xattr --image Attributes.dmg --output Removed.dmg -d org.example.metadata /
 
 `chown` takes numeric `UID`, `UID:GID` or `:GID`; unspecified fields are retained.
 The caller's Linux/Windows/macOS account database and permissions are not used
-to invent macOS ownership. Ownership changes on set-ID objects are refused
-until their credential interaction is independently qualified.
+to invent macOS ownership. Ordinary ownership assignment clears set-ID bits,
+including assignment of unchanged IDs, following Apple's `vnode_authattr` path
+and retained native controls. Numeric ownership remains separate from opaque
+filesec GUIDs; offline edits do not emulate process authorization.
 
 `chflags` changes the qualified user flags: nodump, user immutable, user append,
 opaque and hidden. Symbolic `no...` forms remove selected flags; octal values
@@ -79,11 +81,13 @@ embedded replacements remove it. Unknown flags and shared streams remain refused
 No private APFS C implementation is claimed as a source port.
 
 The admitted image profiles remain those in [APFS editing](apfs-editing.md) and
-[HFS editing](hfs-editing.md). Ordinary HFS attributes require an initialized
-attributes B-tree; initialized trees are qualified. Creating an absent
-attributes file is unqualified and refused. The shipped formatter's zero-initial-
-size option failed with an overlapping-extent error in disposable CI controls;
-the implementation does not bypass that evidence with a synthesized native oracle.
+[HFS editing](hfs-editing.md). HFS attribute creation can initialize an absent
+attributes file using Apple's allocation, header and node-map implementation.
+The shipped formatter's zero-initial-size option failed with an overlapping-
+extent error; independent controls instead build the pinned Apple C formatter
+and capture actual first-attribute writes on disposable macOS VMs. The
+[offline editing gate](offline-editing-qualification.md) requires those controls
+and Apple checks of the portable outputs.
 
 The required existing-image edit families capture actual Apple before/after
 metadata, full timestamp precision, complete raw attributes, identities and

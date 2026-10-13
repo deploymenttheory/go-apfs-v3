@@ -565,7 +565,7 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 			if err != nil {
 				return err
 			}
-			mode, err := filesec.WriteMode(node.Metadata.Mode.Value, c.backend.ActorUID)
+			mode, err := filesec.TruncateMode(c.backend.Tree.NameRules().Format, node.Metadata.Mode.Value, c.backend.ActorUID)
 			if err != nil {
 				return err
 			}
@@ -573,9 +573,6 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 			// fcopyfile restores that snapshot after COPYFILE_DATA. Native
 			// APFS keeps set-ID at truncate, while hfs_truncate clears it for
 			// non-root callers; the same copy therefore has different effects.
-			if c.backend.Tree.NameRules().Format == "APFS" {
-				mode = node.Metadata.Mode.Value
-			}
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: dst, Data: data}); err != nil {
 				return err
 			}

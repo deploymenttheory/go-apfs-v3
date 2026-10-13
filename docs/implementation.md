@@ -10,7 +10,7 @@ and harness were not imported.
 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
-| Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Bounded single-volume plaintext APFS data/fork/mode and directory create/move/unlink edits with copy-on-write allocation/tree/object-map/checkpoint transactions implemented with required native/Go/native qualification; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
+| Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Plaintext APFS file commands, selected-volume editing, directory statistics and copy-on-write allocation/tree/object-map/checkpoint transactions implemented; HFS metadata initialization, overflow growth and node-map extension implemented; ordinary ACL/set-ID metadata effects, ordered commands and completed-output persistence have required qualification in the open offline editing checklist; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
 | Snapshot lifecycle, clones, encrypted modification/creation | Pending |
 | Read/write mounts on Linux/macOS/Windows | Pending |
 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
@@ -633,7 +633,9 @@ references, device/internal-pool allocation, deferred free queues and checkpoint
 publication. The node encoder is shared with fresh construction; existing inode,
 volume and container identities are retained. Admission accounts all allocated
 blocks and refuses snapshots, clones, encryption, Fusion and other unqualified
-write profiles. The first profile is bounded to 1 GiB and one ordinary volume.
+write profiles. The original single-volume 1 GiB admission ceiling has been
+replaced by bounded geometry and complete container-wide ownership accounting;
+an explicit UUID selects an ordinary volume while retaining its peers.
 
 [Editing semantics and evidence](apfs-editing.md) records the implementation,
 limits, ownership capture correction and native qualification contract. Retained
@@ -665,9 +667,10 @@ native/Go/native creation, link changes and final removal. Source identity and
 contents remain unchanged on disk-full and interrupted-output failures. Bounded
 synthetic stress covers fourteen growth/removal cycles and every write boundary.
 
-The single ordinary volume/1 GiB profile remains. Directory-stat maintenance,
-ACL/set-ID inheritance, snapshots, clones, encrypted mutation and physical
-power-loss qualification require later independently proven increments.
+Directory-stat maintenance and ordinary ACL/set-ID metadata effects now have
+independent retained controls and are required by the offline editing gate.
+Snapshots, clones, encrypted mutation and physical power-loss qualification
+remain separate capabilities.
 
 ## Existing-image metadata editing increment
 
@@ -685,8 +688,10 @@ reclamation/reuse, newly initialized HFS trees and both admitted journal profile
 All hosts emit actual images for Apple verification. Kernel-created streams become
 Go inputs; separate Apple-only copies supply complete final native/Go/native
 continuation expectations. Retained capture recipes and images remain immutable.
-Current profile and credential limits, absent HFS attribute-file initialization,
-physical power-loss qualification and broader transaction profiles remain explicit.
+Current profile and credential limits, physical power-loss qualification and
+broader transaction profiles remain explicit. Absent HFS attribute-file
+initialization now follows the pinned Apple implementation and has separate
+first-attribute controls in the offline editing gate.
 See [metadata contracts](image-metadata.md).
 
 ## Existing-image link creation increment
@@ -789,5 +794,5 @@ family and retained-corpus/race groups remain required in CI.
 
 See [the contract, evidence and bounds](apfs-checkpoint-recovery.md). In-place
 commit with ordered flushes, live journal writing and physical storage power-loss
-qualification remain the next transaction work, before snapshot/clone mutation
-and writable mounts.
+qualification remain separate from completed-output publication and require
+their own qualification before snapshot/clone mutation and writable mounts.

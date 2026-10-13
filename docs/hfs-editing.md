@@ -35,8 +35,9 @@ allocation ownership, catalog/extent/attribute keys, node allocation maps and tr
 reachability before writing. Unsupported or inconsistent state is refused.
 Dirty volumes, pending/external/uninitialized journals, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
-Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 requested
-operations. Catalog growth uses inline and overflow extents. Catalog and attributes files can grow into overflow extents and extend their
+Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 operations
+per engine batch. Ordered commands split larger plans into bounded batches within
+the same unpublished copy. Catalog and attributes files can grow into overflow extents and extend their
 node maps. The Extents Overflow B-tree retains Apple's eight resident-extents
 constraint. Exceeding a resource or format bound fails without publishing output.
 
@@ -212,9 +213,11 @@ in about 21 seconds locally. Fresh native verification remains a required gate.
 
 `chown`, `touch`, `chflags` and `xattr` now update original catalog/attribute
 records through the same allocator and completed-output transaction. See
-[metadata semantics and native evidence](image-metadata.md). Ordinary attributes
-require an initialized attributes tree; absent-file initialization remains
-unqualified. Newly formatted and populated trees retain native qualification.
+[metadata semantics and native evidence](image-metadata.md). The writer can
+initialize an absent attributes file using Apple's allocation, header and map
+rules. First-attribute and fragmented metadata controls are retained separately;
+the [offline editing gate](offline-editing-qualification.md) requires fresh native
+qualification, including tree growth, deletion, collapse and subsequent reuse.
 
 `ln` converts a first regular-file link into native private-inode storage, extends
 existing alias chains and creates literal symlinks. See [link lifecycle semantics](image-links.md).

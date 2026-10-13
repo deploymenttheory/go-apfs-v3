@@ -87,6 +87,9 @@ func (c *command) apply(ctx context.Context, change edit.Change) error {
 			return err
 		}
 		mode, err := filesec.WriteMode(node.Metadata.Mode.Value, filesystem.Observed(c.s.document.Config.UID))
+		if change.Op == edit.ReplaceFileData && change.Data != nil && change.Data.Size() == 0 {
+			mode, err = filesec.TruncateMode(c.s.NameRules().Format, node.Metadata.Mode.Value, filesystem.Observed(c.s.document.Config.UID))
+		}
 		if err != nil {
 			return err
 		}
