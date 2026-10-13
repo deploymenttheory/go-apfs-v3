@@ -99,7 +99,7 @@ def edit(root, command):
     os.link(root / 'data', root / 'another-alias')
 
 
-def observe(image, work, command, label, statistics=False):
+def observe(image, work, command, label, statistics=False, outside=False):
     require_disposable_host()
     from image_repacking import files
     original = sha256(image)
@@ -121,6 +121,8 @@ def observe(image, work, command, label, statistics=False):
                 'files': observed, 'checkerStatus': 0, 'signatureStatus': 0}
             if statistics:
                 state['directoryStatistics'] = directory_statistics(path / 'Fixture', native)
+            if outside:
+                state['outsideFiles'] = files(path / 'Untracked')
             result.append(state)
         return result
     finally:

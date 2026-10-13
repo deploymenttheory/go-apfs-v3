@@ -26,6 +26,12 @@ def apply(root, operation, command):
     op, path = operation['op'], root / operation['path']
     if op == 'create':
         path.write_bytes(bytes(operation['size']))
+    elif op == 'resource-fork':
+        (path / '..namedfork/rsrc').write_bytes(bytes(operation['size']))
+    elif op == 'touch':
+        os.utime(path, ns=(path.stat().st_atime_ns, operation['modifyNS']))
+    elif op == 'symlink':
+        os.symlink(operation['target'], path)
     elif op == 'chmod':
         os.chmod(path, int(operation['mode'], 8))
     elif op == 'xattr':
@@ -51,6 +57,22 @@ def apply(root, operation, command):
 
 OPERATIONS = (
     {'op': 'create', 'path': 'new', 'size': 5000},
+    {'op': 'resource-fork', 'path': 'new', 'size': 7000},
+    {'op': 'resource-fork', 'path': 'new', 'size': 3},
+    {'op': 'resource-fork', 'path': 'new', 'size': 0},
+    {'op': 'touch', 'path': 'new', 'modifyNS': 1704067200000000000},
+    {'op': 'create', 'path': 'empty', 'size': 0},
+    {'op': 'create', 'path': 'empty', 'size': 0},
+    {'op': 'unlink', 'path': 'empty'},
+    {'op': 'create', 'path': 'boundary', 'size': 8193},
+    {'op': 'create', 'path': 'boundary', 'size': 5000},
+    {'op': 'create', 'path': 'boundary', 'size': 0},
+    {'op': 'create', 'path': 'boundary', 'size': 0},
+    {'op': 'unlink', 'path': 'boundary'},
+    {'op': 'symlink', 'path': 'new-symlink', 'target': 'new'},
+    {'op': 'unlink', 'path': 'new-symlink'},
+    {'op': 'rename', 'path': '../Untracked/untracked-branch', 'destination': 'entered-branch'},
+    {'op': 'rename', 'path': 'entered-branch', 'destination': '../Untracked/untracked-branch'},
     {'op': 'chmod', 'path': 'new', 'mode': '0600'},
     {'op': 'xattr', 'path': 'new'},
     {'op': 'link', 'path': 'new', 'destination': 'new-alias'},
@@ -95,11 +117,13 @@ def capture(major, output):
                 create(directory / 'Fixture', command, True)
                 command('sudo', 'mkdir', directory / 'Untracked')
                 command('sudo', 'chown', f'{os.getuid()}:{os.getgid()}', directory / 'Untracked')
+                (directory / 'Untracked/untracked-branch').mkdir()
+                (directory / 'Untracked/untracked-branch/data').write_bytes(bytes(8193))
             finally:
                 command('hdiutil', 'detach', cleanup)
             source = work / 'source.raw'
             copy_disk(dmg, source, command)
-            before = observe(source, work, command, 'before', True)
+            before = observe(source, work, command, 'before', True, True)
             saved = retain_file(source, output / (case_id + '-source.raw.gz'))
             edited = work / 'edited.raw'
             shutil.copyfile(source, edited)
@@ -113,7 +137,7 @@ def capture(major, output):
                     apply(directory / 'Fixture', operation, native)
                 finally:
                     native('hdiutil', 'detach', cleanup)
-                state = observe(edited, work, command, f'after-{index}', True)
+                state = observe(edited, work, command, f'after-{index}', True, True)
                 archive = retain_file(edited, output / f'{case_id}-after-{index:02d}.raw.gz')
                 states.append({'operation': operation, 'volumes': state, 'archive': archive})
             cases.append({'id': case_id, 'source': saved, 'before': before, 'states': states})
