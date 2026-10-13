@@ -68,6 +68,12 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             args += ['-I', 'a=0']
         command('sudo', binary, *args, '-v', 'Phase5',
                 device.replace('/dev/disk', '/dev/rdisk'))
+        if journaled:
+            # The source formatter leaves a new journal marked for initialization.
+            # Ask Apple's checker to prepare it before any read-only observation;
+            # retain the actual commands and journal state, never synthesize it.
+            command('sudo', '/sbin/fsck_hfs', '-fy',
+                    device.replace('/dev/disk', '/dev/rdisk'))
         check(device, command)
     finally:
         command('hdiutil', 'detach', device)
@@ -82,6 +88,10 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
     require_disposable_host()
     source = work / (case_id + '-source.raw')
     format_image(source, binary, command, sensitive, journaled, growth)
+    (output / (case_id + '-format-headers.json')).write_text(json.dumps(
+        read_headers(source, CAPACITY), indent=2) + '\n')
+    # Retain original formatter bytes even if a subsequent native mount fails.
+    retain_file(source, output / (case_id + '-formatted.raw.gz'))
     if growth:
         device = attach(source, command, writable=True)
         try:
@@ -147,6 +157,8 @@ def capture(major, output):
                 with tempfile.TemporaryDirectory(dir=work) as case_tmp:
                     cases.append(capture_case(case_id, sensitive, journaled, False,
                                               binary, Path(case_tmp), output, command))
+                (output / 'capture-progress.json').write_text(json.dumps({
+                    'major': major, 'complete': False, 'cases': cases}, indent=2) + '\n')
             with tempfile.TemporaryDirectory(dir=work) as case_tmp:
                 cases.append(capture_case(label + '-catalog-map-growth', sensitive, False,
                                           True, binary, Path(case_tmp), output, command))
