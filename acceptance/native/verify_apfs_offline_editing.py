@@ -19,6 +19,26 @@ from verify_preservation import require
 STAMP = 1749283750
 
 
+def statistics_values(text):
+    values = tuple(int(value) for value in re.findall(
+        r'(?:descendants|physical size|gen-count): (\d+)', text))
+    require(len(values) == 3 and all(value < 2**64 for value in values),
+            'native directory statistics layout and bounds')
+    return values
+
+
+def compare_statistics(before, expected, actual):
+    old, want, got = map(statistics_values, (before, expected, actual))
+    require(got[:2] == want[:2], 'exact native directory counts and allocated bytes')
+    # Apple's public format requires monotonic invalidation, not a fixed stride.
+    # The same fork truncation/deletion has different strides across kernels.
+    require((got[2] == 0) == (want[2] == 0), 'statistics origin/inherited generation')
+    if old[2] != 0 and want[2] != 0:
+        require(want[2] >= old[2] and got[2] >= old[2] and
+                (want[2] == old[2]) == (got[2] == old[2]),
+                'native statistics monotonic invalidation')
+
+
 def compare(actual, before, expected, changed):
     observed = {e['path']: e for e in actual['entries']}
     originals = {e['path']: e for e in before['entries']}
@@ -84,9 +104,9 @@ def inspect(raw, case, command, work, continued=False):
                         before['files'], target)
                 for name, expected in state.get('directoryStatistics', {}).items():
                     actual = native(APFS_UTIL, '-S', path / name).decode(errors='strict')
-                    pattern = r'(?:descendants|physical size|gen-count): (\d+)'
-                    require(re.findall(pattern, actual) == re.findall(pattern, expected),
-                            'exact Apple directory statistics: ' + name)
+                    original = before['directoryStatistics'].get(name)
+                    require(original is not None, 'original statistics directory: ' + name)
+                    compare_statistics(original, expected, actual)
             native('codesign', '--verify', '--deep', '--strict', path / 'Fixture/Example.app')
     finally:
         native('hdiutil', 'detach', cleanup)

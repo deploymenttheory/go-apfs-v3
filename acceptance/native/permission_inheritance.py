@@ -160,7 +160,10 @@ def operate(root, command, copies=False):
                 ('acl-file', 'inherited/preserved', True, False),
                 ('acl-file', 'inherited/preserved-no-xattrs', True, True),
                 ('source-inherited/data', 'inherited/without-source-inheritance', True, False),
-                ('source-inherited/data', 'without-inheritance', True, False)):
+                ('source-inherited/data', 'without-inheritance', True, False),
+                ('write-root', 'ordinary-setid', False, False),
+                ('write-root', 'inherited/preserved-setid', True, False),
+                ('plain-copy-source', 'write-user', False, False)):
             perform({'op': 'copy', 'path': destination, 'source': source,
                      'preserve': preserve, 'noAttributes': no_attributes, 'actorUID': os.getuid()},
                     lambda s=source, d=destination, p=preserve, x=no_attributes:

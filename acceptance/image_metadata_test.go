@@ -152,6 +152,24 @@ func compareRawMetadata(t *testing.T, r filesystem.Reader, want fileObservation)
 			compareValue(t, name, value, v)
 			delete(names, name)
 		}
+		// Apple-captured APFS disks can retain a zero-length resource-fork
+		// record after native truncation, while both native listxattr views
+		// omit it. The reader preserves that physical record for forensics.
+		// Only an empty fork is equivalent to the native-visible absence;
+		// nonempty forks and every other unexpected attribute still fail.
+		if names[filesystem.ResourceFork] {
+			fork, err := r.OpenAttribute(context.Background(), entry.Object, filesystem.ResourceFork)
+			if err != nil {
+				t.Fatal(err)
+			}
+			empty := fork.Size() == 0
+			if err := fork.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if empty {
+				delete(names, filesystem.ResourceFork)
+			}
+		}
 		if len(names) != 0 {
 			t.Fatal(entry.Path, "unexpected attributes", names)
 		}

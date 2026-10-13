@@ -246,6 +246,24 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 				c.Data = combined
 			}
 		}
+		changed := !c.DeleteAttribute && c.Data.Size() != 0
+		if exists {
+			base, err := m.attributeValue(old)
+			if err != nil {
+				return err
+			}
+			changed = changed || base.Size() != 0
+			if err = base.Close(); err != nil {
+				return err
+			}
+		}
+		// Resource bytes do not enter TotalSize, but a changed fork still
+		// invalidates the containing group's cached statistics.
+		if changed {
+			if err := m.bumpInodeStatistics(id, 1); err != nil {
+				return err
+			}
+		}
 	}
 	remove := c.DeleteAttribute || c.Attribute == filesystem.ResourceFork && c.Operation != "xattr" && c.Data.Size() == 0
 	if remove {
@@ -270,6 +288,12 @@ func (m *mutation) changeAttribute(c Change, id uint64, value []byte) (result er
 	}
 	flags := le.Uint64(value[48:])
 	switch c.Attribute {
+	case filesec.Attribute:
+		if remove {
+			flags &^= 0x40
+		} else {
+			flags |= 0x40
+		}
 	case filesystem.FinderInfo:
 		if remove {
 			flags &^= 0x100

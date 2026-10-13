@@ -43,12 +43,12 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
+		// gen_count invalidates cached statistics; it is not a count of
+		// commands or allocated extents. Apple's kernels use different strides.
+		// A nonempty write or truncation advances this implementation once.
 		var delta uint64
-		if statistics.allocated != 0 {
-			delta += 2
-		}
-		if c.Data.Size() != 0 {
-			delta += 2
+		if statistics.allocated != 0 || c.Data.Size() != 0 {
+			delta = 1
 		}
 		if e = m.bumpStatistics(statistics.key, delta); e != nil {
 			return 0, e

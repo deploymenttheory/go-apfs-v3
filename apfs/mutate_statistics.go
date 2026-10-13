@@ -13,6 +13,8 @@ import (
 // objects share its key. Nested origins chain their totals into a parent group.
 // These layouts and primary-inode accounting come from the retained original
 // macOS 15/26/27 controls, rather than inferred private APFS kernel symbols.
+// Generation counters follow the documented monotonic invalidation contract;
+// their stride is implementation-specific, including between Apple's kernels.
 type inodeStatistics struct {
 	key, allocated uint64
 	origin         bool

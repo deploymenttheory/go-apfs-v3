@@ -645,11 +645,7 @@ func (m *mutation) removeEntry(entry *mutationEntry, recursive bool, stamp uint6
 	}
 	last := len(m.links[entry.id]) == 1
 	if last {
-		delta := uint64(1)
-		if statistics.allocated != 0 {
-			delta += 2
-		}
-		if e = m.bumpStatistics(statistics.key, delta); e != nil {
+		if e = m.bumpStatistics(statistics.key, 1); e != nil {
 			return e
 		}
 	}

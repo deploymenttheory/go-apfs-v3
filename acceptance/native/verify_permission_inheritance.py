@@ -34,12 +34,16 @@ def compare(actual, before, expected):
             old = originals[path]
             require(actual_id == old['object'], 'original permission identity retained')
             for field in ('modifyNS', 'changeNS'):
-                if entry[field] != old[field]:
+                if entry[field] != old[field] and (field == "changeNS" or entry[field] > STAMP * 10**9):
                     entry[field] = STAMP * 10**9
         else:
             require(actual_id not in original_ids, 'new permission identity')
-            entry['birthSeconds'] = STAMP
-            entry['modifyNS'] = entry['accessNS'] = entry['changeNS'] = STAMP * 10**9
+            if entry['birthSeconds'] > STAMP:
+                entry['birthSeconds'] = STAMP
+            for field in ('modifyNS', 'accessNS'):
+                if entry[field] > STAMP * 10**9:
+                    entry[field] = STAMP * 10**9
+            entry['changeNS'] = STAMP * 10**9
         entry['object'] = actual_id
         for field in ('object', 'mode', 'uid', 'gid', 'flags', 'birthSeconds', 'modifyNS',
                       'accessNS', 'changeNS', 'size', 'links', 'sha256', 'target', 'rawAttributes'):
@@ -47,7 +51,7 @@ def compare(actual, before, expected):
                 require(got.get(field) == entry[field], f'{path} permission {field}: {got.get(field)} != {entry[field]}')
 
 
-def inspect(raw, case, command, work, continued=False):
+def inspect(raw, case, command, work, continued=False, copies=False):
     require_disposable_host()
     digest = sha256(raw)
     native = raw_command(command, raw)
@@ -57,12 +61,14 @@ def inspect(raw, case, command, work, continued=False):
         native('diskutil', 'verifyVolume', volume)
         root = directory / 'Fixture'
         if continued:
-            require((root / 'inherited/child/native-created').read_bytes() == b'Native inherited continuation\n',
+            name = 'inherited/native-created' if copies else 'inherited/child/native-created'
+            expected_acl = 'Fixture/inherited/copied' if copies else 'Fixture/inherited/child/grandchild'
+            require((root / name).read_bytes() == b'Native inherited continuation\n',
                     'continued inherited creation survives remount')
             require((root / 'write-root').stat().st_mode & 0o6000 == 0,
                     'native non-root write clears portable retained set-ID')
-            require(security(root / 'inherited/child/native-created')['acl'] ==
-                    case['after']['security']['Fixture/inherited/child/grandchild']['acl'],
+            require(security(root / name)['acl'] ==
+                    case['after']['security'][expected_acl]['acl'],
                     'native creation inherits the portable child ACL')
         else:
             actual = files(root)
@@ -76,14 +82,15 @@ def inspect(raw, case, command, work, continued=False):
         require(sha256(raw) == digest, 'read-only permission check changed bytes')
 
 
-def continue_native(raw, command, work):
+def continue_native(raw, command, work, copies=False):
     require_disposable_host()
     native = raw_command(command, raw)
     directory = work / 'continue'
     cleanup, _ = mount(raw, directory, native)
     try:
         root = directory / 'Fixture'
-        (root / 'inherited/child/native-created').write_bytes(b'Native inherited continuation\n')
+        name = 'inherited/native-created' if copies else 'inherited/child/native-created'
+        (root / name).write_bytes(b'Native inherited continuation\n')
         with (root / 'write-root').open('ab') as stream:
             stream.write(b'Native unprivileged continuation\n')
             stream.flush()
@@ -94,23 +101,25 @@ def continue_native(raw, command, work):
         shutil.rmtree(directory)
 
 
-def verify(corpus, outputs, major):
+def verify(corpus, outputs, major, copies=False):
     require_disposable_host()
     producer = version(major)
-    command = Commands(outputs / f'offline-editing-permissions-{major}.diagnostics.json')
+    family = 'copy-permissions' if copies else 'permissions'
+    contract = 'copy-permissions' if copies else 'permission-inheritance'
+    command = Commands(outputs / f'offline-editing-{family}-{major}.diagnostics.json')
     manifests = sorted(corpus.glob('macos-*/manifest.json'))
     require(len(manifests) == 3, 'all native permission source versions')
     count = 0
-    with tempfile.TemporaryDirectory(prefix='offline-editing-permissions-readback-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='offline-editing-' + family + '-readback-') as tmp:
         work = Path(tmp)
         for path in manifests:
             manifest = json.loads(path.read_text())
-            require(manifest['contract'] == 'permission-inheritance' and len(manifest['cases']) == 4,
+            require(manifest['contract'] == contract and len(manifest['cases']) == 4,
                     'complete independent permission controls')
             for case in manifest['cases']:
                 for encoding in ('UDRO', 'UDZO'):
                     relative = Path(path.parent.name, case['id'] + '-' + encoding + '.dmg')
-                    images = [outputs / ('offline-editing-permissions-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
+                    images = [outputs / ('offline-editing-' + family + '-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
                     require(all(image.is_file() for image in images), 'all portable permission outputs')
                     require(len({sha256(image) for image in images}) == 1, 'permission outputs identical across hosts')
                     image, raw = images[0], work / 'output.raw'
@@ -118,23 +127,24 @@ def verify(corpus, outputs, major):
                     command('hdiutil', 'verify', image)
                     writable_copy(image, raw, command, native_hash)
                     require(raw.stat().st_size == case['source']['uncompressedBytes'], 'permission geometry retained')
-                    inspect(raw, case, command, work)
+                    inspect(raw, case, command, work, copies=copies)
                     if encoding == 'UDZO':
-                        continue_native(raw, command, work)
-                        inspect(raw, case, command, work, continued=True)
+                        continue_native(raw, command, work, copies=copies)
+                        inspect(raw, case, command, work, continued=True, copies=copies)
                     raw.unlink()
                     require(sha256(image) == digest, 'permission portable source immutable')
                     count += 1
-    (outputs / f'offline-editing-permissions-{major}.verdict.json').write_text(json.dumps({
-        'schema': 1, 'contract': 'permission-inheritance', 'producer': producer,
+    (outputs / f'offline-editing-{family}-{major}.verdict.json').write_text(json.dumps({
+        'schema': 1, 'contract': contract, 'producer': producer,
         'verifiedOutputs': count, 'portableHostsByteIdentical': True,
         'nativeACLAndSetIDReadback': True, 'nativeContinuedCreationAndWrites': True}, indent=2) + '\n')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--copies', action='store_true')
     parser.add_argument('--expected-major', type=int, required=True)
     parser.add_argument('--corpus', type=Path, required=True)
     parser.add_argument('--outputs', type=Path, required=True)
     args = parser.parse_args()
-    verify(args.corpus, args.outputs, args.expected_major)
+    verify(args.corpus, args.outputs, args.expected_major, args.copies)

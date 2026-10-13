@@ -31,8 +31,13 @@ func (m *mutation) copyMetadata(c Change, stamp uint64) (uint64, error) {
 	if uint32(kind) != c.Metadata.Mode.Value&0170000 || kind != 0100000 && kind != 0040000 && kind != 0120000 {
 		return 0, fs.ErrInvalid
 	}
-	if le.Uint64(value[48:])&0x40 != 0 || kind == 0120000 && !c.NoFollow {
+	if kind == 0120000 && !c.NoFollow {
 		return 0, filesystem.ErrUnsupported
+	}
+	if le.Uint64(value[48:])&0x40 != 0 {
+		if _, err := m.security(e.id); err != nil {
+			return 0, err
+		}
 	}
 	names := make([]string, 0, len(c.Attributes)+len(c.RemoveAttributes))
 	for name := range c.Attributes {

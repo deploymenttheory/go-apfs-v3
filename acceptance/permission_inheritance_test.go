@@ -18,6 +18,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
+	"github.com/deploymenttheory/go-apfs-v3/session"
 )
 
 type nativeSecurity struct {
@@ -40,9 +41,10 @@ type permissionInheritanceCase struct {
 	Source, NativeAfter hfsGrowthArchive
 	Before, After       permissionInheritanceState
 	Operations          []struct {
-		Op, Path, Mode string
-		ActorUID       *uint32
-		UID, GID       *uint32
+		Op, Path, Mode, Source string
+		Preserve, NoAttributes bool
+		ActorUID               *uint32
+		UID, GID               *uint32
 	}
 }
 type permissionInheritanceManifest struct {
@@ -174,12 +176,20 @@ func comparePermissions(t *testing.T, reader filesystem.Reader, before, expected
 			if old.ChangeNS != entry.ChangeNS {
 				entry.ChangeNS = when.UnixNano()
 			}
-			if old.ModifyNS != entry.ModifyNS {
+			if old.ModifyNS != entry.ModifyNS && entry.ModifyNS > when.UnixNano() {
 				entry.ModifyNS = when.UnixNano()
 			}
 		} else {
-			entry.BirthSeconds, entry.BirthNS = when.Unix(), nil
-			entry.ModifyNS, entry.ChangeNS, entry.AccessNS = when.UnixNano(), when.UnixNano(), when.UnixNano()
+			if entry.BirthSeconds > when.Unix() {
+				entry.BirthSeconds, entry.BirthNS = when.Unix(), nil
+			}
+			if entry.ModifyNS > when.UnixNano() {
+				entry.ModifyNS = when.UnixNano()
+			}
+			if entry.AccessNS > when.UnixNano() {
+				entry.AccessNS = when.UnixNano()
+			}
+			entry.ChangeNS = when.UnixNano()
 		}
 		entry.Object = id
 	}
@@ -187,9 +197,21 @@ func comparePermissions(t *testing.T, reader filesystem.Reader, before, expected
 }
 
 func TestNativePermissionInheritance(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_PERMISSION_INHERITANCE")
+	testNativePermissions(t, "APFS_NATIVE_PERMISSION_INHERITANCE", "testdata/permission-inheritance", "permission-inheritance", "APFS_PERMISSION_INHERITANCE_OUTPUT", false)
+}
+
+func TestNativeCopyPermissions(t *testing.T) {
+	testNativePermissions(t, "APFS_NATIVE_COPY_PERMISSIONS", "testdata/copy-permissions", "copy-permissions", "APFS_COPY_PERMISSIONS_OUTPUT", true)
+}
+
+func testNativePermissions(t *testing.T, env, retained, contract, outputEnv string, copies bool) {
+	root := os.Getenv(env)
 	if root == "" {
-		root = "testdata/permission-inheritance"
+		root = retained
+	}
+	tools := 4
+	if copies {
+		tools = 5
 	}
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
@@ -202,11 +224,22 @@ func TestNativePermissionInheritance(t *testing.T) {
 		if err != nil || json.Unmarshal(data, &manifest) != nil {
 			t.Fatal("native permission manifest", err)
 		}
-		if manifest.Schema != 1 || manifest.Contract != "permission-inheritance" ||
+		if manifest.Schema != 1 || manifest.Contract != contract ||
 			len(manifest.Cases) != 4 || len(manifest.Producer.Revision) != 40 || manifest.Producer.Run == "" ||
 			manifest.Producer.System != "macOS" || manifest.Producer.Build == "" || manifest.Producer.Architecture == "" ||
-			len(manifest.Producer.Sources) != 13 || len(manifest.Producer.Tools) != 4 || majors[manifest.Major] {
+			len(manifest.Producer.Sources) != 13 || len(manifest.Producer.Tools) != tools || majors[manifest.Major] {
 			t.Fatal("native permission provenance")
+		}
+		if copies && os.Getenv(env) != "" {
+			for _, c := range manifest.Cases {
+				var modes bool
+				for _, op := range c.Operations {
+					modes = modes || op.Path == "inherited/preserved-setid"
+				}
+				if !modes {
+					t.Fatal("fresh cp controls omit set-ID preservation", c.ID)
+				}
+			}
 		}
 		majors[manifest.Major] = true
 		directory := filepath.Dir(path)
@@ -228,7 +261,37 @@ func TestNativePermissionInheritance(t *testing.T) {
 					}
 					compareMetadataState(t, metadataReader(t, source, kind), permissionFiles(t, c.Before), kind)
 					when := time.Unix(1749283750, 0)
-					outputRoot := os.Getenv("APFS_PERMISSION_INHERITANCE_OUTPUT")
+					if copies {
+						ctx := context.Background()
+						dir := filepath.Join(t.TempDir(), "session")
+						scratch, err := session.Capture(ctx, metadataReader(t, source, kind), dir, session.Options{UID: manifest.Producer.ActorUID, GID: manifest.Producer.ActorGID, Time: &when})
+						if err != nil {
+							t.Fatal(err)
+						}
+						for _, op := range c.Operations {
+							if op.Op == "copy" {
+								_, err = scratch.Copy(ctx, []string{"/Fixture/" + op.Source}, "/Fixture/"+op.Path, session.CopyOptions{Preserve: op.Preserve, NoAttributes: op.NoAttributes})
+							} else {
+								_, err = scratch.Chmod(ctx, []string{"/Fixture/" + op.Path}, op.Mode, session.WalkOptions{})
+							}
+							if err != nil {
+								scratch.Close()
+								t.Fatal("session copy", op, err)
+							}
+						}
+						if err = scratch.Close(); err != nil {
+							t.Fatal(err)
+						}
+						reopened, err := session.Open(ctx, dir)
+						if err != nil {
+							t.Fatal(err)
+						}
+						comparePermissions(t, reopened, c.Before.Files, permissionFiles(t, c.After), when)
+						if err = reopened.Close(); err != nil {
+							t.Fatal(err)
+						}
+					}
+					outputRoot := os.Getenv(outputEnv)
 					if outputRoot == "" {
 						outputRoot = t.TempDir()
 					}
@@ -238,11 +301,17 @@ func TestNativePermissionInheritance(t *testing.T) {
 					}
 					for _, format := range []string{"UDRO", "UDZO"} {
 						output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
-						_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Time: when, Format: format}, func(editor *imageedit.Editor) error {
+						_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Time: when, Format: format, ActorUID: filesystem.Observed(manifest.Producer.ActorUID)}, func(editor *imageedit.Editor) error {
 							// Later creation inherits the ACL of the earlier new child
 							// across separate commands on one shared scratch disk.
-							for _, change := range permissionChanges(c) {
-								if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
+							for index, change := range permissionChanges(c) {
+								op := c.Operations[index]
+								if op.Op == "copy" {
+									command := imageedit.CopyCommand{Sources: []string{"/Fixture/" + op.Source}, Destination: "/Fixture/" + op.Path, Options: imageedit.CopyOptions{Preserve: op.Preserve, NoAttributes: op.NoAttributes}}
+									if _, err := editor.Copy([]imageedit.CopyCommand{command}); err != nil {
+										return err
+									}
+								} else if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
 									return err
 								}
 							}

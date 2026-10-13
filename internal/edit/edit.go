@@ -9,8 +9,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"bytes"
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
@@ -350,7 +352,7 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 		if err != nil {
 			return err
 		}
-		return r.create(parent, stored, c)
+		return r.create(ctx, parent, stored, c)
 	case RemoveEntry:
 		if !exists {
 			return fs.ErrNotExist
@@ -499,7 +501,7 @@ func (c Change) valid() error {
 	}
 	return nil
 }
-func (r *Tree) create(parent uint64, name string, c Change) error {
+func (r *Tree) create(ctx context.Context, parent uint64, name string, c Change) error {
 	if r.next == math.MaxUint64 || len(r.nodes) >= r.limits.Objects || r.count >= r.limits.Entries {
 		return filesystem.ErrLimit
 	}
@@ -530,6 +532,20 @@ func (r *Tree) create(parent uint64, name string, c Change) error {
 			return err
 		}
 		attrs[name] = value
+	}
+
+	if attrs[filesec.Attribute] == nil {
+		security, err := filesec.Read(ctx, r, parent)
+		if err != nil {
+			return err
+		}
+		inherited, err := filesec.Inherit(security, c.Op == CreateDirectory)
+		if err != nil {
+			return err
+		}
+		if inherited != nil {
+			attrs[filesec.Attribute] = bytes.NewReader(inherited)
+		}
 	}
 	r.next++
 	n := filesystem.Node{Created: true, Identity: filesystem.Identity{Object: r.next}, Metadata: m, Compression: filesystem.Observation[filesystem.Compression]{State: filesystem.Absent}, Links: filesystem.Observed(uint32(1))}

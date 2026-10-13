@@ -35,18 +35,7 @@ type directoryStatisticsManifest struct {
 func compareDirectoryStatistics(t *testing.T, volume *apfs.Volume, expected map[string]string) {
 	t.Helper()
 	for path, value := range expected {
-		fields := regexp.MustCompile(`(?:descendants|physical size|gen-count): (\d+)`).FindAllStringSubmatch(value, -1)
-		if len(fields) != 3 {
-			t.Fatal("native apfs.util statistics layout", value)
-		}
-		var want [3]uint64
-		for n, field := range fields {
-			v, err := strconv.ParseUint(field[1], 10, 64)
-			if err != nil {
-				t.Fatal(err)
-			}
-			want[n] = v
-		}
+		want := nativeStatisticsValues(t, value)
 		id, err := filesystem.LookupExact(context.Background(), volume, path)
 		if err != nil {
 			t.Fatal(path, err)
@@ -55,6 +44,61 @@ func compareDirectoryStatistics(t *testing.T, volume *apfs.Volume, expected map[
 		if err != nil || got.NumChildren != want[0] || got.TotalSize != want[1] || got.GenCount != want[2] {
 			t.Fatal("native directory statistics", path, got, want, err)
 		}
+	}
+}
+
+func nativeStatisticsValues(t *testing.T, value string) (want [3]uint64) {
+	t.Helper()
+	fields := regexp.MustCompile(`(?:descendants|physical size|gen-count): (\d+)`).FindAllStringSubmatch(value, -1)
+	if len(fields) != 3 {
+		t.Fatal("native apfs.util statistics layout", value)
+	}
+	for n, field := range fields {
+		v, err := strconv.ParseUint(field[1], 10, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want[n] = v
+	}
+	return want
+}
+
+type statisticsGeneration struct{ native, portable uint64 }
+
+// Native generations invalidate caches. Their stride differs across kernels
+// and allocation strategies; counts and physical bytes remain exact. Bind
+// monotonic changes and unchanged generations to each original directory ID,
+// retaining that identity through moves outside and back into a tracked tree.
+func compareStatisticsChanges(t *testing.T, volume *apfs.Volume, state directoryStatisticsVolume, generations map[uint64]statisticsGeneration) {
+	t.Helper()
+	identities := map[string]uint64{}
+	for _, entry := range state.Files.Entries {
+		identities[entry.Path] = entry.Object
+	}
+	for name, text := range state.DirectoryStatistics {
+		want := nativeStatisticsValues(t, text)
+		id, err := filesystem.LookupExact(context.Background(), volume, name)
+		if err != nil {
+			t.Fatal(name, err)
+		}
+		got, err := volume.DirectoryStatistics(context.Background(), id)
+		if err != nil || got.NumChildren != want[0] || got.TotalSize != want[1] || got.Origin != (want[2] != 0) {
+			t.Fatal("native directory statistics totals/origin", name, got, want, err)
+		}
+		identity := identities[name]
+		if identity == 0 {
+			t.Fatal("native statistics directory identity missing", name)
+		}
+		previous, exists := generations[identity]
+		if exists && previous.native != 0 && want[2] != 0 {
+			if want[2] < previous.native || got.GenCount < previous.portable ||
+				(want[2] == previous.native) != (got.GenCount == previous.portable) {
+				t.Fatal("native statistics invalidation", name, previous, got.GenCount, want[2])
+			}
+		} else if want[2] == 0 && got.GenCount != 0 || want[2] != 0 && got.GenCount == 0 {
+			t.Fatal("native statistics initial generation", name, got.GenCount, want[2])
+		}
+		generations[identity] = statisticsGeneration{want[2], got.GenCount}
 	}
 }
 
@@ -123,7 +167,9 @@ func TestNativeAPFSDirectoryStatistics(t *testing.T) {
 						}
 						volume := &openAPFSEditVolume(t, output).Volumes[0]
 						compareAPFSEditedState(t, volume, c.Before[0].Files, c.After[0].Files, when)
-						compareDirectoryStatistics(t, volume, c.After[0].DirectoryStatistics)
+						generations := map[uint64]statisticsGeneration{}
+						compareStatisticsChanges(t, before, c.Before[0], generations)
+						compareStatisticsChanges(t, volume, c.After[0], generations)
 					}
 				})
 			}

@@ -35,6 +35,8 @@ type hfsMetadataCase struct {
 	Before, After                            hfsMetadataState
 	Sensitive, Journaled, Growth, Fragmented bool
 	GrowthFiles                              int
+	Collapsed, Reused                        *hfsMetadataState
+	NativeCollapsed, NativeReused            hfsGrowthArchive
 }
 
 type hfsMetadataManifest struct {
@@ -294,6 +296,41 @@ func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract s
 						t.Fatal(err)
 					}
 					compareHFSEditedState(t, metadataReader(t, destination, "hfs"), before, want, when)
+					if c.Fragmented {
+						if os.Getenv(environment) != "" && (c.Collapsed == nil || c.Reused == nil) {
+							t.Fatal("fresh fragmented controls omit root collapse and reuse")
+						}
+						if c.Collapsed != nil && c.Reused != nil {
+							previous := destination
+							for _, step := range []struct {
+								name    string
+								state   *hfsMetadataState
+								archive hfsGrowthArchive
+							}{
+								{"collapsed", c.Collapsed, c.NativeCollapsed}, {"reused", c.Reused, c.NativeReused},
+							} {
+								verifyDigest(t, directory, step.archive.Image, step.archive.SHA256)
+								next := filepath.Join(output, step.name+"-"+format+".dmg")
+								var changes []imageedit.Change
+								if step.name == "collapsed" {
+									for n := 0; n < 256; n++ {
+										changes = append(changes, imageedit.Change{Operation: "rm", Path: "/Fixture/" + fmt.Sprintf("%05d-", n) + strings.Repeat("long-name-", 24)})
+									}
+								} else {
+									attribute := make([]byte, 512)
+									for n := range attribute {
+										attribute[n] = byte(n)
+									}
+									changes = []imageedit.Change{{Operation: "cp", Path: "/Fixture/reused", Data: bytes.NewReader([]byte("Metadata growth contents\n"))}, {Operation: "xattr", Path: "/Fixture/reused", Attribute: "org.go-apfs.growth", Data: bytes.NewReader(attribute)}}
+								}
+								if _, err := imageedit.Apply(context.Background(), previous, next, imageedit.Options{Time: when, Format: format}, changes); err != nil {
+									t.Fatal(step.name, err)
+								}
+								compareHFSEditedState(t, metadataReader(t, next, "hfs"), before, hfsMetadataFiles(t, directory, *step.state), when)
+								previous = next
+							}
+						}
+					}
 				}
 				digest := fileDigest(t, source)
 				if hex.EncodeToString(digest[:]) != c.Source.UncompressedSHA256 {

@@ -95,7 +95,7 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	}
 	plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits}
 	defer func() { err = errors.Join(err, plan.close()) }()
-	backend := copyfile.Backend{Tree: tree, Time: o.Time, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
+	backend := copyfile.Backend{Tree: tree, Time: o.Time, ActorUID: o.ActorUID, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
 		CreateMetadata: func(ctx context.Context, dst string, kind uint32) (filesystem.Metadata, error) {
 			id, _, err := copyfile.Resolve(ctx, tree, path.Dir(dst), true)
 			if err != nil {

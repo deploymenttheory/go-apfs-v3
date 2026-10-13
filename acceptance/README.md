@@ -17,6 +17,8 @@ capability being checked.
 | `TestNativeHFSMetadataGrowth` | `testdata/hfs-metadata-growth` | First attributes, journal initialization and catalog node-map growth |
 | `TestNativeHFSFragmentedMetadataGrowth` | `testdata/hfs-fragmented-metadata` | Catalog and attributes growth into overflow extents |
 | `TestNativePermissionInheritance` | `testdata/permission-inheritance` | ACL inheritance, creator ownership, chmod/chown and set-ID effects |
+| `TestNativeCopyPermissions` | `testdata/copy-permissions` | Apple cp ACL composition, -p/-X interaction, aliases and preserved dates in images and persisted sessions |
+| `TestNativeAPFSDirectoryStatisticsTransitions` | `testdata/apfs-directory-statistics-transitions` | 37 ordered operations, resource/empty forks, moves, origins, hard links and monotonic generations |
 | `TestNativeAPFSDirectoryStatistics` | `testdata/apfs-directory-statistics` | Native directory counts, allocated data size, chained origins and generation counters |
 
 All families retain macOS 15/26/27 captures. File-only Go replay checks original

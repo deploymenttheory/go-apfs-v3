@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import tempfile
 
 from build_hfs_reference import build
@@ -39,6 +40,30 @@ def mount(device, path, command, readonly=False):
             '-mountOptions', 'owners,noatime', '-mountPoint', path, device)
 
 
+
+def read_tree_headers(image):
+    # File-only decoding of Apple's BTHeaderRec, independent of Go readers.
+    with image.open('rb') as source:
+        source.seek(1024)
+        header = source.read(512)
+        block_size = struct.unpack_from('>I', header, 40)[0]
+        result = {}
+        for name, offset in (('catalog', 272), ('attributes', 352)):
+            if struct.unpack_from('>Q', header, offset)[0] == 0:
+                result[name] = None
+                continue
+            first = struct.unpack_from('>I', header, offset + 16)[0]
+            source.seek(first * block_size)
+            node = source.read(512)
+            require(len(node) == 512 and node[8] == 1, 'native metadata B-tree header: ' + name)
+            result[name] = {'depth': struct.unpack_from('>H', node, 14)[0],
+                            'root': struct.unpack_from('>I', node, 16)[0],
+                            'leafRecords': struct.unpack_from('>I', node, 20)[0],
+                            'totalNodes': struct.unpack_from('>I', node, 36)[0],
+                            'freeNodes': struct.unpack_from('>I', node, 40)[0]}
+        return result
+
+
 def observe(image, work, command, label):
     require_disposable_host()
     original = sha256(image)
@@ -49,7 +74,7 @@ def observe(image, work, command, label):
         path = work / label
         mount(device, path, command, readonly=True)
         values = files(path / 'Fixture') if (path / 'Fixture').exists() else {'entries': []}
-        return {'headers': headers, 'files': values, 'checkerStatus': 0,
+        return {'headers': headers, 'treeHeaders': read_tree_headers(image), 'files': values, 'checkerStatus': 0,
                 'journal': read_journal(image)}
     finally:
         command('hdiutil', 'detach', device)
@@ -193,8 +218,39 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         for label, observation in (('before', before), ('after', final)):
             observation['fileArchive'] = retain_observation(
                 observation.pop('files'), output / (case_id + '-' + label + '-files.json.gz'))
+    lifecycle = {}
+    if fragmented:
+        reduced = work / (case_id + '-collapsed.raw')
+        shutil.copyfile(after, reduced)
+        for label in ('collapsed', 'reused'):
+            device = attach(reduced, command, writable=True)
+            try:
+                path = work / (label + '-write')
+                mount(device, path, command)
+                root = path / 'Fixture'
+                if label == 'collapsed':
+                    for name in tree_names(0, 256):
+                        (root / name).unlink()
+                else:
+                    from file_compression import xattr
+                    target = root / 'reused'
+                    target.write_bytes(b'Metadata growth contents\n')
+                    xattr(target, 'org.go-apfs.growth', bytes(range(256)) * 2)
+            finally:
+                command('hdiutil', 'detach', device)
+            state = observe(reduced, work, command, label)
+            if label == 'collapsed':
+                require(final['treeHeaders']['catalog']['depth'] > 1,
+                        'native insertion must split catalog root')
+                require(state['treeHeaders']['catalog']['depth'] == 1,
+                        'native deletion must collapse catalog to leaf root')
+                require(state['treeHeaders']['attributes']['leafRecords'] == 0,
+                        'native deletion removes every attribute record')
+            lifecycle[label] = state
+            lifecycle['native' + label.capitalize()] = retain_file(
+                reduced, output / (case_id + '-' + label + '.raw.gz'))
     require(sha256(source) == saved_source['uncompressedSHA256'], 'original HFS evidence changed')
-    return {'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
+    return {**lifecycle,'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
             'before': before, 'after': final, 'sensitive': sensitive,
             'journaled': journaled, 'growth': growth,
             'fragmented': fragmented,

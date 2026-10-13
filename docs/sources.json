@@ -1277,9 +1277,12 @@
         "internal/copyfile/copy.go",
         "apfs/mutate_copy.go",
         "hfsplus/mutate_copy.go",
-        "internal/copyfile/compression.go"
+        "internal/copyfile/compression.go",
+        "internal/filesec/copyfile.go",
+        "internal/filesec/read.go",
+        "internal/edit/security.go"
       ],
-      "basis": "Original Go copy policy informed by copyfile_xattr/copyfile_stat: destination ordinary attributes are cleared before transferring source attributes, quarantine is retained if absent from source, and public flags-0 enumeration can hide compression storage. No C implementation is translated here. Independently retained macOS 15/26/27 controls qualify active compressed-file independent resource-fork omission on both APFS and HFS. Copying uses complete resource-fork replacement; ordinary HFS xattr writes retain their independently qualified prefix semantics. The pinned HFS hfs_vnop_listxattr gates resource-fork enumeration through decmpfs_hides_rsrc unless XATTR_SHOWCOMPRESSION is requested. A fork written after enabling compression can decompress the source; the new controls install the independent fork before the compressed flag and compare actual source flags/storage. The copyfile_xattr decmpfs check retains recognized inactive headers (types 1,3,4,7-14) as opaque metadata and skips malformed/unrecognized headers; the shared copy policy follows these pinned checks with explicit omission reports. Native valid/malformed controls independently qualify the observed distinction."
+      "basis": "Original Go copy policy informed by copyfile_xattr/copyfile_stat: destination ordinary attributes are cleared before transferring source attributes, quarantine is retained if absent from source, and public flags-0 enumeration can hide compression storage. No C implementation is translated here. Independently retained macOS 15/26/27 controls qualify active compressed-file independent resource-fork omission on both APFS and HFS. Copying uses complete resource-fork replacement; ordinary HFS xattr writes retain their independently qualified prefix semantics. The pinned HFS hfs_vnop_listxattr gates resource-fork enumeration through decmpfs_hides_rsrc unless XATTR_SHOWCOMPRESSION is requested. A fork written after enabling compression can decompress the source; the new controls install the independent fork before the compressed flag and compare actual source flags/storage. The copyfile_xattr decmpfs check retains recognized inactive headers (types 1,3,4,7-14) as opaque metadata and skips malformed/unrecognized headers; the shared copy policy follows these pinned checks with explicit omission reports. Native valid/malformed controls independently qualify the observed distinction. COPYFILE_ACL composition is a bounded Go adaptation of copyfile_security: source direct entries followed by destination inherited entries, opaque source identity GUIDs, explicit empty/absent distinction and maximum 128 entries. Ordinary cp omits hidden filesec from COPYFILE_XATTR; -p requests the separate ACL operation even with -X. Final copy-metadata assignment validates canonical security bytes and updates APFS/HFS security markers; arbitrary xattr editing remains refused."
     },
     {
       "id": "native-apfs-copy-15-26-27",
@@ -1466,7 +1469,7 @@
         "apfs/mutate_statistics.go",
         "acceptance/apfs_directory_statistics_test.go"
       ],
-      "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. Original macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. Current native inodes carry an eight-byte shared statistics key on files and directories; origin records use separate IDs, chained totals, primary-inode counts and allocated data-fork bytes excluding resource forks. Go replay matches the original six profiles including exact generation counters, but fresh Apple output checks and continued writes remain required before qualification. No private APFS kernel C port is claimed."
+      "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. Original macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. Current native inodes carry an eight-byte shared statistics key on files and directories; origin records use separate IDs, chained totals, primary-inode counts and allocated data-fork bytes excluding resource forks. Go replay matches the original six profiles with exact original generation counters, but fresh Apple output checks and continued writes remain required before qualification. Output counters follow Apple's documented monotonic invalidation contract; their stride is not a command count. No private APFS kernel C port is claimed."
     },
     {
       "id": "apple-xnu-filesec",
@@ -1512,6 +1515,36 @@
         "acceptance/permission_inheritance_test.go"
       ],
       "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable output/native continued-write qualification remains required before offline editing qualification."
+    },
+    {
+      "id": "native-directory-statistics-transitions",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38351592377",
+      "evidence": [
+        "acceptance/testdata/apfs-directory-statistics-transitions"
+      ],
+      "components": [
+        "apfs/mutate_statistics.go",
+        "apfs/mutate_files.go",
+        "apfs/mutate_metadata.go",
+        "acceptance/apfs_directory_statistics_transitions_test.go"
+      ],
+      "basis": "Original macOS 15/26/27 APFS/APFSX images and public apfs.util observations after 37 native operations. Independently prove primary-inode counts, chained groups, resource-fork generation invalidation without contributing resource bytes, empty writes, truncation, symlinks, moving untracked subtrees, origin moves and deletion. The same deletion advances generations by different amounts across Apple kernels. Counts/bytes and unchanged-versus-advanced generations are required, with exact original counter decoding and overflow refusal. All six file-only replays passed; portable/native output qualification remains required."
+    },
+    {
+      "id": "native-copy-permissions",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38353192297",
+      "evidence": [
+        "acceptance/testdata/copy-permissions"
+      ],
+      "components": [
+        "internal/filesec/copyfile.go",
+        "internal/edit/security.go",
+        "internal/copyfile/copy.go",
+        "acceptance/permission_inheritance_test.go"
+      ],
+      "basis": "Original Apple cp controls on macOS 15/26/27 for APFS/APFSX/HFS+/HFSX, including exact public getattrlist ACL/GUID fields. Prove ordinary copy retains destination ACLs, -p composes direct source entries with inherited destination entries even under -X, source inherited entries are excluded, and explicit empty ACL differs from absent. File-only image replay in both DMG encodings and persisted session replay passed all 12 native profiles. Fresh Apple output verification and added set-ID-copy controls remain required."
     }
   ]
 }

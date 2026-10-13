@@ -18,6 +18,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/internal/edit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 // CopyOptions uses Apple cp's logical behavior. PreserveLinks is an explicit
@@ -51,6 +52,7 @@ type Backend struct {
 	Tree            *edit.Tree
 	Time            time.Time
 	UID, GID, Umask uint32
+	ActorUID        filesystem.Observation[uint32]
 	Limits          edit.Limits
 	Own             func(context.Context, filesystem.Value, *int64) (block.Source, error)
 	Apply           func(context.Context, edit.Change) error
@@ -285,6 +287,11 @@ func (c *copier) attributes(ctx context.Context, e *copyEntry, dst string) (map[
 		removed = r
 	}
 	for _, name := range names {
+		// Apple's ordinary COPYFILE_XATTR view hides filesec. ACL copying is
+		// requested separately by cp -p; never treat it as an ordinary xattr.
+		if name == filesec.Attribute {
+			continue
+		}
 		if removed[name] {
 			continue
 		}
@@ -554,8 +561,22 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 		if exists {
 			dst = current.path
+			node, err := c.backend.Tree.Stat(ctx, current.id)
+			if err != nil {
+				return err
+			}
+			mode, err := filesec.WriteMode(node.Metadata.Mode.Value, c.backend.ActorUID)
+			if err != nil {
+				return err
+			}
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: dst, Data: data}); err != nil {
 				return err
+			}
+			if mode != node.Metadata.Mode.Value {
+				patch := filesystem.Metadata{Mode: filesystem.Observed(mode)}
+				if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: dst, Metadata: &patch}); err != nil {
+					return err
+				}
 			}
 		} else {
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.CreateFile, Path: dst, Data: data, Metadata: &m}); err != nil {
@@ -608,6 +629,16 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 	}
 	if c.options.Preserve {
+		var security []byte
+		if !c.options.FromHost {
+			security, err = filesec.Read(ctx, c.backend.Tree, e.node.Identity.Object)
+			if err != nil {
+				return err
+			}
+		}
+		if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
+			return err
+		}
 		m.ChangeTime = filesystem.Observation[time.Time]{}
 		// Birth time preservation is qualified independently from runtime ctime.
 		if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: at.path, Metadata: &m}); err != nil {

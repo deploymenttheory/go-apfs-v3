@@ -36,17 +36,16 @@ reachability before writing. Unsupported or inconsistent state is refused.
 Dirty volumes, pending/external/uninitialized journals, expanded timestamps, content protection, directory hard
 links, unaccounted allocations and unsupported storage are outside this profile.
 Mutation is bounded to 2^27 allocation blocks, 2^18 tree nodes and 4,096 requested
-operations. Catalog growth uses inline and overflow extents. Extents/attribute metadata-file
-growth remains limited to eight inline extents; every tree must remain within
-the existing node-map capacity; exceeding a bound fails without publishing output.
+operations. Catalog growth uses inline and overflow extents. Catalog and attributes files can grow into overflow extents and extend their
+node maps. The Extents Overflow B-tree retains Apple's eight resident-extents
+constraint. Exceeding a resource or format bound fails without publishing output.
 
 Replacement retains inode IDs, birth/access times, owner/group, destination
 permissions, ordinary flags, FinderInfo and unrelated attributes. Data/fork
 changes set modification and change times; chmod changes the mode and change
 time. The volume modification time and write count advance once per transaction.
-Immutable, append-only, locked and dataless targets are refused. Replacement of
-set-ID files awaits a qualified credential policy. Chmod of a file
-with stored ACL security is refused until the ACL interaction is qualified.
+Immutable, append-only, locked and dataless targets are refused. Set-ID replacement requires an explicit logical writer UID: root retains the
+bits and other writers clear them. Numeric chmod preserves stored ACL security.
 This offline policy does not emulate the executing host's macOS credentials.
 
 Replacing actively compressed data removes its decmpfs attribute and flag and

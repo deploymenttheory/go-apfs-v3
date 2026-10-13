@@ -63,9 +63,13 @@ Image source and destination symlinks resolve inside the selected logical volume
 including absolute targets. Literal recursive links are copied without opening
 their target on the host. Traversal is limited to 40 symlink expansions and 128
 directory levels. Same-inode copies, copying a directory into itself, cycles,
-native name collisions and incompatible destination kinds are refused. ACL,
-set-ID and protected filesystem metadata retain the existing write-profile
-restrictions. Volume-root metadata assignment is refused by these profiles;
+native name collisions and incompatible destination kinds are refused. Ordinary
+copies retain destination ACLs. `-p` copies direct source ACL entries followed by
+inherited destination entries, independently of `-X`; source inherited entries
+do not travel to the new parent. Empty ACLs remain distinct from absent ones.
+Set-ID writes and preservation require an explicit logical `--uid`; root writes
+retain existing bits and other writers clear them before any requested copied
+mode is restored. Protected filesystem metadata retains its write restrictions. Volume-root metadata assignment is refused by these profiles;
 copy into an existing directory beneath the root or create a new root entry instead.
 `--resource-fork --from-host` remains the separate single-file complete fork
 replacement operation; it cannot be combined with archive flags.

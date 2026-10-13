@@ -402,6 +402,13 @@ func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {
 		}
 	}
 	flags := be.Uint16(value[2:])
+	if name == filesec.Attribute {
+		if c.DeleteAttribute {
+			flags &^= 8
+		} else {
+			flags |= 8
+		}
+	}
 	if others || !c.DeleteAttribute {
 		flags |= 4
 	} else {

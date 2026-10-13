@@ -25,7 +25,9 @@ func TestCopyMetadataRejectsUnsupportedStateAndUnrelatedFields(t *testing.T) {
 		func(c *filesystem.Change) {
 			c.Attributes = map[string]block.Source{filesystem.Decmpfs: bytes.NewReader([]byte("active compression"))}
 		},
-		func(c *filesystem.Change) { c.RemoveAttributes = []string{"com.apple.system.Security"} },
+		func(c *filesystem.Change) {
+			c.Attributes = map[string]block.Source{"com.apple.system.Security": bytes.NewReader([]byte("invalid filesec"))}
+		},
 		func(c *filesystem.Change) { c.RemoveAttributes = []string{"org.example", "org.example"} },
 		func(c *filesystem.Change) {
 			c.RemoveAttributes = []string{"org.example"}

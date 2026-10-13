@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics, copy-permissions, statistics-transitions]
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -36,9 +36,15 @@ jobs:
       - name: Capture native ACL inheritance, creator ownership and set-ID effects
         if: matrix.family == 'permissions'
         run: python3 acceptance/native/permission_inheritance.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-permissions/macos-${{ matrix.major }}
+      - name: Capture native cp preservation and destination ACL inheritance
+        if: matrix.family == 'copy-permissions'
+        run: python3 acceptance/native/permission_inheritance.py --copy-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-copy-permissions/macos-${{ matrix.major }}
       - name: Capture native directory-stat origins and inheritance
         if: matrix.family == 'statistics'
         run: python3 acceptance/native/apfs_geometry.py --directory-statistics --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics/macos-${{ matrix.major }}
+      - name: Capture native directory-stat, fork, move and deletion transitions
+        if: matrix.family == 'statistics-transitions'
+        run: python3 acceptance/native/apfs_directory_statistics.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics-transitions/macos-${{ matrix.major }}
       - name: Retain original disks and diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -56,7 +62,7 @@ jobs:
       fail-fast: false
       matrix:
         major: [15, 26, 27]
-        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics, copy-permissions, statistics-transitions]
         include:
           - {runner: ubuntu-24.04, host: Linux}
           - {runner: windows-2025, host: Windows}
@@ -74,7 +80,7 @@ jobs:
           name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ matrix.family }}
       - name: Compare exact native contents, identities, metadata and volume policy
-        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNativePermissionInheritance$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
+        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNativePermissionInheritance$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || matrix.family == 'copy-permissions' && '^TestNativeCopyPermissions$' || matrix.family == 'statistics-transitions' && '^TestNativeAPFSDirectoryStatisticsTransitions$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
         env:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_GEOMETRY: ../artifacts/offline-editing-apfs
@@ -85,6 +91,10 @@ jobs:
           APFS_HFS_FRAGMENTED_METADATA_OUTPUT: ../artifacts/offline-editing-hfs-fragmented-${{ matrix.host }}
           APFS_NATIVE_PERMISSION_INHERITANCE: ../artifacts/offline-editing-permissions
           APFS_PERMISSION_INHERITANCE_OUTPUT: ../artifacts/offline-editing-permissions-${{ matrix.host }}
+          APFS_NATIVE_DIRECTORY_STATISTICS_TRANSITIONS: ../artifacts/offline-editing-statistics-transitions
+          APFS_DIRECTORY_STATISTICS_TRANSITIONS_OUTPUT: ../artifacts/offline-editing-statistics-transitions-${{ matrix.host }}
+          APFS_NATIVE_COPY_PERMISSIONS: ../artifacts/offline-editing-copy-permissions
+          APFS_COPY_PERMISSIONS_OUTPUT: ../artifacts/offline-editing-copy-permissions-${{ matrix.host }}
           APFS_NATIVE_DIRECTORY_STATISTICS: ../artifacts/offline-editing-statistics
           APFS_DIRECTORY_STATISTICS_OUTPUT: ../artifacts/offline-editing-statistics-${{ matrix.host }}
       - name: Archive portable outputs
@@ -109,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics, copy-permissions, statistics-transitions]
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -146,9 +156,15 @@ jobs:
       - name: Qualify exact ACLs, set-ID transitions and continued native inheritance
         if: matrix.family == 'permissions'
         run: python3 acceptance/native/verify_permission_inheritance.py --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-permissions --outputs artifacts/outputs
+      - name: Qualify native cp ACL composition, preserved dates and continued writes
+        if: matrix.family == 'copy-permissions'
+        run: python3 acceptance/native/verify_permission_inheritance.py --copies --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-copy-permissions --outputs artifacts/outputs
       - name: Qualify exact native directory statistics and continued writes
         if: matrix.family == 'statistics'
         run: python3 acceptance/native/verify_apfs_offline_editing.py --statistics --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-statistics --outputs artifacts/outputs
+      - name: Qualify native transition totals, wrapped checkpoints and continued allocation
+        if: matrix.family == 'statistics-transitions'
+        run: python3 acceptance/native/verify_directory_statistics.py --expected-major "${{ matrix.major }}" --corpus artifacts/offline-editing-statistics-transitions --outputs artifacts/outputs
       - name: Retain native verdicts and diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

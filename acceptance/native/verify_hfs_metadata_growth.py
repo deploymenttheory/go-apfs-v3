@@ -12,6 +12,7 @@ from capture import sha256
 from container_building import require_disposable_host
 from hfs_editing import read_journal
 from hfs_header_growth import attach, read_headers
+from hfs_metadata_growth import read_tree_headers
 from image_mutation import writable_copy
 from image_repacking import Commands, files, version
 from verify_hfs_editing import native_hash
@@ -58,7 +59,7 @@ def compare(actual, before, expected):
                         f'{path} {field}: {value.get(field)} != {entry[field]}')
 
 
-def inspect(raw, case, command, work, before, expected, continued=False):
+def inspect(raw, case, command, work, before, expected, continued=False, lifecycle=None):
     require_disposable_host()
     digest = sha256(raw)
     device = attach(raw, command, readonly=True)
@@ -76,6 +77,13 @@ def inspect(raw, case, command, work, before, expected, continued=False):
                         'Go metadata also exercises overflow extents: ' + name)
         else:
             require(headers['primary']['forks']['attributes']['logicalSize'] > 0, 'attributes tree initialized')
+        if lifecycle is not None:
+            trees = read_tree_headers(raw)
+            wanted = case[lifecycle]['treeHeaders']
+            require(trees['catalog']['depth'] == wanted['catalog']['depth'],
+                    'native catalog root depth after ' + lifecycle)
+            require(trees['attributes']['leafRecords'] == wanted['attributes']['leafRecords'],
+                    'native attribute records after ' + lifecycle)
         path.mkdir()
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', path, device)
         if not continued:
@@ -130,9 +138,14 @@ def verify(corpus, outputs, major, fragmented=False):
             require(len(manifest['cases']) == (2 if fragmented else 6), 'complete HFS profile inventory')
             for case in manifest['cases']:
                 before = observation(path.parent, case['before'])
-                expected = observation(path.parent, case['after'])
-                for encoding in ('UDRO', 'UDZO'):
-                    relative = Path(path.parent.name, case['id'], 'edited-' + encoding + '.dmg')
+                stages = [('edited', case['after'])]
+                if fragmented:
+                    require('collapsed' in case and 'reused' in case, 'native collapse and reuse controls')
+                    stages += [('collapsed', case['collapsed']), ('reused', case['reused'])]
+                for stage, state in stages:
+                  expected = observation(path.parent, state)
+                  for encoding in ('UDRO', 'UDZO'):
+                    relative = Path(path.parent.name, case['id'], stage + '-' + encoding + '.dmg')
                     images = [outputs / (prefix + '-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
                     require(all(p.is_file() for p in images), 'all three portable outputs')
                     require(len({sha256(p) for p in images}) == 1, 'byte-identical across hosts')
@@ -147,16 +160,16 @@ def verify(corpus, outputs, major, fragmented=False):
                         require(got is not None, 'original journaling retained')
                         for field in ('infoBlock', 'offset', 'size', 'sha256', 'infoSHA256', 'backingFiles'):
                             require(got[field] == journal[field], 'original journal storage: ' + field)
-                    inspect(raw, case, command, work, before, expected)
-                    if encoding == 'UDZO':
+                    inspect(raw, case, command, work, before, expected, lifecycle=None if stage == "edited" else stage)
+                    if encoding == 'UDZO' and stage == 'edited':
                         continue_native(raw, command, work)
                         inspect(raw, case, command, work, before, expected, continued=True)
                     raw.unlink()
                     require(sha256(image) == digest, 'portable completed output changed')
                     count += 1
-    require(count == (12 if fragmented else 36), 'all native profiles and both DMG encodings')
+    require(count == 36, 'all native profiles and both DMG encodings')
     (outputs / f'{prefix}-{major}.result.json').write_text(json.dumps({
-        'producer': producer, 'verified': count, 'continuations': count // 2,
+        'producer': producer, 'verified': count, 'continuations': 6 if fragmented else 18,
         'commandsSHA256': sha256(command.path)}, indent=2) + '\n')
 
 

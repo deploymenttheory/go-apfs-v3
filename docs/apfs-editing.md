@@ -68,8 +68,9 @@ fork is retained for attribute-only compression. Explicit resource-fork replacem
 on an actively compressed file is refused. Untouched applications retain their
 signature bytes; changing signed application contents requires subsequent signing.
 Birth/access times, ownership and unrelated metadata are preserved. Changed data
-and forks receive the requested mtime/ctime; chmod changes ctime only. ACL-bearing
-chmod targets and set-ID replacement targets await a qualified credential policy.
+and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
+chmod preserves ACLs. Set-ID writes require the explicit logical UID described
+below; these metadata effects do not emulate process authorization.
 
 ## File and directory operations
 
@@ -188,3 +189,20 @@ Ownership, clocks, flags and attributes use the same transaction engine; see
 
 `ln` adds original-inode aliases and literal symlinks through that same directory
 index and transaction. See [link creation and lifecycle semantics](image-links.md).
+
+## Directory statistics
+
+Tracked directories retain exact primary-inode descendant counts, allocated
+uncompressed data-fork bytes, group identities and chained origins. Resource
+forks do not contribute to these byte totals, but writes to them invalidate the
+containing group's generation. Moving an inherited directory across groups
+promotes it to an origin; existing origins retain their identity through moves.
+Hard links contribute through the primary inode, and final unlink retires storage.
+
+Generation counters preserve the original native value and advance monotonically
+when statistics change. They are invalidation tokens, rather than command or
+extent counts: Apple kernels use different strides for the same truncation or
+deletion. Unchanged generations remain unchanged, and overflow is refused.
+Counts and byte totals are compared exactly with retained macOS 15/26/27 controls.
+See Apple's [format reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)
+and the independently captured [transition controls](sources.json).
