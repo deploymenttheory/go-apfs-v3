@@ -45,6 +45,75 @@ class Detachment(unittest.TestCase):
                 self.assertEqual(self.run_commands(argv, [status], expected), 0)
 
 
+class CreationDiagnostics(unittest.TestCase):
+    def run_failure(self, failure, probe_failures=False, blocked=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image = root / 'partial.dmg'
+            image.write_bytes(b'partial native image')
+            argv = ('hdiutil', 'create', '-size', '128m', image)
+            original = failure(argv) if callable(failure) else failure
+            probes = [subprocess.TimeoutExpired(('sw_vers',), 10),
+                      subprocess.CompletedProcess(('hdiutil', 'info', '-plist'), 1, b'', b'probe failed'),
+                      subprocess.CompletedProcess(('diskutil', 'list', '-plist'), 0, b'device list', b'')] if probe_failures else [
+                      subprocess.CompletedProcess((), 0, b'native context', b'')] * 3
+            command = Commands(root / 'commands.json')
+            with patch('image_repacking.subprocess.run', side_effect=[original, *probes]) as native, \
+                 patch('image_repacking.time.sleep') as delay, \
+                 patch('image_repacking.shutil.which', return_value='/usr/bin/hdiutil'), \
+                 patch('image_repacking.sha256', return_value='a' * 64), \
+                 patch('container_building.require_disposable_host',
+                       side_effect=RuntimeError('disposable VM required') if blocked else None):
+                with self.assertRaises((RuntimeError, subprocess.TimeoutExpired)) as raised:
+                    command(*argv)
+            records = json.loads(command.path.read_text())
+            context = json.loads((root / 'creation-failure.json').read_text())
+            self.assertEqual(image.read_bytes(), b'partial native image')
+            self.assertEqual(records[0]['argv'], list(map(str, argv)))
+            self.assertEqual(context['creationAttempts'], 1)
+            self.assertEqual(delay.call_count, 0)
+            if blocked:
+                self.assertEqual(native.call_count, 1)
+                self.assertIn('disposable VM required', context['diagnosticError'])
+            else:
+                self.assertEqual(native.call_count, 4)
+                self.assertEqual([r['argv'] for r in records[1:]],
+                                 [['sw_vers'], ['hdiutil', 'info', '-plist'], ['diskutil', 'list', '-plist']])
+                self.assertEqual([call.kwargs['timeout'] for call in native.call_args_list], [120, 10, 10, 10])
+                self.assertEqual(context['partialOutput']['size'], len(b'partial native image'))
+                self.assertTrue(context['partialOutput']['regularFile'])
+                self.assertEqual(context['tool']['sha256'], 'a' * 64)
+            return records, str(raised.exception)
+
+    def test_busy_creation_retains_original_failure_and_never_retries(self):
+        records, error = self.run_failure(subprocess.CompletedProcess((), 1, b'', b'Resource busy'))
+        self.assertEqual(records[0]['status'], 1)
+        self.assertEqual(records[0]['stderr'], 'Resource busy')
+        self.assertIn('Resource busy', error)
+
+    def test_failed_context_probes_do_not_hide_nonretryable_creation_error(self):
+        records, error = self.run_failure(subprocess.CompletedProcess((), 1, b'', b'Permission denied'), probe_failures=True)
+        self.assertEqual([r['status'] for r in records], [1, 'failed', 1, 0])
+        self.assertIn('Permission denied', error)
+
+    def test_creation_timeout_retains_partial_command_output(self):
+        records, _ = self.run_failure(lambda argv: subprocess.TimeoutExpired(argv, 120, output=b'partial stdout', stderr=b'partial stderr'))
+        self.assertEqual(records[0]['status'], 'failed')
+        self.assertEqual(records[0]['stdout'], 'partial stdout')
+        self.assertEqual(records[0]['stderr'], 'partial stderr')
+
+    def test_diagnostics_do_not_run_outside_disposable_vm(self):
+        self.run_failure(subprocess.CompletedProcess((), 1, b'', b'Resource busy'), blocked=True)
+
+    def test_successful_creation_does_not_add_native_commands(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'commands.json'
+            with patch('image_repacking.subprocess.run', return_value=subprocess.CompletedProcess((), 0, b'created', b'')) as native:
+                self.assertEqual(Commands(path)('hdiutil', 'create', 'private.dmg'), b'created')
+            self.assertEqual(native.call_count, 1)
+            self.assertFalse((path.parent / 'creation-failure.json').exists())
+
+
 class DeviceSelection(unittest.TestCase):
     def command(self, entries, details=None):
         calls = []

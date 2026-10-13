@@ -96,3 +96,40 @@ Existing directories bind their earlier statistics to native object identity,
 including across moves. New directories have no before-generation, so their
 independent native after-state supplies exact counts, allocated bytes and
 origin/inheritance requirements.
+
+## CI failure diagnosis and recovery
+
+The test contract remains native Apple capture, portable Go replay on all three
+hosts, and independent Apple checks and continued writes on all three macOS
+versions. Failed setup or capture is missing evidence; it never changes an
+expected filesystem result or counts as qualification.
+
+Native creation through the shared command recorder is attempted once with its
+existing 120-second deadline. A failed or timed-out `hdiutil create` retains its
+original status, stdout and stderr. On a guarded disposable VM, the recorder
+also captures `sw_vers`, `hdiutil info -plist` and `diskutil list -plist`, each with
+a ten-second deadline. The existing command log retains every probe result;
+`creation-failure.json` adds runner identity, the resolved hdiutil path/hash and
+partial-output file metadata. The existing artifact upload includes these files.
+Probes neither retry creation nor modify, detach or delete images/devices.
+Probe failure cannot replace the original creation error. Successful creation
+adds no probes and follows the existing native fixture recipe.
+
+The [macOS 27 creation incident](https://github.com/deploymenttheory/go-apfs-v3/issues/42)
+returned process status 1 with “Resource busy”; it did not return numeric errno
+EBUSY. Apple's installed `hdiutil(1)` describes EBUSY as unavailable exclusive
+access, but the failed job did not capture the resource or lock owner. The
+[later successful capture](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38429354258/job/115408067338)
+used the same collector sources and creation arguments, apart from its private
+path, on the same recorded OS build and runner image version. Both runs emitted
+the deprecation warning. This evidence does not justify changing filesystem
+expectations or adding an automatic creation retry. The underlying resource
+remains unidentified; additional failure diagnostics address that evidence gap.
+
+Runner action-download DNS failures and interrupted repository fetches occur
+before the native fixture recipe. Recover a completed campaign through the
+existing failed-job rerun facilities, retaining previous successful jobs and
+original failed logs. Account for every dependent capture, replay and readback;
+a cancelled or skipped job still needs a qualifying result. Constructor changes,
+including command-recorder changes, require fresh capture/replay under the
+existing archived-input admission rules.
