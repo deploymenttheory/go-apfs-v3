@@ -146,7 +146,7 @@ func Open(source block.Source) (*Volume, error) {
 		return nil, err
 	}
 	v.Name = name
-	v.catalog = &tree{fork: f, root: root, total: total, nodeSize: nodeSize, idOffset: 2}
+	v.catalog = &tree{fork: f, root: root, total: total, nodeSize: nodeSize, idOffset: 2, catalogKeys: newCatalogNames(v.CaseSensitive)}
 	v.attributeFork = append([]byte(nil), h[352:432]...)
 	if err := v.findPrivateDirectory(); err != nil {
 		return nil, err
