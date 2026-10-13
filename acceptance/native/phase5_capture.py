@@ -97,8 +97,10 @@ def observe(image, work, command, label):
 
 def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
     image = work / (case_id + '.dmg')
+    # diskutil accepts APFSX; hdiutil requires the filesystem display name.
+    hdiutil_fs = 'Case-sensitive APFS' if native_fs == 'APFSX' else native_fs
     command('hdiutil', 'create', '-size', str(capacity), '-layout', 'NONE',
-            '-fs', native_fs, '-volname', 'Primary', image)
+            '-fs', hdiutil_fs, '-volname', 'Primary', image)
     cleanup, _, inventory = attached(image, command)
     try:
         if multiple:
@@ -151,6 +153,8 @@ def capture(major, output):
         # Keep large decoded images for only one case at a time.
         with tempfile.TemporaryDirectory(prefix='phase5-reference-') as tmp:
             cases.append(capture_case(*profile, Path(tmp), output, command))
+        (output / 'capture-progress.json').write_text(json.dumps({
+            'major': major, 'complete': False, 'cases': cases}, indent=2) + '\n')
     producer['tools'] = {name: sha256(Path(name)) for name in (
         '/usr/bin/hdiutil', '/usr/sbin/diskutil',
         '/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs')}
