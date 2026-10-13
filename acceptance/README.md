@@ -134,6 +134,10 @@ images per profile undergo subsequent native copying. Go copies from these nativ
 states; separate Apple-only images provide final expectations for native readback.
 HFS copying runs in its own bounded parallel jobs, with one source version per
 Linux race job, so it does not extend the existing edit families' job budget.
+Within each retained portable HFS copy job, nonjournaled and journaled HFS+/HFSX
+profiles run in four sequential test processes. Each has its own five-minute
+deadline; the family retains its ten-minute job limit and every profile is
+required. The same nine source/host jobs and full quality gate remain in use.
 Failure/interruption, changed host input and aggregate payload bounds have local
 controls. Native tools run exclusively in disposable CI VMs.
 
