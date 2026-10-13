@@ -131,6 +131,8 @@ func permissionChanges(c permissionInheritanceCase) []imageedit.Change {
 			change.ActorUID = filesystem.Observed(*operation.ActorUID)
 		}
 		switch operation.Op {
+		case "truncate":
+			change.Operation, change.Data = "cp", bytes.NewReader(nil)
 		case "replace":
 			change.Operation, change.Data = "cp", bytes.NewReader([]byte("Written permission contents\n"))
 		case "create":
@@ -152,6 +154,10 @@ func permissionChanges(c permissionInheritanceCase) []imageedit.Change {
 func comparePermissions(t *testing.T, reader filesystem.Reader, before, expected fileObservation, when time.Time) {
 	t.Helper()
 	previous := map[string]nativeFile{}
+	originalModify, originalAccess := map[int64]bool{}, map[int64]bool{}
+	for _, entry := range before.Entries {
+		originalModify[entry.ModifyNS], originalAccess[entry.AccessNS] = true, true
+	}
 	for _, entry := range before.Entries {
 		previous[entry.Path] = entry
 	}
@@ -176,17 +182,17 @@ func comparePermissions(t *testing.T, reader filesystem.Reader, before, expected
 			if old.ChangeNS != entry.ChangeNS {
 				entry.ChangeNS = when.UnixNano()
 			}
-			if old.ModifyNS != entry.ModifyNS && entry.ModifyNS > when.UnixNano() {
+			if old.ModifyNS != entry.ModifyNS && entry.ModifyNS > when.UnixNano() && !originalModify[entry.ModifyNS] {
 				entry.ModifyNS = when.UnixNano()
 			}
 		} else {
 			if entry.BirthSeconds > when.Unix() {
 				entry.BirthSeconds, entry.BirthNS = when.Unix(), nil
 			}
-			if entry.ModifyNS > when.UnixNano() {
+			if entry.ModifyNS > when.UnixNano() && !originalModify[entry.ModifyNS] {
 				entry.ModifyNS = when.UnixNano()
 			}
-			if entry.AccessNS > when.UnixNano() {
+			if entry.AccessNS > when.UnixNano() && !originalAccess[entry.AccessNS] {
 				entry.AccessNS = when.UnixNano()
 			}
 			entry.ChangeNS = when.UnixNano()
@@ -202,6 +208,10 @@ func TestNativePermissionInheritance(t *testing.T) {
 
 func TestNativeCopyPermissions(t *testing.T) {
 	testNativePermissions(t, "APFS_NATIVE_COPY_PERMISSIONS", "testdata/copy-permissions", "copy-permissions", "APFS_COPY_PERMISSIONS_OUTPUT", true)
+}
+
+func TestNativeCopySetIDPermissions(t *testing.T) {
+	testNativePermissions(t, "APFS_NATIVE_COPY_SETID_PERMISSIONS", "testdata/copy-setid-permissions", "copy-permissions", "APFS_COPY_SETID_PERMISSIONS_OUTPUT", true)
 }
 
 func testNativePermissions(t *testing.T, env, retained, contract, outputEnv string, copies bool) {
@@ -269,9 +279,12 @@ func testNativePermissions(t *testing.T, env, retained, contract, outputEnv stri
 							t.Fatal(err)
 						}
 						for _, op := range c.Operations {
-							if op.Op == "copy" {
+							switch op.Op {
+							case "copy":
 								_, err = scratch.Copy(ctx, []string{"/Fixture/" + op.Source}, "/Fixture/"+op.Path, session.CopyOptions{Preserve: op.Preserve, NoAttributes: op.NoAttributes})
-							} else {
+							case "truncate":
+								_, err = scratch.ReplaceData(ctx, "/Fixture/"+op.Path, bytes.NewReader(nil))
+							default:
 								_, err = scratch.Chmod(ctx, []string{"/Fixture/" + op.Path}, op.Mode, session.WalkOptions{})
 							}
 							if err != nil {

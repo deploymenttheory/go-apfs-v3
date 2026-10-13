@@ -100,3 +100,10 @@ readback and codesign. Native copying then produces Go continuation inputs;
 separate Apple-only copies supply complete expected results for another native
 check. All native filesystem tools run on disposable CI VMs. Local replay uses
 ordinary file reads and Go writes only.
+
+Ordinary `cp` uses Apple's descriptor-copy mode policy. `cp` opens an existing
+file with `O_TRUNC`, then `fcopyfile` snapshots and restores its destination mode
+after transferring data. HFS+ clears set-ID bits during truncation for a non-root
+writer; native APFS copy controls retain the original bits. The shared copier
+models those filesystem effects explicitly. A direct data write has its own
+metadata effects; it does not restore the copy-mode snapshot.

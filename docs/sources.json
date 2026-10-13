@@ -1282,7 +1282,7 @@
         "internal/filesec/read.go",
         "internal/edit/security.go"
       ],
-      "basis": "Original Go copy policy informed by copyfile_xattr/copyfile_stat: destination ordinary attributes are cleared before transferring source attributes, quarantine is retained if absent from source, and public flags-0 enumeration can hide compression storage. No C implementation is translated here. Independently retained macOS 15/26/27 controls qualify active compressed-file independent resource-fork omission on both APFS and HFS. Copying uses complete resource-fork replacement; ordinary HFS xattr writes retain their independently qualified prefix semantics. The pinned HFS hfs_vnop_listxattr gates resource-fork enumeration through decmpfs_hides_rsrc unless XATTR_SHOWCOMPRESSION is requested. A fork written after enabling compression can decompress the source; the new controls install the independent fork before the compressed flag and compare actual source flags/storage. The copyfile_xattr decmpfs check retains recognized inactive headers (types 1,3,4,7-14) as opaque metadata and skips malformed/unrecognized headers; the shared copy policy follows these pinned checks with explicit omission reports. Native valid/malformed controls independently qualify the observed distinction. COPYFILE_ACL composition is a bounded Go adaptation of copyfile_security: source direct entries followed by destination inherited entries, opaque source identity GUIDs, explicit empty/absent distinction and maximum 128 entries. Ordinary cp omits hidden filesec from COPYFILE_XATTR; -p requests the separate ACL operation even with -X. Final copy-metadata assignment validates canonical security bytes and updates APFS/HFS security markers; arbitrary xattr editing remains refused."
+      "basis": "Original Go copy policy informed by copyfile_xattr/copyfile_stat: destination ordinary attributes are cleared before transferring source attributes, quarantine is retained if absent from source, and public flags-0 enumeration can hide compression storage. No C implementation is translated here. Independently retained macOS 15/26/27 controls qualify active compressed-file independent resource-fork omission on both APFS and HFS. Copying uses complete resource-fork replacement; ordinary HFS xattr writes retain their independently qualified prefix semantics. The pinned HFS hfs_vnop_listxattr gates resource-fork enumeration through decmpfs_hides_rsrc unless XATTR_SHOWCOMPRESSION is requested. A fork written after enabling compression can decompress the source; the new controls install the independent fork before the compressed flag and compare actual source flags/storage. The copyfile_xattr decmpfs check retains recognized inactive headers (types 1,3,4,7-14) as opaque metadata and skips malformed/unrecognized headers; the shared copy policy follows these pinned checks with explicit omission reports. Native valid/malformed controls independently qualify the observed distinction. COPYFILE_ACL composition is a bounded Go adaptation of copyfile_security: source direct entries followed by destination inherited entries, opaque source identity GUIDs, explicit empty/absent distinction and maximum 128 entries. Ordinary cp omits hidden filesec from COPYFILE_XATTR; -p requests the separate ACL operation even with -X. Final copy-metadata assignment validates canonical security bytes and updates APFS/HFS security markers; arbitrary xattr editing remains refused. The fcopyfile wrapper snapshots destination mode after cp opens O_TRUNC and restores it after COPYFILE_DATA. Pinned hfs_truncate clears set-ID at truncation for non-root callers; independently captured APFS ordinary copies retain the snapshot bits. This is distinct from direct write/truncate semantics and requires filesystem-aware final mode restoration."
     },
     {
       "id": "native-apfs-copy-15-26-27",
@@ -1545,6 +1545,20 @@
         "acceptance/permission_inheritance_test.go"
       ],
       "basis": "Original Apple cp controls on macOS 15/26/27 for APFS/APFSX/HFS+/HFSX, including exact public getattrlist ACL/GUID fields. Prove ordinary copy retains destination ACLs, -p composes direct source entries with inherited destination entries even under -X, source inherited entries are excluded, and explicit empty ACL differs from absent. File-only image replay in both DMG encodings and persisted session replay passed all 12 native profiles. Fresh Apple output verification and added set-ID-copy controls remain required."
+    },
+    {
+      "id": "native-copy-setid-modes",
+      "kind": "native-observation",
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38377501421",
+      "evidence": [
+        "acceptance/testdata/copy-setid-permissions"
+      ],
+      "components": [
+        "internal/copyfile/copy.go",
+        "session/commands.go",
+        "acceptance/permission_inheritance_test.go"
+      ],
+      "basis": "Original macOS 15/26/27 Apple cp controls for APFS/APFSX/HFS+/HFSX. Ordinary new copies strip set-ID; -p restores source mode. Existing-target ordinary cp retains set-ID on APFS and clears it on HFS, consistent with cp opening O_TRUNC before fcopyfile snapshots/restores destination mode and pinned hfs_truncate clearing at truncate. The shared logical policy models this filesystem difference. Original source timestamps copied with -p remain exact even when later than the reproducible construction clock. Native output qualification remains required."
     }
   ]
 }

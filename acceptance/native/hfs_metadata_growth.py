@@ -239,16 +239,21 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
             finally:
                 command('hdiutil', 'detach', device)
             state = observe(reduced, work, command, label)
-            if label == 'collapsed':
-                require(final['treeHeaders']['catalog']['depth'] > 1,
-                        'native insertion must split catalog root')
-                require(state['treeHeaders']['catalog']['depth'] == 1,
-                        'native deletion must collapse catalog to leaf root')
-                require(state['treeHeaders']['attributes']['leafRecords'] == 0,
-                        'native deletion removes every attribute record')
             lifecycle[label] = state
             lifecycle['native' + label.capitalize()] = retain_file(
                 reduced, output / (case_id + '-' + label + '.raw.gz'))
+            # Always retain observed outcomes before an assertion can fail.
+            (output / (case_id + '-lifecycle-observations.json')).write_text(
+                json.dumps(lifecycle, indent=2) + '\n')
+            if label == 'collapsed':
+                require(final['treeHeaders']['attributes']['depth'] > 1,
+                        'native insertion must split the attributes root')
+                require(state['treeHeaders']['attributes']['depth'] <
+                        final['treeHeaders']['attributes']['depth'],
+                        'native deletion must collapse the attributes root')
+                require(state['treeHeaders']['attributes']['leafRecords'] <
+                        final['treeHeaders']['attributes']['leafRecords'],
+                        'native deletion retires attribute records')
     require(sha256(source) == saved_source['uncompressedSHA256'], 'original HFS evidence changed')
     return {**lifecycle,'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
             'before': before, 'after': final, 'sensitive': sensitive,

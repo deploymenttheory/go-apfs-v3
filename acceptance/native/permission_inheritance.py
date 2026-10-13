@@ -128,6 +128,8 @@ def create_copy_controls(root, command):
     require_disposable_host()
     from metadata_edits import set_metadata
     (root / 'plain-copy-source').write_bytes(b'Native ordinary copy source\n')
+    (root / 'truncate-user').write_bytes(b'Native truncate-only contents\n')
+    command('sudo', 'chmod', '6755', root / 'truncate-user')
     (root / 'source-inherited').mkdir()
     command('chmod', '+a', f'user:{pwd.getpwuid(os.getuid()).pw_name} allow read,write,file_inherit,directory_inherit',
             root / 'source-inherited')
@@ -168,6 +170,8 @@ def operate(root, command, copies=False):
                      'preserve': preserve, 'noAttributes': no_attributes, 'actorUID': os.getuid()},
                     lambda s=source, d=destination, p=preserve, x=no_attributes:
                     command('cp', *(['-p'] if p else []), *(['-X'] if x else []), root / s, root / d))
+        perform({'op': 'truncate', 'path': 'truncate-user', 'actorUID': os.getuid()},
+                lambda: (root / 'truncate-user').open('wb').close())
         return operations
     payload = b'Written permission contents\n'
     perform({'op': 'replace', 'path': 'write-user', 'actorUID': os.getuid()},

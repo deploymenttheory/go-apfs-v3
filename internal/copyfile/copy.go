@@ -569,10 +569,17 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 			if err != nil {
 				return err
 			}
+			// cp opens O_TRUNC before fcopyfile snapshots destination mode.
+			// fcopyfile restores that snapshot after COPYFILE_DATA. Native
+			// APFS keeps set-ID at truncate, while hfs_truncate clears it for
+			// non-root callers; the same copy therefore has different effects.
+			if c.backend.Tree.NameRules().Format == "APFS" {
+				mode = node.Metadata.Mode.Value
+			}
 			if err = c.backend.Apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: dst, Data: data}); err != nil {
 				return err
 			}
-			if mode != node.Metadata.Mode.Value {
+			if node.Metadata.Mode.Value&06000 != 0 {
 				patch := filesystem.Metadata{Mode: filesystem.Observed(mode)}
 				if err = c.backend.Apply(ctx, edit.Change{Op: edit.SetMetadata, Path: dst, Metadata: &patch}); err != nil {
 					return err

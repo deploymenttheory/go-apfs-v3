@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -81,7 +82,9 @@ func TestNativeSessionPermissionInheritance(t *testing.T) {
 							_, err = scratch.Chown(ctx, []string{path}, owner, session.WalkOptions{})
 						case "mkdir":
 							_, err = scratch.Mkdir(ctx, []string{path}, session.MkdirOptions{})
-						case "create", "replace":
+						case "replace":
+							_, err = scratch.ReplaceData(ctx, path, bytes.NewReader([]byte("Written permission contents\n")))
+						case "create":
 							payload := "Written permission contents\n"
 							if op.Op == "create" {
 								payload = "Created inherited contents\n"

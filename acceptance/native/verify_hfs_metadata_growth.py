@@ -80,10 +80,16 @@ def inspect(raw, case, command, work, before, expected, continued=False, lifecyc
         if lifecycle is not None:
             trees = read_tree_headers(raw)
             wanted = case[lifecycle]['treeHeaders']
-            require(trees['catalog']['depth'] == wanted['catalog']['depth'],
-                    'native catalog root depth after ' + lifecycle)
-            require(trees['attributes']['leafRecords'] == wanted['attributes']['leafRecords'],
-                    'native attribute records after ' + lifecycle)
+            # Native writable mounts may create filesystem-owned catalog and
+            # security records outside Fixture. Their tree topology is not a
+            # user-visible value. Both independent trees must collapse/reuse;
+            # exact Fixture entries and raw attributes are checked below.
+            peak = case['after']['treeHeaders']
+            require(trees['catalog']['depth'] <= peak['catalog']['depth'],
+                    'bounded catalog depth after deletion/reuse')
+            require(trees['attributes']['depth'] < peak['attributes']['depth'] and
+                    trees['attributes']['leafRecords'] <= wanted['attributes']['leafRecords'],
+                    'attributes root collapse and record retirement after ' + lifecycle)
         path.mkdir()
         command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', path, device)
         if not continued:

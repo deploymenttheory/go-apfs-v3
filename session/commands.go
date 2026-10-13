@@ -510,6 +510,23 @@ func (s *Session) attribute(ctx context.Context, paths []string, name string, va
 		return nil
 	})
 }
+
+// ReplaceData writes complete logical contents through an existing inode. Unlike
+// cp, this is a direct write: it does not restore fcopyfile's mode snapshot or
+// transfer source metadata. Source bytes remain borrowed for the call.
+func (s *Session) ReplaceData(ctx context.Context, p string, value block.Source) (Report, error) {
+	return s.mutate(ctx, func(c *command) error {
+		at, err := resolve(ctx, c.tree, p, true)
+		if err != nil {
+			return err
+		}
+		if err = c.apply(ctx, edit.Change{Op: edit.ReplaceFileData, Path: at.path, Data: value}); err != nil {
+			return err
+		}
+		return c.tree.Times(ctx, at.id, nil, &c.now, &c.now)
+	})
+}
+
 func (s *Session) ReplaceResourceFork(ctx context.Context, p string, value block.Source) (Report, error) {
 	return s.mutate(ctx, func(c *command) error {
 		at, err := resolve(ctx, c.tree, p, true)

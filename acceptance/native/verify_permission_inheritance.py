@@ -24,6 +24,7 @@ def compare(actual, before, expected):
     wanted = {e['path']: e for e in expected['entries']}
     require(set(observed) == set(wanted), 'exact permission namespace')
     original_ids = {e['object'] for e in originals.values()}
+    original_times = {field: {entry[field] for entry in originals.values()} for field in ('modifyNS', 'accessNS')}
     forward, reverse = {}, {}
     for path, source in wanted.items():
         entry, got = dict(source), observed[path]
@@ -34,14 +35,15 @@ def compare(actual, before, expected):
             old = originals[path]
             require(actual_id == old['object'], 'original permission identity retained')
             for field in ('modifyNS', 'changeNS'):
-                if entry[field] != old[field] and (field == "changeNS" or entry[field] > STAMP * 10**9):
+                if entry[field] != old[field] and (field == 'changeNS' or
+                        entry[field] > STAMP * 10**9 and entry[field] not in original_times[field]):
                     entry[field] = STAMP * 10**9
         else:
             require(actual_id not in original_ids, 'new permission identity')
             if entry['birthSeconds'] > STAMP:
                 entry['birthSeconds'] = STAMP
             for field in ('modifyNS', 'accessNS'):
-                if entry[field] > STAMP * 10**9:
+                if entry[field] > STAMP * 10**9 and entry[field] not in original_times[field]:
                     entry[field] = STAMP * 10**9
             entry['changeNS'] = STAMP * 10**9
         entry['object'] = actual_id

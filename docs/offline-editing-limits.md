@@ -11,7 +11,7 @@ report the already-visible output through `filesystem.PublishedOutputError`.
 | Case | Policy | Implementation |
 | --- | --- | --- |
 | Several APFS volumes | Select a volume UUID; account all volume-owned blocks and preserve peers and reserves/quotas | `imageedit/selectAPFSVolume`, `apfs/mutate_ownership.go`, `apfs/mutate_limits.go` |
-| Writing or creating a set-ID file | Supply a logical UID; root writes retain bits, other writes clear them; copied preservation restores the requested final mode | `internal/filesec`, `internal/copyfile`, both filesystem engines |
+| Writing or creating a set-ID file | Supply a logical UID; root writes retain bits, other writes clear them; cp restores its descriptor mode snapshot, with the APFS/HFS truncation distinction; `-p` restores source mode | `internal/filesec`, `internal/copyfile`, both filesystem engines |
 | Numeric chmod on an ACL-bearing object | Preserve validated ACL/GUID bytes | Both metadata writers |
 | New child under an ACL-bearing parent | Apply Apple's ordered file/directory inheritance rules | `internal/filesec`, `internal/edit`, both filesystem engines |
 | `cp -p`, including `-pX` | Compose source direct and destination inherited ACL entries; keep empty and absent distinct | `internal/filesec/copyfile.go`, `internal/edit/security.go` |
