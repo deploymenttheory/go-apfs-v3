@@ -303,9 +303,6 @@ func (m *mutation) writableParent(id uint64) error {
 		return e
 	}
 	r, _ := m.inodeRecord(id)
-	if le.Uint64(r.value[48:])&(2|4) != 0 {
-		return fmt.Errorf("directory-stat policy: %w", filesystem.ErrUnsupported)
-	}
 	if le.Uint64(r.value[48:])&0x40 != 0 {
 		_, err := m.security(id)
 		return err
@@ -325,7 +322,10 @@ func (m *mutation) parentChanged(id uint64, delta int, stamp uint64) error {
 	le.PutUint32(v[56:], uint32(n))
 	le.PutUint64(v[24:], stamp)
 	le.PutUint64(v[32:], stamp)
-	return m.fs.put(r.key, v)
+	if err := m.fs.put(r.key, v); err != nil {
+		return err
+	}
+	return m.bumpInodeStatistics(id, 1)
 }
 func (m *mutation) volumeCount(kind uint16, delta int) error {
 	off := 208
@@ -401,6 +401,17 @@ func (m *mutation) createEntryKind(parent uint64, name string, kind uint32, perm
 		Mode: filesystem.Observed(perm), UID: filesystem.Observed(uid), GID: filesystem.Observed(le.Uint32(p.value[76:])),
 		BirthTime: clock, ModifyTime: clock, ChangeTime: clock, AccessTime: clock,
 	}}}, 0)
+	statistics, e := statisticsForInode(p.value)
+	if e != nil {
+		return nil, e
+	}
+	if statistics.key != 0 {
+		raw.value, e = replaceInodeField(raw.value, 10, 0x22, buildUint64(statistics.key))
+		if e != nil {
+			return nil, e
+		}
+		le.PutUint64(raw.value[48:], le.Uint64(raw.value[48:])|2)
+	}
 	if security != nil {
 		if e = m.setAttribute(id, filesec.Attribute, bytes.NewReader(security)); e != nil {
 			return nil, e
@@ -622,18 +633,43 @@ func (m *mutation) removeEntry(entry *mutationEntry, recursive bool, stamp uint6
 			}
 		}
 	}
-	// Protection and directory-stat records require their own qualified updater.
-	// Refuse their owner rather than leaving orphan metadata after unlink.
-	for _, kind := range []uint8{7, 10, 11} {
+	// Protection records require a separate qualified updater.
+	for _, kind := range []uint8{7, 11} {
 		if len(m.fs.records(entry.id, kind)) != 0 {
 			return filesystem.ErrUnsupported
+		}
+	}
+	statistics, e := statisticsForInode(r.value)
+	if e != nil {
+		return e
+	}
+	last := len(m.links[entry.id]) == 1
+	if last {
+		delta := uint64(1)
+		if statistics.allocated != 0 {
+			delta += 2
+		}
+		if e = m.bumpStatistics(statistics.key, delta); e != nil {
+			return e
 		}
 	}
 	if e = m.eraseEntry(entry, stamp); e != nil {
 		return e
 	}
 	if len(m.links[entry.id]) != 0 {
-		return m.repairPrimary(entry.id, stamp)
+		if e = m.repairPrimary(entry.id, stamp); e != nil {
+			return e
+		}
+		key, err := m.statisticsKey(m.primaryEntry(entry.id).parent)
+		if err != nil {
+			return err
+		}
+		return m.setStatisticsReference(entry.id, key, false)
+	}
+	if statistics.origin {
+		if e = m.fs.put(buildKey(statistics.key, 10, 0), nil); e != nil {
+			return e
+		}
 	}
 	// Only the last link retires streams. The old checkpoint retains its extents
 	// until the existing space-manager deferred-free rules make them reusable.
@@ -752,5 +788,8 @@ func (m *mutation) moveEntry(c Change, stamp uint64) (uint64, error) {
 			return 0, e
 		}
 	}
-	return entry.id, m.repairPrimary(entry.id, stamp)
+	if e = m.repairPrimary(entry.id, stamp); e != nil {
+		return 0, e
+	}
+	return entry.id, m.moveStatistics(entry, parent)
 }

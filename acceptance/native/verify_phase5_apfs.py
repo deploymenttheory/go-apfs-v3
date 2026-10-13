@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import tempfile
@@ -11,7 +12,7 @@ from capture import sha256
 from container_building import attached, check_filesystem, require_disposable_host
 from image_mutation import raw_command, writable_copy
 from image_repacking import Commands, files, version
-from phase5_capture import mounted
+from phase5_capture import APFS_UTIL, mounted
 from verify_hfs_editing import native_hash
 from verify_preservation import require
 
@@ -41,8 +42,7 @@ def compare(actual, before, expected, changed):
             entry['birthSeconds'] = STAMP
             entry['modifyNS'] = entry['accessNS'] = STAMP * 10**9
         entry['object'] = actual_id
-        if path in ('Fixture', 'Fixture/data', 'Fixture/alias', 'Fixture/another-alias',
-                    'Fixture/renamed') or path.startswith('Fixture/created'):
+        if path in ('Fixture', 'Fixture/renamed') or actual_id == originals['Fixture/data']['object'] or path.startswith('Fixture/created'):
             entry['changeNS'] = STAMP * 10**9
             if entry['mode'] & 0o170000 == 0o040000:
                 entry['modifyNS'] = STAMP * 10**9
@@ -82,6 +82,11 @@ def inspect(raw, case, command, work, continued=False):
             else:
                 compare(files(path / 'Fixture'), before['files'], state['files'] if target else
                         before['files'], target)
+                for name, expected in state.get('directoryStatistics', {}).items():
+                    actual = native(APFS_UTIL, '-S', path / name).decode(errors='strict')
+                    pattern = r'(?:descendants|physical size|gen-count): (\d+)'
+                    require(re.findall(pattern, actual) == re.findall(pattern, expected),
+                            'exact Apple directory statistics: ' + name)
             native('codesign', '--verify', '--deep', '--strict', path / 'Fixture/Example.app')
     finally:
         native('hdiutil', 'detach', cleanup)
@@ -116,10 +121,11 @@ def continue_native(raw, case, command, work):
     shutil.rmtree(work / 'continue')
 
 
-def verify(corpus, outputs, major):
+def verify(corpus, outputs, major, statistics=False):
     require_disposable_host()
     producer = version(major)
-    command = Commands(outputs / f'phase5-apfs-{major}.diagnostics.json')
+    family = 'statistics' if statistics else 'apfs'
+    command = Commands(outputs / f'phase5-{family}-{major}.diagnostics.json')
     count = 0
     paths = sorted(corpus.glob('macos-*/manifest.json'))
     require(len(paths) == 3, 'all three native source versions')
@@ -127,12 +133,14 @@ def verify(corpus, outputs, major):
         work = Path(tmp)
         for manifest_path in paths:
             manifest = json.loads(manifest_path.read_text())
-            require(manifest['contract'] == 'phase5-offline-editing' and len(manifest['cases']) == 4,
+            require(manifest['contract'] == ('phase5-directory-statistics' if statistics else 'phase5-offline-editing') and
+                    len(manifest['cases']) == (2 if statistics else 4),
                     'complete phase-5 APFS controls')
             for case in manifest['cases']:
                 for format_name in ('UDRO', 'UDZO'):
-                    relative = Path(manifest_path.parent.name, case['id'], 'edited-' + format_name + '.dmg')
-                    images = [outputs / ('phase5-apfs-' + host) / relative
+                    relative = (Path(manifest_path.parent.name, case['id'] + '-' + format_name + '.dmg') if statistics else
+                                Path(manifest_path.parent.name, case['id'], 'edited-' + format_name + '.dmg'))
+                    images = [outputs / ('phase5-' + family + '-' + host) / relative
                               for host in ('Linux', 'Windows', 'macOS')]
                     require(all(image.is_file() for image in images), 'all portable host outputs')
                     require(len({sha256(image) for image in images}) == 1, 'reproducible across hosts')
@@ -148,8 +156,8 @@ def verify(corpus, outputs, major):
                     raw.unlink()
                     require(sha256(image) == digest, 'original portable output immutable')
                     count += 1
-    require(count == 24, 'all source-version, profile and encoding combinations')
-    (outputs / f'phase5-apfs-{major}.result.json').write_text(json.dumps({
+    require(count == (12 if statistics else 24), 'all source-version, profile and encoding combinations')
+    (outputs / f'phase5-{family}-{major}.result.json').write_text(json.dumps({
         'producer': producer, 'verified': count, 'continuations': count // 2,
         'commandsSHA256': sha256(command.path)}, indent=2) + '\n')
 
@@ -158,6 +166,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--corpus', type=Path, required=True)
     parser.add_argument('--outputs', type=Path, required=True)
+    parser.add_argument('--statistics', action='store_true')
     parser.add_argument('--expected-major', type=int, required=True)
     args = parser.parse_args()
-    verify(args.corpus, args.outputs, args.expected_major)
+    verify(args.corpus, args.outputs, args.expected_major, args.statistics)

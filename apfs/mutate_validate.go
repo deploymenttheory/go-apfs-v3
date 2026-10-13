@@ -182,8 +182,8 @@ func (m *mutation) validateVolumeOwnership(claim func(uint64, uint64) error) err
 			}
 			inodes[p.id] = r
 			flags := le.Uint64(r.value[48:])
-			if flags&(2|4) != 0 {
-				return fmt.Errorf("APFS directory-stat maintenance: %w", filesystem.ErrUnsupported)
+			if _, err := statisticsForInode(r.value); err != nil {
+				return err
 			}
 			if flags&(0x10|0x400) != 0 {
 				return fmt.Errorf("APFS clone history: %w", filesystem.ErrUnsupported)
@@ -266,7 +266,9 @@ func (m *mutation) validateVolumeOwnership(claim func(uint64, uint64) error) err
 			}
 			links[le.Uint64(r.value)]++
 		case 10:
-			return fmt.Errorf("APFS directory-stat records: %w", filesystem.ErrUnsupported)
+			if len(r.key) != 8 || len(r.value) != 32 {
+				return corrupt("directory statistics record bounds", 0)
+			}
 		case 5, 7, 8, 11, 12: // Siblings are validated with their directory graph.
 		default:
 			return fmt.Errorf("APFS mutation record type %d: %w", p.kind, filesystem.ErrUnsupported)

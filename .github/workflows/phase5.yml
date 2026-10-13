@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        family: [apfs, hfs, hfs-fragmented, permissions]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -36,6 +36,9 @@ jobs:
       - name: Capture native ACL inheritance, creator ownership and set-ID effects
         if: matrix.family == 'permissions'
         run: python3 acceptance/native/phase5_permissions.py --expected-major "${{ matrix.major }}" --output artifacts/phase5-permissions/macos-${{ matrix.major }}
+      - name: Capture native directory-stat origins and inheritance
+        if: matrix.family == 'statistics'
+        run: python3 acceptance/native/phase5_capture.py --directory-statistics --expected-major "${{ matrix.major }}" --output artifacts/phase5-statistics/macos-${{ matrix.major }}
       - name: Retain original disks and diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -53,7 +56,7 @@ jobs:
       fail-fast: false
       matrix:
         major: [15, 26, 27]
-        family: [apfs, hfs, hfs-fragmented, permissions]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
         include:
           - {runner: ubuntu-24.04, host: Linux}
           - {runner: windows-2025, host: Windows}
@@ -71,7 +74,7 @@ jobs:
           name: phase5-${{ matrix.family }}-reference-${{ matrix.major }}
           path: artifacts/phase5-${{ matrix.family }}
       - name: Compare exact native contents, identities, metadata and volume policy
-        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativePhase5APFS$' || matrix.family == 'hfs' && '^TestNativePhase5HFS$' || matrix.family == 'permissions' && '^TestNativePhase5Permissions$' || '^TestNativePhase5HFSFragmented$' }}'
+        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativePhase5APFS$' || matrix.family == 'hfs' && '^TestNativePhase5HFS$' || matrix.family == 'permissions' && '^TestNativePhase5Permissions$' || matrix.family == 'statistics' && '^TestNativePhase5DirectoryStatistics$' || '^TestNativePhase5HFSFragmented$' }}'
         env:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_PHASE5_APFS: ../artifacts/phase5-apfs
@@ -82,6 +85,8 @@ jobs:
           APFS_PHASE5_HFS_FRAGMENTED_OUTPUT: ../artifacts/phase5-hfs-fragmented-${{ matrix.host }}
           APFS_NATIVE_PHASE5_PERMISSIONS: ../artifacts/phase5-permissions
           APFS_PHASE5_PERMISSIONS_OUTPUT: ../artifacts/phase5-permissions-${{ matrix.host }}
+          APFS_NATIVE_PHASE5_STATISTICS: ../artifacts/phase5-statistics
+          APFS_PHASE5_STATISTICS_OUTPUT: ../artifacts/phase5-statistics-${{ matrix.host }}
       - name: Archive portable outputs
         shell: bash
         run: |
@@ -104,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        family: [apfs, hfs, hfs-fragmented, permissions]
+        family: [apfs, hfs, hfs-fragmented, permissions, statistics]
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -141,6 +146,9 @@ jobs:
       - name: Qualify exact ACLs, set-ID transitions and continued native inheritance
         if: matrix.family == 'permissions'
         run: python3 acceptance/native/verify_phase5_permissions.py --expected-major "${{ matrix.major }}" --corpus artifacts/phase5-permissions --outputs artifacts/outputs
+      - name: Qualify exact native directory statistics and continued writes
+        if: matrix.family == 'statistics'
+        run: python3 acceptance/native/verify_phase5_apfs.py --statistics --expected-major "${{ matrix.major }}" --corpus artifacts/phase5-statistics --outputs artifacts/outputs
       - name: Retain native verdicts and diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

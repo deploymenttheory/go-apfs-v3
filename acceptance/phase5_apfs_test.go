@@ -171,7 +171,7 @@ func comparePhase5APFS(t *testing.T, v *apfs.Volume, before, want fileObservatio
 			entry.ModifyNS, entry.AccessNS = when.UnixNano(), when.UnixNano()
 		}
 		entry.Object = id
-		if entry.Path == "Fixture" || entry.Path == "Fixture/data" || entry.Path == "Fixture/alias" || entry.Path == "Fixture/another-alias" || entry.Path == "Fixture/renamed" || strings.HasPrefix(entry.Path, "Fixture/created") {
+		if entry.Path == "Fixture" || id == original["Fixture/data"].Object || entry.Path == "Fixture/renamed" || strings.HasPrefix(entry.Path, "Fixture/created") {
 			entry.ChangeNS = when.UnixNano()
 			if entry.Mode&0170000 == 0040000 {
 				entry.ModifyNS = when.UnixNano()

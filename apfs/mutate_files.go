@@ -39,6 +39,20 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 			return 0, e
 		}
 	} else {
+		statistics, err := statisticsForInode(value)
+		if err != nil {
+			return 0, err
+		}
+		var delta uint64
+		if statistics.allocated != 0 {
+			delta += 2
+		}
+		if c.Data.Size() != 0 {
+			delta += 2
+		}
+		if e = m.bumpStatistics(statistics.key, delta); e != nil {
+			return 0, e
+		}
 		if le.Uint32(value[68:])&0x20 != 0 {
 			compression, e := decmpfs.Inspect(func(name string) (filesystem.Value, error) { return m.v.OpenAttribute(m.ctx, id, name) })
 			if e != nil {
@@ -111,6 +125,12 @@ func (m *mutation) nextFileID() (uint64, error) {
 	return id, nil
 }
 func replaceInodeField(inode []byte, kind, flag byte, data []byte) ([]byte, error) {
+	return updateInodeField(inode, kind, flag, data, false)
+}
+func removeInodeField(inode []byte, kind byte) ([]byte, error) {
+	return updateInodeField(inode, kind, 0, nil, true)
+}
+func updateInodeField(inode []byte, kind, flag byte, data []byte, remove bool) ([]byte, error) {
 	var types, flags []byte
 	var values [][]byte
 	found := false
@@ -129,6 +149,10 @@ func replaceInodeField(inode []byte, kind, flag byte, data []byte) ([]byte, erro
 			k, f := b[4+i*4], b[5+i*4]
 			v := bytes.Clone(b[at : at+size])
 			if k == kind {
+				if remove {
+					at += (size + 7) / 8 * 8
+					continue
+				}
 				v = data
 				// Flags include reserved bits that Apple's format requires us to
 				// retain. The supplied flag applies only when adding a new field.
@@ -140,7 +164,7 @@ func replaceInodeField(inode []byte, kind, flag byte, data []byte) ([]byte, erro
 			at += (size + 7) / 8 * 8
 		}
 	}
-	if !found {
+	if !found && !remove {
 		types = append(types, kind)
 		flags = append(flags, flag)
 		values = append(values, data)

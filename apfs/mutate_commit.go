@@ -88,6 +88,9 @@ func (m *mutation) writeMap(data []byte, tree *cowTree, volume bool) (uint64, er
 	return address, nil
 }
 func (m *mutation) commit(stamp uint64) error {
+	if err := m.updateStatistics(false); err != nil {
+		return err
+	}
 	if e := m.writeTree(m.fs, true); e != nil {
 		return e
 	}

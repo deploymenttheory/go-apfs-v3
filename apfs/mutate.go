@@ -193,6 +193,9 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 		if e = volume.loadEntries(); e != nil {
 			return nil, fmt.Errorf("directory graph in volume %s: %w", volume.v.UUID, e)
 		}
+		if e = volume.updateStatistics(true); e != nil {
+			return nil, fmt.Errorf("directory statistics in volume %s: %w", volume.v.UUID, e)
+		}
 	}
 	return m, nil
 }
