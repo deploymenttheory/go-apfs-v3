@@ -1,5 +1,10 @@
 # Editing existing HFS+/HFSX filesystems
 
+Ordered commands also support `apfs edit --image SOURCE --output NEW_DMG --
+COMMAND ... --next COMMAND ...`. They share one private decoded copy and final
+publication, retaining existing filesystem geometry and identities; see the
+[ordered editing example](apfs-editing.md).
+
 This capability changes the original filesystem records in a new output image.
 It retains volume identity, catalog file IDs, hard-link relationships, geometry,
 unrelated metadata and unrelated disk sectors. It does not reformat the volume.

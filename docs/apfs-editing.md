@@ -15,23 +15,50 @@ an explicit whole-second modification clock; fixing that clock makes identical
 source bytes and operations produce byte-identical plaintext output across hosts.
 `--format UDRO|UDZO` controls the output DMG encoding.
 
+Several ordinary commands can share one managed copy and publish once:
+
+```sh
+apfs edit --image Original.dmg --output Edited.dmg --time 2025-06-07T08:09:10Z -- \
+  mkdir -p /Payload/Resources \
+  --next cp --from-host ./asset /Payload/Resources \
+  --next chmod 0755 /Payload/Resources/asset
+```
+
+`--next` separates commands; each keeps its normal arguments and flags. Image,
+volume, partition, output format and operation time belong to the enclosing
+`edit` command. Later commands see earlier changes. A failed command discards the
+whole unpublished copy. The library equivalent is `imageedit.Edit` with an
+`Editor` callback; a failed editor cannot publish even if its caller ignores the
+command's error. This edits existing structures rather than rebuilding a logical
+session into a new filesystem.
+
 ## Admitted profile
 
-The admitted write profile handles one unencrypted, unsealed, ordinary APFS volume in a
+The admitted write profile handles an unencrypted, unsealed, ordinary APFS volume in a
 single-device container. It supports case-sensitive and case-insensitive native
 names, ordinary regular-file hard links, attributes, data and resource forks,
-and active decmpfs replacement. Containers are bounded to 1 GiB, 4096-byte blocks,
+and active decmpfs replacement. Select `--volume UUID` when a container has several
+volumes; all ordinary volumes are accounted and untouched volumes retain their
+original structures. Native reserves and quotas remain in force. Geometry uses
+4096-byte blocks with a bounded allocation bitmap (64 MiB),
 contiguous checkpoint regions, inline CIB addresses and one internal-pool bitmap.
 Every current and pending-free block must have validated ownership.
 
 Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
-reserves/quotas, Fusion, encrypted image envelopes/volumes, pending reapers and
+Fusion, encrypted image envelopes/volumes, pending reapers and
 unrecognized write profiles are refused before disk staging. Directory-stat
 maintenance and protected filesystem-owned directories are outside this profile.
 Immutable, append-only and protected target objects are refused. Symlinks can be
 moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
 construction capabilities.
+
+The larger and multiple-volume controls were independently qualified at
+[run 38337086450](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337086450):
+1.5 GiB ordinary containers and 768 MiB two-volume containers, both native name
+policies, all three portable hosts, and Apple readback/continued writes on
+macOS 15/26/27. The bitmap budget is a resource limit, not qualification of every
+larger container shape. Subsequent editor/cache changes require the same gate.
 
 Data replacement retains the existing inode and every hard-link alias. Independent
 resource forks and unrelated attributes remain intact. Replacing active compressed
