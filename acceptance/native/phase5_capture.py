@@ -57,7 +57,7 @@ def create(root, command):
     xattr(root / 'data', 'org.go-apfs.retained', b'Opaque metadata\x00\xff')
     (root / 'mode').write_bytes(b'Permissions\n')
     os.chmod(root / 'mode', 0o644)
-    create_signed_app(root, command)
+    create_signed_app(root, command, source_directory=root.parent.parent)
 
 
 def edit(root, command):
