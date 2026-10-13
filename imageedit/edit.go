@@ -21,6 +21,7 @@ import (
 
 type Options struct {
 	Partition int
+	Volume    string    // APFS UUID or HFS volume ID; required when ambiguous
 	Format    string    // UDRO or UDZO; default UDZO
 	Time      time.Time // whole seconds; required for the library API
 }
@@ -47,13 +48,13 @@ func Apply(ctx context.Context, sourcePath, destination string, o Options, chang
 		return Report{}, fs.ErrInvalid
 	}
 	return editImage(ctx, sourcePath, destination, o, func(view *mutablePartition, isAPFS bool) (Report, error) {
-		return modify(ctx, view, isAPFS, changes, o.Time)
+		return modify(ctx, view, isAPFS, changes, o.Time, o.Volume)
 	})
 }
 
-func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []Change, when time.Time) (report Report, err error) {
+func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []Change, when time.Time, volume string) (report Report, err error) {
 	if isAPFS {
-		changed, e := apfs.Modify(ctx, view, changes, when)
+		changed, e := apfs.ModifyVolume(ctx, view, volume, changes, when)
 		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
 		return report, e
 	}
@@ -116,7 +117,26 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	}
 	// Admit supported ownership before staging the complete decoded disk.
 	if admission == nil {
-		admission = func(s block.Source, _ bool) error { return validate(ctx, s) }
+		admission = func(s block.Source, isAPFS bool) error {
+			if isAPFS {
+				container, err := apfs.Open(s)
+				if err != nil {
+					return err
+				}
+				if _, err = selectAPFSVolume(container, o.Volume); err != nil {
+					return err
+				}
+			} else if o.Volume != "" {
+				volume, err := hfsplus.Open(s)
+				if err != nil {
+					return err
+				}
+				if volume.VolumeID != o.Volume {
+					return fs.ErrNotExist
+				}
+			}
+			return validate(ctx, s)
+		}
 	}
 	if err = admission(input, isAPFS); err != nil {
 		return report, err
@@ -157,6 +177,19 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 		return e
 	})
 	return report, err
+}
+
+func selectAPFSVolume(container *apfs.Container, id string) (*apfs.Volume, error) {
+	if id == "" && len(container.Volumes) != 1 {
+		return nil, fmt.Errorf("select --volume UUID in a multiple-volume APFS container: %w", fs.ErrInvalid)
+	}
+	for i := range container.Volumes {
+		volume := &container.Volumes[i]
+		if id == "" || volume.UUID == id {
+			return volume, nil
+		}
+	}
+	return nil, fs.ErrNotExist
 }
 
 type decodedDisk struct{ image *diskimage.Image }

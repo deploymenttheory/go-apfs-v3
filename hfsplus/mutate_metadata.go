@@ -35,7 +35,6 @@ package hfsplus
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/fs"
 	"math"
 	"sort"
@@ -233,7 +232,7 @@ func (m *mutation) attributeTree() (*mutableTree, error) {
 	if t := m.trees[8]; t != nil {
 		return t, nil
 	}
-	return nil, fmt.Errorf("HFS attributes-file initialization is unqualified: %w", filesystem.ErrUnsupported)
+	return m.initializeAttributeTree()
 }
 
 func (m *mutation) changeAttribute(c Change, id uint32, value []byte) error {

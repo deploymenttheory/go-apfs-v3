@@ -49,6 +49,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 	imagePath := f.String("image", "", "edit an existing admitted APFS/HFS+/HFSX image")
 	imageOutput := f.String("output", "", "publish the completed edited image at a new path")
 	imagePartition := f.Int("partition", 0, "on-disk partition index to edit")
+	f.String("volume", "", "APFS UUID or HFS volume ID to edit; required when ambiguous")
 	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
 	f.String("time", "", "image-edit modification time (RFC3339, whole seconds); default current UTC time")
 	var walk *session.WalkOptions
@@ -118,7 +119,7 @@ func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer)
 		return fmt.Errorf("--output requires --image")
 	}
 	f.Visit(func(option *flag.Flag) {
-		if option.Name == "partition" || option.Name == "format" || option.Name == "time" {
+		if option.Name == "partition" || option.Name == "volume" || option.Name == "format" || option.Name == "time" {
 			err = fmt.Errorf("--%s requires --image", option.Name)
 		}
 	})

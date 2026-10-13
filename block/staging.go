@@ -1,6 +1,7 @@
 package block
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -34,6 +35,7 @@ func Stage(ctx context.Context, source Source, directory string) (_ *Staging, er
 		}
 	}()
 	buf := make([]byte, 128<<10)
+	zero := make([]byte, len(buf))
 	for off := int64(0); off < s.size; {
 		if err = ctx.Err(); err != nil {
 			return nil, err
@@ -42,7 +44,13 @@ func Stage(ctx context.Context, source Source, directory string) (_ *Staging, er
 		if err = ReadFull(source, buf[:n], off); err != nil {
 			return nil, err
 		}
-		if _, err = s.WriteAt(buf[:n], off); err != nil {
+		if bytes.Equal(buf[:n], zero[:n]) {
+			// A newly created private file has zero-filled holes. Extend it as
+			// copying progresses, preserving exact bytes and observable progress.
+			if err = f.Truncate(off + n); err != nil {
+				return nil, err
+			}
+		} else if _, err = s.WriteAt(buf[:n], off); err != nil {
 			return nil, err
 		}
 		off += n

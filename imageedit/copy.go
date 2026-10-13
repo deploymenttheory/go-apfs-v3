@@ -62,7 +62,10 @@ func CopyBatch(ctx context.Context, sourcePath, destination string, o Options, c
 			if e != nil {
 				return report, e
 			}
-			reader = &container.Volumes[0]
+			reader, e = selectAPFSVolume(container, o.Volume)
+			if e != nil {
+				return report, e
+			}
 		} else {
 			volume, e := hfsplus.Open(view)
 			if e != nil {
@@ -71,9 +74,9 @@ func CopyBatch(ctx context.Context, sourcePath, destination string, o Options, c
 			reader = volume
 		}
 		limits := edit.DefaultLimits()
-		// Existing write profiles are bounded; owned payload storage has the
-		// same 1 GiB bound independently of traversal and disk scratch.
-		limits.ValueBytes, limits.TotalBytes = 1<<30, 1<<30
+		// Payload admission follows the validated partition geometry. Traversal
+		// and record counts retain independent bounds; payloads stream to disk.
+		limits.ValueBytes, limits.TotalBytes = view.Size(), view.Size()
 		tree, e := edit.New(ctx, reader, limits)
 		if e != nil {
 			return report, e
@@ -110,7 +113,7 @@ func CopyBatch(ctx context.Context, sourcePath, destination string, o Options, c
 		// a single command publication boundary. Payloads are already immutable.
 		for len(plan.changes) > 0 {
 			n := min(4096, len(plan.changes))
-			batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time)
+			batch, err := modify(ctx, view, isAPFS, plan.changes[:n], o.Time, o.Volume)
 			if err != nil {
 				return report, err
 			}

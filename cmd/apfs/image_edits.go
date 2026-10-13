@@ -27,7 +27,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 	if common.name != "" || destination == "" || partition < 0 {
 		return fmt.Errorf("image editing requires --image and --output, with no --session: %w", fs.ErrInvalid)
 	}
-	allowed := map[string]bool{"image": true, "output": true, "partition": true, "format": true, "time": true, "json": true}
+	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "json": true}
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
@@ -129,7 +129,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		}
 		copyOptions := imageedit.CopyOptions{FromHost: f.Lookup("from-host").Value.String() == "true", Recursive: f.Lookup("R").Value.String() == "true", Preserve: f.Lookup("p").Value.String() == "true", Archive: f.Lookup("a").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true", NoAttributes: f.Lookup("X").Value.String() == "true", PreserveLinks: f.Lookup("preserve-links").Value.String() == "true", Follow: f.Lookup("P").Value.String()}
 		if f.Lookup("resource-fork").Value.String() != "true" {
-			report, err := imageedit.Copy(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
+			report, err := imageedit.Copy(ctx, source, destination, imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock}, operands[:len(operands)-1], operands[len(operands)-1], copyOptions)
 			if err != nil {
 				return err
 			}
@@ -152,7 +152,7 @@ func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common 
 		defer func() { err = errors.Join(err, data.Close()) }()
 		changes = []imageedit.Change{{Operation: verb, Path: operands[1], Name: filepath.Base(operands[0]), Data: data, ResourceFork: f.Lookup("resource-fork").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true"}}
 	}
-	report, err := imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Format: format, Time: clock}, changes)
+	report, err := imageedit.Apply(ctx, source, destination, imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock}, changes)
 	if err != nil {
 		return err
 	}

@@ -151,6 +151,9 @@ func (m *mutation) commit(stamp uint64) error {
 		return corrupt("changed volume allocation underflow", 0)
 	}
 	le.PutUint64(m.super[88:], old+m.allocated-m.freed)
+	if err := m.updateSpaceLimits(old); err != nil {
+		return err
+	}
 	le.PutUint64(m.super[224:], le.Uint64(m.super[224:])+m.allocated)
 	le.PutUint64(m.super[232:], le.Uint64(m.super[232:])+m.freed)
 	sealMutationObject(m.super, uint64(m.v.OID), m.xid, 13, 0)
