@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Independent Apple debug-format, initialization and HFS tree-growth controls."""
 import argparse
+import gzip
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,9 @@ from image_repacking import Commands, files, version
 from verify_preservation import require
 
 CAPACITY = 96 << 20
+GROWTH_CAPACITY = 512 << 20
+MAP_CAPACITY = (4096 - 256) * 8
+GROWTH_FILES = 60000
 SOURCES = ('phase5_hfs_capture.py', 'build_hfs_reference.py', 'capture.py',
            'container_building.py', 'hfs_header_growth.py', 'image_repacking.py',
            'image_building.py', 'image_mutation.py', 'file_compression.py',
@@ -41,7 +45,7 @@ def observe(image, work, command, label):
     device = attach(image, command, readonly=True)
     try:
         check(device, command)
-        headers = read_headers(image, CAPACITY)
+        headers = read_headers(image, image.stat().st_size)
         path = work / label
         mount(device, path, command, readonly=True)
         values = files(path / 'Fixture') if (path / 'Fixture').exists() else {'entries': []}
@@ -55,7 +59,7 @@ def observe(image, work, command, label):
 def format_image(image, binary, command, sensitive, journaled, growth):
     require_disposable_host()
     with image.open('xb') as stream:
-        stream.truncate(CAPACITY)
+        stream.truncate(GROWTH_CAPACITY if growth else CAPACITY)
     device = attach(image, command, writable=True)
     try:
         args = ['-s'] if sensitive else []
@@ -63,9 +67,10 @@ def format_image(image, binary, command, sensitive, journaled, growth):
             args += ['-J']
         args += ['-U', str(os.getuid()), '-G', str(os.getgid())]
         if growth:
-            # 6144 1024-byte catalog nodes exactly fill the header map.
+            # Apple's formatter requires catalog nodes >=4096 bytes. These
+            # 30720 nodes exactly fill its header map (120 MiB catalog file).
             # Native insertion and subsequent Go insertion must cross that map.
-            args += ['-n', 'c=1024', '-I', 'c=1536', '-c', 'c=1536']
+            args += ['-n', 'c=4096', '-I', 'c=30720', '-c', 'c=4096']
         else:
             args += ['-I', 'a=0']
         command('sudo', binary, *args, '-v', 'Phase5',
@@ -90,7 +95,17 @@ def format_image(image, binary, command, sensitive, journaled, growth):
 
 def tree_names(start, stop):
     for number in range(start, stop):
-        yield f'{number:05}-' + 'long-name-' * 18
+        yield f'{number:05}-' + 'long-name-' * 24
+
+
+def retain_observation(value, target):
+    # A map-boundary control necessarily contains many catalog records. Keep
+    # independently observed metadata compressed instead of bloating manifests.
+    with target.open('xb') as stream:
+        with gzip.GzipFile(filename='', mode='wb', fileobj=stream, mtime=0) as compressed:
+            for chunk in json.JSONEncoder(separators=(',', ':')).iterencode(value):
+                compressed.write(chunk.encode())
+    return {'image': target.name, 'sha256': sha256(target)}
 
 
 def capture_case(case_id, sensitive, journaled, growth, binary, work, output, command):
@@ -98,7 +113,7 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
     source = work / (case_id + '-source.raw')
     format_image(source, binary, command, sensitive, journaled, growth)
     (output / (case_id + '-format-headers.json')).write_text(json.dumps(
-        read_headers(source, CAPACITY), indent=2) + '\n')
+        read_headers(source, source.stat().st_size), indent=2) + '\n')
     # Retain original formatter bytes even if a subsequent native mount fails.
     retain_file(source, output / (case_id + '-formatted.raw.gz'))
     if growth:
@@ -128,7 +143,7 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         mount(device, path, command)
         root = path / 'Fixture'
         if growth:
-            for name in tree_names(1000, 4000):
+            for name in tree_names(1000, GROWTH_FILES):
                 (root / name).write_bytes(b'')
         else:
             from file_compression import xattr
@@ -140,16 +155,23 @@ def capture_case(case_id, sensitive, journaled, growth, binary, work, output, co
         command('hdiutil', 'detach', device)
     final = observe(after, work, command, 'after')
     if growth:
-        require(final['headers']['catalog']['totalNodes'] > 6144,
+        require(before['headers']['catalog']['totalNodes'] == MAP_CAPACITY,
+                'initial catalog exactly fits its header map')
+        require(final['headers']['catalog']['totalNodes'] > MAP_CAPACITY,
                 'native controls must actually grow beyond the initial node map')
     else:
         require(final['headers']['primary']['forks']['attributes']['logicalSize'] > 0,
                 'Apple kernel must initialize the absent attributes file')
     saved_after = retain_file(after, output / after.name.replace('.raw', '.raw.gz'))
+    if growth:
+        for label, observation in (('before', before), ('after', final)):
+            observation['fileArchive'] = retain_observation(
+                observation.pop('files'), output / (case_id + '-' + label + '-files.json.gz'))
     require(sha256(source) == saved_source['uncompressedSHA256'], 'original HFS evidence changed')
     return {'id': case_id, 'source': saved_source, 'nativeAfter': saved_after,
             'before': before, 'after': final, 'sensitive': sensitive,
             'journaled': journaled, 'growth': growth,
+            'growthFiles': GROWTH_FILES if growth else 0,
             'operation': ('catalog-node-map-growth' if growth else
                           'first-attribute-on-initialized-journal' if journaled else
                           'first-attribute-initialization')}
