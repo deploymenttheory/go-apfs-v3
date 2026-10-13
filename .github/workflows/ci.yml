@@ -80,7 +80,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-2025, macos-26]
-        family: [image construction, image repacking, existing HFS edits, existing APFS edits, HFS journal recovery, APFS checkpoint recovery]
+        family: [image construction, image repacking, HFS files and catalogs, HFS metadata, HFS links, HFS copy, existing APFS edits, HFS journal recovery, APFS checkpoint recovery]
         source: [all, 15, 26, 27]
         exclude:
           - {family: image construction, source: 15}
@@ -91,7 +91,10 @@ jobs:
           - {family: image repacking, source: 27}
           - {family: HFS journal recovery, source: all}
           - {family: APFS checkpoint recovery, source: all}
-          - {family: existing HFS edits, source: all}
+          - {family: HFS files and catalogs, source: all}
+          - {family: HFS metadata, source: all}
+          - {family: HFS links, source: all}
+          - {family: HFS copy, source: all}
           - {family: existing APFS edits, source: all}
         include:
           - family: image construction
@@ -104,8 +107,14 @@ jobs:
             tests: '^TestNativeAPFSCheckpointRecovery$'
           - family: existing APFS edits
             tests: '^TestNativeAPFSImage(Directory|Metadata|Link)?Editing(Continuation)?$'
-          - family: existing HFS edits
-            tests: '^TestNativeHFS(Journaled)?Image(Catalog|Metadata|Link)?Editing(Continuation)?$'
+          - family: HFS files and catalogs
+            tests: '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$'
+          - family: HFS metadata
+            tests: '^TestNativeHFS(Journaled)?ImageMetadataEditing$'
+          - family: HFS links
+            tests: '^TestNativeHFS(Journaled)?ImageLinkEditing$'
+          - family: HFS copy
+            tests: '^TestNativeHFS(Journaled)?ImageCopy$'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -113,7 +122,7 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained Apple observations
-        if: matrix.family != 'existing APFS edits' && matrix.family != 'existing HFS edits' && matrix.family != 'APFS checkpoint recovery' && matrix.family != 'HFS journal recovery'
+        if: matrix.source == 'all'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
       - name: Compare each HFS journal source version independently
         if: matrix.family == 'HFS journal recovery'
@@ -138,18 +147,12 @@ jobs:
       - name: Compare APFS preserved copying with retained Apple observations
         if: matrix.family == 'existing APFS edits'
         run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS files and catalogs with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS metadata with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS link lifetimes with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS preserved copying with retained Apple observations
-        if: matrix.family == 'existing HFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageCopy$/macos-${{ matrix.source }}(/|$)'
+      # Each HFS capability gets one five-minute test budget inside its own
+      # ten-minute job. Sequential budgets previously exhausted the job while
+      # passing on slower Windows runners, before preserved copying could run.
+      - name: Compare this HFS capability with retained Apple observations
+        if: startsWith(matrix.family, 'HFS ') && matrix.family != 'HFS journal recovery'
+        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}/macos-${{ matrix.source }}(/|$)'
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
