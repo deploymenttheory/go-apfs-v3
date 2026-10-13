@@ -1,0 +1,132 @@
+name: Offline image editing completion
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Record Apple larger and multi-volume APFS controls (macOS ${{ matrix.major }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - name: Capture independent Apple before and after edits
+        run: python3 acceptance/native/phase5_capture.py --expected-major "${{ matrix.major }}" --output artifacts/phase5-apfs/macos-${{ matrix.major }}
+      - name: Retain original disks and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: phase5-apfs-reference-${{ matrix.major }}
+          path: artifacts/phase5-apfs
+          if-no-files-found: error
+
+  replay:
+    name: Edit phase-5 APFS controls (${{ matrix.host }}, macOS ${{ matrix.major }} sources)
+    needs: capture
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [15, 26, 27]
+        include:
+          - {runner: ubuntu-24.04, host: Linux}
+          - {runner: windows-2025, host: Windows}
+          - {runner: macos-26, host: macOS}
+        # Explicit Cartesian host/source axes keep runtime bounded per job.
+        runner: [ubuntu-24.04, windows-2025, macos-26]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: phase5-apfs-reference-${{ matrix.major }}
+          path: artifacts/phase5-apfs
+      - name: Compare exact native contents, identities, metadata and volume policy
+        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativePhase5APFS$'
+        env:
+          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
+          APFS_NATIVE_PHASE5_APFS: ../artifacts/phase5-apfs
+          APFS_PHASE5_APFS_OUTPUT: ../artifacts/phase5-apfs-${{ matrix.host }}
+      - name: Archive portable outputs
+        shell: bash
+        run: |
+          archive_options=()
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            archive_options=(--no-mac-metadata --no-xattrs --no-acls)
+          fi
+          tar -czf artifacts/phase5-apfs-${{ matrix.host }}-${{ matrix.major }}.tar.gz "${archive_options[@]}" -C artifacts phase5-apfs-${{ matrix.host }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: phase5-apfs-output-${{ matrix.host }}-${{ matrix.major }}
+          path: artifacts/phase5-apfs-*.tar.gz
+          if-no-files-found: error
+
+  readback:
+    name: Apple checks and continued writes of phase-5 APFS outputs (macOS ${{ matrix.major }})
+    needs: replay
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: macos-15, major: 15}
+          - {runner: macos-26, major: 26}
+          - {runner: xcode-27, major: 27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Require a disposable GitHub-hosted VM
+        run: test "$RUNNER_ENVIRONMENT" = github-hosted
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: phase5-apfs-reference-*
+          path: artifacts/phase5-apfs
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: phase5-apfs-output-*
+          path: artifacts/outputs
+          merge-multiple: true
+      - name: Unpack all source and host outputs
+        run: |
+          for archive_file in artifacts/outputs/*.tar.gz; do
+            tar -xzf "$archive_file" --no-mac-metadata --no-xattrs --no-acls --options '!mac-ext' -C artifacts/outputs
+          done
+      - name: Qualify output sectors, files, signatures, volume limits and further allocation
+        run: python3 acceptance/native/verify_phase5_apfs.py --expected-major "${{ matrix.major }}" --corpus artifacts/phase5-apfs --outputs artifacts/outputs
+      - name: Retain native verdicts and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: phase5-apfs-readback-${{ matrix.major }}
+          path: artifacts/outputs/*.json
+          if-no-files-found: error
+
+  qualified:
+    name: Require phase-5 APFS capture, portable editing and Apple readback
+    if: always()
+    needs: [capture, replay, readback]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every job to succeed
+        env:
+          CAPTURE: ${{ needs.capture.result }}
+          REPLAY: ${{ needs.replay.result }}
+          READBACK: ${{ needs.readback.result }}
+        run: test "$CAPTURE" = success && test "$REPLAY" = success && test "$READBACK" = success

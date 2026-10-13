@@ -18,6 +18,10 @@ on:
     - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      phase5_edits_only:
+        description: Only phase-5 completion capture, portable editing and Apple readback
+        type: boolean
+        default: false
       phase5_reference_kind:
         description: Phase-5 native references to collect
         type: choice
@@ -101,28 +105,32 @@ jobs:
           path: artifacts/phase5
           if-no-files-found: error
 
+  phase5_edits:
+    if: ${{ inputs.phase5_edits_only || (!inputs.phase5_reference_capture && !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    uses: ./.github/workflows/phase5.yml
+
   apfs_recovery:
-    if: ${{ !inputs.phase5_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
     uses: ./.github/workflows/apfs-recovery.yml
     with:
       capture_only: ${{ inputs.apfs_checkpoint_capture || false }}
 
   apfs_edits:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '') }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '') }}
     uses: ./.github/workflows/apfs-edit.yml
     with:
       capture_only: ${{ inputs.apfs_reference_capture || false }}
 
   hfs_edits:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
     uses: ./.github/workflows/hfs-edit.yml
 
   hfs_recovery:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
     uses: ./.github/workflows/hfs-recovery.yml
 
   produce:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -375,7 +383,7 @@ jobs:
           if-no-files-found: error
 
   readback:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '')) }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '')) }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
     needs: [replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
@@ -395,7 +403,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Validate archived capture and replay evidence for a verifier-only rerun
-        if: ${{ !inputs.phase5_reference_capture && inputs.readback_run != '' }}
+        if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && inputs.readback_run != '' }}
         run: python3 acceptance/native/readback_source.py
         env:
           READBACK_RUN: ${{ inputs.readback_run }}
@@ -494,8 +502,8 @@ jobs:
 
   complete:
     name: Require all filesystem compatibility checks
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
-    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery]
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
+    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery, phase5_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
@@ -509,9 +517,10 @@ jobs:
           HFS_RECOVERY: ${{ needs.hfs_recovery.result }}
           APFS_EDITS: ${{ needs.apfs_edits.result }}
           APFS_RECOVERY: ${{ needs.apfs_recovery.result }}
+          PHASE5_EDITS: ${{ needs.phase5_edits.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
-          if [ -z "$REUSED_RUN" ]; then test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
+          if [ -z "$REUSED_RUN" ]; then test "$PHASE5_EDITS" = success && test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
           test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,
@@ -522,7 +531,7 @@ jobs:
           fi
 
   hfs_reference:
-    if: ${{ !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture)) }}
+    if: ${{ !inputs.phase5_edits_only && !inputs.phase5_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture)) }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
