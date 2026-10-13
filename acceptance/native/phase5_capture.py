@@ -41,10 +41,15 @@ def mounted(volume, path, command, readonly=False):
 
 
 def create(root, command):
+    require_disposable_host()
     # Darwin metadata bindings remain behind the disposable VM guard.
     from file_compression import RESOURCE, xattr
     from image_building import create_signed_app
-    root.mkdir()
+    # diskutil-created volumes have a root-owned root. Retain owners semantics
+    # and explicitly grant the runner its fixture directory, rather than hide
+    # stored identities through a noowners mount.
+    command('sudo', 'mkdir', root)
+    command('sudo', 'chown', f'{os.getuid()}:{os.getgid()}', root)
     (root / 'data').write_bytes(b'Original linked contents\n')
     os.link(root / 'data', root / 'alias')
     os.symlink('data', root / 'symlink')
@@ -56,6 +61,7 @@ def create(root, command):
 
 
 def edit(root, command):
+    require_disposable_host()
     from file_compression import xattr
     from metadata_edits import set_metadata
     data = (bytes(range(256)) * 257)[:65537]
@@ -71,6 +77,7 @@ def edit(root, command):
 
 
 def observe(image, work, command, label):
+    require_disposable_host()
     from image_repacking import files
     original = sha256(image)
     native = raw_command(command, image)
@@ -96,6 +103,7 @@ def observe(image, work, command, label):
 
 
 def capture_case(case_id, capacity, native_fs, multiple, work, output, command):
+    require_disposable_host()
     image = work / (case_id + '.dmg')
     # diskutil accepts APFSX; hdiutil requires the filesystem display name.
     hdiutil_fs = 'Case-sensitive APFS' if native_fs == 'APFSX' else native_fs
