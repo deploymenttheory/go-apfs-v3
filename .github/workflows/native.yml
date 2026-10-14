@@ -225,7 +225,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-${{ matrix.major }}
-          path: artifacts/native/**/*.diagnostics.json
+          path: |
+            artifacts/native/**/*.diagnostics.json
+            artifacts/native/**/creation-failure.json
           if-no-files-found: error
       - name: Upload reference images, observations and provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -477,6 +479,7 @@ jobs:
             artifacts/outputs/image-building-*.diagnostics.json
             artifacts/outputs/image-capacity-*.diagnostics.json
             artifacts/outputs/image-repacking-*.diagnostics.json
+            artifacts/outputs/creation-failure.json
           if-no-files-found: warn
       - name: Explain the native output verification
         run: |

@@ -41,6 +41,10 @@ and remain pending.
 
 ## Completion evidence
 
+The [evidence index](offline-editing-evidence.md) connects the retained native
+controls to their original hashes, replay families and current CI campaigns.
+Pending verdicts remain explicit until the complete gate passes.
+
 Each scenario records its purpose, native source version, operation, independently
 observed outcome, original hashes and commands. Fresh CI capture does not update
 the retained baseline. Equivalent portable outputs may share native verification
