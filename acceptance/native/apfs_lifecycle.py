@@ -139,7 +139,7 @@ def capture_state(scratch, case_id, label, passwords, work, output, command, hel
                 unlock(device, password, command)
             else:
                 rejected = []
-            directory = work / (case_id + '-' + label + '-' + name)
+            directory = work / (case_id + '-read-' + label + '-' + name)
             mount(device, directory, command, readonly=True)
             command('diskutil', 'verifyVolume', device)
             detail = native_info(device, command)
@@ -213,7 +213,7 @@ def mutate(scratch, label, case_id, fs, work, command, password=None):
             command('diskutil', 'apfs', 'addVolume', inventory['ContainerReference'], fs, 'Peer', '-nomount')
             peer_inventory = plistlib.loads(command('diskutil', 'apfs', 'list', '-plist', inventory['ContainerReference']))['Containers'][0]
             peer = next(v for v in peer_inventory['Volumes'] if v['Name'] == 'Peer')
-            peer_dir = work / (case_id + '-peer')
+            peer_dir = work / (case_id + '-write-peer-plain')
             mount(peer['DeviceIdentifier'], peer_dir, command)
             command('sudo', 'mkdir', peer_dir / 'Fixture')
             command('sudo', 'chown', f'{os.getuid()}:{os.getgid()}', peer_dir / 'Fixture')
@@ -248,7 +248,7 @@ def mutate(scratch, label, case_id, fs, work, command, password=None):
             peer_inventory = plistlib.loads(command('diskutil', 'apfs', 'list', '-plist', inventory['ContainerReference']))['Containers'][0]
             peer = next(v for v in peer_inventory['Volumes'] if v['Name'] == 'EncryptedPeer')
             unlock(peer['DeviceIdentifier'], PEER_PASSWORD, command)
-            peer_dir = work / (case_id + '-encrypted-peer')
+            peer_dir = work / (case_id + '-write-peer-encrypted')
             mount(peer['DeviceIdentifier'], peer_dir, command)
             fixture(peer_dir / 'Fixture', command)
         elif label == 'password-changed':
@@ -297,6 +297,10 @@ def capture_clones(case_id, sensitive, work, output, command, helper):
             primary = next(v for v in state['volumes'] if v['name'] == 'Primary')
             validate_shared(primary['storage'])
         states.append(state)
+        # Unpublished progress preserves the actual completed observations if a
+        # later native operation fails. The complete manifest owns these values
+        # on success; do not retain a second copy in the finished corpus.
+        (output / (case_id + '-progress.json')).write_text(json.dumps(states, indent=2) + '\n')
     return {'id': case_id, 'kind': 'clone-encryption', 'states': states}
 
 
@@ -391,6 +395,8 @@ def capture(reference, output, major):
                                'Conversion controls cover ordinary volumes; conversion of retained encrypted history remains a separate gate.',
                                'Software key profiles are established by native unlock and keybag decoding, not AES primitive support.']}
         (corpus / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        for progress in corpus.glob('*-progress.json'):
+            progress.unlink()
         corpus.rename(output)
 
 
