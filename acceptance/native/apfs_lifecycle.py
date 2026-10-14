@@ -25,7 +25,7 @@ APFS_UTIL = '/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util'
 PASSWORD = 'public-lifecycle-initial'
 REPLACEMENT = 'public-lifecycle-replacement-\u03bb'
 PEER_PASSWORD = 'public-lifecycle-peer'
-SOURCES = ('apfs_lifecycle.py', 'apfs_storage.c', 'capture.py', 'container_building.py',
+SOURCES = ('apfs_lifecycle.py', 'apfs_storage.c', 'apfs_snapshot.c', 'capture.py', 'container_building.py',
            'image_repacking.py', 'snapshot_reading.py', 'verify_preservation.py',
            'file_compression.py', 'image_building.py', 'metadata_edits.py',
            'content_replacement.py', 'preservation.py')
@@ -318,7 +318,7 @@ def capture_clones(case_id, sensitive, work, output, command, helper, major=27):
     return {'id': case_id, 'kind': 'clone-encryption', 'crossVolumeCopy': cross_volume, 'states': states}
 
 
-def capture_revert(case_id, reference, work, output, command, helper):
+def capture_revert(case_id, reference, work, output, command, helper, snapshot_helper=None):
     require_runner()
     manifest_path = reference / 'manifest.json'
     original_manifest = json.loads(manifest_path.read_text())
@@ -338,16 +338,9 @@ def capture_revert(case_id, reference, work, output, command, helper):
         snapshots = plistlib.loads(command('diskutil', 'apfs', 'listSnapshots', '-plist', volume))['Snapshots']
         require(len(snapshots) == 2, 'revert control needs two independent retained snapshots')
         selected = min(snapshots, key=lambda s: s['SnapshotXID'])
-        pin = work / (prefix + '-revert-selected')
-        pin.mkdir()
-        command(MOUNT_APFS, '-o', 'rdonly,owners,nobrowse', '-s', selected['SnapshotName'], directory, pin)
-        try:
-            # The signed utility passes -R's argument to fsctl(J,1) with XID=0.
-            # XNU's snapshot_revert fallback applies that request to the selected
-            # snapshot vnode, not to a snapshot-name string or a device path.
-            command('sudo', APFS_UTIL, '-R', pin, '/dev/' + volume)
-        finally:
-            command('/sbin/umount', pin)
+        require(snapshot_helper is not None, 'native snapshot helper required')
+        command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', snapshot_helper,
+                directory, str(selected['SnapshotXID']))
         command('diskutil', 'unmount', volume)
         # Apple's documented operation finishes on the next writable mount.
         resumed = work / (prefix + '-reverted-write')
@@ -380,9 +373,12 @@ def capture(reference, output, major):
         helper = work / 'apfs-storage'
         command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror', '-O2',
                 Path(__file__).with_name('apfs_storage.c'), '-o', helper)
+        snapshot_helper = work / 'apfs-snapshot'
+        command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror', '-O2',
+                Path(__file__).with_name('apfs_snapshot.c'), '-o', snapshot_helper)
         producer['tools'] = [{'path': str(path), 'sha256': sha256(path)} for path in
                              (Path('/bin/cp'), Path('/usr/sbin/diskutil'), Path('/usr/bin/hdiutil'),
-                              Path(APFS_UTIL), Path(MOUNT_APFS), helper)]
+                              Path(APFS_UTIL), Path(MOUNT_APFS), helper, snapshot_helper)]
         producer['sources'] = []
         for name in SOURCES:
             source = corpus / name
@@ -391,7 +387,7 @@ def capture(reference, output, major):
         try:
             cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
                                     work, corpus, command, helper, major) for sensitive in (False, True)]
-            cases += [capture_revert(case_id, reference, work, corpus, command, helper)
+            cases += [capture_revert(case_id, reference, work, corpus, command, helper, snapshot_helper)
                       for case_id in ('apfs', 'apfs-case-sensitive')]
         except BaseException as error:
             command.save()

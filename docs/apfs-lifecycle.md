@@ -105,17 +105,19 @@ without adding profile jobs or another capture mode. Its current controls are:
   reattached read-only, natively checked and observed. Migration probes must show
   an explicitly settled state before the completed reference is published.
 - Actual snapshot revert from the older of two retained ASR snapshots, using
-  Apple's signed `apfs.util -R` on a mounted snapshot and a subsequent writable mount. The original
+  Apple's published XNU revert request and a subsequent writable mount. The original
   snapshot corpus and digests remain unchanged. Live and every remaining
   historical state are read from native mounts of the final image.
 
 The installed utility's `-R` implementation passes its argument as the path to
 `fsctl(APFSIOC_REVERT_TO_SNAPSHOT)` with XID zero. The public XNU revert fallback
-applies the same request to a selected snapshot vnode. Accordingly the collector
-mounts the selected snapshot and supplies that mount path, then unmounts and
-remounts the live volume to finish the operation. Supplying a snapshot-name string
-as the utility manual suggests produced `ENOENT`; binary inspection established
-the actual argument behavior. Native results remain required on every version.
+applies the same request to a selected snapshot vnode. Supplying a snapshot-name
+string as the utility manual suggests produced `ENOENT`; a snapshot mount path
+with its zero-XID argument produced `EINVAL`. The bounded native helper instead
+passes the selected `diskutil` inventory XID through the published uint64 request
+on the live mount, then unmounts/remounts to finish the operation. This invocation
+requires fresh native proof on every version; its compiled syntax is not a native
+compatibility result.
 
 The Go acceptance family checks each native state on Linux, Windows and macOS:
 volume identity, name policy, locked/unlocked credentials, files, links, forks,

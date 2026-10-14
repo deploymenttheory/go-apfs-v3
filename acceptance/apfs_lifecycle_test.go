@@ -107,8 +107,8 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 				t.Fatal("invalid native lifecycle provenance")
 			}
 			majors[major] = true
-			required := []string{"apfs_lifecycle.py", "apfs_storage.c", "capture.py", "container_building.py", "image_repacking.py", "snapshot_reading.py", "verify_preservation.py", "file_compression.py", "image_building.py", "metadata_edits.py", "content_replacement.py", "preservation.py"}
-			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 6 || len(corpus.Limits) != 3 {
+			required := []string{"apfs_lifecycle.py", "apfs_storage.c", "apfs_snapshot.c", "capture.py", "container_building.py", "image_repacking.py", "snapshot_reading.py", "verify_preservation.py", "file_compression.py", "image_building.py", "metadata_edits.py", "content_replacement.py", "preservation.py"}
+			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 7 || len(corpus.Limits) != 3 {
 				t.Fatal("incomplete lifecycle source/tool/profile provenance")
 			}
 			for i, source := range corpus.Producer.Sources {
