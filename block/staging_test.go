@@ -6,8 +6,52 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+type observingStagingSource struct {
+	Source
+	directory string
+	observed  bool
+}
+
+func (s *observingStagingSource) ReadAt(p []byte, off int64) (int, error) {
+	if off > 0 {
+		files, err := filepath.Glob(filepath.Join(s.directory, ".apfs-edit-disk-*"))
+		if err != nil || len(files) != 1 {
+			return 0, errors.New("private staging disk absent during copy")
+		}
+		info, err := os.Stat(files[0])
+		if err != nil {
+			return 0, err
+		}
+		if info.Size() <= 0 || info.Size() >= s.Size() {
+			return 0, errors.New("incomplete staging copy has no partial-length signal")
+		}
+		s.observed = true
+	}
+	return s.Source.ReadAt(p, off)
+}
+
+func TestStagingExposesIncompleteCopyBeforeFinalLength(t *testing.T) {
+	original := make([]byte, 4*(128<<10))
+	original[0] = 0x5a
+	directory := t.TempDir()
+	source := &observingStagingSource{Source: bytes.NewReader(original), directory: directory}
+	stage, err := Stage(context.Background(), source, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stage.Close()
+	if !source.observed {
+		t.Fatal("copy did not expose its incomplete scratch")
+	}
+	info, err := stage.file.Stat()
+	if err != nil || info.Size() != source.Size() {
+		t.Fatal("completed scratch length", info, err)
+	}
+}
 
 func TestStagingPreservesZerosAndIsolatesChanges(t *testing.T) {
 	for _, size := range []int{0, 17, 3*(128<<10) + 17} {
