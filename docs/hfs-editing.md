@@ -75,8 +75,9 @@ ACL inheritance uses Apple's `kauth_acl_inherit`; parent set-ID modes do not
 propagate. Set-ID creation and writes require an explicit logical UID: root
 writes retain the bits, other writes and ordinary chown clear them. Numeric
 chmod preserves stored ACLs and GUIDs. Stored users and ACL identities are
-independent of host credentials and account-name resolution. The offline editing
-completion gate requires fresh Apple readback and continued inheritance.
+independent of host credentials and account-name resolution. The [offline editing
+regression](offline-editing-regression.md) records successful Apple readback and
+continued inheritance.
 
 `mv` preserves the original CNID, forks, attributes, metadata and link chains.
 An existing directory destination receives the source basename. Replacement
@@ -216,8 +217,8 @@ records through the same allocator and completed-output transaction. See
 [metadata semantics and native evidence](image-metadata.md). The writer can
 initialize an absent attributes file using Apple's allocation, header and map
 rules. First-attribute and fragmented metadata controls are retained separately;
-the [offline editing gate](offline-editing-qualification.md) requires fresh native
-qualification, including tree growth, deletion, collapse and subsequent reuse.
+the [offline editing regression](offline-editing-regression.md) records successful
+native qualification, including tree growth, deletion, collapse and subsequent reuse.
 
 `ln` converts a first regular-file link into native private-inode storage, extends
 existing alias chains and creates literal symlinks. See [link lifecycle semantics](image-links.md).

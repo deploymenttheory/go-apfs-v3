@@ -86,8 +86,8 @@ attributes file using Apple's allocation, header and node-map implementation.
 The shipped formatter's zero-initial-size option failed with an overlapping-
 extent error; independent controls instead build the pinned Apple C formatter
 and capture actual first-attribute writes on disposable macOS VMs. The
-[offline editing gate](offline-editing-qualification.md) requires those controls
-and Apple checks of the portable outputs.
+[offline editing regression](offline-editing-regression.md) records successful
+qualification of those controls and Apple checks of the portable outputs.
 
 The required existing-image edit families capture actual Apple before/after
 metadata, full timestamp precision, complete raw attributes, identities and

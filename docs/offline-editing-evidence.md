@@ -1,8 +1,9 @@
 # Offline image editing evidence
 
-Qualification is awaiting the remaining CI verdicts. The required checklist
-remains open; captured expectations, successful portable replay and successful
-Apple verification are recorded separately.
+The admitted offline editing profile is qualified. Original native expectations,
+portable outputs and successful Apple verdicts remain separately recorded and
+connected by exact hashes. The [regression verdict](offline-editing-regression.md)
+maps the closed checklist to this evidence.
 
 The [evidence index](offline-editing-evidence.json) identifies 30 retained native
 captures, 102 filesystem cases and 444 source/expected-state archives across
@@ -36,57 +37,94 @@ require byte equality across portable hosts before sharing a native check. They
 verify both UDRO and UDZO outputs and perform the applicable native continuation
 workloads before their final checks.
 
-## Current campaign
+## Completed qualification campaign
 
-The primary runs are [portable/race CI](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38464460509)
-and [native compatibility](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38464460753)
-for revision `2230e4b58836db7c8db190cee963576f01be83a6`.
-Its complete Git tree and merged main revision
-`62eb1150e214681e168a389c606331e830163b3b` both have tree identifier
-`b12c21be83a1faa486998252dd9acc5beef18034`.
-Native captures record the actual pull-request merge execution revision
-`c2efb7cf1f5399a8cc276944104400ff9fa431ea`; its tree is also identical.
-The duplicate pending merge campaigns were cancelled; their cancellation is
-recorded separately from the active campaigns' pending verdicts.
+The full [portable/race/quality run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38510878495)
+and [native compatibility run](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38510878640)
+passed for source `23d24783dd2bdbc6857bfe0d744bd102270b6bfb`. Its Git tree,
+the actual CI execution revision and merged main
+`0065fa987bce2b93de4131c3c2b87d7b204120d4` are identical. Original commit,
+run, job, artifact and PR-check snapshots are retained in compressed form.
 
-The [earlier recovery campaign](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38429354258)
-finished cancelled with 186 successful jobs. Its macOS 26 core capture passed
-on recovery, while three offline portable jobs and subsequent qualification
-remained cancelled or unsuccessful. Its retained 21 offline captures and 60
-portable successes are credited individually. Constructor inputs changed in the
-diagnostics correction, so these outputs do not replace the primary campaign's
-required fresh capture/replay.
+The [qualification ledger](offline-editing-evidence/qualification/ledger.json)
+retains all 21 successful fresh native input ZIPs and all 21 successful Apple
+verdict ZIPs byte-for-byte, including commands, observations, collector sources,
+original manifests, native image archives and every member digest. Their 72 native
+cases complement the unchanged 30-capture/102-case baseline above. Capture success
+and portable replay are not substituted for native output verification.
 
-The index also retains thirteen earlier successful Apple verdict archives and
-their original diagnostics: ten from the original offline editing campaign and
-three from the directory-statistics verifier correction. Each has a successful
-job URL, original artifact identity and archive/file digests. These are
-supporting evidence for their original revisions. Cancelled jobs that uploaded
-apparently complete verdicts are excluded. Original job/artifact API snapshots
-are retained as compressed metadata, with exact decoded-byte digests.
+There are 63 successful portable source/host replay jobs. Each of the 180 distinct
+UDRO/UDZO outputs has an actual SHA-256 and length, three byte-identical host
+bindings, its native case/manifest and successful Apple verdicts on all three
+macOS versions. The binding identifies the original output artifact and tar
+member. The Apple transcripts contain a successful `hdiutil verify` for every
+bound image, the applicable filesystem/metadata/signature checks, and native
+continuation workloads. The original verifier source and successful job verdict
+establish assertions performed directly through native filesystem APIs.
 
-Completed qualification must bind each actual portable output digest to its
-native source capture and successful Apple verdict. A job must have succeeded;
-an uploaded verdict from a cancelled job is insufficient. Original manifests,
-observations, commands and source images needed to reproduce outputs must survive
-artifact expiry. Generated outputs may be omitted from permanent storage when
-their exact inputs, construction revision, toolchain and digests are retained.
-These final output bindings and verdicts remain pending in the index.
+Generated Go images are omitted from permanent storage. The original reference
+ZIP, exact source revision, Go 1.27.0, replay job command/environment and output
+hashes retain the information needed to reproduce them. Retained native inputs
+and verdicts survive the campaign's January 12, 2027 artifact expiry. Historical
+supporting evidence also survives the earlier January 11 deadline.
 
-The current macOS 27 core capture failed while Apple created an HFSX/APM source.
-Its original diagnostic archive is retained under `offline-editing-evidence/failures`.
-The probes show the new failed image still attached, while the preceding fixture
-had detached successfully. The lock owner remains unidentified. The original
-error is a missing capture verdict, not a portable filesystem-engine failure.
-The core upload omitted the context sidecar; the existing upload paths have
-been corrected to retain it alongside command diagnostics.
+## Validate and reproduce
 
-Successful fresh native input archives are retained unchanged under
-`offline-editing-evidence/native-inputs`, including the original disk sources,
-expected observations and collector provenance. Each is admitted only after its
-capture job succeeds and its manifest, command, collector and recorded archive
-digests match. This keeps the inputs for exact output reproduction available
-after GitHub's artifact retention period without replacing the local baseline.
+From the repository root, check all retained file/member digests, original
+collector/command hashes, complete source/host/runner coverage, successful job
+bindings, Git-tree equivalence and output/native-verdict membership:
+
+```sh
+python3 docs/offline-editing-evidence/verify_offline_editing_evidence.py
+```
+
+To independently hash the original portable images while their artifacts remain
+available, download the 63 output artifact IDs recorded in the ledger to a private
+directory as `ARTIFACT_ID.zip`, then run:
+
+```sh
+python3 docs/offline-editing-evidence/verify_offline_editing_evidence.py \
+  --portable-artifacts /path/to/downloaded-artifacts
+```
+
+This additionally checks each original GitHub artifact/tar digest and streams all
+540 actual image digests. Both commands use ordinary files and Python's standard
+library; they do not run native tools, mount images or extend acceptance CI.
+
+For output reproduction, check out the recorded construction source revision,
+use Go 1.27.0 and unpack a retained reference ZIP into a private directory. Use the
+corresponding replay job's recorded command and environment from
+`.github/workflows/offline-editing.yml` at that revision. For example, after
+unpacking `qualification/native-inputs/apfs/macos-15/reference.zip`:
+
+```sh
+APFS_REQUIRED_NATIVE_MAJORS=15 \
+APFS_NATIVE_APFS_GEOMETRY=/path/to/references \
+APFS_GEOMETRY_OUTPUT=/path/to/outputs \
+go test -v -count=1 -timeout 25m ./acceptance -run '^TestNativeAPFSGeometryEditing$'
+```
+
+Compare the output members with the ledger's `relativePath`, `sha256` and `bytes`.
+Additional file-only reproduction on Go 1.27.1 matched eight original CI outputs:
+two APFS geometry outputs and six fragmented-HFS edited/collapsed/reused outputs.
+Their exact logs are retained. Native checker/mount/continued-write qualification
+remains restricted to disposable CI VMs.
+
+## Historical evidence and failure recovery
+
+The index preserves thirteen earlier successful Apple verdict archives and their
+original diagnostics, original run/job/artifact snapshots, five earlier successful
+native input archives and the original macOS 27 HFSX/APM creation failure archive.
+They remain supporting evidence for their recorded revisions. The earlier cancelled
+recovery run's individual successes are retained without calling that incomplete
+campaign qualified. The former campaign references remain in `historicalCampaigns`.
+
+The final native campaign's first attempt failed during macOS 26 busy-detach
+cleanup after core allocation checks. The existing failed-job rerun completed
+successfully on the identical source revision, retaining every prior successful
+capture, replay and native verdict. Original and recovered job snapshots are both
+preserved. Conditional alternative-path skips are individually accounted for in
+the regression verdict. No original observations or expected values were rewritten.
 
 ## Publication and failure controls
 
