@@ -1590,6 +1590,47 @@
         "acceptance/native/verify_hfs_metadata_growth.py"
       ],
       "basis": "Original macOS 15/26/27 HFS+/HFSX disks, headers and file observations before insertion, after fragmented overflow growth, after deleting all 256 user files, and after reuse. Native attributes roots split to depth two and collapse to depth one with a filesystem-owned record remaining. Native catalog depth stays three because protected records occupy several leaves; pinned DeleteTree/CollapseTree only collapses a root with one child, without forcing sibling redistribution. Exact Fixture contents, attributes, metadata and identities supply the user-visible oracle. Original disk, formatter, collector and command hashes remain unchanged. Fresh edited/collapsed/reused outputs passed Apple checks and subsequent native writes on macOS 15/26/27; the permanent ledger records the hfs-fragmented verdicts."
+    },
+    {
+      "id": "apple-cp-clone-policy",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds",
+      "revision": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+      "components": [
+        "acceptance/native/apfs_lifecycle.py",
+        "docs/apfs-lifecycle.md"
+      ],
+      "files": [
+        {
+          "path": "cp/cp.c",
+          "sha256": "dc48972b5245cdb8a8632a5946821bb13e2f55667aee9832d7ac2c66943544fa"
+        },
+        {
+          "path": "cp/utils.c",
+          "sha256": "06abedb3fc751b3f52b7fa435155a3d96a92a6a74f8afee34b8f4a8cf01a7083"
+        },
+        {
+          "path": "cp/cp.1",
+          "sha256": "a0a48fa902c4330f6bb441c8e6ec1692c45418f41dba31f9b91ccbc23a83eb4f"
+        }
+      ],
+      "basis": "Native cp -c policy studied before clone writing: clonefileat, replacement destination unlink, fallback limited to EXDEV/ENOTSUP, -c/-X incompatibility and ordinary copy preservation options. No C copied. Independent native controls observe physical sharing, forks, inode identity, destination hard links and cross-volume fallback; qualification status is documented separately."
+    },
+    {
+      "id": "apple-xnu-physical-storage-api",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "components": [
+        "acceptance/native/apfs_storage.c"
+      ],
+      "files": [
+        {
+          "path": "bsd/sys/fcntl.h",
+          "sha256": "0f93c8918a70ffafe20bfe9c72e671fde67438cbee9f9de8c2f87b5c704c9a9e"
+        }
+      ],
+      "basis": "Darwin F_LOG2PHYS_EXT and SDK struct log2phys ABI used by an original bounded native observer to establish actual data/resource-fork sharing independently of equal file bytes. The helper constructs no APFS records and requires a disposable GitHub-hosted VM."
     }
   ]
 }

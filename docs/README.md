@@ -18,3 +18,4 @@ different things and must not be presented interchangeably.
 - [Copying into existing images](image-copy.md): recursive import, preservation, aliases, forks and independent native qualification.
 
 - [Offline editing admission](offline-editing-limits.md): supported profiles, protected objects, bounds and refusal policy.
+- [APFS history, sharing and encryption](apfs-lifecycle.md): dependency-linked lifecycle work, Apple source basis and independent native controls.
