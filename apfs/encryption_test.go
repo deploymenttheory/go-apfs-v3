@@ -124,3 +124,35 @@ func TestAuthenticatedKeyDoesNotHideCorruptEncryptedMetadata(t *testing.T) {
 		t.Fatal("per-file key profile accepted", err)
 	}
 }
+
+func TestInProgressEncryptionIsInspectableButRefusesFilesystemAccess(t *testing.T) {
+	for _, flags := range []uint64{1, 8} {
+		b := make([]byte, 4096)
+		le.PutUint64(b[264:], flags)
+		// Other admission fields are ordinary. A conversion may start before
+		// the historical ENC_ROLLED bit is set; the state OID must suffice.
+		le.PutUint32(b[116:], 2)
+		le.PutUint64(b[976:], 123)
+		v := (&Container{}).volume(b, 1)
+		if v.EncryptionRollingStateOID != 123 || v.IncompatibleFeatures != 0 {
+			t.Fatal("encryption state must remain inspectable")
+		}
+		ctx := context.Background()
+		if _, err := v.Stat(ctx, v.Root()); !errors.Is(err, filesystem.ErrUnsupported) {
+			t.Fatal("unfinished conversion exposed filesystem metadata", err)
+		}
+		if err := v.ListSnapshots(ctx, func(Snapshot) error { return nil }); !errors.Is(err, filesystem.ErrUnsupported) {
+			t.Fatal("unfinished conversion exposed retained history", err)
+		}
+		if v.Encrypted {
+			// The empty container has no backing source. Rejection must precede
+			// keybag I/O and password derivation, not just eventual root decoding.
+			if unlocked, err := v.Unlock(ctx, nil); unlocked != nil || !errors.Is(err, filesystem.ErrUnsupported) {
+				t.Fatal("unfinished conversion attempted authentication", err)
+			}
+		}
+		if err := (&mutation{v: &v, c: v.container, ctx: ctx}).loadVolume(); !errors.Is(err, filesystem.ErrUnsupported) {
+			t.Fatal("unfinished conversion admitted mutation", err)
+		}
+	}
+}

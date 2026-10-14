@@ -34,6 +34,11 @@ type lifecycleCase struct {
 	ID, Kind, SelectedName, ParentManifestSHA256, ParentImage, ParentImageSHA256 string
 	SelectedXID                                                                  apfs.XID
 	States                                                                       []lifecycleState
+	CrossVolumeCopy                                                              *struct {
+		Status            int
+		Stderr            string
+		DestinationExists bool
+	}
 }
 
 type lifecycleState struct {
@@ -122,6 +127,14 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 					t.Fatal("unknown or repeated lifecycle case", c.ID)
 				}
 				ids[c.ID] = true
+				if c.Kind == "clone-encryption" {
+					legacy := major == "15"
+					if c.CrossVolumeCopy == nil || c.CrossVolumeCopy.DestinationExists == legacy ||
+						(legacy && (c.CrossVolumeCopy.Status != 1 || !strings.Contains(c.CrossVolumeCopy.Stderr, "Cross-device link"))) ||
+						(!legacy && c.CrossVolumeCopy.Status != 0) {
+						t.Fatal("native cross-volume clone-copy outcome differs from source-version control", major)
+					}
+				}
 				t.Run(c.ID, func(t *testing.T) { replayLifecycle(t, dir, c) })
 			}
 		})

@@ -41,6 +41,9 @@ func (k *volumeKeys) decrypt(b []byte, sector uint64) error {
 }
 
 func (v *Volume) access() error {
+	if v.EncryptionRollingStateOID != 0 {
+		return fmt.Errorf("APFS encryption conversion in progress: %w", filesystem.ErrUnsupported)
+	}
 	if v.keys != nil {
 		return v.keys.check()
 	}
@@ -68,6 +71,9 @@ func (v *Volume) Unlock(ctx context.Context, password []byte) (*Volume, error) {
 	}
 	if v.Flags&8 == 0 {
 		return nil, fmt.Errorf("APFS per-file or hardware keys: %w", filesystem.ErrUnsupported)
+	}
+	if v.EncryptionRollingStateOID != 0 {
+		return nil, fmt.Errorf("APFS encryption conversion in progress: %w", filesystem.ErrUnsupported)
 	}
 	c := v.container
 	entries, err := c.keybag(ctx, c.keylockerStart, c.keylockerCount, c.id, 0x6b657973)

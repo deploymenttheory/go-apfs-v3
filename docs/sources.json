@@ -1631,6 +1631,23 @@
         }
       ],
       "basis": "Darwin F_LOG2PHYS_EXT and SDK struct log2phys ABI used by an original bounded native observer to establish actual data/resource-fork sharing independently of equal file bytes. The helper constructs no APFS records and requires a disposable GitHub-hosted VM."
+    },
+    {
+      "id": "apple-cp-legacy-clone-policy",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds",
+      "revision": "35ca7d4a702664134a55f1ff6b54188ee48e1177",
+      "components": [
+        "acceptance/native/apfs_lifecycle.py",
+        "docs/apfs-lifecycle.md"
+      ],
+      "files": [
+        {
+          "path": "cp/utils.c",
+          "sha256": "e6d765611e075a3ebe14972417cfe139a6ec0f0c0db4763438e25ff3b0ad5968"
+        }
+      ],
+      "basis": "Older clonefile cp -c path falls back only on ENOTSUP, unlike current EXDEV/ENOTSUP policy. Native macOS 15 captures independently returned EXDEV and no destination across APFS volumes; macOS 26/27 captures succeeded by copying. These actual source-version outcomes are retained separately, not rewritten into one expected result."
     }
   ]
 }

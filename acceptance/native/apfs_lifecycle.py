@@ -196,10 +196,11 @@ def fixture(root, command):
     create_signed_app(root, command, source_directory=root.parent.parent)
 
 
-def mutate(scratch, label, case_id, fs, work, command, password=None):
+def mutate(scratch, label, case_id, fs, work, command, password=None, major=27):
     require_runner()
     from file_compression import RESOURCE, xattr
     cleanup, _, inventory = attached(scratch, command)
+    cross_volume = None
     try:
         primary = next(v for v in inventory['Volumes'] if v['Name'] == 'Primary')
         device = primary['DeviceIdentifier']
@@ -217,8 +218,18 @@ def mutate(scratch, label, case_id, fs, work, command, password=None):
             mount(peer['DeviceIdentifier'], peer_dir, command)
             command('sudo', 'mkdir', peer_dir / 'Fixture')
             command('sudo', 'chown', f'{os.getuid()}:{os.getgid()}', peer_dir / 'Fixture')
-            # A different APFS volume still forces cp -c's ordinary-copy path.
-            command('/bin/cp', '-c', root / 'data', peer_dir / 'Fixture/data')
+            (peer_dir / 'Fixture/preserved-peer').write_bytes(b'Independent plaintext peer contents.\n')
+            # The installed macOS 15 cp rejects EXDEV; the captured macOS 26/27
+            # tools fall back. Preserve that difference and the absent legacy
+            # destination instead of preparing a successful copy over the error.
+            command('/bin/cp', '-c', root / 'data', peer_dir / 'Fixture/data',
+                    expected_success=major != 15)
+            record = command.records[-1]
+            cross_volume = {'status': record['status'], 'stderr': record['stderr'],
+                            'destinationExists': (peer_dir / 'Fixture/data').exists()}
+            require(cross_volume['destinationExists'] == (major != 15), 'native cross-volume cp destination differs')
+            if major == 15:
+                require(record['status'] == 1 and 'Cross-device link' in record['stderr'], 'unexpected legacy clone refusal')
         elif label == 'clone-diverged':
             with (root / 'clone').open('r+b') as stream:
                 stream.seek(8193)
@@ -272,9 +283,10 @@ def mutate(scratch, label, case_id, fs, work, command, password=None):
             raise ValueError('unknown lifecycle state')
     finally:
         command('hdiutil', 'detach', cleanup)
+    return cross_volume
 
 
-def capture_clones(case_id, sensitive, work, output, command, helper):
+def capture_clones(case_id, sensitive, work, output, command, helper, major=27):
     require_runner()
     scratch = work / (case_id + '.dmg')
     fs = 'APFSX' if sensitive else 'APFS'
@@ -283,9 +295,11 @@ def capture_clones(case_id, sensitive, work, output, command, helper):
     # inferring the private formatter's size-to-volume-limit algorithm.
     command('hdiutil', 'create', '-size', '1536m', '-layout', 'NONE', '-fs',
             'Case-sensitive APFS' if sensitive else 'APFS', '-volname', 'Primary', scratch)
-    states, passwords = [], {}
+    states, passwords, cross_volume = [], {}, None
     for label in STATES:
-        mutate(scratch, label, case_id, fs, work, command, passwords.get('Primary'))
+        result = mutate(scratch, label, case_id, fs, work, command, passwords.get('Primary'), major)
+        if result is not None:
+            cross_volume = result
         if label == 'encrypted':
             passwords = {'Primary': PASSWORD, 'EncryptedPeer': PEER_PASSWORD}
         elif label == 'password-changed':
@@ -301,7 +315,7 @@ def capture_clones(case_id, sensitive, work, output, command, helper):
         # later native operation fails. The complete manifest owns these values
         # on success; do not retain a second copy in the finished corpus.
         (output / (case_id + '-progress.json')).write_text(json.dumps(states, indent=2) + '\n')
-    return {'id': case_id, 'kind': 'clone-encryption', 'states': states}
+    return {'id': case_id, 'kind': 'clone-encryption', 'crossVolumeCopy': cross_volume, 'states': states}
 
 
 def capture_revert(case_id, reference, work, output, command, helper):
@@ -324,8 +338,17 @@ def capture_revert(case_id, reference, work, output, command, helper):
         snapshots = plistlib.loads(command('diskutil', 'apfs', 'listSnapshots', '-plist', volume))['Snapshots']
         require(len(snapshots) == 2, 'revert control needs two independent retained snapshots')
         selected = min(snapshots, key=lambda s: s['SnapshotXID'])
+        pin = work / (prefix + '-revert-selected')
+        pin.mkdir()
+        command(MOUNT_APFS, '-o', 'rdonly,owners,nobrowse', '-s', selected['SnapshotName'], directory, pin)
+        try:
+            # The signed utility passes -R's argument to fsctl(J,1) with XID=0.
+            # XNU's snapshot_revert fallback applies that request to the selected
+            # snapshot vnode, not to a snapshot-name string or a device path.
+            command('sudo', APFS_UTIL, '-R', pin, '/dev/' + volume)
+        finally:
+            command('/sbin/umount', pin)
         command('diskutil', 'unmount', volume)
-        command('sudo', APFS_UTIL, '-R', selected['SnapshotName'], '/dev/' + volume)
         # Apple's documented operation finishes on the next writable mount.
         resumed = work / (prefix + '-reverted-write')
         mount(volume, resumed, command)
@@ -367,7 +390,7 @@ def capture(reference, output, major):
             producer['sources'].append({'source': name, 'sha256': sha256(source)})
         try:
             cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
-                                    work, corpus, command, helper) for sensitive in (False, True)]
+                                    work, corpus, command, helper, major) for sensitive in (False, True)]
             cases += [capture_revert(case_id, reference, work, corpus, command, helper)
                       for case_id in ('apfs', 'apfs-case-sensitive')]
         except BaseException as error:

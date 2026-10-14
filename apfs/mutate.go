@@ -201,7 +201,7 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 }
 func (m *mutation) loadVolume() error {
 	v := m.v
-	if v.Encrypted || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
+	if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
 		return fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
 	}
 	physical := func(id uint64) ([]byte, uint64, error) { b, e := m.readObject(id, 0, 0x40000000); return b, id, e }

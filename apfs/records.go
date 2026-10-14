@@ -49,7 +49,11 @@ func (v *Volume) records(ctx context.Context, id uint64, kind uint8, yield func(
 	if err := v.access(); err != nil {
 		return err
 	}
-	if v.Sealed || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
+	// APFS_INCOMPAT_ENC_ROLLED (0x4) records a past key change. It persists
+	// after native conversion completes; access separately refuses nonzero
+	// apfs_er_state_oid. Completed software transitions retain the same bounded
+	// object/extent decoding and must match the native lifecycle controls.
+	if v.Sealed || v.IncompatibleFeatures&^uint64(0xf) != 0 || v.rootType != 2 {
 		return fmt.Errorf("filesystem tree features: %w", filesystem.ErrUnsupported)
 	}
 	if id > objectMask {

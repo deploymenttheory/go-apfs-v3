@@ -57,6 +57,13 @@ compose with those decisions. The separate
 also has best-effort and forced clone flags, optional ACL copying and an explicit
 cloned-state observation. Equal bytes alone cannot establish shared storage.
 
+The installed macOS 15 `cp -c` instead rejects a cross-volume `EXDEV` with no
+destination. The captured macOS 26 and 27 tools perform the fallback. Older
+[Apple cp source](https://github.com/apple-oss-distributions/file_cmds/blob/35ca7d4a702664134a55f1ff6b54188ee48e1177/cp/utils.c)
+falls back only for `ENOTSUP`, explaining the older outcome. Each source version
+retains its actual command result and destination observation. A separate peer
+file supplies preservation controls; no ordinary copy overwrites the refusal.
+
 The pinned [XNU snapshot dispatcher](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/vfs/vfs_syscalls.c)
 checks snapshot entitlements before create/rename/delete/revert syscalls, even
 for root. Its rename path refuses an existing name with `EEXIST`. Public C source
@@ -74,6 +81,15 @@ through the existing exact-byte file/stdin interfaces and stay out of production
 logs, fingerprints and manifests. The native controls use explicitly public
 fixture passwords, as the existing encryption families do.
 
+Native conversion controls exposed a reader admission error: a completed
+`diskutil apfs encryptVolume` sets `APFS_INCOMPAT_ENC_ROLLED` (0x4), which the
+original reader mask rejected. Apple's reference defines this as past key changes;
+`apfs_er_state_oid` separately identifies a conversion still in progress. The
+reader now decodes and reports that state OID, refuses unfinished transitions,
+and admits the historical flag for completed reads. Writer admission retains its
+existing separate qualification requirements. Full native observation replay
+must qualify the completed encrypted and decrypted states.
+
 ## Native control family
 
 `acceptance/native/apfs_lifecycle.py` extends the existing compatibility workflow,
@@ -89,9 +105,17 @@ without adding profile jobs or another capture mode. Its current controls are:
   reattached read-only, natively checked and observed. Migration probes must show
   an explicitly settled state before the completed reference is published.
 - Actual snapshot revert from the older of two retained ASR snapshots, using
-  Apple's documented `apfs.util -R` and a subsequent writable mount. The original
+  Apple's signed `apfs.util -R` on a mounted snapshot and a subsequent writable mount. The original
   snapshot corpus and digests remain unchanged. Live and every remaining
   historical state are read from native mounts of the final image.
+
+The installed utility's `-R` implementation passes its argument as the path to
+`fsctl(APFSIOC_REVERT_TO_SNAPSHOT)` with XID zero. The public XNU revert fallback
+applies the same request to a selected snapshot vnode. Accordingly the collector
+mounts the selected snapshot and supplies that mount path, then unmounts and
+remounts the live volume to finish the operation. Supplying a snapshot-name string
+as the utility manual suggests produced `ENOENT`; binary inspection established
+the actual argument behavior. Native results remain required on every version.
 
 The Go acceptance family checks each native state on Linux, Windows and macOS:
 volume identity, name policy, locked/unlocked credentials, files, links, forks,
