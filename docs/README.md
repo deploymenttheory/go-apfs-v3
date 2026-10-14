@@ -12,8 +12,9 @@ different things and must not be presented interchangeably.
 - [Packing](packing.md): APFS/HFS+/HFSX construction, complete-disk repacking and preservation guarantees.
 
 - [Editing existing HFS+/HFSX filesystems](hfs-editing.md): commands, allocation/tree mutation, preservation and the completed-output transaction contract.
-- [Offline editing qualification](offline-editing-qualification.md): supported profiles, required evidence and remaining work.
-- [Offline editing evidence](offline-editing-evidence.md): native controls, original digests, replay purposes and pending qualification verdicts.
+- [Offline editing qualification](offline-editing-qualification.md): supported profiles and completed qualification criteria.
+- [Offline editing regression](offline-editing-regression.md): complete portable/native verdict, requirement mapping and incident outcomes.
+- [Offline editing evidence](offline-editing-evidence.md): native controls, original digests, actual output bindings and successful Apple verdicts.
 - [Copying into existing images](image-copy.md): recursive import, preservation, aliases, forks and independent native qualification.
 
 - [Offline editing admission](offline-editing-limits.md): supported profiles, protected objects, bounds and refusal policy.

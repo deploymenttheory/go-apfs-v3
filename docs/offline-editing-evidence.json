@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "awaiting-native-qualification",
+  "status": "qualified",
   "scope": "completed-output offline image editing",
   "sourceMajorVersions": [
     15,
@@ -23,16 +23,53 @@
     "collectorFiles": 510,
     "archives": 444
   },
-  "constructionRevision": "62eb1150e214681e168a389c606331e830163b3b",
+  "constructionRevision": "0065fa987bce2b93de4131c3c2b87d7b204120d4",
   "activeCampaigns": {
-    "portable": 38464460509,
-    "native": 38464460753,
-    "sourceRevision": "2230e4b58836db7c8db190cee963576f01be83a6",
-    "sourceAndMergedTree": "b12c21be83a1faa486998252dd9acc5beef18034",
-    "executionRevision": "c2efb7cf1f5399a8cc276944104400ff9fa431ea",
-    "executionTree": "b12c21be83a1faa486998252dd9acc5beef18034"
+    "portable": 38510878495,
+    "native": 38510878640,
+    "sourceRevision": "23d24783dd2bdbc6857bfe0d744bd102270b6bfb",
+    "sourceAndMergedTree": "ab38c4a864aff7d7911955688dd2a236b25fbaf7",
+    "executionRevision": "05f3924a165f5bbc3f4f2c286b71609ca0243cb8",
+    "executionTree": "ab38c4a864aff7d7911955688dd2a236b25fbaf7"
   },
-  "qualificationVerdict": null,
+  "qualificationVerdict": {
+    "conclusion": "success",
+    "sourceRevision": "23d24783dd2bdbc6857bfe0d744bd102270b6bfb",
+    "mergedRevision": "0065fa987bce2b93de4131c3c2b87d7b204120d4",
+    "identicalGitTree": "ab38c4a864aff7d7911955688dd2a236b25fbaf7",
+    "ledger": {
+      "path": "docs/offline-editing-evidence/qualification/ledger.json",
+      "sha256": "0fae109e7c65e0a7aca7014397d33a9e1b41a33cbe9347dc16f643980239df7a"
+    },
+    "coverage": {
+      "families": 7,
+      "nativeCaptures": 21,
+      "nativeCases": 72,
+      "portableReplays": 63,
+      "appleVerdicts": 21,
+      "distinctOutputs": 180,
+      "hostOutputs": 540,
+      "encodings": [
+        "UDRO",
+        "UDZO"
+      ],
+      "nativeSourceMajors": [
+        15,
+        26,
+        27
+      ],
+      "portableHosts": [
+        "Linux",
+        "Windows",
+        "macOS"
+      ],
+      "appleVerificationMajors": [
+        15,
+        26,
+        27
+      ]
+    }
+  },
   "historicalSupportingVerdicts": [
     {
       "family": "apfs",
@@ -867,7 +904,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/apfs",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "hfs",
@@ -1631,7 +1687,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/hfs",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "hfs-fragmented",
@@ -2800,7 +2875,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/hfs-fragmented",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "permissions",
@@ -3240,7 +3334,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/permissions",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "statistics",
@@ -3602,7 +3715,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/statistics",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "copy-permissions",
@@ -5020,7 +5152,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/copy-permissions",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     },
     {
       "id": "statistics-transitions",
@@ -6948,7 +7099,26 @@
             }
           ]
         }
-      ]
+      ],
+      "qualification": {
+        "ledgerFamily": "/families/statistics-transitions",
+        "sourceMajors": [
+          15,
+          26,
+          27
+        ],
+        "portableHosts": [
+          "Linux",
+          "Windows",
+          "macOS"
+        ],
+        "appleMajors": [
+          15,
+          26,
+          27
+        ],
+        "conclusion": "success"
+      }
     }
   ],
   "freshNativeInputs": [
@@ -7354,6 +7524,16 @@
         "path": "docs/offline-editing-evidence/failures/macos-27-hfsx-creation.zip",
         "sha256": "6921e9aa6952955a3211f7e6096bbbb5cad77ac01da1415bee378974b363908e"
       }
+    }
+  ],
+  "historicalCampaigns": [
+    {
+      "portable": 38464460509,
+      "native": 38464460753,
+      "sourceRevision": "2230e4b58836db7c8db190cee963576f01be83a6",
+      "sourceAndMergedTree": "b12c21be83a1faa486998252dd9acc5beef18034",
+      "executionRevision": "c2efb7cf1f5399a8cc276944104400ff9fa431ea",
+      "executionTree": "b12c21be83a1faa486998252dd9acc5beef18034"
     }
   ]
 }

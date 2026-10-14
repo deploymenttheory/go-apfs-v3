@@ -101,8 +101,8 @@ other data writes and ordinary chown clear them. APFS truncation to empty conten
 without a subsequent write retains set-ID bits. Ordinary cp restores the mode
 captured after truncation, while `-p` applies source metadata. Numeric chmod preserves ACL bytes.
 These effects model offline metadata, without authorizing a host process or
-mapping stored GUIDs to host accounts. Fresh native qualification is required
-by the offline editing completion gate.
+mapping stored GUIDs to host accounts. The [offline editing regression](offline-editing-regression.md)
+records successful native qualification of this profile.
 Existing `mkdir -p` paths are a no-op and keep their metadata.
 
 `mv` preserves the inode, forks and attributes. An existing directory receives

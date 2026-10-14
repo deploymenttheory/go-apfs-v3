@@ -1415,7 +1415,7 @@
           "sha256": "7e93323baaf2a6fa15d20769f86096b475fc95ce425ec2745a4eb7531b7c1892"
         }
       ],
-      "basis": "Go adaptation of hfs_create_attr_btree, getnodecount and ExtendBTree, with unpublished owned storage replacing vnodes and journal callbacks. Extents Overflow B-tree resident extents are an Apple format constraint; attributes/catalog growth uses overflow extents. Metadata allocation preserves contiguous whole nodes. Native qualification remains pending in the offline editing completion gate."
+      "basis": "Go adaptation of hfs_create_attr_btree, getnodecount and ExtendBTree, with unpublished owned storage replacing vnodes and journal callbacks. Extents Overflow B-tree resident extents are an Apple format constraint; attributes/catalog growth uses overflow extents. Metadata allocation preserves contiguous whole nodes. Native output checks and continued allocation passed in the full offline editing qualification at 23d24783dd2bdbc6857bfe0d744bd102270b6bfb; the permanent ledger records the hfs and hfs-fragmented verdicts."
     },
     {
       "id": "native-apfs-geometry",
@@ -1429,7 +1429,7 @@
         "apfs/mutate_limits.go",
         "imageedit/edit.go"
       ],
-      "basis": "Apple-created macOS 15/26/27 larger and multiple-volume source/after disks and original command/source hashes. All portable builds and independent Apple readback/continued-write checks passed for b0c811e. Later editor/cache changes require the same gate again."
+      "basis": "Apple-created macOS 15/26/27 larger and multiple-volume source/after disks and original command/source hashes. All portable builds and independent Apple readback/continued-write checks passed for b0c811e. The final editor and staging changes passed the complete gate again at 23d24783dd2bdbc6857bfe0d744bd102270b6bfb; the permanent ledger binds the fresh apfs inputs and all portable outputs to the successful Apple verdicts."
     },
     {
       "id": "native-hfs-allocation",
@@ -1442,7 +1442,7 @@
         "hfsplus/mutate_tree_growth.go",
         "hfsplus/mutate_links.go"
       ],
-      "basis": "Unmodified pinned Apple debug formatter creates independent absent-attributes and catalog-map boundary inputs. Apple native mounts, writes, checker verdicts and observations supply expectations on macOS 15/26/27. Native catalog growth from 30720 to 47104 nodes is actually observed. Capture success is not Go output qualification."
+      "basis": "Unmodified pinned Apple debug formatter creates independent absent-attributes and catalog-map boundary inputs. Apple native mounts, writes, checker verdicts and observations supply expectations on macOS 15/26/27. Native catalog growth from 30720 to 47104 nodes is actually observed. The final portable outputs passed independent Apple checks and continued allocation on all three macOS versions; the permanent ledger records the hfs verdicts separately from capture success."
     },
     {
       "id": "native-hfs-fragmented",
@@ -1455,7 +1455,7 @@
         "hfsplus/mutate_allocation.go",
         "hfsplus/mutate_tree_growth.go"
       ],
-      "basis": "Apple debug formatter places eight-extent catalog and attributes files with occupied tails; native growth actually enters overflow extents in both metadata files, for HFS+/HFSX on macOS 15/26/27. Original formatter sources, SDK and binary hashes are retained. Go output qualification remains required."
+      "basis": "Apple debug formatter places eight-extent catalog and attributes files with occupied tails; native growth actually enters overflow extents in both metadata files, for HFS+/HFSX on macOS 15/26/27. Original formatter sources, SDK and binary hashes are retained. The final edited, collapsed and reused portable outputs passed independent Apple checks and continued allocation on all three macOS versions; the permanent ledger records the hfs-fragmented verdicts."
     },
     {
       "id": "native-apfs-directory-statistics",
@@ -1469,7 +1469,7 @@
         "apfs/mutate_statistics.go",
         "acceptance/apfs_directory_statistics_test.go"
       ],
-      "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. Original macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. Current native inodes carry an eight-byte shared statistics key on files and directories; origin records use separate IDs, chained totals, primary-inode counts and allocated data-fork bytes excluding resource forks. Go replay matches the original six profiles with exact original generation counters, but fresh Apple output checks and continued writes remain required before qualification. Output counters follow Apple's documented monotonic invalidation contract; their stride is not a command count. No private APFS kernel C port is claimed."
+      "basis": "Apple documented apfs.util -M enables directory statistics on empty directories; -S supplies independent native queries. Original macOS 15/26/27 source/after controls include nested origins, inherited directories and cross-directory hard links. Current native inodes carry an eight-byte shared statistics key on files and directories; origin records use separate IDs, chained totals, primary-inode counts and allocated data-fork bytes excluding resource forks. Go replay matches the original six profiles with exact original generation counters, and fresh Apple output checks and continued writes passed on macOS 15/26/27; the permanent ledger records the statistics verdicts. Output counters follow Apple's documented monotonic invalidation contract; their stride is not a command count. No private APFS kernel C port is claimed."
     },
     {
       "id": "apple-xnu-filesec",
@@ -1499,7 +1499,7 @@
           "sha256": "4c82b3ca60884b954e921cb15b3df35a08ce70bc99d22ec6035c40df6cae72db"
         }
       ],
-      "basis": "Bounded Go adaptation of kauth_filesec/kauth_acl layouts, canonical network byte order and kauth_acl_inherit for ordinary creation with no initial ACL. GUIDs, rights and private flags remain opaque; matching inheritance flags and limited/file propagation follow Apple C. New owner/group GUIDs default to null through vnode_setattr_fallback. Ordinary chown mode clearing follows vnode_authattr, including unchanged numeric ownership and root. Account-name resolution and process authorization are not emulated. Independent macOS 15/26/27 controls are required before qualification."
+      "basis": "Bounded Go adaptation of kauth_filesec/kauth_acl layouts, canonical network byte order and kauth_acl_inherit for ordinary creation with no initial ACL. GUIDs, rights and private flags remain opaque; matching inheritance flags and limited/file propagation follow Apple C. New owner/group GUIDs default to null through vnode_setattr_fallback. Ordinary chown mode clearing follows vnode_authattr, including unchanged numeric ownership and root. Account-name resolution and process authorization are not emulated. Independent macOS 15/26/27 controls and final portable outputs passed Apple readback and continued inheritance; the permanent ledger records the permissions verdicts."
     },
     {
       "id": "native-permission-inheritance",
@@ -1514,7 +1514,7 @@
         "hfsplus/mutate_security.go",
         "acceptance/permission_inheritance_test.go"
       ],
-      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable output/native continued-write qualification remains required before offline editing qualification."
+      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX source/after disks and public getattrlist ACL/GUID observations on macOS 15/26/27. Controls independently prove ordinary chmod retains ACLs through a hard-link alias; root writes retain set-ID, non-root writes clear it, and chown clears both bits even for unchanged IDs. Five parent ACL policies qualify file/directory/only/limited inheritance and grandchild propagation. A differently owned and a setgid parent independently prove explicit logical creator UID, inherited parent GID and no setgid-mode inheritance. Exact network-order hidden ACL comparisons supplement all file contents, metadata and alias identities. Fresh portable outputs passed native readback and continued-write qualification on macOS 15/26/27; the permanent ledger records the permissions verdicts."
     },
     {
       "id": "native-directory-statistics-transitions",
@@ -1529,7 +1529,7 @@
         "apfs/mutate_metadata.go",
         "acceptance/apfs_directory_statistics_transitions_test.go"
       ],
-      "basis": "Original macOS 15/26/27 APFS/APFSX images and public apfs.util observations after 37 native operations. Independently prove primary-inode counts, chained groups, resource-fork generation invalidation without contributing resource bytes, empty writes, truncation, symlinks, moving untracked subtrees, origin moves and deletion. The same deletion advances generations by different amounts across Apple kernels. Counts/bytes and unchanged-versus-advanced generations are required, with exact original counter decoding and overflow refusal. All six file-only replays passed; portable/native output qualification remains required."
+      "basis": "Original macOS 15/26/27 APFS/APFSX images and public apfs.util observations after 37 native operations. Independently prove primary-inode counts, chained groups, resource-fork generation invalidation without contributing resource bytes, empty writes, truncation, symlinks, moving untracked subtrees, origin moves and deletion. The same deletion advances generations by different amounts across Apple kernels. Counts/bytes and unchanged-versus-advanced generations are required, with exact original counter decoding and overflow refusal. All six retained file-only replays and the fresh portable/native output qualification passed; the permanent ledger records the statistics-transitions verdicts and actual output digests."
     },
     {
       "id": "native-copy-permissions",
@@ -1544,7 +1544,7 @@
         "internal/copyfile/copy.go",
         "acceptance/permission_inheritance_test.go"
       ],
-      "basis": "Original Apple cp controls on macOS 15/26/27 for APFS/APFSX/HFS+/HFSX, including exact public getattrlist ACL/GUID fields. Prove ordinary copy retains destination ACLs, -p composes direct source entries with inherited destination entries even under -X, source inherited entries are excluded, and explicit empty ACL differs from absent. File-only image replay in both DMG encodings and persisted session replay passed all 12 native profiles. Fresh Apple output verification and added set-ID-copy controls remain required."
+      "basis": "Original Apple cp controls on macOS 15/26/27 for APFS/APFSX/HFS+/HFSX, including exact public getattrlist ACL/GUID fields. Prove ordinary copy retains destination ACLs, -p composes direct source entries with inherited destination entries even under -X, source inherited entries are excluded, and explicit empty ACL differs from absent. File-only image replay in both DMG encodings and persisted session replay passed all 12 native profiles. The retained set-ID/truncation controls passed the full portable matrix, and fresh copy outputs passed Apple mode/ACL readback and continued writes on macOS 15/26/27; the permanent ledger records the copy-permissions verdicts."
     },
     {
       "id": "native-copy-setid-modes",
@@ -1558,7 +1558,7 @@
         "session/commands.go",
         "acceptance/permission_inheritance_test.go"
       ],
-      "basis": "Original macOS 15/26/27 Apple cp controls for APFS/APFSX/HFS+/HFSX. Ordinary new copies strip set-ID; -p restores source mode. Existing-target ordinary cp retains set-ID on APFS and clears it on HFS, consistent with cp opening O_TRUNC before fcopyfile snapshots/restores destination mode and pinned hfs_truncate clearing at truncate. The shared logical policy models this filesystem difference. Original source timestamps copied with -p remain exact even when later than the reproducible construction clock. Native output qualification remains required."
+      "basis": "Original macOS 15/26/27 Apple cp controls for APFS/APFSX/HFS+/HFSX. Ordinary new copies strip set-ID; -p restores source mode. Existing-target ordinary cp retains set-ID on APFS and clears it on HFS, consistent with cp opening O_TRUNC before fcopyfile snapshots/restores destination mode and pinned hfs_truncate clearing at truncate. The shared logical policy models this filesystem difference. Original source timestamps copied with -p remain exact even when later than the reproducible construction clock. The retained controls passed the full portable matrix; fresh copy-permissions outputs passed Apple mode/ACL readback and continued writes on macOS 15/26/27, as recorded in the permanent ledger."
     },
     {
       "id": "native-copy-truncation-modes",
@@ -1574,7 +1574,7 @@
         "internal/copyfile/copy.go",
         "acceptance/permission_inheritance_test.go"
       ],
-      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX before/after controls on macOS 15/26/27. Eleven operations independently separate cp descriptor-mode restoration from O_TRUNC with no subsequent data write. Truncation retains APFS set-ID bits and clears HFS bits for non-root actors. All original controls pass file-only image replay in both DMG encodings and persisted session replay. Captured source, command, compressed disk and decoded disk hashes are preserved, with the original manifest archived verbatim. Earlier copy captures remain unchanged. Fresh Apple verification of portable outputs remains required."
+      "basis": "Original Apple-created APFS/APFSX/HFS+/HFSX before/after controls on macOS 15/26/27. Eleven operations independently separate cp descriptor-mode restoration from O_TRUNC with no subsequent data write. Truncation retains APFS set-ID bits and clears HFS bits for non-root actors. All original controls pass file-only image replay in both DMG encodings and persisted session replay. Captured source, command, compressed disk and decoded disk hashes are preserved, with the original manifest archived verbatim. Earlier copy captures remain unchanged. The retained controls passed the full portable matrix; fresh copy-permissions controls include truncation-only effects and their portable outputs passed Apple verification on macOS 15/26/27, as recorded in the permanent ledger."
     },
     {
       "id": "native-hfs-metadata-lifecycle",
@@ -1589,7 +1589,7 @@
         "acceptance/hfs_metadata_growth_test.go",
         "acceptance/native/verify_hfs_metadata_growth.py"
       ],
-      "basis": "Original macOS 15/26/27 HFS+/HFSX disks, headers and file observations before insertion, after fragmented overflow growth, after deleting all 256 user files, and after reuse. Native attributes roots split to depth two and collapse to depth one with a filesystem-owned record remaining. Native catalog depth stays three because protected records occupy several leaves; pinned DeleteTree/CollapseTree only collapses a root with one child, without forcing sibling redistribution. Exact Fixture contents, attributes, metadata and identities supply the user-visible oracle. Original disk, formatter, collector and command hashes remain unchanged. Fresh Apple checks and subsequent native writes remain required before qualification."
+      "basis": "Original macOS 15/26/27 HFS+/HFSX disks, headers and file observations before insertion, after fragmented overflow growth, after deleting all 256 user files, and after reuse. Native attributes roots split to depth two and collapse to depth one with a filesystem-owned record remaining. Native catalog depth stays three because protected records occupy several leaves; pinned DeleteTree/CollapseTree only collapses a root with one child, without forcing sibling redistribution. Exact Fixture contents, attributes, metadata and identities supply the user-visible oracle. Original disk, formatter, collector and command hashes remain unchanged. Fresh edited/collapsed/reused outputs passed Apple checks and subsequent native writes on macOS 15/26/27; the permanent ledger records the hfs-fragmented verdicts."
     }
   ]
 }
