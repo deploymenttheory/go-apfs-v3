@@ -31,9 +31,9 @@ type lifecycleCorpus struct {
 }
 
 type lifecycleCase struct {
-	ID, Kind, SelectedName, ParentManifestSHA256, ParentImageSHA256 string
-	SelectedXID                                                     apfs.XID
-	States                                                          []lifecycleState
+	ID, Kind, SelectedName, ParentManifestSHA256, ParentImage, ParentImageSHA256 string
+	SelectedXID                                                                  apfs.XID
+	States                                                                       []lifecycleState
 }
 
 type lifecycleState struct {
@@ -141,7 +141,9 @@ func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 		if c.SelectedName == "" || c.SelectedXID == 0 || len(c.ParentImageSHA256) != 64 {
 			t.Fatal("snapshot revert source/selection missing")
 		}
-		verifyDigest(t, dir, "snapshot-reference/manifest.json", c.ParentManifestSHA256)
+		parent := filepath.Join(dir, "snapshot-reference")
+		verifyDigest(t, parent, "manifest.json", c.ParentManifestSHA256)
+		verifyDigest(t, parent, c.ParentImage, c.ParentImageSHA256)
 	} else if c.Kind != "clone-encryption" {
 		t.Fatal("unknown lifecycle case kind")
 	}

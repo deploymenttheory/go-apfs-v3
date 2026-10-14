@@ -169,6 +169,8 @@ jobs:
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Record APFS snapshot inventories and historical files
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
+      - name: Record native APFS clone storage, snapshot revert and encryption lifecycle
+        run: python3 acceptance/native/apfs_lifecycle.py --expected-major "${{ matrix.major }}" --references artifacts/native/snapshots/macos-${{ matrix.major }} --output artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}
       - name: Record volume layout and identity
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
       - name: Record file contents, metadata and resource forks
@@ -195,8 +197,6 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario image-building --output artifacts/native/image-building/macos-${{ matrix.major }}
       - name: Record complete disks, snapshots, encrypted volumes and unused sectors for repacking
         run: python3 acceptance/native/image_repacking.py --expected-major "${{ matrix.major }}" --references artifacts/native --output artifacts/native/image-repacking/macos-${{ matrix.major }}
-      - name: Record native APFS clone storage, snapshot revert and encryption lifecycle
-        run: python3 acceptance/native/apfs_lifecycle.py --expected-major "${{ matrix.major }}" --references artifacts/native/snapshots/macos-${{ matrix.major }} --output artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -234,6 +234,7 @@ jobs:
           path: |
             artifacts/native/**/*.diagnostics.json
             artifacts/native/**/creation-failure.json
+            artifacts/native/apfs-lifecycle/*.incomplete.zip
           if-no-files-found: error
       - name: Upload reference images, observations and provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

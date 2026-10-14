@@ -13,6 +13,7 @@ import plistlib
 import shutil
 import tempfile
 import time
+import zipfile
 
 from capture import sha256
 from container_building import attached, check_filesystem
@@ -277,7 +278,10 @@ def capture_clones(case_id, sensitive, work, output, command, helper):
     require_runner()
     scratch = work / (case_id + '.dmg')
     fs = 'APFSX' if sensitive else 'APFS'
-    command('hdiutil', 'create', '-size', '128m', '-layout', 'NONE', '-fs',
+    # Native 128 MiB containers permit only one volume. Reuse the independently
+    # qualified three-volume geometry from container_building.py rather than
+    # inferring the private formatter's size-to-volume-limit algorithm.
+    command('hdiutil', 'create', '-size', '1536m', '-layout', 'NONE', '-fs',
             'Case-sensitive APFS' if sensitive else 'APFS', '-volname', 'Primary', scratch)
     states, passwords = [], {}
     for label in STATES:
@@ -333,7 +337,7 @@ def capture_revert(case_id, reference, work, output, command, helper):
     require(sha256(original) == source['sha256'], 'revert control changed original snapshot evidence')
     return {'id': prefix, 'kind': 'snapshot-revert', 'selectedName': selected['SnapshotName'],
             'selectedXID': selected['SnapshotXID'], 'parentManifestSHA256': sha256(manifest_path),
-            'parentImageSHA256': source['sha256'], 'states': [before, after]}
+            'parentImage': source['image'], 'parentImageSHA256': source['sha256'], 'states': [before, after]}
 
 
 def capture(reference, output, major):
@@ -352,22 +356,28 @@ def capture(reference, output, major):
         producer['tools'] = [{'path': str(path), 'sha256': sha256(path)} for path in
                              (Path('/bin/cp'), Path('/usr/sbin/diskutil'), Path('/usr/bin/hdiutil'),
                               Path(APFS_UTIL), Path(MOUNT_APFS), helper)]
-        cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
-                                work, corpus, command, helper) for sensitive in (False, True)]
-        cases += [capture_revert(case_id, reference, work, corpus, command, helper)
-                  for case_id in ('apfs', 'apfs-case-sensitive')]
-        # Preserve parent observations and collector bytes, rather than creating
-        # an undocumented naming projection of the prior native evidence.
-        parent = corpus / 'snapshot-reference'
-        parent.mkdir()
-        for path in reference.iterdir():
-            if path.is_file() and path.suffix != '.dmg':
-                shutil.copyfile(path, parent / path.name)
         producer['sources'] = []
         for name in SOURCES:
             source = corpus / name
             shutil.copyfile(Path(__file__).with_name(name), source)
             producer['sources'].append({'source': name, 'sha256': sha256(source)})
+        try:
+            cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
+                                    work, corpus, command, helper) for sensitive in (False, True)]
+            cases += [capture_revert(case_id, reference, work, corpus, command, helper)
+                      for case_id in ('apfs', 'apfs-case-sensitive')]
+        except BaseException as error:
+            command.save()
+            shutil.copyfile(command.path, corpus / 'commands.json')
+            retain_incomplete(corpus, output, producer, error)
+            raise
+        # Preserve parent observations and collector bytes, rather than creating
+        # an undocumented naming projection of the prior native evidence.
+        parent = corpus / 'snapshot-reference'
+        parent.mkdir()
+        for path in reference.iterdir():
+            if path.is_file() and (path.suffix != '.dmg' or path.name in ('apfs.dmg', 'apfs-case-sensitive.dmg')):
+                shutil.copyfile(path, parent / path.name)
         manuals = corpus / 'manuals'
         manuals.mkdir()
         for name in ('diskutil.8', 'apfs.util.8', 'newfs_apfs.8'):
@@ -382,6 +392,18 @@ def capture(reference, output, major):
                                'Software key profiles are established by native unlock and keybag decoding, not AES primitive support.']}
         (corpus / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
         corpus.rename(output)
+
+
+def retain_incomplete(corpus, output, producer, error):
+    """Preserve failed native states as diagnostics, never as a reference corpus."""
+    failed = {'complete': False, 'producer': producer, 'error': str(error),
+              'files': [{'path': str(p.relative_to(corpus)), 'sha256': sha256(p)}
+                        for p in sorted(corpus.rglob('*')) if p.is_file()]}
+    (corpus / 'incomplete.json').write_text(json.dumps(failed, indent=2) + '\n')
+    with zipfile.ZipFile(output.with_suffix('.incomplete.zip'), 'x', compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(corpus.rglob('*')):
+            if path.is_file():
+                archive.write(path, path.relative_to(corpus))
 
 
 def main():

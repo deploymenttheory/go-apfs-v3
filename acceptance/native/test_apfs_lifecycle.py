@@ -1,7 +1,11 @@
 import importlib
+import json
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 import plistlib
+import zipfile
 
 import apfs_lifecycle
 
@@ -61,6 +65,23 @@ class APFSLifecycleControls(unittest.TestCase):
              patch.object(apfs_lifecycle.time, 'monotonic', side_effect=[0, 100]):
             with self.assertRaisesRegex(RuntimeError, 'did not settle'):
                 apfs_lifecycle.settled('disk42s1', True, command)
+
+    def test_failed_capture_retains_original_bytes_without_a_complete_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            corpus = root / 'scratch'
+            corpus.mkdir()
+            original = b'Original native disk bytes\x00\xff'
+            (corpus / 'state.dmg').write_bytes(original)
+            output = root / 'macos-27'
+            apfs_lifecycle.retain_incomplete(corpus, output, {'build': 'public-build'}, ValueError('native observation failed'))
+            self.assertFalse(output.exists())
+            with zipfile.ZipFile(output.with_suffix('.incomplete.zip')) as archive:
+                self.assertEqual(archive.read('state.dmg'), original)
+                self.assertNotIn('manifest.json', archive.namelist())
+                diagnostic = json.loads(archive.read('incomplete.json'))
+            self.assertFalse(diagnostic['complete'])
+            self.assertEqual(diagnostic['files'][0]['sha256'], apfs_lifecycle.sha256(corpus / 'state.dmg'))
 
 
 if __name__ == '__main__':
