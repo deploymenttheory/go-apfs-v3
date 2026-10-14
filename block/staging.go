@@ -34,6 +34,13 @@ func Stage(ctx context.Context, source Source, directory string) (_ *Staging, er
 			err = errors.Join(err, s.Close())
 		}
 	}()
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	zeroed, err := prepareStaging(f, s.size)
+	if err != nil {
+		return nil, err
+	}
 	buf := make([]byte, 128<<10)
 	zero := make([]byte, len(buf))
 	for off := int64(0); off < s.size; {
@@ -44,14 +51,12 @@ func Stage(ctx context.Context, source Source, directory string) (_ *Staging, er
 		if err = ReadFull(source, buf[:n], off); err != nil {
 			return nil, err
 		}
-		if bytes.Equal(buf[:n], zero[:n]) {
-			// A newly created private file has zero-filled holes. Extend it as
-			// copying progresses, preserving exact bytes and observable progress.
-			if err = f.Truncate(off + n); err != nil {
+		// Preparation establishes the complete length and zero-filled holes.
+		// Hosts without that guarantee receive every byte, including zeros.
+		if !zeroed || !bytes.Equal(buf[:n], zero[:n]) {
+			if _, err = s.WriteAt(buf[:n], off); err != nil {
 				return nil, err
 			}
-		} else if _, err = s.WriteAt(buf[:n], off); err != nil {
-			return nil, err
 		}
 		off += n
 	}
