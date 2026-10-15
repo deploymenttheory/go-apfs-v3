@@ -131,11 +131,16 @@ failed attempts remain diagnostic evidence, not completed native controls.
 and `fs_snapshot_revert` interfaces. The collector signs this bounded observer
 with `com.apple.developer.vfs.snapshot`, retains the entitlement source and the
 signed binary's digest, and records its displayed entitlements. This does not
-claim an Apple-provisioned identity or change runner security settings. Its
-output separates successful observation from the actual syscall status/errno;
+claim an Apple-provisioned identity or change runner security settings. macOS 27
+killed the developer-entitled observer with `SIGKILL` in native run 38698271640.
+A launch probe now records that result before filesystem work. If the entitled
+binary is killed, a separately retained baseline binary from the same source
+must launch normally and observe the APIs without claiming that entitlement.
+Both binary digests and the positive-control blocker are retained. Its output
+separates successful observation from the actual syscall status/errno;
 only `(0, 0)` is successful mutation. A valid observed `(-1, EPERM)` is explicit
-unavailability linked to the blocker. Other errors, malformed results, failed
-launches or incomplete observations fail capture. The affected mutation tickets
+unavailability linked to the blocker. Other errors, malformed results,
+unexpected launch failures or incomplete observations fail capture. The affected mutation tickets
 remain open until their positive controls are available and qualified.
 
 The Go acceptance family checks each native state on Linux, Windows and macOS:

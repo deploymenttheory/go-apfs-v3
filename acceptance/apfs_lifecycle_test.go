@@ -24,6 +24,12 @@ type lifecycleCorpus struct {
 		System, Version, Build, Architecture string
 		Sources                              []struct{ Source, SHA256 string }
 		Tools                                []struct{ Path, SHA256 string }
+		SnapshotObserver                     *struct {
+			SignedLaunchStatus   int
+			ActiveTool           string
+			DeveloperEntitlement bool
+			Blocker              *string
+		}
 	} `json:"producer"`
 	CommandsSHA256 string          `json:"commandsSHA256"`
 	Cases          []lifecycleCase `json:"cases"`
@@ -114,8 +120,29 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 			}
 			majors[major] = true
 			required := []string{"apfs_lifecycle.py", "apfs_storage.c", "apfs_snapshot.c", "apfs_snapshot.entitlements", "capture.py", "container_building.py", "image_repacking.py", "snapshot_reading.py", "verify_preservation.py", "file_compression.py", "image_building.py", "metadata_edits.py", "content_replacement.py", "preservation.py"}
-			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 8 || len(corpus.Limits) != 3 {
+			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 9 || len(corpus.Limits) != 3 {
 				t.Fatal("incomplete lifecycle source/tool/profile provenance")
+			}
+			observer := corpus.Producer.SnapshotObserver
+			if observer == nil {
+				t.Fatal("snapshot observer launch policy missing")
+			}
+			if observer.SignedLaunchStatus == 0 {
+				if !observer.DeveloperEntitlement || observer.Blocker != nil || !strings.HasSuffix(observer.ActiveTool, "/apfs-snapshot-entitled") {
+					t.Fatal("entitled observer availability differs")
+				}
+			} else if observer.SignedLaunchStatus != -9 || observer.DeveloperEntitlement || observer.Blocker == nil || *observer.Blocker != "https://github.com/deploymenttheory/go-apfs-v3/issues/74" || !strings.HasSuffix(observer.ActiveTool, "/apfs-snapshot") {
+				t.Fatal("unavailable entitled observer lacks its explicit blocker")
+			}
+			activeTool := false
+			for _, tool := range corpus.Producer.Tools {
+				if tool.Path == "" || len(tool.SHA256) != 64 {
+					t.Fatal("native tool identity missing")
+				}
+				activeTool = activeTool || tool.Path == observer.ActiveTool
+			}
+			if !activeTool {
+				t.Fatal("active snapshot observer is not bound to its tool digest")
 			}
 			for i, source := range corpus.Producer.Sources {
 				if source.Source != required[i] {

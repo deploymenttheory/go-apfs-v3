@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import plistlib
 import shutil
+import signal
 import tempfile
 import time
 import zipfile
@@ -331,6 +332,22 @@ def snapshot_operation(helper, directory, operation, names, command):
     return result | {'names': list(names)}
 
 
+def snapshot_observer(baseline, entitled, command):
+    """Probe launch policy before native I/O; preserve a killed entitled binary."""
+    require_runner()
+    probe = ('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT')
+    response = command(*probe, entitled, '--probe', expected_success=None)
+    status = command.records[-1]['status']
+    require(status in (0, -signal.SIGKILL), 'unexpected snapshot observer launch failure')
+    active = entitled if status == 0 else baseline
+    if status != 0:
+        response = command(*probe, baseline, '--probe')
+    require(json.loads(response) == {'schema': 1, 'probe': 'snapshot-api-observer'}, 'snapshot observer probe differs')
+    return active, {'signedLaunchStatus': status, 'activeTool': str(active),
+                    'developerEntitlement': status == 0,
+                    'blocker': 'https://github.com/deploymenttheory/go-apfs-v3/issues/74' if status != 0 else None}
+
+
 def capture_snapshot_history(case_id, reference, work, output, command, helper, snapshot_helper):
     require_runner()
     manifest_path = reference / 'manifest.json'
@@ -424,12 +441,17 @@ def capture(reference, output, major):
         snapshot_helper = work / 'apfs-snapshot'
         command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror', '-O2',
                 Path(__file__).with_name('apfs_snapshot.c'), '-o', snapshot_helper)
+        entitled_helper = work / 'apfs-snapshot-entitled'
+        shutil.copyfile(snapshot_helper, entitled_helper)
+        entitled_helper.chmod(0o755)
         command('codesign', '--force', '--sign', '-', '--entitlements',
-                Path(__file__).with_name('apfs_snapshot.entitlements'), snapshot_helper)
-        command('codesign', '--display', '--entitlements', '-', snapshot_helper)
+                Path(__file__).with_name('apfs_snapshot.entitlements'), entitled_helper)
+        command('codesign', '--display', '--entitlements', '-', entitled_helper)
+        selected_helper, producer['snapshotObserver'] = snapshot_observer(snapshot_helper, entitled_helper, command)
         producer['tools'] = [{'path': str(path), 'sha256': sha256(path)} for path in
                              (Path('/bin/cp'), Path('/usr/sbin/diskutil'), Path('/usr/bin/hdiutil'),
-                              Path(APFS_UTIL), Path(MOUNT_APFS), Path('/usr/bin/codesign'), helper, snapshot_helper)]
+                              Path(APFS_UTIL), Path(MOUNT_APFS), Path('/usr/bin/codesign'), helper,
+                              snapshot_helper, entitled_helper)]
         producer['sources'] = []
         for name in SOURCES:
             source = corpus / name
@@ -438,7 +460,7 @@ def capture(reference, output, major):
         try:
             cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
                                     work, corpus, command, helper, major) for sensitive in (False, True)]
-            cases += [capture_snapshot_history(case_id, reference, work, corpus, command, helper, snapshot_helper)
+            cases += [capture_snapshot_history(case_id, reference, work, corpus, command, helper, selected_helper)
                       for case_id in ('apfs', 'apfs-case-sensitive')]
         except BaseException as error:
             command.save()

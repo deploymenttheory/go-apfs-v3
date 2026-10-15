@@ -46,6 +46,16 @@ class Detachment(unittest.TestCase):
 
 
 class CreationDiagnostics(unittest.TestCase):
+    def test_availability_probe_retains_process_refusal_and_does_not_retry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            command = Commands(Path(temporary) / 'probe.json')
+            with patch('image_repacking.subprocess.run', return_value=subprocess.CompletedProcess((), -9, b'', b'launch refused')) as native:
+                self.assertEqual(command('bounded-observer', '--probe', expected_success=None), b'')
+            native.assert_called_once()
+            self.assertEqual(command.records[0]['status'], -9)
+            self.assertIsNone(command.records[0]['expectedSuccess'])
+            self.assertEqual(command.records[0]['stderr'], 'launch refused')
+
     def run_failure(self, failure, probe_failures=False, blocked=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

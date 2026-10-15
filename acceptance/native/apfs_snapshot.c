@@ -18,6 +18,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Snapshot control requires a disposable GitHub-hosted VM\n");
         return 1;
     }
+    if (argc == 2 && !strcmp(argv[1], "--probe")) {
+        puts("{\"schema\":1,\"probe\":\"snapshot-api-observer\"}");
+        return 0;
+    }
     if (argc != 4 && argc != 5) return 1;
     const char *operation = argv[1];
     if (strcmp(operation, "create") && strcmp(operation, "rename") && strcmp(operation, "revert")) return 1;

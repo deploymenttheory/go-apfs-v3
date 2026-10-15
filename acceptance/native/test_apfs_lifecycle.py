@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 import plistlib
+import signal
 import zipfile
 
 import apfs_lifecycle
@@ -17,6 +18,7 @@ class APFSLifecycleControls(unittest.TestCase):
                          lambda: apfs_lifecycle.capture_clones(None, False, None, None, None, None),
                          lambda: apfs_lifecycle.capture_snapshot_history(None, None, None, None, None, None, None),
                          lambda: apfs_lifecycle.snapshot_operation(None, None, None, None, None),
+                         lambda: apfs_lifecycle.snapshot_observer(None, None, None),
                          lambda: apfs_lifecycle.capture_state(None, None, None, None, None, None, None, None),
                          lambda: apfs_lifecycle.mutate(None, None, None, None, None, None),
                          lambda: apfs_lifecycle.storage(None, None, None),
@@ -55,6 +57,25 @@ class APFSLifecycleControls(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     apfs_lifecycle.snapshot_operation('observer', Path('/disposable'), 'revert', ('native-name',),
                                                       Mock(return_value=json.dumps(result).encode()))
+
+    def test_launch_refusal_retains_blocker_and_observes_api_without_claiming_entitlement(self):
+        response = b'{"schema":1,"probe":"snapshot-api-observer"}'
+        command = Mock(side_effect=[b'', response])
+        command.records = [{'status': -signal.SIGKILL}]
+        with patch.object(apfs_lifecycle, 'require_runner'):
+            active, observation = apfs_lifecycle.snapshot_observer(Path('baseline'), Path('entitled'), command)
+        self.assertEqual(active, Path('baseline'))
+        self.assertFalse(observation['developerEntitlement'])
+        self.assertEqual(observation['signedLaunchStatus'], -signal.SIGKILL)
+        self.assertTrue(observation['blocker'].endswith('/74'))
+        self.assertEqual(command.call_count, 2)
+
+    def test_unexpected_observer_failure_is_not_an_entitlement_refusal(self):
+        command = Mock(return_value=b'')
+        command.records = [{'status': 1}]
+        with patch.object(apfs_lifecycle, 'require_runner'):
+            with self.assertRaisesRegex(ValueError, 'unexpected snapshot observer launch failure'):
+                apfs_lifecycle.snapshot_observer(Path('baseline'), Path('entitled'), command)
 
     def test_conversion_requires_explicit_settled_native_state(self):
         info = {'APFSContainerReference': 'disk42', 'DeviceIdentifier': 'disk42s1', 'FileVault': True}
