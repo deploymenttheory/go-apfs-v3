@@ -4,6 +4,11 @@ Acceptance establishes interoperability with independent macOS observations.
 Reading an image with the same code that wrote it cannot establish this. No v2
 tests or harness helpers are reused.
 
+The [qualification registry](qualification/README.md) indexes each capability's
+purpose, native expectations, source/host/format and race coverage, retained
+case manifests and continuation requirements. Its static audit runs in the
+existing source-check job. It does not replace any acceptance or native gate.
+
 ## Offline image editing controls
 
 These retained families check the allocation and metadata behavior needed to

@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "revision": "67a1977a23f0966c94241579fb22d49492124592",
+  "sources": [
+    {
+      "name": "native",
+      "run_id": 38715716597,
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38715716597",
+      "path": "native-jobs.json.gz",
+      "stored_sha256": "b23227e5595202ceb685fd58b22213c42d75736008e0e4914c519ab52862f69b",
+      "original_sha256": "8c74a421729b3405c0b189d4b350e755d028ddeb1a516560ded4229c59bd282d"
+    },
+    {
+      "name": "portable",
+      "run_id": 38715716756,
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38715716756",
+      "path": "portable-jobs.json.gz",
+      "stored_sha256": "a4d281d640ed93f3c49e3942ec38ba750dfae7c26996f1662748816c7d3e4f70",
+      "original_sha256": "1ef6c7afedcc4b5e26a0860b50787919e0d8d903f3785528a2eceda313060973"
+    }
+  ],
+  "metrics": {
+    "campaigns": {
+      "native": {
+        "jobs_created": 230,
+        "jobs_executed": 227,
+        "jobs_skipped": 3,
+        "macos_jobs_executed": 131,
+        "macos_max_prestart_minutes": 54.817,
+        "macos_median_execution_minutes": 1.767,
+        "macos_median_prestart_minutes": 9.85,
+        "macos_peak_concurrency": 5,
+        "macos_runner_minutes": 427.167,
+        "runner_minutes": 708.267,
+        "step_minutes_all_hosts": {
+          "archive": 5.917,
+          "checks_and_other": 587.5,
+          "explicit_build": 0.567,
+          "setup_cleanup": 91.0,
+          "transfer": 10.383
+        }
+      },
+      "portable": {
+        "jobs_created": 170,
+        "jobs_executed": 170,
+        "jobs_skipped": 0,
+        "macos_jobs_executed": 48,
+        "macos_max_prestart_minutes": 96.65,
+        "macos_median_execution_minutes": 1.4,
+        "macos_median_prestart_minutes": 51.65,
+        "macos_peak_concurrency": 5,
+        "macos_runner_minutes": 107.867,
+        "runner_minutes": 369.383,
+        "step_minutes_all_hosts": {
+          "checks_and_other": 280.483,
+          "setup_cleanup": 78.433
+        }
+      }
+    },
+    "combined": {
+      "jobs_created": 400,
+      "jobs_executed": 397,
+      "jobs_skipped": 3,
+      "macos_jobs_executed": 179,
+      "macos_max_prestart_minutes": 96.65,
+      "macos_median_execution_minutes": 1.667,
+      "macos_median_prestart_minutes": 13.217,
+      "macos_peak_concurrency": 5,
+      "macos_runner_minutes": 535.033,
+      "runner_minutes": 1077.65,
+      "step_minutes_all_hosts": {
+        "archive": 5.917,
+        "checks_and_other": 867.983,
+        "explicit_build": 0.567,
+        "setup_cleanup": 169.433,
+        "transfer": 10.383
+      }
+    }
+  }
+}

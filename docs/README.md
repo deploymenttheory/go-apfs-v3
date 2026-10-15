@@ -5,6 +5,7 @@
 - [Sessions](sessions.md): file commands, managed scratch and host metadata policy.
 - [Sources](sources.json): authoritative references and implementation provenance.
 - [Acceptance](../acceptance/README.md): why scenarios exist and how to reproduce them.
+- [Qualification harness](qualification.md): coverage obligations, original CI baseline and the evidence-preserving redesign.
 
 Specification coverage, compilation, unit coverage, and native qualification are
 different things and must not be presented interchangeably.

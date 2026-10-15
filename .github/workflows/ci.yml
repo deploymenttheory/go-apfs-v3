@@ -35,6 +35,10 @@ jobs:
           version: v2.14.0
       - name: Check native verifier logic without running native tools
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
+      - name: Audit acceptance obligations and original performance evidence
+        run: |
+          go run ./acceptance/qualification
+          python3 -m unittest discover -s acceptance/qualification -p 'test_*.py' -v
 
   portable:
     name: Portable tests (${{ matrix.os }})
