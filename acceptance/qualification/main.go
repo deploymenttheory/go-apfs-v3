@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -105,10 +107,28 @@ func main() {
 	root := flag.String("root", ".", "repository root")
 	registryPath := flag.String("registry", "acceptance/qualification/registry.json", "reviewed coverage registry, relative to root")
 	list := flag.Bool("inventory", false, "print Go syntax inventory instead of auditing")
+	corpusCatalog := flag.String("corpus-catalog", "acceptance/qualification/corpus.json", "approved native input catalog, relative to root")
+	bootstrap := flag.String("bootstrap-catalog", "", "prepare a new unapproved catalog at this absent path")
+	verify := flag.String("verify-corpus", "", "verify one corpus ID or all, including exact retained files")
+	bundle := flag.String("bundle-corpus", "", "prepare content-addressed local bundles for one corpus ID or all")
+	bundles := flag.String("bundle-dir", "", "existing local bundle directory; no network downloads occur")
+	describe := flag.Bool("describe-catalog", false, "describe catalog inputs, sizes and native source versions")
 	flag.Parse()
-	if err := run(*root, *registryPath, *list, os.Stdout); err != nil {
+	var auditOutput io.Writer = os.Stdout
+	if *bundle != "" {
+		auditOutput = os.Stderr
+	}
+	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	if !*list {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+		if err := corpusWork(ctx, *root, *registryPath, corpusAction{*corpusCatalog, *bootstrap, *verify, *bundle, *bundles, *describe}, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }
 

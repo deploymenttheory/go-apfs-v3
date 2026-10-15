@@ -37,7 +37,7 @@ jobs:
         run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
       - name: Audit acceptance obligations and original performance evidence
         run: |
-          go run ./acceptance/qualification
+          go run ./acceptance/qualification -verify-corpus all
           python3 -m unittest discover -s acceptance/qualification -p 'test_*.py' -v
 
   portable:
