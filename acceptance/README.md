@@ -44,6 +44,36 @@ go test -count=1 ./acceptance -run '^TestNativeAPFSDirectoryStatistics$'
 go test -count=1 ./acceptance -run '^TestNativeHFSFragmentedMetadataGrowth$'
 ```
 
+## APFS lifecycle controls
+
+Purpose: establish native history, physical sharing and software-encryption
+behavior before extending the writer's ownership admission. Native `cp -c`
+controls distinguish independent inodes and actual shared data/resource-fork
+extents from ordinary copies. Subsequent native writes, truncation, owner removal,
+settled encryption/decryption, changed passwords and independently credentialed
+peers produce before/after states. Supported snapshot create/rename/revert API
+observations distinguish available operations from an explicit entitlement
+refusal. A successful revert retains the selected historical state; a refusal
+has a linked positive-control blocker and separately labelled native deletion
+evidence. Both preserve the original source corpus and require continued native
+writes with retained history.
+
+`TestNativeAPFSLifecycleControls` compares every live/historical view with native
+observations, including identity, contents, metadata, links, forks and credentials.
+It verifies the independent `F_LOG2PHYS_EXT` sharing evidence. This is a reader
+and reference-control gate; snapshot, clone and encrypted writers need their own
+Apple output and continued-write verdicts. Source facts and remaining control
+limits are recorded in [the capability contract](../docs/apfs-lifecycle.md).
+
+Fresh capture runs within the existing required compatibility workflow on
+macOS 15/26/27; the existing Linux/Windows/macOS replay jobs consume all sources.
+The collector and C observer refuse a working Mac before native I/O. Local
+replay uses ordinary image files only; missing retained evidence fails.
+
+```sh
+go test -count=1 ./acceptance -run '^TestNativeAPFSLifecycleControls$'
+```
+
 ## Volume inspection
 
 Purpose: identify filesystem and volume accurately before a forensic, packaging,

@@ -62,7 +62,9 @@ class Commands:
             if expected_success and argv[:2] == ('hdiutil', 'detach') and r.returncode == errno.EBUSY and attempt < 5:
                 time.sleep(1)
                 continue
-            if (r.returncode == 0) != expected_success:
+            # None records an availability probe's unknown outcome. Its caller
+            # must validate the actual result; ordinary commands remain strict.
+            if expected_success is not None and (r.returncode == 0) != expected_success:
                 if expected_success and argv[:2] == ('hdiutil', 'create'):
                     self.record_creation_failure(argv)
                 raise RuntimeError(f'command failed: {argv}: {record["stdout"]} {record["stderr"]}')

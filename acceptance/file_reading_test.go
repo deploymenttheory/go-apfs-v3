@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -258,7 +259,16 @@ func decodeEvidence(t *testing.T, path string, out any) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	d := json.NewDecoder(io.LimitReader(f, 4<<20))
+	var input io.Reader = f
+	if strings.HasSuffix(path, ".gz") {
+		compressed, err := gzip.NewReader(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer compressed.Close()
+		input = compressed
+	}
+	d := json.NewDecoder(io.LimitReader(input, 4<<20))
 	d.DisallowUnknownFields()
 	if err := d.Decode(out); err != nil {
 		t.Fatal(err)

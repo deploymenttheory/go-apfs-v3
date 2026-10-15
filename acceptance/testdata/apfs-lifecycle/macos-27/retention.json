@@ -1,0 +1,467 @@
+{
+  "schema": 1,
+  "run": 38699211349,
+  "sourceCommit": "34f87f1c28fe320f9a1685d99e40b980c1c1ea9f",
+  "artifact": {
+    "id": 11955754185,
+    "name": "native-corpus-27",
+    "digest": "sha256:17e1145af06dc9a8f66e398dc1c11e6051723588c3cf0273c77506b00b3a8cd3",
+    "metadataSHA256": "14e9c2a22e8532cb1ef0250d817714955bd7e491c5f4a71299f8500e63b6d9c9"
+  },
+  "manifestSHA256": "a3a86a56e8a1b3b147a95af9cc4ae9dc656bef26270c8b78e9698e0c43503a45",
+  "textEncoding": "gzip of original text bytes, including manifests; disk images unchanged",
+  "files": [
+    {
+      "capturedPath": "apfs-case-sensitive-clone-diverged.dmg",
+      "capturedSHA256": "4eefa1bcdeeb3f1c11725ef4e0cef4267214f6183edeadfbd81bc6bc4298872d",
+      "retainedPath": "apfs-case-sensitive-clone-diverged.dmg",
+      "retainedSHA256": "4eefa1bcdeeb3f1c11725ef4e0cef4267214f6183edeadfbd81bc6bc4298872d"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-clone-final-owner.dmg",
+      "capturedSHA256": "68ed960e0dd4a55f415288de63c35dccd6e6b190e0c8885ca1ccbe25994c5294",
+      "retainedPath": "apfs-case-sensitive-clone-final-owner.dmg",
+      "retainedSHA256": "68ed960e0dd4a55f415288de63c35dccd6e6b190e0c8885ca1ccbe25994c5294"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-clone-shared.dmg",
+      "capturedSHA256": "cd276c2ecdb1d4930b766fc28963d7016c16e386966b2a27058dec9cca8d847d",
+      "retainedPath": "apfs-case-sensitive-clone-shared.dmg",
+      "retainedSHA256": "cd276c2ecdb1d4930b766fc28963d7016c16e386966b2a27058dec9cca8d847d"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-clone-truncated.dmg",
+      "capturedSHA256": "04ae11596303702d3172ba4a55d2330181bda7ec61f33d21f1d13c8ab6d4635c",
+      "retainedPath": "apfs-case-sensitive-clone-truncated.dmg",
+      "retainedSHA256": "04ae11596303702d3172ba4a55d2330181bda7ec61f33d21f1d13c8ab6d4635c"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-decrypted.dmg",
+      "capturedSHA256": "e984e9f4a231391bc516c0b5fd50d7c12e43a7b96b423a15398875c9850c0df5",
+      "retainedPath": "apfs-case-sensitive-decrypted.dmg",
+      "retainedSHA256": "e984e9f4a231391bc516c0b5fd50d7c12e43a7b96b423a15398875c9850c0df5"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-encrypted-edited.dmg",
+      "capturedSHA256": "bc664984862c066ccf86496eb772cee6737f44f39c8cb5cd1ff9f13b239fd988",
+      "retainedPath": "apfs-case-sensitive-encrypted-edited.dmg",
+      "retainedSHA256": "bc664984862c066ccf86496eb772cee6737f44f39c8cb5cd1ff9f13b239fd988"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-encrypted.dmg",
+      "capturedSHA256": "6d5a0d33f6d97265a1e5a9ab94fbce067dc4de916c29e5e489acdcc6532095c5",
+      "retainedPath": "apfs-case-sensitive-encrypted.dmg",
+      "retainedSHA256": "6d5a0d33f6d97265a1e5a9ab94fbce067dc4de916c29e5e489acdcc6532095c5"
+    },
+    {
+      "capturedPath": "apfs-case-sensitive-password-changed.dmg",
+      "capturedSHA256": "195a512cc6db4d9818057de81997c45f8c07307a1599a57b422fe3969b170b55",
+      "retainedPath": "apfs-case-sensitive-password-changed.dmg",
+      "retainedSHA256": "195a512cc6db4d9818057de81997c45f8c07307a1599a57b422fe3969b170b55"
+    },
+    {
+      "capturedPath": "apfs-clone-diverged.dmg",
+      "capturedSHA256": "18bf8ff82aa53a0308cdc4c95fbdf23427b87a1d42b0bafcefe372ccfbe33879",
+      "retainedPath": "apfs-clone-diverged.dmg",
+      "retainedSHA256": "18bf8ff82aa53a0308cdc4c95fbdf23427b87a1d42b0bafcefe372ccfbe33879"
+    },
+    {
+      "capturedPath": "apfs-clone-final-owner.dmg",
+      "capturedSHA256": "db36bf924155f57e8d26f12620e760685cb33b9fdc68d462ebd7e22dd38a564f",
+      "retainedPath": "apfs-clone-final-owner.dmg",
+      "retainedSHA256": "db36bf924155f57e8d26f12620e760685cb33b9fdc68d462ebd7e22dd38a564f"
+    },
+    {
+      "capturedPath": "apfs-clone-shared.dmg",
+      "capturedSHA256": "ae7a112af3173f133af3838bc6aa0804559fc9a0124487b0dae087c97b61a614",
+      "retainedPath": "apfs-clone-shared.dmg",
+      "retainedSHA256": "ae7a112af3173f133af3838bc6aa0804559fc9a0124487b0dae087c97b61a614"
+    },
+    {
+      "capturedPath": "apfs-clone-truncated.dmg",
+      "capturedSHA256": "e304cde61492f032426e8c82052cbee8b58a0fe9c6a48c0fc03464c47406d155",
+      "retainedPath": "apfs-clone-truncated.dmg",
+      "retainedSHA256": "e304cde61492f032426e8c82052cbee8b58a0fe9c6a48c0fc03464c47406d155"
+    },
+    {
+      "capturedPath": "apfs-decrypted.dmg",
+      "capturedSHA256": "b471423569ba23ac0f1536623ebd122ffc4fc991a5fd37fb8b3620c5a758dd28",
+      "retainedPath": "apfs-decrypted.dmg",
+      "retainedSHA256": "b471423569ba23ac0f1536623ebd122ffc4fc991a5fd37fb8b3620c5a758dd28"
+    },
+    {
+      "capturedPath": "apfs-encrypted-edited.dmg",
+      "capturedSHA256": "ec0a72e3ea85d9432adc433a92e1ea68dd90d363b5a3fc20ea685f20c11d825f",
+      "retainedPath": "apfs-encrypted-edited.dmg",
+      "retainedSHA256": "ec0a72e3ea85d9432adc433a92e1ea68dd90d363b5a3fc20ea685f20c11d825f"
+    },
+    {
+      "capturedPath": "apfs-encrypted.dmg",
+      "capturedSHA256": "8214cef79e88abcbf638aca5c19a4e8869650bff1266fbd13ee65d06fcc74637",
+      "retainedPath": "apfs-encrypted.dmg",
+      "retainedSHA256": "8214cef79e88abcbf638aca5c19a4e8869650bff1266fbd13ee65d06fcc74637"
+    },
+    {
+      "capturedPath": "apfs-password-changed.dmg",
+      "capturedSHA256": "ffd6c376b29ee7db4e193a7424df95e260356d14687a6887af96e6b53000dd36",
+      "retainedPath": "apfs-password-changed.dmg",
+      "retainedSHA256": "ffd6c376b29ee7db4e193a7424df95e260356d14687a6887af96e6b53000dd36"
+    },
+    {
+      "capturedPath": "apfs_lifecycle.py",
+      "capturedSHA256": "48517ac2f731fd9baee5f6a97d53de8fa2896a2758b7e37036ddc8893829a429",
+      "retainedPath": "apfs_lifecycle.py.gz",
+      "retainedSHA256": "6166e496d11060a500d93aef415ce42d16870c910c96a3b68fd70676b52f8e90"
+    },
+    {
+      "capturedPath": "apfs_snapshot.c",
+      "capturedSHA256": "065afb0f637774b047d423281aa9042480d03c54ed93963ae53fd18725ade287",
+      "retainedPath": "apfs_snapshot.c.gz",
+      "retainedSHA256": "50fc4a6fe87cad30d8c329ac4c6744bf0b2b94f3c0004362fa84d0b85613dd5d"
+    },
+    {
+      "capturedPath": "apfs_snapshot.entitlements",
+      "capturedSHA256": "82fb7fb81901fbe1b547f9daecd6323889100d2ad86df4268caea5836cafadc4",
+      "retainedPath": "apfs_snapshot.entitlements.gz",
+      "retainedSHA256": "a24ca32f4e6468de9ac949043de16ea0aea58f084883afae245cb5a10cf69571"
+    },
+    {
+      "capturedPath": "apfs_storage.c",
+      "capturedSHA256": "df1db039d46e0a325c53db7edb24faeb5b59b67c5ab4a707bbc5f552c217e7ff",
+      "retainedPath": "apfs_storage.c.gz",
+      "retainedSHA256": "ab25fbf3525583ead9b01de3d71fe9acd97474f390cb7e1efb29286c8f8d0a4f"
+    },
+    {
+      "capturedPath": "capture.py",
+      "capturedSHA256": "d4af5119024280dff03a262e0d759c8ccac8e0e52badba357d4627f8489ad15b",
+      "retainedPath": "capture.py.gz",
+      "retainedSHA256": "5a1b2a777752e7dcd50d2ed064bb059359220cc6314b0dfa6bc665e5fc701849"
+    },
+    {
+      "capturedPath": "commands.json",
+      "capturedSHA256": "b1bb3fc0906f60fcf91d3ee4dfac7f89aad80a6544c43c89f15367afa1a175ef",
+      "retainedPath": "commands.json.gz",
+      "retainedSHA256": "09dc7634c4ae77c39e81b2bd72276818bfee0865eb81c85310000b5a3bf8896d"
+    },
+    {
+      "capturedPath": "container_building.py",
+      "capturedSHA256": "4c3dd9834fb4f204ccdfbcadff7056af599dc2656e9392ccb8070cad2df51dde",
+      "retainedPath": "container_building.py.gz",
+      "retainedSHA256": "c74af4cccf4e5fcc13b4d8d12a2c11a333efd87d02560884cbc6f587cff5e2fa"
+    },
+    {
+      "capturedPath": "content_replacement.py",
+      "capturedSHA256": "18f61bec7a31ac1e145c053f63d19570ab8bdc1322a0e251194fb5a2b1c8b3e3",
+      "retainedPath": "content_replacement.py.gz",
+      "retainedSHA256": "8582e0a95b7ab8ca6e26a4a0fddee2e97ca9a754ae05a01d881418523efdca7f"
+    },
+    {
+      "capturedPath": "file_compression.py",
+      "capturedSHA256": "a8efd89a3a854b8fc8265a696be45f48bb6475401968ce4418810c8c115d1049",
+      "retainedPath": "file_compression.py.gz",
+      "retainedSHA256": "d69add76e6fd3cf9a2212a241e97a2f74d6877c098e66f55070ed707b3c135ad"
+    },
+    {
+      "capturedPath": "image_building.py",
+      "capturedSHA256": "17d077df2302ec0977c2648428138e5ce28543c5db2b86ca27a616340f3116b9",
+      "retainedPath": "image_building.py.gz",
+      "retainedSHA256": "0b29667395f0d35096348a5293aea4f711f68fcc1a2d6abcb9577cbfce9e1b7d"
+    },
+    {
+      "capturedPath": "image_repacking.py",
+      "capturedSHA256": "c6a88c9e37d1ba857ebaeede28f26768e5e825ab39bd7f61a13ae83883c6990b",
+      "retainedPath": "image_repacking.py.gz",
+      "retainedSHA256": "4b23a7faea7c79640174f89b08c8b373f61bc1bbc1c35fb2c5c43f9e593385da"
+    },
+    {
+      "capturedPath": "manifest.json",
+      "capturedSHA256": "a3a86a56e8a1b3b147a95af9cc4ae9dc656bef26270c8b78e9698e0c43503a45",
+      "retainedPath": "manifest.json.gz",
+      "retainedSHA256": "7c59b9d564acfc32f96ed295de5a0afc91f1e0cfa0ecabfd73083034f03453ba"
+    },
+    {
+      "capturedPath": "manuals/apfs.util.8",
+      "capturedSHA256": "354a1c22779553dafd7ef78b1406491532d3de68c7e250f1110dcd2ff80929aa",
+      "retainedPath": "manuals/apfs.util.8.gz",
+      "retainedSHA256": "86abbc29cd461d7e127a3921bfdfb2380e8ad27e5a4924ec0a66f4af45d7439f"
+    },
+    {
+      "capturedPath": "manuals/diskutil.8",
+      "capturedSHA256": "2a55a1d4465782826baacb7d6322d88f61d1cc5892969bb00d1c709e3e23cb63",
+      "retainedPath": "manuals/diskutil.8.gz",
+      "retainedSHA256": "f3e99314ba9fde91781e1f0460ac67c94eaf769f55ff7128e6470c345ecbf32f"
+    },
+    {
+      "capturedPath": "manuals/newfs_apfs.8",
+      "capturedSHA256": "23edf9269bafe20a0c0fcb62dd336a9d28d73a97ea3c3e6d82c5f0ac66886971",
+      "retainedPath": "manuals/newfs_apfs.8.gz",
+      "retainedSHA256": "85fb04672511788a133d70b7ad4c8357fafb851424bed24f24e0435f0436ea21"
+    },
+    {
+      "capturedPath": "metadata_edits.py",
+      "capturedSHA256": "7e8543ac291445facdf7b9529f367e5ed83b400794c81ed1e3ecd74326499137",
+      "retainedPath": "metadata_edits.py.gz",
+      "retainedSHA256": "c0be39c0184bb0f85c9a065b95b4088aba4610da351930c648a9270fd19a8974"
+    },
+    {
+      "capturedPath": "preservation.py",
+      "capturedSHA256": "1e3c6c9643a57488ee39a8d764be08883464c32a748a138d24bd87ce6f976d75",
+      "retainedPath": "preservation.py.gz",
+      "retainedSHA256": "5fe46a72767cb28ef7700df634074560fba702a66b66b3206f96bbd8ff97e53b"
+    },
+    {
+      "capturedPath": "snapshot-apfs-api-refused.dmg",
+      "capturedSHA256": "fee09404cdece282471d4f33265be71dd8b4714758ad183a9b2ae64dddf4be65",
+      "retainedPath": "snapshot-apfs-api-refused.dmg",
+      "retainedSHA256": "fee09404cdece282471d4f33265be71dd8b4714758ad183a9b2ae64dddf4be65"
+    },
+    {
+      "capturedPath": "snapshot-apfs-case-sensitive-api-refused.dmg",
+      "capturedSHA256": "b2f395546c6b8cdb26ea1ff7c8eeafc5c501aa1bbde8ada78d65f19e24822ee6",
+      "retainedPath": "snapshot-apfs-case-sensitive-api-refused.dmg",
+      "retainedSHA256": "b2f395546c6b8cdb26ea1ff7c8eeafc5c501aa1bbde8ada78d65f19e24822ee6"
+    },
+    {
+      "capturedPath": "snapshot-apfs-case-sensitive-continued.dmg",
+      "capturedSHA256": "a2a38ad67cbef9e6c96eba0ef2f039bde1700a1f3df902f8389ea4430ac7b4d5",
+      "retainedPath": "snapshot-apfs-case-sensitive-continued.dmg",
+      "retainedSHA256": "a2a38ad67cbef9e6c96eba0ef2f039bde1700a1f3df902f8389ea4430ac7b4d5"
+    },
+    {
+      "capturedPath": "snapshot-apfs-case-sensitive-deleted-newer.dmg",
+      "capturedSHA256": "0543886f5abe0d63fb78d7c6ff2ee2e05c11b59c157df84ef1661d8f45894d19",
+      "retainedPath": "snapshot-apfs-case-sensitive-deleted-newer.dmg",
+      "retainedSHA256": "0543886f5abe0d63fb78d7c6ff2ee2e05c11b59c157df84ef1661d8f45894d19"
+    },
+    {
+      "capturedPath": "snapshot-apfs-case-sensitive-retained.dmg",
+      "capturedSHA256": "eaa522bb64894de353b6c7ffed5f2f88242f0a01cac1bd4d96261fcfd0417c16",
+      "retainedPath": "snapshot-apfs-case-sensitive-retained.dmg",
+      "retainedSHA256": "eaa522bb64894de353b6c7ffed5f2f88242f0a01cac1bd4d96261fcfd0417c16"
+    },
+    {
+      "capturedPath": "snapshot-apfs-continued.dmg",
+      "capturedSHA256": "d9b6a8c24eae4a95e9dc99636ac9c59c7eb38b567c40d15ebe0db76a62928c4c",
+      "retainedPath": "snapshot-apfs-continued.dmg",
+      "retainedSHA256": "d9b6a8c24eae4a95e9dc99636ac9c59c7eb38b567c40d15ebe0db76a62928c4c"
+    },
+    {
+      "capturedPath": "snapshot-apfs-deleted-newer.dmg",
+      "capturedSHA256": "8da931c3ad8a4de16492a6026b4fc96fad1ac715e8ed2340e8bd7faadb8aaa0f",
+      "retainedPath": "snapshot-apfs-deleted-newer.dmg",
+      "retainedSHA256": "8da931c3ad8a4de16492a6026b4fc96fad1ac715e8ed2340e8bd7faadb8aaa0f"
+    },
+    {
+      "capturedPath": "snapshot-apfs-retained.dmg",
+      "capturedSHA256": "7201326fd65f06b71910be6a1f337f979e441259959eaa61b62541c534a323b3",
+      "retainedPath": "snapshot-apfs-retained.dmg",
+      "retainedSHA256": "7201326fd65f06b71910be6a1f337f979e441259959eaa61b62541c534a323b3"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive-diskutil.plist",
+      "capturedSHA256": "57e4fa1488c71746d4db363bd53fb8b48ebe8d28f63fc2195d979a60cc766cd3",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive-diskutil.plist.gz",
+      "retainedSHA256": "6be96fde8cf8af3b1b96c52f983c5ae9752928c9361b8a2d65ac1b54609e5d97"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive-files.json",
+      "capturedSHA256": "9bb4e993d8d5f4b515ed09eec43210403d675617a737d3b3c1a726034968fa97",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive-files.json.gz",
+      "retainedSHA256": "c637ef434f499050ca93ce5d91b375eb4c15ceee202a455041eda5c3169ce528"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive-snapshot-4.json",
+      "capturedSHA256": "8d00132a982890cf61a27db57c225df0584bf35aa4a7055857fef7818346ab40",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive-snapshot-4.json.gz",
+      "retainedSHA256": "412c8cce8e78e988255d3a793ff1af6ebe7b66d6aee1a175b50ffd121e2b6d56"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive-snapshot-6.json",
+      "capturedSHA256": "06278efc36113b18788620838eba0042ae89ff4d154a24d5539a7159d37f58d2",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive-snapshot-6.json.gz",
+      "retainedSHA256": "fc33a919276fa7ba663fc5bed8b7324c3087ee0eda316fb3d5905ed7c2c9c9a9"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive-snapshots.plist",
+      "capturedSHA256": "f3c1c47cd6892be20cc0bffdcb86b40fdb29a76819c4a52c3d3d0cf066d4040c",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive-snapshots.plist.gz",
+      "retainedSHA256": "c4c4cb24e7e1d949362877f86376d624036f9517120144b1dfe015e92ae58537"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-case-sensitive.dmg",
+      "capturedSHA256": "2d0e48e5e906e97f812eda6dd8be388fe3575ed65e3bddafc4af4ad432bb3c8b",
+      "retainedPath": "snapshot-reference/apfs-case-sensitive.dmg",
+      "retainedSHA256": "2d0e48e5e906e97f812eda6dd8be388fe3575ed65e3bddafc4af4ad432bb3c8b"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-diskutil.plist",
+      "capturedSHA256": "82d69ac5229e2e75afe466274845b2d9a49f0ee6c2d814c4ce29b6e739c152aa",
+      "retainedPath": "snapshot-reference/apfs-diskutil.plist.gz",
+      "retainedSHA256": "138df8074366910b07a24adb9f7a93914a7854cad9fe34718d4fd0771270d253"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-diskutil.plist",
+      "capturedSHA256": "d09200bcec6bfc6b9f126d26aa6af82d6fd510cbecb92a4fba45de220d6270b5",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-diskutil.plist.gz",
+      "retainedSHA256": "1383c432516e782cc7397246daeb59d5a1789717fddf131ea9b2a9afff6ce9d0"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-files.json",
+      "capturedSHA256": "623687e0f0f152f82de1086a7110e9bcc50d9fe52999252b8ad9741d4dbcb135",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-files.json.gz",
+      "retainedSHA256": "ca3ac309f56c181d51cf776e976e50b78b67d405aab53e6feb7cc369e385835e"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-locked.plist",
+      "capturedSHA256": "29ae109c4857c472e8296b0b1e6004cc4a84217fca671f8cb07d2b3b8ac1a0c3",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-locked.plist.gz",
+      "retainedSHA256": "9af12da60667773e9104ba4ede4227589a2b2f55d75d891efbdf8b663941b9d0"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-snapshot-4.json",
+      "capturedSHA256": "40894fa9fe5d7176897eb6d523a09739bc37f735ae3528e2fef6af4a3a8dc5cc",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-snapshot-4.json.gz",
+      "retainedSHA256": "3f23cbc74094c639ac1bbebffe45465902ef89cea9919fc0fdd29ea28bf1e52c"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-snapshot-6.json",
+      "capturedSHA256": "1a0ff023e3d3b74c849edc48ff7901dbd7e7cf8c631dbd46c8aa5184c42479dd",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-snapshot-6.json.gz",
+      "retainedSHA256": "464a2962ccf880e139802c411bdeeec47ac0251a04406e7bb89f60f223b5014d"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-encrypted-dmg-snapshots.plist",
+      "capturedSHA256": "7e67f946908614f257537cc7e2585979b4f6f8d91cfcf3d20be8da602188aab2",
+      "retainedPath": "snapshot-reference/apfs-encrypted-dmg-snapshots.plist.gz",
+      "retainedSHA256": "fb375e1e2802bf2a9cf2a55077e7e1f4334c43ab495eddf3d861a13d63981222"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-files.json",
+      "capturedSHA256": "2afb57d11a8c04ea0ac8b27ca3919d4424e60f6e900000909716dac06ba41cfd",
+      "retainedPath": "snapshot-reference/apfs-files.json.gz",
+      "retainedSHA256": "fca342e66915118769eac0eeb0875b52797373af1678a0605843163d17e84d91"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-snapshot-4.json",
+      "capturedSHA256": "0874718c3f3a0327576209653629bb46be04d4c3d25fa035247c3c212a5f7e93",
+      "retainedPath": "snapshot-reference/apfs-snapshot-4.json.gz",
+      "retainedSHA256": "14609b9af23118dc92dcc20c374a3ce2f93758ff347b3d3a4439cf7b861fb53f"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-snapshot-6.json",
+      "capturedSHA256": "d221f786fa094c34f32d04b882397b1f531924fcee3e5517172a062af38a6394",
+      "retainedPath": "snapshot-reference/apfs-snapshot-6.json.gz",
+      "retainedSHA256": "cc87f544f0742bb4b5b590923cd0eef93b92febc055901b7f19fd48e07cdd3b2"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs-snapshots.plist",
+      "capturedSHA256": "4a2551df57bb13226b0583ebaea271b1c7893e2217cd65f9c13a1f697f7e58da",
+      "retainedPath": "snapshot-reference/apfs-snapshots.plist.gz",
+      "retainedSHA256": "2b4eae623d29971cb59d3f7a5411984fd151ef1d994af4de9ebb3632a2a324f8"
+    },
+    {
+      "capturedPath": "snapshot-reference/apfs.dmg",
+      "capturedSHA256": "baddeb598da80c5f4b2ae71b9c3c7cbf25dff0cdf175da5841f0c4b0968a6922",
+      "retainedPath": "snapshot-reference/apfs.dmg",
+      "retainedSHA256": "baddeb598da80c5f4b2ae71b9c3c7cbf25dff0cdf175da5841f0c4b0968a6922"
+    },
+    {
+      "capturedPath": "snapshot-reference/capture.py",
+      "capturedSHA256": "d4af5119024280dff03a262e0d759c8ccac8e0e52badba357d4627f8489ad15b",
+      "retainedPath": "snapshot-reference/capture.py.gz",
+      "retainedSHA256": "5a1b2a777752e7dcd50d2ed064bb059359220cc6314b0dfa6bc665e5fc701849"
+    },
+    {
+      "capturedPath": "snapshot-reference/commands.json",
+      "capturedSHA256": "83915a34499201ccbe20080f7bf0ab9ed57fe60c9e85b24eb2a8898f9fba3fa9",
+      "retainedPath": "snapshot-reference/commands.json.gz",
+      "retainedSHA256": "dcaad6d6e4c9a27e78b5221173c845b9dd76c06ff7b188a586c13a6f8b0dfecc"
+    },
+    {
+      "capturedPath": "snapshot-reference/manifest.json",
+      "capturedSHA256": "8e3abaf0bfd152acf667b36db4d3caf09c7b86aab6b694b9c783611905b6a37e",
+      "retainedPath": "snapshot-reference/manifest.json.gz",
+      "retainedSHA256": "0cc1b1238c3461b635140eab46cb9157a9906aa001da1568167ba01f0af690ab"
+    },
+    {
+      "capturedPath": "snapshot-reference/snapshot_reading.py",
+      "capturedSHA256": "1824d7e669a6584e20cc3d30918a304845c9414f12b8ae6d3c753d9da95454be",
+      "retainedPath": "snapshot-reference/snapshot_reading.py.gz",
+      "retainedSHA256": "5970fb7363df5a55b22a95f99bdd76ab156564fb5f9fb0bfe8d6c945b754c95b"
+    },
+    {
+      "capturedPath": "snapshot_reading.py",
+      "capturedSHA256": "1824d7e669a6584e20cc3d30918a304845c9414f12b8ae6d3c753d9da95454be",
+      "retainedPath": "snapshot_reading.py.gz",
+      "retainedSHA256": "5970fb7363df5a55b22a95f99bdd76ab156564fb5f9fb0bfe8d6c945b754c95b"
+    },
+    {
+      "capturedPath": "verify_preservation.py",
+      "capturedSHA256": "cd3583091bbd947c57870d899d86b94ea871b9b294935daf7416e301675655d0",
+      "retainedPath": "verify_preservation.py.gz",
+      "retainedSHA256": "9efa24038bfedf4f81df2309a43ab3d9c7ea5d0357087ca8be813e6a5a0f0a61"
+    }
+  ],
+  "cases": [
+    {
+      "id": "apfs",
+      "kind": "clone-encryption",
+      "states": [
+        "clone-shared",
+        "clone-diverged",
+        "clone-truncated",
+        "clone-final-owner",
+        "encrypted",
+        "password-changed",
+        "encrypted-edited",
+        "decrypted"
+      ],
+      "blockedAPIs": []
+    },
+    {
+      "id": "apfs-case-sensitive",
+      "kind": "clone-encryption",
+      "states": [
+        "clone-shared",
+        "clone-diverged",
+        "clone-truncated",
+        "clone-final-owner",
+        "encrypted",
+        "password-changed",
+        "encrypted-edited",
+        "decrypted"
+      ],
+      "blockedAPIs": []
+    },
+    {
+      "id": "snapshot-apfs",
+      "kind": "snapshot-history",
+      "states": [
+        "retained",
+        "api-refused",
+        "deleted-newer",
+        "continued"
+      ],
+      "blockedAPIs": [
+        "fs_snapshot_create",
+        "fs_snapshot_rename",
+        "fs_snapshot_revert"
+      ]
+    },
+    {
+      "id": "snapshot-apfs-case-sensitive",
+      "kind": "snapshot-history",
+      "states": [
+        "retained",
+        "api-refused",
+        "deleted-newer",
+        "continued"
+      ],
+      "blockedAPIs": [
+        "fs_snapshot_create",
+        "fs_snapshot_rename",
+        "fs_snapshot_revert"
+      ]
+    }
+  ]
+}

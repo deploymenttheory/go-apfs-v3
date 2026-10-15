@@ -53,16 +53,19 @@ type Volume struct {
 	Files                      uint64 `json:"files"`
 	Directories                uint64 `json:"directories"`
 	Snapshots                  uint64 `json:"snapshots"`
-	container                  *Container
-	omap                       PhysicalAddress
-	root                       OID
-	rootType                   uint32
-	id                         [16]byte
-	keys                       *volumeKeys
-	xid                        XID
-	snapMeta                   OID
-	snapMetaType               uint32
-	snapMetaExt                OID
+	// EncryptionRollingStateOID is apfs_er_state_oid. Nonzero identifies an
+	// unfinished encryption/decryption transition, not merely past key changes.
+	EncryptionRollingStateOID OID `json:"encryptionRollingStateOID,omitempty"`
+	container                 *Container
+	omap                      PhysicalAddress
+	root                      OID
+	rootType                  uint32
+	id                        [16]byte
+	keys                      *volumeKeys
+	xid                       XID
+	snapMeta                  OID
+	snapMetaType              uint32
+	snapMetaExt               OID
 }
 
 // Open borrows source and selects the highest checksummed superblock in the
@@ -207,6 +210,7 @@ func (c *Container) volume(b []byte, xid XID) Volume {
 	copy(v.id[:], b[240:256])
 	v.container, v.omap, v.root, v.rootType = c, PhysicalAddress(le.Uint64(b[128:])), OID(le.Uint64(b[136:])), le.Uint32(b[116:])
 	v.xid, v.snapMeta, v.snapMetaType, v.snapMetaExt = xid, OID(le.Uint64(b[152:])), le.Uint32(b[124:]), OID(le.Uint64(b[1000:]))
+	v.EncryptionRollingStateOID = OID(le.Uint64(b[976:]))
 	return v
 }
 

@@ -152,7 +152,7 @@ jobs:
     if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
     name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -169,6 +169,8 @@ jobs:
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Record APFS snapshot inventories and historical files
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
+      - name: Record native APFS clone storage, snapshot APIs and encryption lifecycle
+        run: python3 acceptance/native/apfs_lifecycle.py --expected-major "${{ matrix.major }}" --references artifacts/native/snapshots/macos-${{ matrix.major }} --output artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}
       - name: Record volume layout and identity
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
       - name: Record file contents, metadata and resource forks
@@ -216,7 +218,11 @@ jobs:
 
           Image repacking records complete native disk hashes, partition maps, snapshots, encrypted volumes and unused-sector controls.
 
-          The fourteen steps above isolate what is being checked. The uploaded images,
+          APFS lifecycle controls record physical clone sharing, fork/data divergence,
+          final-owner removal, settled encryption/decryption, password replacement,
+          independently credentialed peers and actual native snapshot revert.
+
+          The fifteen steps above isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
@@ -228,6 +234,7 @@ jobs:
           path: |
             artifacts/native/**/*.diagnostics.json
             artifacts/native/**/creation-failure.json
+            artifacts/native/apfs-lifecycle/*.incomplete.zip
           if-no-files-found: error
       - name: Upload reference images, observations and provenance
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -248,6 +255,7 @@ jobs:
             artifacts/native/file-commands/macos-${{ matrix.major }}/
             artifacts/native/image-building/macos-${{ matrix.major }}/
             artifacts/native/image-repacking/macos-${{ matrix.major }}/
+            artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}/
           if-no-files-found: error
 
   replay:
@@ -299,6 +307,7 @@ jobs:
           APFS_NATIVE_ENCRYPTION: ../artifacts/native/encryption
           APFS_NATIVE_ENCRYPTED_DMG: ../artifacts/native/encrypted-dmg
           APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
+          APFS_NATIVE_LIFECYCLE: ../artifacts/native/apfs-lifecycle
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
           APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation

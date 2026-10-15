@@ -18,6 +18,24 @@ env:
   CGO_ENABLED: "0"
 
 jobs:
+  source_checks:
+    name: Source and native verifier checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Formatting
+        run: test -z "$(gofmt -l block filesystem diskimage apfs hfsplus inspect internal cmd acceptance workspace appledouble session pack imageedit)"
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+        with:
+          version: v2.14.0
+      - name: Check native verifier logic without running native tools
+        run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
+
   portable:
     name: Portable tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -303,27 +321,16 @@ jobs:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
 
   quality:
-    needs: [portable, portable_acceptance, offline_retained, race_library, race_acceptance]
+    needs: [source_checks, portable, portable_acceptance, offline_retained, race_library, race_acceptance]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: false
-      - name: Formatting
-        run: test -z "$(gofmt -l block filesystem diskimage apfs hfsplus inspect internal cmd acceptance workspace appledouble session pack imageedit)"
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
-        with:
-          version: v2.14.0
-      - name: Check native verifier logic without running native tools
-        run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
-      - name: Require every portable and race group
+      - name: Require source checks and every portable and race group
         if: always()
-        run: test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
+        run: test "$SOURCE_CHECKS" = success && test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
+          SOURCE_CHECKS: ${{ needs.source_checks.result }}
           PORTABLE: ${{ needs.portable.result }}
           RETAINED_ACCEPTANCE: ${{ needs.portable_acceptance.result }}
           OFFLINE_RETAINED: ${{ needs.offline_retained.result }}

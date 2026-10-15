@@ -38,7 +38,7 @@
         "apfs/statistics.go",
         "apfs/mutate_statistics.go"
       ],
-      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state. Multiple-volume construction uses nx_fs_oid slots, per-volume fs_index, reserves/quotas, group UUIDs and SYSTEM_OBJ_ID_MARK. The latter is independently observed in native System user objects and apfs_next_obj_id; UNIFIED_ID_SPACE_MARK is not used as the allocator base. Existing APFS mutation is an original Go implementation of the published object storage classes, B-tree/object-map versioning, space-manager CIB/bitmap/internal-pool structures, transaction-tagged free queues and checkpoint mappings. Native macOS 15/26/27 source/peak/final captures separately qualify observable file semantics and allocator state; Apple fsck, mounted readback and continued native/Go/native mutation are required. Stored resource-fork stream IDs differ from owning inode IDs; physical extent owning_obj_id follows the owning filesystem record. The actual checkpoint descriptor is selected when block zero has the same XID with different native counters. Directory mutation uses published directory-entry hashes, inode child/link counts, volume file counters, primary sibling selection, sibling-link/map records and apfs_next_obj_id. Native retained create/move/unlink/removal states independently confirm retained single-sibling records and primary-name/parent repair; fresh Apple checker/readback and native/Go/native cycles qualify the writer. Adjacent free-queue range coalescing retains the published transaction lifetime. No private APFS kernel C implementation is claimed as a source port. Existing-image metadata patches and generic attribute stream mutation are original interpretations, independently qualified by macOS 15/26/27 metadata controls. Native ordinary streams carrying the unpublished 0x10 flag use their stream ID for physical extent ownership, unlike legacy attributes/resource forks. The writer preserves this observed distinction, rejects unknown flags/shared profiles, and requires native continued writes; no private flag name or C port is inferred. Link creation inserts sibling-link/map records for original and new aliases while retaining original inode/stream identities, and stores literal symlink targets in filesystem-owned attributes. Native first-link, alias growth/replacement/removal and signed framework controls qualify these original Go interpretations. Native copy controls expose adjacent data/resource-fork ranges coalesced under one physical owning_obj_id. Admission accounts nonoverlapping physical ranges by current stream ownership, and retirement splits the physical record while retaining surviving prefixes/suffixes. Shared streams and clones remain refused. Resource forks remain stream-backed regardless of size in both construction and mutation. macOS 15/26/27 fsck in run 38265407088 independently rejected an 18-byte embedded copied fork; mutation admission now refuses that shape, and boundary/clear regressions require the resulting image to remain editable. Checkpoint completeness follows pp. 26\u201327 and 40\u201342: transaction-bound mapping sequences and ephemeral objects, selected ring ranges, checksums, identities and object type/subtype validation. One original Go decoder serves reads, explicit inspection/recovery and mutation. Unsupported checkpoints never authorize rollback; selected object-map/tree/ownership damage is refused. Recovery disables rejected newer descriptors and refreshes block zero after complete ownership admission. A damaged checksum can only supply bounded locator hints corroborated by an independently checksummed descriptor with identical immutable geometry. Native run 38298298833 supplies genuine checkpoint-data/mapping/superblock/ring-wrap windows and separately declared one-byte damage controls on macOS 15/26/27. Apple checker XIDs and mounted metadata/fork/signature observations are independent expectations. Earlier-state controls explicitly disable the damaged descriptor before Apple checking; no Apple repair of original damaged input is claimed. Every-write prefix/ENOSPC/failed-acknowledgement controls and portable/native continued allocation qualify file-backed recovery, not in-place flush ordering or physical power loss."
+      "basis": "Original Go interpretation of container/volume superblocks, object maps, filesystem B-tree records, inodes, streams, attributes and Fletcher 64. Native qualification is separate. Keylocker, ONEKEY and extent crypto_id interpretation follow the encryption chapter; native evidence qualifies outer XTS keybags and current extent flag 1 where published details are incomplete. Snapshot metadata/name records, physical snapshot superblocks and transaction-bounded historical resolution are original interpretations of the snapshot and object-map chapters. Fresh construction uses the container/checkpoint, object map, space manager, B-tree, inode/stream, hard-link sibling and extent-reference structures. Native fsck and continued macOS allocation independently qualify the constructed state. Multiple-volume construction uses nx_fs_oid slots, per-volume fs_index, reserves/quotas, group UUIDs and SYSTEM_OBJ_ID_MARK. The latter is independently observed in native System user objects and apfs_next_obj_id; UNIFIED_ID_SPACE_MARK is not used as the allocator base. Existing APFS mutation is an original Go implementation of the published object storage classes, B-tree/object-map versioning, space-manager CIB/bitmap/internal-pool structures, transaction-tagged free queues and checkpoint mappings. Native macOS 15/26/27 source/peak/final captures separately qualify observable file semantics and allocator state; Apple fsck, mounted readback and continued native/Go/native mutation are required. Stored resource-fork stream IDs differ from owning inode IDs; physical extent owning_obj_id follows the owning filesystem record. The actual checkpoint descriptor is selected when block zero has the same XID with different native counters. Directory mutation uses published directory-entry hashes, inode child/link counts, volume file counters, primary sibling selection, sibling-link/map records and apfs_next_obj_id. Native retained create/move/unlink/removal states independently confirm retained single-sibling records and primary-name/parent repair; fresh Apple checker/readback and native/Go/native cycles qualify the writer. Adjacent free-queue range coalescing retains the published transaction lifetime. No private APFS kernel C implementation is claimed as a source port. Existing-image metadata patches and generic attribute stream mutation are original interpretations, independently qualified by macOS 15/26/27 metadata controls. Native ordinary streams carrying the unpublished 0x10 flag use their stream ID for physical extent ownership, unlike legacy attributes/resource forks. The writer preserves this observed distinction, rejects unknown flags/shared profiles, and requires native continued writes; no private flag name or C port is inferred. Link creation inserts sibling-link/map records for original and new aliases while retaining original inode/stream identities, and stores literal symlink targets in filesystem-owned attributes. Native first-link, alias growth/replacement/removal and signed framework controls qualify these original Go interpretations. Native copy controls expose adjacent data/resource-fork ranges coalesced under one physical owning_obj_id. Admission accounts nonoverlapping physical ranges by current stream ownership, and retirement splits the physical record while retaining surviving prefixes/suffixes. Shared streams and clones remain refused. Resource forks remain stream-backed regardless of size in both construction and mutation. macOS 15/26/27 fsck in run 38265407088 independently rejected an 18-byte embedded copied fork; mutation admission now refuses that shape, and boundary/clear regressions require the resulting image to remain editable. Checkpoint completeness follows pp. 26\u201327 and 40\u201342: transaction-bound mapping sequences and ephemeral objects, selected ring ranges, checksums, identities and object type/subtype validation. One original Go decoder serves reads, explicit inspection/recovery and mutation. Unsupported checkpoints never authorize rollback; selected object-map/tree/ownership damage is refused. Recovery disables rejected newer descriptors and refreshes block zero after complete ownership admission. A damaged checksum can only supply bounded locator hints corroborated by an independently checksummed descriptor with identical immutable geometry. Native run 38298298833 supplies genuine checkpoint-data/mapping/superblock/ring-wrap windows and separately declared one-byte damage controls on macOS 15/26/27. Apple checker XIDs and mounted metadata/fork/signature observations are independent expectations. Earlier-state controls explicitly disable the damaged descriptor before Apple checking; no Apple repair of original damaged input is claimed. Every-write prefix/ENOSPC/failed-acknowledgement controls and portable/native continued allocation qualify file-backed recovery, not in-place flush ordering or physical power loss. Completed software conversion admission follows APFS_INCOMPAT_ENC_ROLLED (historical key changes) separately from apfs_er_state_oid (a nonzero in-progress transition). The reader exposes the rolling-state OID, refuses unfinished conversion before filesystem/keybag access, and admits the historical flag only for reads. Native completed encryption, changed-password, shared encrypted edits and decryption states independently qualify this distinction; writer admission is unchanged."
     },
     {
       "id": "apple-tn1150",
@@ -564,7 +564,10 @@
       "url": "https://github.com/apple-oss-distributions/xnu",
       "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
       "components": [
-        "acceptance/native/snapshot_reading.py"
+        "acceptance/native/snapshot_reading.py",
+        "acceptance/native/apfs_snapshot.c",
+        "acceptance/native/apfs_snapshot.entitlements",
+        "acceptance/native/apfs_lifecycle.py"
       ],
       "files": [
         {
@@ -580,7 +583,7 @@
           "sha256": "b30d68fb85f34b864b5e71e3127541c2674e0fb52e59d6ee072c8b0ecbb46a4f"
         }
       ],
-      "basis": "Public snapshot enumeration and attribute ABI studied for an original Python ctypes collector. Kernel entitlement checks explain direct-call rejection; no kernel implementation copied. Apple asr and mount_apfs perform native snapshot creation and retention on disposable volumes."
+      "basis": "Public snapshot enumeration and attribute ABI studied for an original Python ctypes collector. Kernel entitlement checks explain direct-call rejection; no kernel implementation copied. Apple asr and mount_apfs perform native snapshot creation and retention on disposable volumes. The supported name-based create/rename/revert APIs are observed by an original C helper signed with the public developer snapshot entitlement. Actual syscall status/errno and signed-tool identity distinguish successful mutation from an explicit EPERM linked to the positive-control blocker. The fsctl_internal dispatcher explicitly rejects APFSIOC_REVERT_TO_SNAPSHOT before APFS; its kernel-only revert fallback does not establish a supported userspace XID interface. No private ioctl layout or private entitlement is inferred."
     },
     {
       "id": "native-apfs-snapshots-27",
@@ -1590,6 +1593,64 @@
         "acceptance/native/verify_hfs_metadata_growth.py"
       ],
       "basis": "Original macOS 15/26/27 HFS+/HFSX disks, headers and file observations before insertion, after fragmented overflow growth, after deleting all 256 user files, and after reuse. Native attributes roots split to depth two and collapse to depth one with a filesystem-owned record remaining. Native catalog depth stays three because protected records occupy several leaves; pinned DeleteTree/CollapseTree only collapses a root with one child, without forcing sibling redistribution. Exact Fixture contents, attributes, metadata and identities supply the user-visible oracle. Original disk, formatter, collector and command hashes remain unchanged. Fresh edited/collapsed/reused outputs passed Apple checks and subsequent native writes on macOS 15/26/27; the permanent ledger records the hfs-fragmented verdicts."
+    },
+    {
+      "id": "apple-cp-clone-policy",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds",
+      "revision": "659a8a301e2acf0343f8b8673a154a2ca4d07084",
+      "components": [
+        "acceptance/native/apfs_lifecycle.py",
+        "docs/apfs-lifecycle.md"
+      ],
+      "files": [
+        {
+          "path": "cp/cp.c",
+          "sha256": "dc48972b5245cdb8a8632a5946821bb13e2f55667aee9832d7ac2c66943544fa"
+        },
+        {
+          "path": "cp/utils.c",
+          "sha256": "06abedb3fc751b3f52b7fa435155a3d96a92a6a74f8afee34b8f4a8cf01a7083"
+        },
+        {
+          "path": "cp/cp.1",
+          "sha256": "a0a48fa902c4330f6bb441c8e6ec1692c45418f41dba31f9b91ccbc23a83eb4f"
+        }
+      ],
+      "basis": "Native cp -c policy studied before clone writing: clonefileat, replacement destination unlink, fallback limited to EXDEV/ENOTSUP, -c/-X incompatibility and ordinary copy preservation options. No C copied. Independent native controls observe physical sharing, forks, inode identity, destination hard links and cross-volume fallback; qualification status is documented separately."
+    },
+    {
+      "id": "apple-xnu-physical-storage-api",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/xnu",
+      "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+      "components": [
+        "acceptance/native/apfs_storage.c"
+      ],
+      "files": [
+        {
+          "path": "bsd/sys/fcntl.h",
+          "sha256": "0f93c8918a70ffafe20bfe9c72e671fde67438cbee9f9de8c2f87b5c704c9a9e"
+        }
+      ],
+      "basis": "Darwin F_LOG2PHYS_EXT and SDK struct log2phys ABI used by an original bounded native observer to establish actual data/resource-fork sharing independently of equal file bytes. The helper constructs no APFS records and requires a disposable GitHub-hosted VM."
+    },
+    {
+      "id": "apple-cp-legacy-clone-policy",
+      "kind": "source-study",
+      "url": "https://github.com/apple-oss-distributions/file_cmds",
+      "revision": "35ca7d4a702664134a55f1ff6b54188ee48e1177",
+      "components": [
+        "acceptance/native/apfs_lifecycle.py",
+        "docs/apfs-lifecycle.md"
+      ],
+      "files": [
+        {
+          "path": "cp/utils.c",
+          "sha256": "e6d765611e075a3ebe14972417cfe139a6ec0f0c0db4763438e25ff3b0ad5968"
+        }
+      ],
+      "basis": "Older clonefile cp -c path falls back only on ENOTSUP, unlike current EXDEV/ENOTSUP policy. Native macOS 15 captures independently returned EXDEV and no destination across APFS volumes; macOS 26/27 captures succeeded by copying. These actual source-version outcomes are retained separately, not rewritten into one expected result."
     }
   ]
 }
