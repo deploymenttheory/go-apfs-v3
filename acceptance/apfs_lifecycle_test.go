@@ -215,8 +215,9 @@ func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 			if operation == "rename" {
 				names = 2
 			}
+			validResult := (result.Status == 0 && result.Errno == 0) || (result.Status == -1 && result.Errno == 1)
 			if result.API != "fs_snapshot_"+operation || len(result.Names) != names ||
-				!((result.Status == 0 && result.Errno == 0) || (result.Status == -1 && result.Errno == 1)) {
+				!validResult {
 				t.Fatal("invalid native snapshot API observation", result)
 			}
 			refused = refused || result.Status != 0
