@@ -151,7 +151,7 @@ func TestInProgressEncryptionIsInspectableButRefusesFilesystemAccess(t *testing.
 				t.Fatal("unfinished conversion attempted authentication", err)
 			}
 		}
-		if err := (&mutation{v: &v, c: v.container, ctx: ctx}).loadVolume(); !errors.Is(err, filesystem.ErrUnsupported) {
+		if err := admitMutationVolume(&v); !errors.Is(err, filesystem.ErrUnsupported) {
 			t.Fatal("unfinished conversion admitted mutation", err)
 		}
 	}

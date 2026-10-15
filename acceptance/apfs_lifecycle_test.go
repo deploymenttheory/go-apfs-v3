@@ -277,6 +277,39 @@ func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 			if len(container.Volumes) != len(state.Volumes) {
 				t.Fatal("native lifecycle volume inventory differs")
 			}
+			partition, err := image.Partition(result.Partitions[0].Index)
+			if err != nil {
+				t.Fatal(err)
+			}
+			accounting, storageErr := apfs.InspectStorage(context.Background(), partition)
+			encrypted := false
+			var snapshots uint64
+			for _, volume := range state.Volumes {
+				encrypted = encrypted || volume.Encrypted
+				snapshots += uint64(len(volume.Snapshots))
+			}
+			if encrypted {
+				if !errors.Is(storageErr, filesystem.ErrUnsupported) {
+					t.Fatal("encrypted storage must retain its explicit admission boundary", storageErr)
+				}
+			} else if storageErr != nil || accounting.ContainerUUID != container.UUID || accounting.Transaction != container.XID || accounting.Volumes != len(state.Volumes) || accounting.Snapshots != snapshots || accounting.ProtectedBlocks == 0 || accounting.ProtectedBlocks > accounting.Blocks-accounting.FreeBlocks {
+				t.Fatal("native allocation/reference accounting differs", accounting, storageErr)
+			}
+			if !encrypted {
+				for _, volume := range state.Volumes {
+					var native struct {
+						APFSContainerFree, APFSContainerSize *uint64
+					}
+					if err := json.Unmarshal(volume.NativeInfo, &native); err != nil || native.APFSContainerFree == nil || native.APFSContainerSize == nil {
+						t.Fatal("native allocation observations missing", err)
+					}
+					// diskutil reports available capacity including deferred frees;
+					// the spaceman bitmap's free count alone excludes those ranges.
+					if (accounting.FreeBlocks+accounting.PendingFreeBlocks)*uint64(accounting.BlockSize) != *native.APFSContainerFree || accounting.Blocks*uint64(accounting.BlockSize) != *native.APFSContainerSize {
+						t.Fatal("allocation totals differ from Apple diskutil", accounting, *native.APFSContainerFree, *native.APFSContainerSize)
+					}
+				}
+			}
 			for _, expected := range state.Volumes {
 				if prior := identities[expected.Name]; prior != "" && prior != expected.UUID {
 					t.Fatal("native lifecycle changed volume UUID", expected.Name)

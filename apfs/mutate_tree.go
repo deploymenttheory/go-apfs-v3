@@ -68,6 +68,7 @@ func (t *cowTree) records(id uint64, kind uint8) []buildRecord {
 func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read func(uint64) ([]byte, uint64, error), less func([]byte, []byte) bool, newOID func() (uint64, error)) (*cowTree, error) {
 	t := &cowTree{buildTree: &buildTree{subtype: subtype, storage: storage}, dirty: map[*buildTreeNode]bool{}, less: less, newOID: newOID}
 	seen := map[uint64]bool{}
+	var lastLeaf []byte
 	var visit func(uint64, int, int) (*buildTreeNode, error)
 	visit = func(id uint64, depth, expected int) (*buildTreeNode, error) {
 		if e := ctx.Err(); e != nil {
@@ -126,10 +127,13 @@ func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read
 		for i, r := range records {
 			// Suffix ordering reads typed fields. Validate their bounds before
 			// comparing even the first key of an untrusted filesystem node.
-			if subtype == 14 {
+			if subtype == 14 || subtype == 15 || subtype == 16 {
+				if len(r.key) < 8 {
+					return nil, corrupt("mutation filesystem key header", 0)
+				}
 				minimum := 8
 				switch prefix(r.key).kind {
-				case 4:
+				case 4, 11:
 					minimum = 11
 				case 5, 8:
 					minimum = 16
@@ -142,6 +146,12 @@ func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read
 			}
 			if i > 0 && !less(records[i-1].key, r.key) {
 				return nil, corrupt("mutation tree key order", 0)
+			}
+			if level == 0 {
+				if lastLeaf != nil && !less(lastLeaf, r.key) {
+					return nil, corrupt("mutation tree leaf range overlap", 0)
+				}
+				lastLeaf = r.key
 			}
 			n.records = append(n.records, buildRecord{bytes.Clone(r.key), bytes.Clone(r.value)})
 			if level > 0 {
@@ -178,7 +188,9 @@ func loadCOWTree(ctx context.Context, root uint64, subtype, storage uint32, read
 	return t, nil
 }
 func (t *cowTree) fixedRecords(b []byte, root, leaf bool) ([]record, error) {
-	if t.keySize != 16 || (t.valueSize != 8 && t.valueSize != 16) {
+	pair := t.keySize == 16 && (t.valueSize == 8 || t.valueSize == 16)
+	snapshot := t.subtype == 19 && t.keySize == 8 && t.valueSize == 16
+	if !pair && !snapshot {
 		return nil, filesystem.ErrUnsupported
 	}
 	end := len(b)
@@ -200,7 +212,7 @@ func (t *cowTree) fixedRecords(b []byte, root, leaf bool) ([]record, error) {
 		p := toc + i*4
 		kp := keys + int(le.Uint16(b[p:]))
 		vo := le.Uint16(b[p+2:])
-		if kp < keys || kp+16 > end {
+		if kp < keys || kp+t.keySize > end {
 			return nil, corrupt("mutation fixed key", 0)
 		}
 		var value []byte
@@ -211,12 +223,12 @@ func (t *cowTree) fixedRecords(b []byte, root, leaf bool) ([]record, error) {
 			value = buildUint64(1)
 		} else {
 			vp := end - int(vo)
-			if vp < keys || vp+vl > end || kp+16 > vp {
+			if vp < keys || vp+vl > end || kp+t.keySize > vp {
 				return nil, corrupt("mutation fixed value", 0)
 			}
 			value = b[vp : vp+vl]
 		}
-		out = append(out, record{b[kp : kp+16], value})
+		out = append(out, record{b[kp : kp+t.keySize], value})
 	}
 	return out, nil
 }

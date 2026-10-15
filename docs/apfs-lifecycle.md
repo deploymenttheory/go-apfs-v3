@@ -8,10 +8,10 @@ completed encryption/decryption conversion. Linux and Windows must be able to
 read every completed result immediately.
 
 Existing readers can open native clones, retained snapshots and admitted software
-encryption. Existing mutation deliberately refuses those profiles. Its exclusive
-extent-ownership checks and removal of older object-map versions are correct for
-the currently admitted profile, but cannot preserve shared or historical owners.
-Enabling those inputs requires changing that accounting first.
+encryption. Existing mutation deliberately refuses those profiles. Read-only storage
+accounting understands admitted plaintext clones and retained history. Ordinary
+mutation now uses the same accountant, with separate admission checks that keep
+shared/history writing unavailable until independently qualified.
 
 ## Dependencies and completion
 
@@ -165,3 +165,60 @@ replays every source on Linux, Windows and macOS to establish portable
 qualification. Source review and mocked tests do not supply a native verdict.
 Conversion of retained encrypted history and successful arbitrary snapshot naming
 have their own required controls in the corresponding implementation tickets.
+
+## Storage ownership and reclamation
+
+`apfs.InspectStorage(ctx, source)` reads an APFS partition without writing. For the
+bounded plaintext profile it reconciles every live volume and retained snapshot,
+their transaction-selected filesystem trees, all stored object-map versions,
+data and attribute streams, physical extent references, volume allocation
+counters, and the main-device/internal-pool allocation maps. A corrupt count,
+unexplained allocation, cross-link, unsupported feature, active reaper or budget
+exhaustion returns an error and no successful report. Encryption and unfinished
+conversion remain explicit unsupported accounting profiles.
+
+A shared data stream has one physical extent set even when several clone inodes
+refer to it. Hard-link directory aliases do not add stream owners. Independent
+resource-fork streams can instead share physical ranges. Physical extent counts
+are signed: each retained snapshot contributes its chronological NEW/UPDATE tree,
+and a zero current count cannot erase an older view's ownership. The original
+physical `owning_obj_id` can outlive its inode, so general ownership does not
+require that hint to resolve to a current inode. The ordinary writer's separate
+exclusive-owner admission retains the stronger check needed by its release code.
+
+Native sparse inodes include sparse bytes in their stream allocation field.
+The explicit sparse-byte field and logical extent coverage must reconcile before
+subtracting holes; no physical blocks are invented for that allocation surplus.
+Single-owner attribute streams can omit `DSTREAM_ID`; shared streams require an
+explicit matching count. Empty native reaper-list pages contain stale free-entry
+bytes, which are not active owners. Nonempty lists and active reaping are refused.
+
+The report separates bitmap `FreeBlocks`, main-device `PendingFreeBlocks` and
+`ProtectedBlocks`. Apple's `diskutil` available capacity includes deferred frees;
+it equals `(FreeBlocks + PendingFreeBlocks) * BlockSize` in all retained plaintext
+controls. Deferred blocks are still allocated and are never automatically safe
+to overwrite. `RetainedCheckpoints` counts structurally complete descriptor/map
+sequences, not healthy historical filesystems. Their transaction bounds
+conservatively protect deferred ranges, exposed as `CheckpointProtectedBlocks`.
+No historical bitmap authorizes allocation in the selected transaction.
+
+Before the ordinary writer's first allocation/write, it disables older checkpoint
+descriptors in the unpublished scratch copy and then reclaims eligible deferred
+ranges. Current/historical root protection is checked independently of queue age.
+The selected checkpoint, its maps/data and its allocations survive until the new
+checkpoint is published. No-op commands do not retire checkpoints or write bytes.
+Object-map pruning can retain each historical view's predecessor mapping, including
+deletion placeholders; the current ordinary writer admits no such extra views.
+This is file-backed scratch-copy recovery, not a claim of in-place power-loss
+atomicity or writable snapshot/clone support.
+
+Tree/mapping traversal is bounded by 16,000 object reads and 1,048,576 records,
+alongside the existing checkpoint, space-manager, 4,096-snapshot and 64 MiB
+allocation-bitmap limits. Extent sweeps use interval
+boundaries rather than a per-block owner map, and payload bytes are not read.
+The existing lifecycle acceptance family compares all 108 retained plaintext
+views and Apple's capacity observations on every portable host. Negative controls
+alter native reference counts, retained mappings, sparse fields and unknown
+profiles with repaired checksums. Existing ordinary-edit, allocation-pressure,
+checkpoint interruption and native continued-write gates remain required through
+the same capture → portable replay → Apple verification workflow.
