@@ -225,7 +225,7 @@ func (p *volumeLayout) recordLess(a, b []byte) bool {
 		return x>>60 < y>>60
 	}
 	switch x >> 60 {
-	case 4:
+	case 4, 11:
 		return string(a[10:]) < string(b[10:])
 	case 5, 8:
 		return le.Uint64(a[8:]) < le.Uint64(b[8:])

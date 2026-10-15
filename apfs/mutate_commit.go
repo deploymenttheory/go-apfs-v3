@@ -281,25 +281,6 @@ func (m *mutation) writeCheckpoint() error {
 			return e
 		}
 	}
-	// Retire superseded descriptors before reclaimed pool/device blocks can be
-	// interpreted through them. This mutates only the unpublished private copy.
-	for i := uint32(0); i < descCount; i++ {
-		inOld := false
-		for j := uint32(0); j < oldDescLen; j++ {
-			inOld = inOld || i == (oldDesc+j)%descCount
-		}
-		inNew := false
-		for j := uint32(0); j < uint32(maps+1); j++ {
-			inNew = inNew || i == (descStart+j)%descCount
-		}
-		if inOld || inNew {
-			continue
-		}
-		b := make([]byte, 4096)
-		if e := m.write(b, (descBase+uint64(i))*4096); e != nil {
-			return e
-		}
-	}
 	le.PutUint64(m.nx[88:], m.next)
 	le.PutUint64(m.nx[96:], m.xid+1)
 	le.PutUint32(m.nx[128:], (descStart+uint32(maps+1))%descCount)
@@ -316,12 +297,25 @@ func (m *mutation) writeCheckpoint() error {
 	return m.write(m.nx, 0)
 }
 
-// Snapshot-free maps need only their current versions. The previous checkpoint
-// retains its own physical map tree, so removing superseded keys in the COW
-// copy preserves rollback and prevents stale mappings and unbounded growth.
-func removeObjectVersions(t *cowTree, oid uint64) error {
+// Keep the predecessor mapping (including a deletion placeholder) needed by
+// each retained filesystem view. Checkpoints use their own physical map trees;
+// the ordinary writer has no additional retained views and passes none here.
+func removeObjectVersions(t *cowTree, oid uint64, retained ...XID) error {
+	if len(retained) > maxSnapshots {
+		return filesystem.ErrLimit
+	}
+	keep := make(map[uint64]bool, len(retained))
+	for _, xid := range retained {
+		if xid == 0 {
+			return corrupt("retained object-map transaction", 0)
+		}
+		key := append(buildUint64(oid), buildUint64(uint64(xid))...)
+		if record, ok := t.floor(key); ok && le.Uint64(record.key) == oid {
+			keep[le.Uint64(record.key[8:])] = true
+		}
+	}
 	for _, r := range t.all() {
-		if le.Uint64(r.key) == oid {
+		if le.Uint64(r.key) == oid && !keep[le.Uint64(r.key[8:])] {
 			if e := t.put(r.key, nil); e != nil {
 				return e
 			}

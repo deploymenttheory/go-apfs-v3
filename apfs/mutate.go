@@ -45,6 +45,7 @@ type mutation struct {
 	entries                 map[uint64]map[string]*mutationEntry
 	links                   map[uint64]map[*mutationEntry]bool
 	actor                   filesystem.Observation[uint32]
+	reusePrepared           bool
 }
 type readOnlyMutation struct{ block.Source }
 
@@ -81,9 +82,6 @@ func ModifyVolume(ctx context.Context, disk MutableSource, volumeUUID string, ch
 	}
 	report.VolumeID = m.v.UUID
 	initialFree := m.space.free
-	if e = m.space.reclaim(); e != nil {
-		return report, e
-	}
 	for _, change := range changes {
 		if e = ctx.Err(); e != nil {
 			return report, e
@@ -153,40 +151,39 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 		}
 	}
 	m := &mutation{ctx: ctx, disk: disk, c: c, v: v, nx: bytes.Clone(nx), xid: le.Uint64(nx[96:]), next: le.Uint64(nx[88:]), ephemeral: map[uint64]ephemeral{}, retired: map[uint64]bool{}, mappings: map[uint64]uint64{}}
-	if e = m.loadEphemeral(); e != nil {
-		return nil, e
-	}
-	m.containerMap, e = m.readObject(le.Uint64(nx[160:]), 11, 0x40000000)
-	if e != nil {
-		return nil, e
-	}
-	if le.Uint32(m.containerMap[36:]) != 0 || le.Uint64(m.containerMap[64:]) != 0 || le.Uint32(m.containerMap[32:])&^uint32(1) != 0 {
-		return nil, fmt.Errorf("APFS mutation structural profile: %w", filesystem.ErrUnsupported)
-	}
-	physical := func(id uint64) ([]byte, uint64, error) { b, e := m.readObject(id, 0, 0x40000000); return b, id, e }
-	m.cmap, e = loadCOWTree(ctx, le.Uint64(m.containerMap[48:]), 11, 0x40000000, physical, orderedPair, m.nextOID)
-	if e != nil {
-		return nil, e
-	}
-	if e = m.loadVolume(); e != nil {
-		return nil, e
-	}
 	for i := range c.Volumes {
-		if &c.Volumes[i] == v {
-			m.volumes = append(m.volumes, m)
-			continue
-		}
-		other := &mutation{ctx: ctx, disk: disk, c: c, v: &c.Volumes[i], nx: m.nx, xid: m.xid, next: m.next, ephemeral: m.ephemeral, mappings: map[uint64]uint64{}}
-		if e = other.loadVolume(); e != nil {
+		if e = admitMutationVolume(&c.Volumes[i]); e != nil {
 			return nil, e
 		}
-		m.volumes = append(m.volumes, other)
 	}
-	if e = m.loadSpace(); e != nil {
-		return nil, fmt.Errorf("space manager: %w", e)
+	storage, e := newStorageChecker(ctx, c)
+	if e != nil {
+		return nil, e
 	}
-	if e = m.validateOwnership(); e != nil {
+	if e = storage.check(); e != nil {
 		return nil, fmt.Errorf("ownership: %w", e)
+	}
+	m.ephemeral, m.space = storage.reader.ephemeral, storage.reader.space
+	m.space.owner = m
+	m.containerMap, m.cmap = bytes.Clone(storage.mapHeader), storage.cmap
+	for _, tree := range m.space.queues {
+		tree.newOID = m.nextOID
+	}
+	for _, state := range storage.volumes {
+		volume := m
+		if state.v != v {
+			volume = &mutation{ctx: ctx, disk: disk, c: c, v: state.v, nx: m.nx, xid: m.xid, next: m.next, ephemeral: m.ephemeral, mappings: map[uint64]uint64{}}
+		}
+		volume.volumeAddress, volume.super = state.address, bytes.Clone(state.super)
+		volume.volumeMap, volume.vmap = bytes.Clone(state.mapHeader), state.omap
+		volume.fs, volume.extents = state.fs, state.extents
+		for _, tree := range []*cowTree{volume.fs, volume.extents, volume.vmap, m.cmap} {
+			tree.newOID = m.nextOID
+		}
+		m.volumes = append(m.volumes, volume)
+	}
+	if e = m.validateOwnership(storage); e != nil {
+		return nil, fmt.Errorf("mutation admission: %w", e)
 	}
 	for _, volume := range m.volumes {
 		volume.space = m.space
@@ -199,56 +196,9 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 	}
 	return m, nil
 }
-func (m *mutation) loadVolume() error {
-	v := m.v
+func admitMutationVolume(v *Volume) error {
 	if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
 		return fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
-	}
-	physical := func(id uint64) ([]byte, uint64, error) { b, e := m.readObject(id, 0, 0x40000000); return b, id, e }
-	mapping, e := m.c.resolve(PhysicalAddress(le.Uint64(m.nx[160:])), v.OID, m.c.XID)
-	if e != nil {
-		return e
-	}
-	m.volumeAddress = uint64(mapping.address)
-	m.super, e = m.c.object(mapping.address, 13)
-	if e != nil {
-		return e
-	}
-	m.super = bytes.Clone(m.super)
-	if le.Uint64(m.super[160:]) != 0 || le.Uint64(m.super[168:]) != 0 || le.Uint32(m.super[120:]) != 0x40000002 {
-		return fmt.Errorf("APFS unmount/revert/extent-tree profile: %w", filesystem.ErrUnsupported)
-	}
-	m.volumeMap, e = m.readObject(uint64(v.omap), 11, 0x40000000)
-	if e != nil {
-		return e
-	}
-	if le.Uint32(m.volumeMap[36:]) != 0 || le.Uint32(m.volumeMap[32:])&^uint32(1) != 0 {
-		return fmt.Errorf("APFS mutation structural profile: %w", filesystem.ErrUnsupported)
-	}
-	m.vmap, e = loadCOWTree(m.ctx, le.Uint64(m.volumeMap[48:]), 11, 0x40000000, physical, orderedPair, m.nextOID)
-	if e != nil {
-		return e
-	}
-	ordering := (&volumeLayout{options: VolumeSpec{CaseSensitive: v.CaseSensitive}}).recordLess
-	virtual := func(id uint64) ([]byte, uint64, error) {
-		mapping, e := m.c.resolve(v.omap, OID(id), v.xid)
-		if e != nil {
-			return nil, 0, e
-		}
-		if mapping.encrypted {
-			return nil, 0, filesystem.ErrUnsupported
-		}
-		b := make([]byte, 4096)
-		e = block.ReadFull(m.disk, b, int64(mapping.address)*4096)
-		return b, uint64(mapping.address), e
-	}
-	m.fs, e = loadCOWTree(m.ctx, uint64(v.root), 14, 0, virtual, ordering, m.nextOID)
-	if e != nil {
-		return e
-	}
-	m.extents, e = loadCOWTree(m.ctx, le.Uint64(m.super[144:]), 15, 0x40000000, physical, ordering, m.nextOID)
-	if e != nil {
-		return e
 	}
 	return nil
 }
@@ -274,7 +224,7 @@ func (m *mutation) readObject(address uint64, kind, storage uint32) ([]byte, err
 	}
 	return b, nil
 }
-func (m *mutation) loadEphemeral() error {
+func (m *mutation) loadEphemeralObjects(allowEmptyReaperLists bool) error {
 	objects, err := m.c.checkpointObjects(m.ctx, m.nx)
 	if err != nil {
 		return err
@@ -286,11 +236,15 @@ func (m *mutation) loadEphemeral() error {
 		m.ephemeral[object.oid] = object.ephemeral
 	}
 	reaper, ok := m.ephemeral[le.Uint64(m.nx[168:])]
-	if !ok || reaper.kind != 0x80000011 || len(reaper.data) < 112 || le.Uint64(reaper.data[48:]) != 0 || le.Uint64(reaper.data[56:]) != 0 || le.Uint32(reaper.data[64:]) != 1 || le.Uint32(reaper.data[68:]) != 0 {
+	if !ok || reaper.kind != 0x80000011 || len(reaper.data) < 112 || le.Uint32(reaper.data[64:]) != 1 {
 		return fmt.Errorf("APFS pending reaper: %w", filesystem.ErrUnsupported)
 	}
+	pages, err := m.emptyReaperLists(reaper.data, allowEmptyReaperLists)
+	if err != nil {
+		return err
+	}
 	for _, ep := range m.ephemeral {
-		if ep.oid != le.Uint64(m.nx[152:]) && ep.oid != reaper.oid && (ep.subtype != 9 || (ep.kind != 0x80000002 && ep.kind != 0x80000003)) {
+		if ep.oid != le.Uint64(m.nx[152:]) && ep.oid != reaper.oid && !pages[ep.oid] && (ep.subtype != 9 || (ep.kind != 0x80000002 && ep.kind != 0x80000003)) {
 			return filesystem.ErrUnsupported
 		}
 	}
@@ -301,6 +255,13 @@ func sealMutationObject(b []byte, oid, xid uint64, kind, subtype uint32) {
 }
 
 func (m *mutation) write(b []byte, offset uint64) error {
+	if e := m.prepareReuse(); e != nil {
+		return e
+	}
+	return m.writeBytes(b, offset)
+}
+
+func (m *mutation) writeBytes(b []byte, offset uint64) error {
 	if e := m.ctx.Err(); e != nil {
 		return e
 	}

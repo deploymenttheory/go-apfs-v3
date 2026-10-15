@@ -30,6 +30,8 @@ type Snapshot struct {
 type snapshotRecord struct {
 	Snapshot
 	superblock PhysicalAddress
+	extents    PhysicalAddress
+	extentType uint32
 }
 
 // ListSnapshots enumerates retained snapshots in transaction order. The source
@@ -196,6 +198,7 @@ func readSnapshotRecord(r record) (snapshotRecord, error) {
 		return s, err
 	}
 	s.Name, s.XID, s.Flags = name, XID(prefix(r.key).id), le.Uint32(b[44:])
+	s.extents, s.extentType = PhysicalAddress(le.Uint64(b)), le.Uint32(b[40:])
 	s.CreateTime = time.Unix(0, int64(le.Uint64(b[16:]))).UTC()
 	s.ChangeTime = time.Unix(0, int64(le.Uint64(b[24:]))).UTC()
 	s.superblock = PhysicalAddress(le.Uint64(b[8:]))

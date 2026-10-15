@@ -29,6 +29,8 @@ type mutationSpace struct {
 	poolBits                    []byte
 	free                        uint64
 	queues                      [2]*cowTree
+	protected, protectedPool    []byte
+	checkpointFloor             XID
 }
 
 func littleBit(b []byte, i uint64) bool { return b[i/8]&(1<<uint(i%8)) != 0 }
@@ -195,6 +197,9 @@ func (s *mutationSpace) mark(address uint64, used bool) error {
 	if address >= s.owner.c.BlockCount {
 		return corrupt("allocation range", 0)
 	}
+	if littleBit(s.protected, address) {
+		return corrupt("allocation changes a retained storage root", int64(address)*4096)
+	}
 	ch := s.chunks[address/32768]
 	if s.used(address) == used {
 		return corrupt("allocation state", 0)
@@ -211,19 +216,36 @@ func (s *mutationSpace) mark(address uint64, used bool) error {
 	return nil
 }
 func (s *mutationSpace) reclaim() error {
-	// Retain the selected checkpoint throughout construction. Older descriptors
-	// are retired at publication, so only entries older than it can be reused.
+	// Queue age alone is insufficient: retained checkpoint descriptors must be
+	// disabled before their deferred allocations can be reused. Current roots
+	// remain protected even after that checkpoint retirement.
 	for i, q := range s.queues {
 		for _, r := range q.all() {
 			if le.Uint64(r.key) >= uint64(s.owner.c.XID) {
 				continue
 			}
+			if !s.owner.reusePrepared && s.checkpointFloor != 0 && le.Uint64(r.key) >= uint64(s.checkpointFloor) {
+				continue
+			}
 			start, count := le.Uint64(r.key[8:]), le.Uint64(r.value)
 			for n := uint64(0); n < count; n++ {
+				if n%32768 == 0 {
+					if err := s.owner.ctx.Err(); err != nil {
+						return err
+					}
+				}
 				if i == 0 {
+					if littleBit(s.protectedPool, start+n-s.pool) {
+						return corrupt("retained internal-pool reference in free queue", 0)
+					}
 					setLittleBit(s.poolBits, start+n-s.pool, false)
-				} else if e := s.mark(start+n, false); e != nil {
-					return e
+				} else {
+					if littleBit(s.protected, start+n) {
+						return corrupt("retained storage reference in free queue", 0)
+					}
+					if e := s.mark(start+n, false); e != nil {
+						return e
+					}
 				}
 			}
 			if e := q.put(r.key, nil); e != nil {
@@ -234,6 +256,9 @@ func (s *mutationSpace) reclaim() error {
 	return nil
 }
 func (s *mutationSpace) allocate(count uint64) (uint64, uint64, error) {
+	if e := s.owner.prepareReuse(); e != nil {
+		return 0, 0, e
+	}
 	if e := s.owner.ctx.Err(); e != nil {
 		return 0, 0, e
 	}
@@ -263,8 +288,14 @@ func (s *mutationSpace) allocate(count uint64) (uint64, uint64, error) {
 	return 0, 0, fmt.Errorf("APFS free allocation exhausted: %w", filesystem.ErrLimit)
 }
 func (s *mutationSpace) allocatePool() (uint64, error) {
+	if e := s.owner.prepareReuse(); e != nil {
+		return 0, e
+	}
 	for i := uint64(0); i < s.poolCount; i++ {
 		if !littleBit(s.poolBits, i) {
+			if littleBit(s.protectedPool, i) {
+				return 0, corrupt("internal-pool allocation changes a retained root", 0)
+			}
 			setLittleBit(s.poolBits, i, true)
 			return s.pool + i, nil
 		}
