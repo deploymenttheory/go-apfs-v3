@@ -131,8 +131,9 @@ failed attempts remain diagnostic evidence, not completed native controls.
 and `fs_snapshot_revert` interfaces. The collector signs this bounded observer
 with `com.apple.developer.vfs.snapshot`, retains the entitlement source and the
 signed binary's digest, and records its displayed entitlements. This does not
-claim an Apple-provisioned identity or change runner security settings. macOS 27
-killed the developer-entitled observer with `SIGKILL` in native run 38698271640.
+claim an Apple-provisioned identity or change runner security settings. The
+retained macOS 15, 26 and 27 controls all killed the developer-entitled observer
+with `SIGKILL` and returned `EPERM` through the baseline observer's supported APIs.
 A launch probe now records that result before filesystem work. If the entitled
 binary is killed, a separately retained baseline binary from the same source
 must launch normally and observe the APIs without claiming that entitlement.
@@ -153,8 +154,14 @@ The collector and its C storage observer require `GITHUB_ACTIONS=true` and
 Local checks use ordinary-file Go replay and mocked orchestration only. A disk
 image does not isolate a working Mac's kernel.
 
-Native capture and replay are still pending for the new controls. Their results
-will establish the reference profiles, including any platform differences;
-source review or passing mocked tests must not be reported as native success.
+Original controls from
+[native run 38699211349](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38699211349)
+are retained in `acceptance/testdata/apfs-lifecycle`: 24 states per source OS,
+original source/tool identity, command observations, independent parent history
+and GitHub artifact digests. Original manifests are stored verbatim in gzip;
+small retention receipts expose the cases without rewriting native values.
+All 72 states also pass ordinary-file Go replay locally. The required workflow
+replays every source on Linux, Windows and macOS to establish portable
+qualification. Source review and mocked tests do not supply a native verdict.
 Conversion of retained encrypted history and successful arbitrary snapshot naming
 have their own required controls in the corresponding implementation tickets.

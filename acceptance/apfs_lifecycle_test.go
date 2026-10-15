@@ -101,7 +101,7 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 	if root == "" {
 		root = "testdata/apfs-lifecycle"
 	}
-	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
+	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json*"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,8 +110,26 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 	}
 	majors := map[string]bool{}
 	for _, manifest := range manifests {
+		if name := filepath.Base(manifest); name != "manifest.json" && name != "manifest.json.gz" {
+			t.Fatal("unexpected lifecycle manifest name", name)
+		}
 		t.Run(filepath.Base(filepath.Dir(manifest)), func(t *testing.T) {
 			dir := filepath.Dir(manifest)
+			if strings.HasSuffix(manifest, ".gz") {
+				var retained struct {
+					ManifestSHA256 string
+					Artifact       struct{ MetadataSHA256 string }
+				}
+				raw, err := os.ReadFile(filepath.Join(dir, "retention.json"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal(raw, &retained); err != nil {
+					t.Fatal(err)
+				}
+				verifyDigest(t, dir, "manifest.json", retained.ManifestSHA256)
+				verifyDigest(t, dir, "artifact.json", retained.Artifact.MetadataSHA256)
+			}
 			var corpus lifecycleCorpus
 			decodeEvidence(t, manifest, &corpus)
 			major := strings.Split(corpus.Producer.Version, ".")[0]
@@ -172,7 +190,11 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 			}
 		})
 	}
-	for _, major := range strings.Split(os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"), ",") {
+	requiredMajors := os.Getenv("APFS_REQUIRED_NATIVE_MAJORS")
+	if requiredMajors == "" {
+		requiredMajors = "15,26,27"
+	}
+	for _, major := range strings.Split(requiredMajors, ",") {
 		if major != "" && !majors[major] {
 			t.Error("required native lifecycle producer missing", major)
 		}
@@ -202,8 +224,18 @@ func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 		if refused != (c.Blocker != nil) || (c.Blocker != nil && *c.Blocker != "https://github.com/deploymenttheory/go-apfs-v3/issues/74") {
 			t.Fatal("unavailable positive snapshot control lacks its explicit blocker")
 		}
+		if c.Blocker != nil {
+			t.Logf("Native snapshot mutation unavailable; this case checks recorded refusal, deletion and preserved history. Blocker: %s", *c.Blocker)
+		}
 		if c.NativeAPIs[0].Status != c.NativeAPIs[1].Status || c.NativeAPIs[2].Names[0] != c.SelectedName {
 			t.Fatal("snapshot name controls or revert selector differ")
+		}
+		renameSource := c.SelectedName
+		if c.NativeAPIs[0].Status == 0 {
+			renameSource = "native-caf\u00e9"
+		}
+		if c.NativeAPIs[0].Names[0] != "native-caf\u00e9" || c.NativeAPIs[1].Names[0] != renameSource || c.NativeAPIs[1].Names[1] != "renamed-cafe\u0301" {
+			t.Fatal("Unicode snapshot control inputs missing")
 		}
 		labels = []string{"retained", "named", "reverted", "continued"}
 		if c.NativeAPIs[0].Status != 0 {
