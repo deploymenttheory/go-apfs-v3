@@ -51,8 +51,12 @@ behavior before extending the writer's ownership admission. Native `cp -c`
 controls distinguish independent inodes and actual shared data/resource-fork
 extents from ordinary copies. Subsequent native writes, truncation, owner removal,
 settled encryption/decryption, changed passwords and independently credentialed
-peers produce before/after states. Native revert retains the selected historical
-state and discards newer history while preserving the original source corpus.
+peers produce before/after states. Supported snapshot create/rename/revert API
+observations distinguish available operations from an explicit entitlement
+refusal. A successful revert retains the selected historical state; a refusal
+has a linked positive-control blocker and separately labelled native deletion
+evidence. Both preserve the original source corpus and require continued native
+writes with retained history.
 
 `TestNativeAPFSLifecycleControls` compares every live/historical view with native
 observations, including identity, contents, metadata, links, forks and credentials.

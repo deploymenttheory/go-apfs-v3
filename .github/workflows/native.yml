@@ -169,7 +169,7 @@ jobs:
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Record APFS snapshot inventories and historical files
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
-      - name: Record native APFS clone storage, snapshot revert and encryption lifecycle
+      - name: Record native APFS clone storage, snapshot APIs and encryption lifecycle
         run: python3 acceptance/native/apfs_lifecycle.py --expected-major "${{ matrix.major }}" --references artifacts/native/snapshots/macos-${{ matrix.major }} --output artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}
       - name: Record volume layout and identity
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}

@@ -15,7 +15,8 @@ class APFSLifecycleControls(unittest.TestCase):
         with patch.dict('os.environ', {}, clear=True):
             for call in (lambda: apfs_lifecycle.capture(None, None, 15),
                          lambda: apfs_lifecycle.capture_clones(None, False, None, None, None, None),
-                         lambda: apfs_lifecycle.capture_revert(None, None, None, None, None, None),
+                         lambda: apfs_lifecycle.capture_snapshot_history(None, None, None, None, None, None, None),
+                         lambda: apfs_lifecycle.snapshot_operation(None, None, None, None, None),
                          lambda: apfs_lifecycle.capture_state(None, None, None, None, None, None, None, None),
                          lambda: apfs_lifecycle.mutate(None, None, None, None, None, None),
                          lambda: apfs_lifecycle.storage(None, None, None),
@@ -37,6 +38,23 @@ class APFSLifecycleControls(unittest.TestCase):
             apfs_lifecycle.validate_shared(mapped)
         mapped['clone']['ranges'][0]['physical'] = 4096
         apfs_lifecycle.validate_shared(mapped)
+
+    def test_supported_snapshot_refusal_is_not_a_successful_mutation(self):
+        command = Mock(return_value=b'{"api":"fs_snapshot_revert","status":-1,"errno":1}')
+        with patch.object(apfs_lifecycle, 'require_runner'):
+            result = apfs_lifecycle.snapshot_operation('observer', Path('/disposable'), 'revert', ('native-name',), command)
+        self.assertEqual(result['status'], -1)
+        self.assertEqual(result['errno'], 1)
+        self.assertEqual(result['names'], ['native-name'])
+
+    def test_obsolete_or_unexpected_snapshot_failure_never_becomes_an_availability_control(self):
+        for result in ({'api': 'fs_snapshot_revert', 'status': -1, 'errno': 22},
+                       {'api': 'APFSIOC_REVERT_TO_SNAPSHOT', 'status': -1, 'errno': 1},
+                       {'api': 'fs_snapshot_revert', 'status': 0, 'errno': 1}):
+            with self.subTest(result=result), patch.object(apfs_lifecycle, 'require_runner'):
+                with self.assertRaises(ValueError):
+                    apfs_lifecycle.snapshot_operation('observer', Path('/disposable'), 'revert', ('native-name',),
+                                                      Mock(return_value=json.dumps(result).encode()))
 
     def test_conversion_requires_explicit_settled_native_state(self):
         info = {'APFSContainerReference': 'disk42', 'DeviceIdentifier': 'disk42s1', 'FileVault': True}

@@ -6,6 +6,8 @@ Go is never invoked. Existing snapshot capture is reused with original provenanc
 All native operations are restricted to disposable GitHub-hosted macOS VMs.
 """
 import argparse
+from contextlib import contextmanager
+import errno
 import json
 import os
 from pathlib import Path
@@ -25,7 +27,7 @@ APFS_UTIL = '/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util'
 PASSWORD = 'public-lifecycle-initial'
 REPLACEMENT = 'public-lifecycle-replacement-\u03bb'
 PEER_PASSWORD = 'public-lifecycle-peer'
-SOURCES = ('apfs_lifecycle.py', 'apfs_storage.c', 'apfs_snapshot.c', 'capture.py', 'container_building.py',
+SOURCES = ('apfs_lifecycle.py', 'apfs_storage.c', 'apfs_snapshot.c', 'apfs_snapshot.entitlements', 'capture.py', 'container_building.py',
            'image_repacking.py', 'snapshot_reading.py', 'verify_preservation.py',
            'file_compression.py', 'image_building.py', 'metadata_edits.py',
            'content_replacement.py', 'preservation.py')
@@ -318,7 +320,18 @@ def capture_clones(case_id, sensitive, work, output, command, helper, major=27):
     return {'id': case_id, 'kind': 'clone-encryption', 'crossVolumeCopy': cross_volume, 'states': states}
 
 
-def capture_revert(case_id, reference, work, output, command, helper, snapshot_helper=None):
+def snapshot_operation(helper, directory, operation, names, command):
+    """Observe the API result; only Apple's explicit EPERM is an unavailable control."""
+    require_runner()
+    result = json.loads(command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT',
+                                helper, operation, directory, *names))
+    require(result.get('api') == 'fs_snapshot_' + operation, 'snapshot API observation differs')
+    require((result.get('status'), result.get('errno')) in ((0, 0), (-1, errno.EPERM)),
+            'unexpected native snapshot API failure: ' + str(result))
+    return result | {'names': list(names)}
+
+
+def capture_snapshot_history(case_id, reference, work, output, command, helper, snapshot_helper):
     require_runner()
     manifest_path = reference / 'manifest.json'
     original_manifest = json.loads(manifest_path.read_text())
@@ -329,35 +342,70 @@ def capture_revert(case_id, reference, work, output, command, helper, snapshot_h
     command('hdiutil', 'convert', original, '-format', 'UDRW', '-o', scratch)
     prefix = 'snapshot-' + case_id
     before = capture_state(scratch, prefix, 'retained', {}, work, output, command, helper)
-    cleanup, _, inventory = attached(scratch, command)
-    try:
-        require(len(inventory['Volumes']) == 1, 'one revert control volume required')
-        volume = inventory['Volumes'][0]['DeviceIdentifier']
-        directory = work / (prefix + '-revert-write')
-        mount(volume, directory, command)
+    @contextmanager
+    def writable(label):
+        cleanup, _, inventory = attached(scratch, command)
+        try:
+            require(len(inventory['Volumes']) == 1, 'one snapshot control volume required')
+            volume = inventory['Volumes'][0]['DeviceIdentifier']
+            directory = work / (prefix + '-write-' + label)
+            mount(volume, directory, command)
+            yield volume, directory
+        finally:
+            command('hdiutil', 'detach', cleanup)
+
+    controls = []
+    with writable('names') as (volume, directory):
         snapshots = plistlib.loads(command('diskutil', 'apfs', 'listSnapshots', '-plist', volume))['Snapshots']
-        require(len(snapshots) == 2, 'revert control needs two independent retained snapshots')
+        require(len(snapshots) == 2, 'snapshot control needs two independent retained snapshots')
         selected = min(snapshots, key=lambda s: s['SnapshotXID'])
-        require(snapshot_helper is not None, 'native snapshot helper required')
-        command('sudo', '--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT', snapshot_helper,
-                directory, str(selected['SnapshotXID']))
-        command('diskutil', 'unmount', volume)
-        # Apple's documented operation finishes on the next writable mount.
-        resumed = work / (prefix + '-reverted-write')
-        mount(volume, resumed, command)
-    finally:
-        command('hdiutil', 'detach', cleanup)
-    after = capture_state(scratch, prefix, 'reverted', {}, work, output, command, helper)
+        created_name, renamed_name = 'native-caf\u00e9', 'renamed-cafe\u0301'
+        created = snapshot_operation(snapshot_helper, directory, 'create', (created_name,), command)
+        controls.append(created)
+        controls.append(snapshot_operation(snapshot_helper, directory, 'rename',
+                         (created_name if created['status'] == 0 else selected['SnapshotName'], renamed_name), command))
+        require(created['status'] == controls[-1]['status'], 'create/rename availability differs; a separate control is required')
+    named = capture_state(scratch, prefix, 'named' if created['status'] == 0 else 'api-refused',
+                          {}, work, output, command, helper)
+    if created['status'] == 0:
+        history = named['volumes'][0]['snapshots']
+        require(len(history) == 3 and renamed_name in {s['name'] for s in history}, 'native snapshot rename not observed')
+    else:
+        require(named['volumes'][0]['files'] == before['volumes'][0]['files'] and
+                named['volumes'][0]['snapshots'] == before['volumes'][0]['snapshots'],
+                'refused snapshot APIs changed live files or retained history')
+    with writable('revert') as (volume, directory):
+        if created['status'] == 0:
+            command('sudo', 'diskutil', 'apfs', 'deleteSnapshot', volume, '-name', renamed_name, '-wait')
+        reverted = snapshot_operation(snapshot_helper, directory, 'revert', (selected['SnapshotName'],), command)
+        controls.append(reverted)
+        if reverted['status'] != 0:
+            # This is a separate positive deletion control, never a revert.
+            newer = max(snapshots, key=lambda s: s['SnapshotXID'])
+            command('sudo', 'diskutil', 'apfs', 'deleteSnapshot', volume, '-xid', str(newer['SnapshotXID']), '-wait')
+    after = capture_state(scratch, prefix, 'reverted' if reverted['status'] == 0 else 'deleted-newer',
+                          {}, work, output, command, helper)
     prior = next(s for s in before['volumes'][0]['snapshots'] if s['xid'] == selected['SnapshotXID'])
     remaining = after['volumes'][0]['snapshots']
-    require([s['xid'] for s in remaining] == [selected['SnapshotXID']], 'native revert did not discard newer history')
-    require([(e['path'], e.get('sha256'), e.get('target'), e['attributes']) for e in prior['files']['entries']] ==
-            [(e['path'], e.get('sha256'), e.get('target'), e['attributes']) for e in after['volumes'][0]['files']['entries']],
-            'native revert contents/forks differ from selected history')
+    require([s['xid'] for s in remaining] == [selected['SnapshotXID']], 'native history removal did not preserve the selected snapshot')
+    expected = prior if reverted['status'] == 0 else before['volumes'][0]
+    require(after['volumes'][0]['files'] == expected['files'], 'native snapshot operation changed unexpected live contents or metadata')
+    with writable('continued') as (_, directory):
+        marker = directory / 'Fixture/native-history-write'
+        with marker.open('wb') as stream:
+            stream.write(b'Continued native write with retained history\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+    continued = capture_state(scratch, prefix, 'continued', {}, work, output, command, helper)
+    require(continued['volumes'][0]['snapshots'] == after['volumes'][0]['snapshots'],
+            'continued native write changed retained historical observations')
     require(sha256(original) == source['sha256'], 'revert control changed original snapshot evidence')
-    return {'id': prefix, 'kind': 'snapshot-revert', 'selectedName': selected['SnapshotName'],
+    return {'id': prefix, 'kind': 'snapshot-history', 'selectedName': selected['SnapshotName'],
             'selectedXID': selected['SnapshotXID'], 'parentManifestSHA256': sha256(manifest_path),
-            'parentImage': source['image'], 'parentImageSHA256': source['sha256'], 'states': [before, after]}
+            'parentImage': source['image'], 'parentImageSHA256': source['sha256'],
+            'nativeAPIs': controls,
+            'blocker': 'https://github.com/deploymenttheory/go-apfs-v3/issues/74' if any(c['status'] != 0 for c in controls) else None,
+            'states': [before, named, after, continued]}
 
 
 def capture(reference, output, major):
@@ -376,9 +424,12 @@ def capture(reference, output, major):
         snapshot_helper = work / 'apfs-snapshot'
         command('xcrun', 'clang', '-Wall', '-Wextra', '-Werror', '-O2',
                 Path(__file__).with_name('apfs_snapshot.c'), '-o', snapshot_helper)
+        command('codesign', '--force', '--sign', '-', '--entitlements',
+                Path(__file__).with_name('apfs_snapshot.entitlements'), snapshot_helper)
+        command('codesign', '--display', '--entitlements', '-', snapshot_helper)
         producer['tools'] = [{'path': str(path), 'sha256': sha256(path)} for path in
                              (Path('/bin/cp'), Path('/usr/sbin/diskutil'), Path('/usr/bin/hdiutil'),
-                              Path(APFS_UTIL), Path(MOUNT_APFS), helper, snapshot_helper)]
+                              Path(APFS_UTIL), Path(MOUNT_APFS), Path('/usr/bin/codesign'), helper, snapshot_helper)]
         producer['sources'] = []
         for name in SOURCES:
             source = corpus / name
@@ -387,7 +438,7 @@ def capture(reference, output, major):
         try:
             cases = [capture_clones('apfs' + ('-case-sensitive' if sensitive else ''), sensitive,
                                     work, corpus, command, helper, major) for sensitive in (False, True)]
-            cases += [capture_revert(case_id, reference, work, corpus, command, helper, snapshot_helper)
+            cases += [capture_snapshot_history(case_id, reference, work, corpus, command, helper, snapshot_helper)
                       for case_id in ('apfs', 'apfs-case-sensitive')]
         except BaseException as error:
             command.save()
@@ -410,7 +461,7 @@ def capture(reference, output, major):
         shutil.copyfile(command.path, corpus / 'commands.json')
         manifest = {'schema': 1, 'contract': 'apfs-native-lifecycle', 'producer': producer,
                     'commandsSHA256': sha256(corpus / 'commands.json'), 'cases': cases,
-                    'limits': ['Snapshot names are ASR-generated; native rename/Unicode name controls remain required.',
+                    'limits': ['Snapshot API success/refusal is recorded per operation; issue 74 blocks unavailable positive mutation controls.',
                                'Conversion controls cover ordinary volumes; conversion of retained encrypted history remains a separate gate.',
                                'Software key profiles are established by native unlock and keybag decoding, not AES primitive support.']}
         (corpus / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')

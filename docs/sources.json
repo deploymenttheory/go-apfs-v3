@@ -564,7 +564,10 @@
       "url": "https://github.com/apple-oss-distributions/xnu",
       "revision": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
       "components": [
-        "acceptance/native/snapshot_reading.py"
+        "acceptance/native/snapshot_reading.py",
+        "acceptance/native/apfs_snapshot.c",
+        "acceptance/native/apfs_snapshot.entitlements",
+        "acceptance/native/apfs_lifecycle.py"
       ],
       "files": [
         {
@@ -580,7 +583,7 @@
           "sha256": "b30d68fb85f34b864b5e71e3127541c2674e0fb52e59d6ee072c8b0ecbb46a4f"
         }
       ],
-      "basis": "Public snapshot enumeration and attribute ABI studied for an original Python ctypes collector. Kernel entitlement checks explain direct-call rejection; no kernel implementation copied. Apple asr and mount_apfs perform native snapshot creation and retention on disposable volumes."
+      "basis": "Public snapshot enumeration and attribute ABI studied for an original Python ctypes collector. Kernel entitlement checks explain direct-call rejection; no kernel implementation copied. Apple asr and mount_apfs perform native snapshot creation and retention on disposable volumes. The supported name-based create/rename/revert APIs are observed by an original C helper signed with the public developer snapshot entitlement. Actual syscall status/errno and signed-tool identity distinguish successful mutation from an explicit EPERM linked to the positive-control blocker. The fsctl_internal dispatcher explicitly rejects APFSIOC_REVERT_TO_SNAPSHOT before APFS; its kernel-only revert fallback does not establish a supported userspace XID interface. No private ioctl layout or private entitlement is inferred."
     },
     {
       "id": "native-apfs-snapshots-27",

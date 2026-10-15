@@ -68,10 +68,12 @@ The pinned [XNU snapshot dispatcher](https://github.com/apple-oss-distributions/
 checks snapshot entitlements before create/rename/delete/revert syscalls, even
 for root. Its rename path refuses an existing name with `EEXIST`. Public C source
 establishes these API rules; it does not supply the private APFS implementation.
-ASR snapshot retention, Apple inventory and native mounts remain the independent
-creation/reading control. ASR-generated names do not qualify arbitrary Unicode
-names or successful native rename. Those controls remain required before the
-snapshot creation/name implementation can be completed.
+ASR snapshot retention, Apple inventory and native mounts remain the independently
+qualified creation/reading control. The new control also invokes the supported
+name-based create, rename and revert APIs using the developer snapshot entitlement.
+API availability is observed independently on each required OS. A refusal leaves
+the corresponding positive control blocked; ASR names alone do not qualify
+arbitrary Unicode names or successful native rename.
 
 Software volume encryption and DMG envelope encryption are separate. Current
 APFS keybag admission unwraps a 32-byte combined XTS key, corresponding to
@@ -104,20 +106,37 @@ without adding profile jobs or another capture mode. Its current controls are:
   credentialed encrypted peer. Every completed state is detached, retained,
   reattached read-only, natively checked and observed. Migration probes must show
   an explicitly settled state before the completed reference is published.
-- Actual snapshot revert from the older of two retained ASR snapshots, using
-  Apple's published XNU revert request and a subsequent writable mount. The original
-  snapshot corpus and digests remain unchanged. Live and every remaining
-  historical state are read from native mounts of the final image.
+- Both snapshot name policies: supported name-based create/rename/revert API
+  observations, original ASR history, final selected-history preservation and
+  subsequent native allocation. Successful APIs must produce observed Unicode
+  names and completed revert. An explicit `EPERM` instead retains unchanged
+  live/historical observations, a separately labelled positive native deletion
+  control, and the [unresolved positive-control blocker](https://github.com/deploymenttheory/go-apfs-v3/issues/74).
+  An unavailable revert never receives a `reverted` image label. Original parent
+  image bytes and digests remain unchanged.
 
 The installed utility's `-R` implementation passes its argument as the path to
 `fsctl(APFSIOC_REVERT_TO_SNAPSHOT)` with XID zero. The public XNU revert fallback
-applies the same request to a selected snapshot vnode. Supplying a snapshot-name
-string as the utility manual suggests produced `ENOENT`; a snapshot mount path
-with its zero-XID argument produced `EINVAL`. The bounded native helper instead
-passes the selected `diskutil` inventory XID through the published uint64 request
-on the live mount, then unmounts/remounts to finish the operation. This invocation
-requires fresh native proof on every version; its compiled syntax is not a native
-compatibility result.
+applies the same request internally to a selected snapshot vnode. Supplying a
+snapshot-name string as the utility manual suggests produced `ENOENT`; a
+snapshot mount path with its zero-XID argument produced `EINVAL` on all three
+required versions. The nonzero-XID helper also returned `EINVAL` on macOS 27.
+The pinned XNU `fsctl_internal` dispatcher explicitly rejects this request before
+calling APFS; changing its argument cannot fix that refusal. A kernel-internal
+ioctl constant does not establish a supported userspace XID interface. The
+supported name-based snapshot syscall has a separate entitlement check. These
+failed attempts remain diagnostic evidence, not completed native controls.
+
+`apfs_snapshot.c` now calls the SDK's `fs_snapshot_create`, `fs_snapshot_rename`
+and `fs_snapshot_revert` interfaces. The collector signs this bounded observer
+with `com.apple.developer.vfs.snapshot`, retains the entitlement source and the
+signed binary's digest, and records its displayed entitlements. This does not
+claim an Apple-provisioned identity or change runner security settings. Its
+output separates successful observation from the actual syscall status/errno;
+only `(0, 0)` is successful mutation. A valid observed `(-1, EPERM)` is explicit
+unavailability linked to the blocker. Other errors, malformed results, failed
+launches or incomplete observations fail capture. The affected mutation tickets
+remain open until their positive controls are available and qualified.
 
 The Go acceptance family checks each native state on Linux, Windows and macOS:
 volume identity, name policy, locked/unlocked credentials, files, links, forks,

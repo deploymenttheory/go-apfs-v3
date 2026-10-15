@@ -34,7 +34,13 @@ type lifecycleCase struct {
 	ID, Kind, SelectedName, ParentManifestSHA256, ParentImage, ParentImageSHA256 string
 	SelectedXID                                                                  apfs.XID
 	States                                                                       []lifecycleState
-	CrossVolumeCopy                                                              *struct {
+	Blocker                                                                      *string
+	NativeAPIs                                                                   []struct {
+		API           string
+		Status, Errno int
+		Names         []string
+	}
+	CrossVolumeCopy *struct {
 		Status            int
 		Stderr            string
 		DestinationExists bool
@@ -107,8 +113,8 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 				t.Fatal("invalid native lifecycle provenance")
 			}
 			majors[major] = true
-			required := []string{"apfs_lifecycle.py", "apfs_storage.c", "apfs_snapshot.c", "capture.py", "container_building.py", "image_repacking.py", "snapshot_reading.py", "verify_preservation.py", "file_compression.py", "image_building.py", "metadata_edits.py", "content_replacement.py", "preservation.py"}
-			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 7 || len(corpus.Limits) != 3 {
+			required := []string{"apfs_lifecycle.py", "apfs_storage.c", "apfs_snapshot.c", "apfs_snapshot.entitlements", "capture.py", "container_building.py", "image_repacking.py", "snapshot_reading.py", "verify_preservation.py", "file_compression.py", "image_building.py", "metadata_edits.py", "content_replacement.py", "preservation.py"}
+			if len(corpus.Producer.Sources) != len(required) || len(corpus.Producer.Tools) != 8 || len(corpus.Limits) != 3 {
 				t.Fatal("incomplete lifecycle source/tool/profile provenance")
 			}
 			for i, source := range corpus.Producer.Sources {
@@ -149,10 +155,38 @@ func TestNativeAPFSLifecycleControls(t *testing.T) {
 func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 	t.Helper()
 	labels := []string{"clone-shared", "clone-diverged", "clone-truncated", "clone-final-owner", "encrypted", "password-changed", "encrypted-edited", "decrypted"}
-	if c.Kind == "snapshot-revert" {
-		labels = []string{"retained", "reverted"}
+	if c.Kind == "snapshot-history" {
+		if len(c.NativeAPIs) != 3 {
+			t.Fatal("supported snapshot API observations missing")
+		}
+		refused := false
+		for i, operation := range []string{"create", "rename", "revert"} {
+			result := c.NativeAPIs[i]
+			names := 1
+			if operation == "rename" {
+				names = 2
+			}
+			if result.API != "fs_snapshot_"+operation || len(result.Names) != names ||
+				!((result.Status == 0 && result.Errno == 0) || (result.Status == -1 && result.Errno == 1)) {
+				t.Fatal("invalid native snapshot API observation", result)
+			}
+			refused = refused || result.Status != 0
+		}
+		if refused != (c.Blocker != nil) || (c.Blocker != nil && *c.Blocker != "https://github.com/deploymenttheory/go-apfs-v3/issues/74") {
+			t.Fatal("unavailable positive snapshot control lacks its explicit blocker")
+		}
+		if c.NativeAPIs[0].Status != c.NativeAPIs[1].Status || c.NativeAPIs[2].Names[0] != c.SelectedName {
+			t.Fatal("snapshot name controls or revert selector differ")
+		}
+		labels = []string{"retained", "named", "reverted", "continued"}
+		if c.NativeAPIs[0].Status != 0 {
+			labels[1] = "api-refused"
+		}
+		if c.NativeAPIs[2].Status != 0 {
+			labels[2] = "deleted-newer"
+		}
 		if c.SelectedName == "" || c.SelectedXID == 0 || len(c.ParentImageSHA256) != 64 {
-			t.Fatal("snapshot revert source/selection missing")
+			t.Fatal("snapshot history source/selection missing")
 		}
 		parent := filepath.Join(dir, "snapshot-reference")
 		verifyDigest(t, parent, "manifest.json", c.ParentManifestSHA256)
@@ -237,9 +271,27 @@ func replayLifecycle(t *testing.T, dir string, c lifecycleCase) {
 			}
 		}
 	} else {
-		before, after := c.States[0].Volumes[0], c.States[1].Volumes[0]
+		before, named, after, continued := c.States[0].Volumes[0], c.States[1].Volumes[0], c.States[2].Volumes[0], c.States[3].Volumes[0]
 		if len(before.Snapshots) != 2 || len(after.Snapshots) != 1 || after.Snapshots[0].XID != c.SelectedXID || after.Snapshots[0].Name != c.SelectedName {
-			t.Fatal("native revert history incomplete")
+			t.Fatal("native snapshot removal history incomplete")
+		}
+		if c.NativeAPIs[0].Status == 0 {
+			found := false
+			for _, snapshot := range named.Snapshots {
+				found = found || snapshot.Name == c.NativeAPIs[1].Names[1]
+			}
+			if len(named.Snapshots) != 3 || !found {
+				t.Fatal("native arbitrary snapshot name missing")
+			}
+		} else if !reflect.DeepEqual(named.Files, before.Files) || !reflect.DeepEqual(named.Snapshots, before.Snapshots) {
+			t.Fatal("refused snapshot API changed original state")
+		}
+		expected := before.Files
+		if c.NativeAPIs[2].Status == 0 {
+			expected = after.Snapshots[0].Files
+		}
+		if !reflect.DeepEqual(after.Files, expected) || !reflect.DeepEqual(continued.Snapshots, after.Snapshots) {
+			t.Fatal("snapshot operation or continued write changed unexpected state")
 		}
 	}
 }
