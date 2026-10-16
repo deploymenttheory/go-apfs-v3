@@ -36,6 +36,21 @@ Module and compilation caches are enabled. The replay runner always supplies
 Already-compressed portable output archives use artifact compression level zero;
 archive contents and native verification remain unchanged.
 
+Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
+retains its per-source race instrumentation; Windows and macOS still compare all
+three native sources. Catalog comparisons keep their separate four-minute
+deadline and output directories. Files, catalogs, metadata and links travel in
+one archive containing each original execution receipt. Copying retains its
+separate bounded jobs.
+
+Each recovery verifier job now checks all three portable hosts on one disposable
+Mac. APFS and HFS each use three Mac jobs rather than nine. Every host invokes
+the original verifier and completion check separately, with independent
+diagnostic directories. All three macOS verifier versions remain required.
+Matching plaintext does not skip these checks, and the batched loops fail if
+any host's verifier or completion check fails. Their original 20-minute APFS and
+15-minute HFS job envelopes remain unchanged.
+
 The completed [CI campaign](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38896636832)
 at `021adb712e2ef79ce9924725cd74c30f1d7502ab` informed the grouping: the short
 retained groups each took about one to three minutes, while the HFS node-map

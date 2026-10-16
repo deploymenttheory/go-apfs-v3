@@ -131,14 +131,13 @@ jobs:
 
   readback:
     if: ${{ !inputs.capture_only }}
-    name: Verify ${{ matrix.platform }} recovery and native continued writes (macOS ${{ matrix.major }})
+    name: Verify all portable recovery and native continued writes (macOS ${{ matrix.major }})
     needs: [capture, replay]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        platform: [Linux, Windows, macOS]
         runner: [macos-15, macos-26, xcode-27]
         include:
           - {runner: macos-15, major: 15}
@@ -154,23 +153,27 @@ jobs:
           path: artifacts/references
       - uses: actions/download-artifact@v7
         with:
-          name: hfs-recovered-${{ matrix.platform }}-${{ matrix.major }}
+          pattern: hfs-recovered-*-${{ matrix.major }}
           path: artifacts/archives
-      - name: Unpack portable output images
-        run: tar -xzf artifacts/archives/recovered-*.tgz -C artifacts
+          merge-multiple: true
+      - name: Unpack all completed host outputs
+        run: |
+          for archive_file in artifacts/archives/recovered-*.tgz; do
+            tar -xzf "$archive_file" -C artifacts
+          done
       - name: Apple fsck, complete readback, signatures and subsequent journaled modification
-        run: python3 acceptance/native/verify_hfs_recovery.py --expected-major "${{ matrix.major }}" --references artifacts/references --outputs artifacts/recovered-${{ matrix.platform }}/macos-${{ matrix.major }} --diagnostics artifacts/verification
+        run: |
+          for portable_host in Linux Windows macOS; do
+            python3 acceptance/native/verify_hfs_recovery.py --expected-major "${{ matrix.major }}" --references artifacts/references --outputs "artifacts/recovered-$portable_host/macos-${{ matrix.major }}" --diagnostics "artifacts/verification/$portable_host"
+            python3 acceptance/native/qualification_complete.py --plan "artifacts/verification/$portable_host/hfs-recovery-macos-${{ matrix.major }}.plan.json"
+          done
       - name: Retain native command verdicts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: hfs-recovery-verification-${{ matrix.platform }}-${{ matrix.major }}
+          name: hfs-recovery-verification-${{ matrix.major }}
           path: artifacts/verification
           if-no-files-found: warn
-      - name: Require every declared Apple verification scope
-        run: >-
-          python3 acceptance/native/qualification_complete.py
-          --plan "artifacts/verification/hfs-recovery-macos-${{ matrix.major }}.plan.json"
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

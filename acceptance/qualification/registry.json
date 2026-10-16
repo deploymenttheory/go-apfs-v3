@@ -2931,7 +2931,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "bf56243f0b1009c7bb488eeb0cd453d0a891957b5020095631c479f2b964702b",
+      "sha256": "d46a798a720524714896a11441768ebd45cbbce0b7e60f28c5a142c98bf2d8c9",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2943,7 +2943,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "c8f06869ded5f62f209bc7202a9fbe60f9404dfb847595b0205e05e0f13351d1",
+      "sha256": "00be642abfc58d9ec2f666023962a2165fea1570bb6bfb9d8f75715d4aa5c6f0",
       "jobs": [
         "capture",
         "replay",
@@ -2953,7 +2953,7 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "a7d5ca03b51875733b0a80bd0fdd758c59e5b4af16a06e1f47417f40eb58f22c",
+      "sha256": "cb976cf1c4f9b32ef35756c4c697a04965bb24cc4626589e49b7c593647c6292",
       "jobs": [
         "capture",
         "replay",
