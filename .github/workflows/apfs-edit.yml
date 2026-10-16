@@ -277,6 +277,19 @@ jobs:
             artifacts/copy-continued-go/*.diagnostics.json
             artifacts/copy-continued-native.tgz
           if-no-files-found: error
+      - name: Require every declared Apple verification scope
+        run: >-
+          python3 acceptance/native/qualification_complete.py
+          --plan "artifacts/outputs/apfs_editing-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/apfs_directory_editing-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image_metadata-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image_links-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image_copy-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/apfs-continued-go/apfs_editing-continued-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/apfs-directories-continued-go/apfs_directory_editing-continued-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/metadata-continued-go/image_metadata-continued-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/links-continued-go/image_links-continued-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/copy-continued-go/image_copy-continued-macos-${{ matrix.major }}.plan.json"
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -284,6 +297,7 @@ jobs:
           name: qualification-apfs-edit-${{ github.job }}-${{ strategy.job-index }}
           path: |
             artifacts/qualification/
+            artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
           if-no-files-found: error

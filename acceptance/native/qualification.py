@@ -344,6 +344,7 @@ class NativeEvidence:
                      'required_runs': [c['test'] for c in cases]}
         self.fingerprint = identity(self.plan)
         self.base = self.directory / (name + '-macos-' + str(major))
+        publish_document(self.plan, self.base.with_suffix('.plan.json'))
         self.events = self.base.with_suffix('.events.jsonl')
         self.stream = self.events.open('x', encoding='utf-8')
         self.emit('start')
@@ -404,6 +405,11 @@ def publish_receipt(plan, events, outputs, destination):
               'outputs': outputs,
               'events': {'path': events.name, 'bytes': events.stat().st_size,
                          'sha256': file_digest(events)}}
+    publish_document(record, destination)
+    return record
+
+
+def publish_document(record, destination):
     with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=destination.parent,
                                      prefix='.native-receipt-', delete=False) as stream:
         temporary = Path(stream.name)
@@ -415,4 +421,3 @@ def publish_receipt(plan, events, outputs, destination):
         os.link(temporary, destination)
     finally:
         temporary.unlink()
-    return record

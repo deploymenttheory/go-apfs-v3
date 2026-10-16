@@ -265,12 +265,17 @@ jobs:
           name: offline-editing-${{ matrix.family }}-readback-${{ matrix.major }}
           path: artifacts/outputs/*.json
           if-no-files-found: error
+      - name: Require every declared Apple verification scope
+        run: >-
+          python3 acceptance/native/qualification_complete.py
+          --plan "artifacts/outputs/offline-editing-${{ matrix.family }}-macos-${{ matrix.major }}.plan.json"
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-offline-editing-${{ github.job }}-${{ strategy.job-index }}
           path: |
+            artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
           if-no-files-found: error

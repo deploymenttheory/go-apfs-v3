@@ -167,12 +167,17 @@ jobs:
           name: apfs-recovery-verification-${{ matrix.platform }}-${{ matrix.major }}
           path: artifacts/verification
           if-no-files-found: warn
+      - name: Require every declared Apple verification scope
+        run: >-
+          python3 acceptance/native/qualification_complete.py
+          --plan "artifacts/verification/apfs-recovery-macos-${{ matrix.major }}.plan.json"
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-apfs-recovery-${{ github.job }}-${{ strategy.job-index }}
           path: |
+            artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
           if-no-files-found: error

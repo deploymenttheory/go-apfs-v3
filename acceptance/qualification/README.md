@@ -123,6 +123,9 @@ plaintext host outputs retain each host obligation while sharing one native
 check. Distinct ciphertexts each unlock independently. Final Go-after-Apple
 outputs have separate verification scopes. CI retains the events and receipts;
 the existing capture, replay, readback and required-job gates remain in place.
+Each Apple readback job also names its required pre-execution plans explicitly
+and runs `qualification_complete.py` before succeeding. Missing scopes, changed
+plans, lost events/outputs and mismatched origins fail that completion check.
 
 Input location does not imply fresh-capture requirements. The existing fresh
 workflows explicitly require compression boundaries, copy truncation/set-ID or

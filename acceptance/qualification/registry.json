@@ -2839,7 +2839,7 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "7e9c6df7c1ea693ce20fcb564af54599e5855caef110e11fbefa5a93db421429",
+      "sha256": "fa85925c2363e7ee8a814d00efbeff6d96526a88774f34f7edc0dde50e06b45c",
       "jobs": [
         "offline_reference",
         "offline_edits",
@@ -2857,7 +2857,7 @@
     },
     {
       "path": ".github/workflows/offline-editing.yml",
-      "sha256": "5a9098ced17b3ada10b0315d6b65009b2bafc9a8eb9b294021a7036337228a9d",
+      "sha256": "73eff34d7787354d57596e1641c7a640a6eb255e1b3caf4db61b3d9d52b21703",
       "jobs": [
         "capture",
         "replay",
@@ -2868,7 +2868,7 @@
     },
     {
       "path": ".github/workflows/apfs-edit.yml",
-      "sha256": "edff1f35584383e54c78c4273094c5e2bab0431adb0e4a5c041aeb4370dc7c36",
+      "sha256": "06402a48830570c6e2476f460dce7671c9e25207339929f61dca101eb4991785",
       "jobs": [
         "capture",
         "replay",
@@ -2878,7 +2878,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "0da5e1df953bef6d64f497ec2a0e457daa7df06f4086a73a0c225b208d203989",
+      "sha256": "f100b1641781dd45fd2bcb4964bbebb13d1d89a91a169831c12eb84b6c207724",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2890,7 +2890,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "6cca9e8300a01fc9ed0b0d77cef6aec2a46d51dd365c4ed6072409de165d6aae",
+      "sha256": "8e5d378052413ffd00ecefebb76e299b7779abc0f7a5c2b6b2c16735ea7159f5",
       "jobs": [
         "capture",
         "replay",
@@ -2900,7 +2900,7 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "9c71a5e7c79f11388ee1517703481ef2ed5b5ae68297248d03811188c2b8f29b",
+      "sha256": "1b9ad98de7f49832709e2b936f78091074a580ea1e58c83d4ad2e5362afe3736",
       "jobs": [
         "capture",
         "replay",

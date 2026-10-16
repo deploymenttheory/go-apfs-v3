@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import qualification as proof
 import qualification_capture as capture
+import qualification_complete as completion
 
 
 ENVIRONMENT = {'os': 'darwin', 'architecture': 'synthetic', 'version': '15.0',
@@ -61,6 +62,8 @@ class NativeExecution(unittest.TestCase):
         self.stack.enter_context(patch.object(proof, 'native_environment', return_value=copy.deepcopy(ENVIRONMENT)))
         self.contract = self.stack.enter_context(patch.object(proof, 'native_contract', return_value='d' * 64))
         self.stack.enter_context(patch.object(proof, 'source_identities', return_value=(FileReplay.production, 'e' * 64)))
+        self.stack.enter_context(patch.object(completion, 'source_identities', return_value=(FileReplay.production, 'e' * 64)))
+        self.stack.enter_context(patch.object(completion, 'native_contract', self.contract))
         self.replay = FileReplay(self.root)
 
     def evidence(self, name='control', images=None):
@@ -77,6 +80,41 @@ class NativeExecution(unittest.TestCase):
         self.assertEqual(len(record['verdicts']), 2)
         proof.verify_events(evidence.events, record['plan'])
         self.assertTrue(evidence.base.with_suffix('.receipt.json').is_file())
+        self.assertEqual(completion.complete([evidence.base.with_suffix('.plan.json')], self.root), 1)
+
+    def test_completion_requires_original_plan_origin_outputs_and_all_verdicts(self):
+        evidence = self.evidence()
+        with evidence.case(self.replay.images):
+            pass
+        original = evidence.finish()
+        plan = evidence.base.with_suffix('.plan.json')
+        destination = evidence.base.with_suffix('.receipt.json')
+        def dropped_verdict(record):
+            record['verdicts'].pop()
+        def skipped(record):
+            record['verdicts'][0]['status'] = 'skip'
+        def substituted_plan(record):
+            record['plan']['environment']['race'] = True
+            record['fingerprint'] = proof.identity(record['plan'])
+        def wrong_origin(record):
+            record['origin']['run'] = 'another-run'
+        def missing_output(record):
+            record['outputs'].pop()
+        for mutation in (dropped_verdict, skipped, substituted_plan, wrong_origin, missing_output):
+            altered = copy.deepcopy(original)
+            mutation(altered)
+            destination.write_text(json.dumps(altered))
+            with self.subTest(mutation=mutation.__name__), self.assertRaises(ValueError):
+                completion.complete([plan], self.root)
+        destination.write_text(json.dumps(original))
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            completion.complete([plan, plan], self.root)
+        with self.assertRaisesRegex(ValueError, 'missing/extra'):
+            completion.complete([plan, self.root / 'missing.plan.json'], self.root)
+        extra = self.root / 'unplanned.receipt.json'
+        extra.write_text(json.dumps(original))
+        with self.assertRaisesRegex(ValueError, 'missing/extra'):
+            completion.complete([plan], self.root)
 
     def test_missing_or_duplicate_completion_cannot_qualify_a_set(self):
         evidence = self.evidence()

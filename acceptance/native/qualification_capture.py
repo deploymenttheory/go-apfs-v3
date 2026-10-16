@@ -12,7 +12,7 @@ from pathlib import Path
 import subprocess
 
 from qualification import (canonical, file_digest, identity, native_contract,
-                           native_environment, portable_path, publish_receipt,
+                           native_environment, portable_path, publish_document, publish_receipt,
                            read_document, require, source_identities, verify_file)
 from qualification_cases import ROOT
 
@@ -118,6 +118,7 @@ def capture(major, bindings, directory, source_root=ROOT):
             'production_sha256': production, 'inputs': inputs, 'outputs': [],
             'environment': environment, 'cases': required, 'required_runs': [c['test'] for c in required]}
     directory.mkdir(parents=True)
+    publish_document(plan, directory / 'plan.json')
     events = directory / 'events.jsonl'
     with events.open('x', encoding='utf-8') as stream:
         def emit(action, test=None):

@@ -688,12 +688,24 @@ jobs:
           must agree across hosts and expose the same native disk bytes.
           No Go verifier supplies these results.
           EOF
+      - name: Require every declared Apple verification scope
+        run: >-
+          python3 acceptance/native/qualification_complete.py
+          --plan "artifacts/outputs/preservation-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/replacement-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/tree-edits-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/metadata-edits-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/file-commands-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image-building-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image-capacity-macos-${{ matrix.major }}.plan.json"
+          --plan "artifacts/outputs/image-repacking-macos-${{ matrix.major }}.plan.json"
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
           path: |
+            artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
           if-no-files-found: error
