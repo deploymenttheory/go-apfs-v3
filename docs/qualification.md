@@ -54,6 +54,8 @@ own inputs and replays are ready. Short cases will share jobs targeting 5–10
 minutes. Real HFS node-map boundaries, fragmented growth/collapse/reuse and other
 expensive cases retain their separate deadlines and original data sizes. Every
 original source, host, encoding, refusal and race variant remains required.
+The [scheduling contract](qualification-scheduling.md) describes the implemented
+family dependencies, retained batching and unchanged process deadlines.
 
 Module and compilation caches may be reused; assertions run afresh with
 `-count=1`. Already-compressed archives need no extra transport compression.

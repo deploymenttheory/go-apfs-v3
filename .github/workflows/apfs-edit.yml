@@ -115,7 +115,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           name: apfs-edit-reference-${{ matrix.major }}
@@ -163,6 +163,7 @@ jobs:
         with:
           name: apfs-edits-${{ matrix.host }}-${{ matrix.major }}
           path: artifacts/apfs-edits-*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   readback:
@@ -185,7 +186,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: apfs-edit-reference-*

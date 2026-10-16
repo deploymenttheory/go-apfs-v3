@@ -137,7 +137,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
@@ -202,6 +202,7 @@ jobs:
         with:
           name: ${{ matrix.prefix }}-edits-${{ matrix.artifact }}
           path: artifacts/${{ matrix.prefix }}-edits-*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   replay_copy:
@@ -229,7 +230,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
@@ -258,6 +259,7 @@ jobs:
         with:
           name: ${{ matrix.prefix }}-edits-Copy-${{ matrix.artifact }}
           path: artifacts/${{ matrix.prefix }}-edits-Copy-*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   readback:
@@ -283,7 +285,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
