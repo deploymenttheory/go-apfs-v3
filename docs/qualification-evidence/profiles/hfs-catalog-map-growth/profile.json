@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "capability": "HFS+ catalog node-map growth",
+  "source": "macOS 15 retained Apple capture",
+  "files": 120000,
+  "formats": [
+    "UDRO",
+    "UDZO"
+  ],
+  "result": "pass",
+  "elapsed_seconds": 440.948,
+  "profile_seconds": 440.68,
+  "sampled_cpu_seconds": 400.71,
+  "production_sha256": "663f89aa6201b210873b91ae067216e2ffbc62859f587f39c51dfcf0af8d461b",
+  "revision": "2185843bc9db28580db6ef382666bc7373e6d910",
+  "toolchain": "go version go1.27.1 darwin/arm64",
+  "environment": {
+    "os": "darwin",
+    "architecture": "arm64",
+    "GOMEMLIMIT": "1GiB",
+    "GOCACHE": "managed temporary compilation cache",
+    "APFS_REQUIRED_NATIVE_MAJORS": "15"
+  },
+  "command": [
+    "go",
+    "test",
+    "-count=1",
+    "-timeout",
+    "12m",
+    "-run",
+    "^TestNativeHFSMetadataGrowth$/^macos-15$/^hfsplus-catalog-map-growth$",
+    "-cpuprofile",
+    "cpu.pprof",
+    "-memprofile",
+    "allocations.pprof",
+    "./acceptance"
+  ],
+  "profiles": [
+    {
+      "path": "cpu.pprof",
+      "bytes": 73548,
+      "sha256": "25ffb5280d001bb7f3b7fc356684dca72408021c12ce504c4e0d01df4bc25bf3"
+    },
+    {
+      "path": "allocations.pprof",
+      "bytes": 59807,
+      "sha256": "f6720daff6aa633b6c519975ff5ae01c20b28ad72087522f43a392914b32e769"
+    }
+  ]
+}

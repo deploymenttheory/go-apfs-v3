@@ -2747,11 +2747,11 @@
     },
     {
       "path": "acceptance/apfs_editing_test.go",
-      "sha256": "e0d93a55ab778acbfafac85c2940f69ce9450d1a1fde42d40d56407a1a7109b0"
+      "sha256": "c7a2c976714829997dc11ed6a40d846765fa3def140acdfe4becc0a6c388c6dc"
     },
     {
       "path": "acceptance/apfs_geometry_editing_test.go",
-      "sha256": "4b7766624b59a4088c9f6c216cf0e7161ffc0609495800442b79d4a5d0ebfd27"
+      "sha256": "9ecbfb27df015f263c033616486d380045cd2411d8f0c37f3bdc72eda922a9c3"
     },
     {
       "path": "acceptance/apfs_lifecycle_test.go",
@@ -2811,7 +2811,7 @@
     },
     {
       "path": "acceptance/hfs_editing_test.go",
-      "sha256": "baae06b0291668438de567452c2ab2362e5915d739d84e430f48356031f3c7c9"
+      "sha256": "6d7fb07b06857e4d5fea32f3768e96b435ea2bfc8c827239183a2ad9e1e84993"
     },
     {
       "path": "acceptance/hfs_header_growth_test.go",
@@ -2848,6 +2848,10 @@
     {
       "path": "acceptance/metadata_edits_test.go",
       "sha256": "126fcb9e23f95da20f1c2b7c975892cd25168782c0ad75369d27ee9c9d7b7ae2"
+    },
+    {
+      "path": "acceptance/native_archive_test.go",
+      "sha256": "bcb0426cbaacbdf07c4e6492431bc058b8c3879086be486f6b359db436b73b37"
     },
     {
       "path": "acceptance/native_controls_test.go",
