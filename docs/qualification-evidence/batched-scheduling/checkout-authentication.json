@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "run_head_sha": "d3ba114fb58db634f23f0ec5ef997ba0e2011d42",
+  "tested_revision": "23b5197853432a7b9c5435ce022352748f4eb88d",
+  "tree_sha": "b7c119f0e0985c214061603c44437785f43a6889",
+  "binding": "pull-request-merge",
+  "commit": {
+    "sha": "23b5197853432a7b9c5435ce022352748f4eb88d",
+    "node_id": "C_kwDOVCmO1toAKDIzYjUxOTc4NTM0MzJhN2I5YzU0MzVjZTAyMjM1Mjc0OGY0ZWI4OGQ",
+    "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3/git/commits/23b5197853432a7b9c5435ce022352748f4eb88d",
+    "html_url": "https://github.com/deploymenttheory/go-apfs-v3/commit/23b5197853432a7b9c5435ce022352748f4eb88d",
+    "author": {
+      "name": "ShocOne",
+      "email": "62835948+ShocOne@users.noreply.github.com",
+      "date": "2026-10-16T15:07:04Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-10-16T15:07:04Z"
+    },
+    "tree": {
+      "sha": "b7c119f0e0985c214061603c44437785f43a6889",
+      "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3/git/trees/b7c119f0e0985c214061603c44437785f43a6889"
+    },
+    "message": "Merge d3ba114fb58db634f23f0ec5ef997ba0e2011d42 into 96481fccfd761a77d32981a0881599564bb6baeb",
+    "parents": [
+      {
+        "sha": "96481fccfd761a77d32981a0881599564bb6baeb",
+        "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3/git/commits/96481fccfd761a77d32981a0881599564bb6baeb",
+        "html_url": "https://github.com/deploymenttheory/go-apfs-v3/commit/96481fccfd761a77d32981a0881599564bb6baeb"
+      },
+      {
+        "sha": "d3ba114fb58db634f23f0ec5ef997ba0e2011d42",
+        "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3/git/commits/d3ba114fb58db634f23f0ec5ef997ba0e2011d42",
+        "html_url": "https://github.com/deploymenttheory/go-apfs-v3/commit/d3ba114fb58db634f23f0ec5ef997ba0e2011d42"
+      }
+    ],
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq0j2YCRC1aQ7uu5UhlAAA64wQAFTH2fYBkHM0hKlmip2aoQeB\nF9C8j06ejq3czKecqGkOc46QkmWAeZ+rKH+6jL431CeL0aOaCBoXGaefwIqN3cVM\nl468I+gwpjwvNsmDKm1Vwj1TdjUqu8YEPfGehzItK5ci/Gpd6L15Ux/DhS3pp8mS\nYFf1UK2WOXxEHHS1bqdOLaLT5VTiv8f0I02ZtgyTuRzp2Gq3A9ZbwLeRDfJe2kmt\n+inSb+95s12NW1Gq8VOioGHOrJrKnvxGozGI+UtGYrwrKQmzxGMTR0zZGRUmMnKe\nruuUqqotca4+6PYLjP4pnYDcTI8hxY8wK6hT54WyzQrHbJcgX614pb5SteeLk02y\naG4uv+pBgHEgMBAgxQL7jRs+gfZNQcJbxJicAUi5bLICOp5nJatKXuO6+DylBzRb\nuENnklIATbuZXI7jo6nNxWDIVLq2z+Cw7mSBnGJnQy2RnZ5H/XcOBU0vNMsD3ll/\nQaFiRm69IaDoSgFQ/6s6IdWLTVLYsMMPgKafNlYk+76qi64J86m2qEej98s9kkW3\nDcwLI5eFZ8R23pErcLbwfdb8a1+leT5zBYCNWmhQOddxpOtZGNVomevltgmr/s8I\nt0sw4GvnO4IwnpTOpEUrZcANP6utW44xEu8YEktL2e1+q/KEDbRGni5lwaMVHn3O\nIhUTgewLNhW3TPcwdYBO\n=kJNP\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree b7c119f0e0985c214061603c44437785f43a6889\nparent 96481fccfd761a77d32981a0881599564bb6baeb\nparent d3ba114fb58db634f23f0ec5ef997ba0e2011d42\nauthor ShocOne <62835948+ShocOne@users.noreply.github.com> 1792163224 +0000\ncommitter GitHub <noreply@github.com> 1792163224 +0000\n\nMerge d3ba114fb58db634f23f0ec5ef997ba0e2011d42 into 96481fccfd761a77d32981a0881599564bb6baeb\n",
+      "verified_at": "2026-10-16T15:07:04Z"
+    }
+  },
+  "pull_request": {
+    "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3/pulls/88",
+    "id": 4890146105,
+    "number": 88,
+    "head": {
+      "ref": "feat/qualification-scheduling",
+      "sha": "d3ba114fb58db634f23f0ec5ef997ba0e2011d42",
+      "repo": {
+        "id": 1412009686,
+        "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3",
+        "name": "go-apfs-v3"
+      }
+    },
+    "base": {
+      "ref": "main",
+      "sha": "96481fccfd761a77d32981a0881599564bb6baeb",
+      "repo": {
+        "id": 1412009686,
+        "url": "https://api.github.com/repos/deploymenttheory/go-apfs-v3",
+        "name": "go-apfs-v3"
+      }
+    }
+  }
+}
