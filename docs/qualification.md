@@ -17,7 +17,9 @@ the original successful campaign's performance evidence.
 Independent native inputs include original disk bytes, observations, collector
 sources, native tool/OS identity and their original hashes. Existing committed
 references and historical qualification ledgers remain unchanged. A versioned
-catalog will resolve committed inputs and content-addressed GitHub release
+catalog resolves committed inputs and content-addressed local bundles. The
+[corpus contract](native-corpus.md) records the implemented resolver and bounds.
+Reviewed publication will supply content-addressed GitHub release
 bundles, checking both stored and original bytes with bounded safe extraction.
 Actions artifacts transport evidence; they do not provide permanent retention.
 

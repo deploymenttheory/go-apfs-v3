@@ -15,6 +15,7 @@ Run from the repository root:
 
 ```sh
 go run ./acceptance/qualification
+go run ./acceptance/qualification -verify-corpus all
 go test -count=1 ./acceptance/qualification
 python3 -m unittest discover -s acceptance/qualification -p 'test_*.py' -v
 python3 acceptance/qualification/measure.py --check
@@ -22,6 +23,14 @@ python3 acceptance/qualification/measure.py --check
 
 These commands inspect source code and ordinary files only. They never create,
 attach, mount, check or mutate a filesystem through native macOS tools.
+
+`corpus.json` pins the existing retained files and provenance independently from
+execution results. The same internal resolver admits committed trees and local
+content-addressed bundles. See [catalog identities, bounds and candidate
+preparation](../../docs/native-corpus.md). The default audit checks catalog and
+registry agreement; `-verify-corpus all` also checks every retained member and
+original manifest. It runs in the existing source-check job. Replay adoption and
+case-level execution receipts remain separate work.
 
 The Go syntax audit discovers entrypoints, skip calls (including helpers and
 nested subtests), and bare returns in an entrypoint's own body. Seven existing
