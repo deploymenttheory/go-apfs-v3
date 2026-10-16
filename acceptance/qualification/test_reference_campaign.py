@@ -25,6 +25,11 @@ class CampaignAdmission(unittest.TestCase):
                      for name in [*campaign.capture_artifacts(), 'qualification-native-capture-0']]
         ci = [{**deepcopy(run), 'id': 124, 'path': '.github/workflows/ci.yml', 'event': 'push'}]
         client.request.return_value = run
+        def request(path):
+            if '/git/commits/' in path:
+                return {'sha': run['head_sha'], 'tree': {'sha': 'b' * 40}, 'parents': []}
+            return client.request.return_value
+        client.request.side_effect = request
         def pages(path, **kwargs):
             if path.endswith('/jobs'):
                 return jobs
@@ -44,6 +49,50 @@ class CampaignAdmission(unittest.TestCase):
         self.assertEqual(result['origin']['run'], '123')
         self.assertEqual(len(result['captures']), 39)
         self.assertEqual(result['proof'], ['qualification-native-capture-0'])
+        self.assertEqual(result['source']['tested_revision'], run['head_sha'])
+        self.assertEqual(result['source']['tree_sha'], 'b' * 40)
+
+    def test_pull_request_receipts_keep_the_actual_tested_merge_revision(self):
+        client, run, *_ = self.fixture()
+        run.update(event='pull_request', pull_requests=[])
+        commit = {'sha': 'c' * 40, 'tree': {'sha': 'd' * 40},
+                  'parents': [{'sha': 'b' * 40}, {'sha': run['head_sha']}],
+                  'verification': {'verified': True}, 'committer': {'email': 'noreply@github.com'}}
+        closed = {'number': 87, 'head': {'sha': run['head_sha']}, 'base': {'sha': 'b' * 40}}
+        client.request.side_effect = None
+        client.request.return_value = commit
+        client.pages.side_effect = None
+        client.pages.return_value = [closed]
+        result = campaign.authenticated_checkout(client, run, commit['sha'])
+        self.assertEqual(result['binding'], 'pull-request-merge')
+        self.assertEqual(result['tested_revision'], 'c' * 40)
+        self.assertEqual(result['run_head_sha'], 'a' * 40)
+        self.assertEqual(result['pull_request'], closed)
+        self.assertEqual(result['commit'], commit)
+        self.assertTrue(client.pages.call_args.args[0].endswith('/commits/' + 'a' * 40 + '/pulls'))
+
+    def test_foreign_unsigned_or_unassociated_checkouts_are_not_authenticated(self):
+        for failure in ('other-event', 'other-head', 'base', 'ambiguous', 'unsigned', 'other-signer', 'other-tree'):
+            client, run, *_ = self.fixture()
+            run.update(event='pull_request', pull_requests=[])
+            commit = {'sha': 'c' * 40, 'tree': {'sha': 'd' * 40},
+                      'parents': [{'sha': 'b' * 40}, {'sha': run['head_sha']}],
+                      'verification': {'verified': True}, 'committer': {'email': 'noreply@github.com'}}
+            closed = {'number': 87, 'head': {'sha': run['head_sha']}, 'base': {'sha': 'b' * 40}}
+            associated = [closed]
+            if failure == 'other-event': run['event'] = 'push'
+            elif failure == 'other-head': commit['parents'][1]['sha'] = 'e' * 40
+            elif failure == 'base': closed['base']['sha'] = 'e' * 40
+            elif failure == 'ambiguous': associated.append(deepcopy(closed))
+            elif failure == 'unsigned': commit['verification']['verified'] = False
+            elif failure == 'other-signer': commit['committer']['email'] = 'other@example.test'
+            elif failure == 'other-tree': commit['tree']['sha'] = 'not-a-tree'
+            client.request.side_effect = None
+            client.request.return_value = commit
+            client.pages.side_effect = None
+            client.pages.return_value = associated
+            with self.subTest(failure=failure), self.assertRaises(ValueError):
+                campaign.authenticated_checkout(client, run, commit['sha'])
 
     def test_either_workflow_completion_can_trigger_the_same_fully_qualified_refresh(self):
         client, run, jobs, artifacts, ci = self.fixture()
