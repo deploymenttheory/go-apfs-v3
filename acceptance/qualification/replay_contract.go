@@ -27,6 +27,7 @@ type replayTest struct {
 	Input           string   `json:"input,omitempty"`
 	Environment     string   `json:"environment,omitempty"`
 	Manifest        string   `json:"manifest,omitempty"`
+	CaptureContract string   `json:"capture_contract,omitempty"`
 	Layout          string   `json:"layout"`
 	Variants        []string `json:"variants,omitempty"`
 	Auxiliary       []string `json:"auxiliary,omitempty"`
@@ -258,10 +259,17 @@ func matchCaptureCases(spec replayTest, actual, reference corpus.Entry) error {
 			return errors.New("capture has no reviewed case contract")
 		}
 		expected := reference.Captures[index]
+		contract := expected.Contract
+		if spec.CaptureContract != "" && expected.Role == "retained-index" && capture.Role == "native-capture" {
+			// Readable retained indexes have their own scenario. The reviewed
+			// recipe names the original capture contract, without changing
+			// either document or weakening the required case inventory.
+			contract = spec.CaptureContract
+		}
 		want, got := slices.Clone(expected.Cases), slices.Clone(capture.Cases)
 		slices.Sort(want)
 		slices.Sort(got)
-		if capture.Contract != expected.Contract || !slices.Equal(want, got) {
+		if capture.Contract != contract || !slices.Equal(want, got) {
 			return fmt.Errorf("capture case/contract inventory differs from reviewed inputs: %s", capture.Manifest)
 		}
 	}

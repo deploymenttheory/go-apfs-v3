@@ -135,3 +135,9 @@ share an environment variable. Missing or changed inputs never fall back to a
 different corpus. Embedded/external build assets need an explicit identity
 contract before being introduced; the current source identity gate refuses to
 silently omit them.
+
+Recovery recipes explicitly name the original capture contract separately from
+the readable retained index's scenario. That projection preserves the same case
+inventory and never rewrites either document. Snapshot lifecycle parent images
+and their original manifest are resolved inside `snapshot-reference/`; state
+images remain relative to the lifecycle capture itself.

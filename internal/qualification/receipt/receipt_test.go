@@ -239,3 +239,18 @@ func TestStageFingerprintsDoNotInheritResults(t *testing.T) {
 		t.Fatal("independent capture fingerprint depends on replay", err)
 	}
 }
+
+func TestRequiredExecutionTakesPrecedenceOverOptionalEntrypoint(t *testing.T) {
+	plan := referencePlan()
+	var stream bytes.Buffer
+	encoder := json.NewEncoder(&stream)
+	for _, event := range executionEvents(plan) {
+		if err := encoder.Encode(event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	optional := map[string]bool{plan.RequiredRuns[0]: true}
+	if _, err := CheckEvents(&stream, plan, optional, io.Discard); err != nil {
+		t.Fatal("required parent ignored as an optional inputless invocation", err)
+	}
+}

@@ -193,14 +193,14 @@ class CaptureObservations(unittest.TestCase):
             contract = root / 'acceptance/qualification'
             contract.mkdir(parents=True)
             entry = {'id': 'control', 'bindings': [{'family': 'control', 'capture_class': 'apple-independent'}],
-                     'captures': [{'major': 15, 'manifest': 'macos-15/manifest.json', 'cases': ['cases/apfs', 'cases/hfsplus']}]}
+                     'captures': [{'major': 15, 'manifest': 'macos-15/manifest.json', 'contract': 'native-control', 'cases': ['cases/apfs', 'cases/hfsplus']}]}
             (contract / 'corpus.json').write_text(json.dumps({'entries': [entry]}))
             (contract / 'replay.json').write_text(json.dumps({'tests': [{'input': 'control', 'manifest': 'macos-*/manifest.json'}]}))
             source = root / 'capture/macos-15'
             source.mkdir(parents=True)
             manifest = source / 'manifest.json'
             producer = {'system': 'macOS', 'version': '15.0', 'build': 'synthetic-build', 'architecture': 'synthetic'}
-            document = {'producer': producer, 'cases': [{'id': 'apfs'}]}
+            document = {'scenario': 'native-control', 'producer': producer, 'cases': [{'id': 'apfs'}]}
             manifest.write_text(json.dumps(document))
             with self.assertRaisesRegex(ValueError, 'case inventory'):
                 capture.capture(15, {'control': source.parent}, root / 'missing-proof', root)
@@ -239,6 +239,45 @@ class EvidenceInputSafety(unittest.TestCase):
             for name in ('../outside', '/absolute', 'drive:C', 'a\\b', 'a//b'):
                 with self.subTest(name=name), self.assertRaises(ValueError):
                     proof.verify_file(temporary, {'path': name, 'bytes': 0, 'sha256': 'a' * 64})
+
+
+class NativeReferenceScopes(unittest.TestCase):
+    def test_snapshot_parent_is_bound_in_its_retained_reference_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            parent = root / 'snapshot-reference'
+            parent.mkdir()
+            (parent / 'manifest.json').write_bytes(b'original parent manifest')
+            (parent / 'apfs.dmg').write_bytes(b'original parent bytes')
+            (root / 'snapshot-retained.dmg').write_bytes(b'retained lifecycle bytes')
+            # The same basename in another scope must never supply the parent.
+            (root / 'apfs.dmg').write_bytes(b'wrong directory')
+            case = {'kind': 'snapshot-history', 'parentImage': 'apfs.dmg',
+                    'parentImageSHA256': proof.file_digest(parent / 'apfs.dmg'),
+                    'parentManifestSHA256': proof.file_digest(parent / 'manifest.json'),
+                    'states': [{'image': 'snapshot-retained.dmg',
+                                'sha256': proof.file_digest(root / 'snapshot-retained.dmg')}]}
+            capture.verify_references(root, case)
+            (parent / 'apfs.dmg').write_bytes(b'changed original')
+            with self.assertRaisesRegex(ValueError, 'digest differs'):
+                capture.verify_references(root, case)
+
+    def test_required_continuation_parent_cannot_be_ignored_as_optional(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            events = Path(temporary) / 'events.jsonl'
+            parent = 'TestNativeAPFSImageEditingContinuation'
+            child = parent + '/macos-15-apfs.raw'
+            plan = {'stage': 'replay', 'required_runs': [parent, child]}
+            rows = [{'Action': 'start', 'Package': proof.ACCEPTANCE_PACKAGE}]
+            for action, test in [('run', parent), ('run', child), ('pass', child), ('pass', parent)]:
+                rows.append({'Action': action, 'Package': proof.ACCEPTANCE_PACKAGE, 'Test': test})
+            rows.append({'Action': 'pass', 'Package': proof.ACCEPTANCE_PACKAGE})
+            events.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            proof.verify_events(events, plan, optional={parent})
+            rows = [row for row in rows if row.get('Test') != parent]
+            events.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            with self.assertRaisesRegex(ValueError, 'incomplete'):
+                proof.verify_events(events, plan, optional={parent})
 
 
 if __name__ == '__main__':

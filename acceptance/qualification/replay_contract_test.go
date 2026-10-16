@@ -124,3 +124,27 @@ func TestIndependentCorpusWritersCannotShareScratch(t *testing.T) {
 		t.Fatal("independent writers shared an output root")
 	}
 }
+
+func TestFreshRecoveryMatchesOriginalContractBehindRetainedIndex(t *testing.T) {
+	for _, scenario := range []string{"apfs-checkpoint-recovery", "hfs-journal-recovery"} {
+		spec := replayTest{Manifest: "macos-*/recovery.json", CaptureContract: scenario}
+		original := corpus.Capture{Manifest: "macos-15/recovery.json", Major: 15, Role: "native-capture", Contract: scenario, Cases: []string{"cases/committed", "cases/interrupted"}}
+		indexed := original
+		indexed.Role = "retained-index"
+		indexed.Contract += "-reference"
+		reference := corpus.Entry{Captures: []corpus.Capture{indexed}}
+		if err := matchCaptureCases(spec, corpus.Entry{Captures: []corpus.Capture{original}}, reference); err != nil {
+			t.Fatal("fresh original rejected in favor of retained index", err)
+		}
+		changed := original
+		changed.Contract = "different-native-contract"
+		if err := matchCaptureCases(spec, corpus.Entry{Captures: []corpus.Capture{changed}}, reference); err == nil {
+			t.Fatal("unreviewed original contract admitted")
+		}
+		changed = original
+		changed.Cases = []string{"cases/committed"}
+		if err := matchCaptureCases(spec, corpus.Entry{Captures: []corpus.Capture{changed}}, reference); err == nil {
+			t.Fatal("projection dropped a required case")
+		}
+	}
+}

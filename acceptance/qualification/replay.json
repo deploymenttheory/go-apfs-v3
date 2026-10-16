@@ -195,7 +195,8 @@
       "variants": [
         "UDRO",
         "UDZO"
-      ]
+      ],
+      "capture_contract": "apfs-checkpoint-recovery"
     },
     {
       "test": "TestNativeAPFSDirectoryStatistics",
@@ -487,7 +488,8 @@
       "variants": [
         "UDRO",
         "UDZO"
-      ]
+      ],
+      "capture_contract": "hfs-journal-recovery"
     },
     {
       "test": "TestNativeHFSJournaledImageCatalogEditing",

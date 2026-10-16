@@ -56,7 +56,13 @@ def verify_references(root, value):
                 digest = value.get('sha256')
             if isinstance(name, str) and isinstance(digest, str):
                 portable_path(name)
-                require(file_digest(Path(root) / name) == digest, 'captured native file digest differs: ' + name)
+                directory = Path(root)
+                if key == 'parentImage':
+                    require(value.get('kind') == 'snapshot-history', 'unknown parent-image reference scope')
+                    directory /= 'snapshot-reference'
+                    require(file_digest(directory / 'manifest.json') == value['parentManifestSHA256'],
+                            'parent snapshot manifest digest differs')
+                require(file_digest(directory / name) == digest, 'captured native file digest differs: ' + name)
             if isinstance(name, (dict, list)):
                 verify_references(root, name)
 
@@ -96,6 +102,11 @@ def capture(major, bindings, directory, source_root=ROOT):
             references = [c for c in entry['captures'] if c['manifest'].partition('/')[2].removesuffix('.gz') == suffix]
             require(references, 'capture manifest lacks a reviewed case contract')
             reference = next((c for c in references if c['major'] == major), references[0])
+            contracts = {test.get('capture_contract', reference['contract']) for test in recipes['tests']
+                         if test.get('input') == corpus_id and
+                         test['manifest'].replace('macos-*', f'macos-{major}').rstrip('*') == manifest_name}
+            require(len(contracts) == 1 and (document.get('contract') or document.get('scenario')) in contracts,
+                    'native capture contract differs from reviewed recipe')
             records = case_records(document)
             require(set(records) == set(reference['cases']), 'captured native case inventory differs')
             for native_case, observation in records.items():

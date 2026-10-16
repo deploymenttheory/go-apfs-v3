@@ -75,12 +75,12 @@ func CheckEvents(input io.Reader, plan Plan, optional map[string]bool, output io
 			}
 			continue
 		}
-		if optional[event.Test] {
+		state, required := states[event.Test]
+		if optional[event.Test] && !required {
 			// An unavailable continuation has no verdict and cannot satisfy a
 			// continuation obligation in another invocation or completion plan.
 			continue
 		}
-		state, required := states[event.Test]
 		if !required {
 			return nil, fmt.Errorf("unplanned test execution: %s", event.Test)
 		}

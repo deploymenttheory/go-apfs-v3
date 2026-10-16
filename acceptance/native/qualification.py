@@ -130,7 +130,7 @@ def verify_events(path, plan, optional=()):
                 elif action == 'skip':
                     raise ValueError('acceptance package skipped')
                 continue
-            if test in optional:
+            if test in optional and test not in states:
                 continue
             require(test in states, 'unplanned Go execution: ' + test)
             if action == 'run':
