@@ -62,6 +62,11 @@ Matrix expansion predicts 83 jobs for `ci.yml`, compared with 170 in that
 completed campaign. The independent offline chains add seven child completion
 jobs underneath the existing outer completion gate. These are scheduling counts,
 not a measured claim about total runner time or the final reduction target.
+Expanding both CI matrices against the merged replay implementation preserves
+all 221 retained and race invocations, including their source/host axes,
+selectors, race instrumentation, skip expressions, parallelism and process
+deadlines. The portable default selector and required outer dependencies also
+remain unchanged. This structural comparison does not supply execution verdicts.
 Fresh capture/replay and retained replay still execute separately until original
 receipts prove equivalence on identical inputs. The final old/new comparison and
 three warm-cache campaigns remain required before retiring superseded paths.
