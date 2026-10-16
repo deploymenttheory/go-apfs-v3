@@ -1,7 +1,6 @@
 package acceptance_test
 
 import (
-	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
@@ -337,32 +336,10 @@ func editChanges(phase string) []hfsplus.Change {
 
 func openEditArchive(t *testing.T, dir string, archive hfsGrowthArchive) string {
 	t.Helper()
-	verifyDigest(t, dir, archive.Image, archive.SHA256)
 	if archive.UncompressedBytes != 64<<20 {
 		t.Fatal("unbounded edit fixture")
 	}
-	in, e := os.Open(filepath.Join(dir, archive.Image))
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer in.Close()
-	z, e := gzip.NewReader(in)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer z.Close()
-	path := filepath.Join(t.TempDir(), "native.raw")
-	out, e := os.Create(path)
-	if e != nil {
-		t.Fatal(e)
-	}
-	hash := sha256.New()
-	n, e := io.Copy(io.MultiWriter(out, hash), io.LimitReader(z, (64<<20)+1))
-	closeErr := out.Close()
-	if e != nil || closeErr != nil || n != 64<<20 || hex.EncodeToString(hash.Sum(nil)) != archive.UncompressedSHA256 {
-		t.Fatal("native edit archive corrupt", n, e, closeErr)
-	}
-	return path
+	return decodedNativeArchive(t, dir, archive, 64<<20)
 }
 
 func compareEditRawAttributes(t *testing.T, r filesystem.Reader, want fileObservation) {

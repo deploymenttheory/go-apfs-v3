@@ -143,6 +143,15 @@ func executionEnvironment(ctx context.Context, root string, command testCommand)
 	}
 	environment.Tools = tools
 	environment.Flags = append(environment.Flags, "go-environment="+build, "required-native-majors="+os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"), "required-controls="+os.Getenv("APFS_REQUIRED_CONTROLS"))
+	decodedCache, err := replayDecodedCacheDirectory()
+	if err != nil {
+		return environment, err
+	}
+	cachePolicy := "disabled"
+	if decodedCache != "" {
+		cachePolicy = "immutable-2GiB-job-local"
+	}
+	environment.Flags = append(environment.Flags, "decoded-input-cache="+cachePolicy)
 	switch runtime.GOOS {
 	case "darwin":
 		environment.Version, err = commandText(ctx, root, "sw_vers", "-productVersion")
@@ -379,6 +388,11 @@ func runReplay(ctx context.Context, options replayOptions, output io.Writer) err
 	}
 	environment := append([]string{}, os.Environ()...)
 	environment = append(environment, "APFS_REPLAY_INPUTS="+bindingsFile)
+	decodedCache, err := replayDecodedCacheDirectory()
+	if err != nil {
+		return err
+	}
+	environment = append(environment, "APFS_DECODED_INPUT_CACHE="+decodedCache)
 	outputRoots := map[string]string{}
 	for _, test := range selected {
 		if test.Output == "" {

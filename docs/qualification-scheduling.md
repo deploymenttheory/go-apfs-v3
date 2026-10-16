@@ -36,6 +36,24 @@ Module and compilation caches are enabled. The replay runner always supplies
 Already-compressed portable output archives use artifact compression level zero;
 archive contents and native verification remain unchanged.
 
+Hosted replay invocations now share verified decoded source disks under
+`RUNNER_TEMP/apfs-decoded-inputs`, with a 2 GiB logical-byte cap for the entire
+job. The portable runner chooses that location internally and records the cache
+policy in its execution environment. Ordinary local replay remains uncached.
+APFS editing, HFS editing and the larger offline families use one bounded sparse
+decoder, retaining their original per-archive bounds and captured hashes.
+
+Cached files are read-only, with original and decoded hashes checked before use
+and after each consumer. Output mutation uses separate scratch. Full-cache,
+oversized and unknown-length inputs use the bounded uncached path. OS file locks
+coordinate processes; cancelled or killed writers cannot publish partial input
+or retain a stale ownership lease. No verdict or output is cached.
+
+The retained [HFS profile and input benchmark](qualification-evidence/profiles/hfs-catalog-map-growth/README.md)
+show the limited scope of this saving. The real 120,000-file cases, UDRO/UDZO,
+all original native sources, refusals and deadlines remain unchanged. Complete
+hosted comparison and timing campaigns are still required.
+
 Assertion identities include library unit-test sources as well as acceptance
 tests. Adding or changing those assertions invalidates prior test evidence;
 changing a test while replay runs prevents receipt publication. Changing only a
