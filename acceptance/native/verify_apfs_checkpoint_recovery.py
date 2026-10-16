@@ -117,10 +117,10 @@ def verify(expected_major, references, outputs, diagnostics):
             require(stage not in seen and stage in ('data', 'metadata', 'ephemeral', 'mapping', 'superblock', 'block-zero')
                     and fault['partialBytes'] == 7 and fault['trace'][-1]['stage'] == stage,
                     'actual torn write at each named publication boundary')
+            image = outputs / fault['output']
             with evidence.case([image]):
                 seen.add(stage)
                 require(fault['modified'] == (stage == 'block-zero'), 'only fully published new checkpoints expose new data')
-                image = outputs / fault['output']
                 expected_names.add(image.name)
                 require(sha256(image) == fault['outputSHA256'], 'actual portable fault recovery output digest')
                 digest, count = hashlib.sha256(), 0
