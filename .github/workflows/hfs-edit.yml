@@ -168,8 +168,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -269,6 +267,19 @@ jobs:
           path: artifacts/${{ matrix.prefix }}-edits-*.tar.gz
           compression-level: 0
           if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-hfs-edit-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   replay_copy:
     if: ${{ !inputs.capture_only }}
@@ -325,6 +336,19 @@ jobs:
           name: ${{ matrix.prefix }}-edits-Copy-${{ matrix.artifact }}
           path: artifacts/${{ matrix.prefix }}-edits-Copy-*.tar.gz
           compression-level: 0
+          if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-hfs-edit-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
           if-no-files-found: error
 
   readback:
@@ -498,8 +522,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl

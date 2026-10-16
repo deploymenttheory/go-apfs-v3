@@ -233,6 +233,17 @@ func TestNativeInheritanceRequiresOriginalExecutorsAndAppleEvents(t *testing.T) 
 	}
 }
 
+func TestNativeInheritanceUsesProducerEvidenceWithoutUploadingReadbackCopies(t *testing.T) {
+	root, directory, origin := nativeEvidenceControl(t)
+	if err := os.RemoveAll(filepath.Join(directory, origin.Artifacts[1].Name, "outputs", ".qualification")); err != nil {
+		t.Fatal(err)
+	}
+	proof, err := checkNativeEvidence(context.Background(), root, directory, origin)
+	if err != nil || len(proof.Receipts) != 2 || proof.CaseCount != 5 || proof.Origin != origin.Origin {
+		t.Fatal("complete original producer/Apple evidence required duplicate consumer metadata", proof, err)
+	}
+}
+
 func TestNativeOutputInheritanceRequiresMatchingSourceAndIndividualCiphertext(t *testing.T) {
 	root := replayControlModule(t, "valid")
 	file := receipt.File{Path: "outputs/encrypted/file.dmg", Bytes: 10, SHA256: strings.Repeat("a", 64)}

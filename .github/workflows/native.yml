@@ -234,8 +234,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -569,8 +567,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -684,6 +680,19 @@ jobs:
           codec decodes them. Those recorded outcomes remain distinct; the Go LZ4
           comparison uses the native codec result in those cases.
           EOF
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   image_building_replay:
     if: ${{ needs.evidence.outputs.reuse != 'true' }}
@@ -734,6 +743,19 @@ jobs:
           name: workspace-outputs-image-building-${{ matrix.platform }}-macos-${{ matrix.major }}
           path: artifacts/workspace-outputs/*.tar.gz
           compression-level: 0
+          if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
           if-no-files-found: error
 
   readback:
@@ -880,8 +902,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -1013,8 +1033,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl

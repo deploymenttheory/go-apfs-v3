@@ -106,8 +106,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -168,8 +166,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -270,8 +266,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -418,8 +412,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl

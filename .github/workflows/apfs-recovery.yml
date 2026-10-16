@@ -118,8 +118,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -195,6 +193,19 @@ jobs:
           path: artifacts/recovered-*.tgz
           compression-level: 0
           if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-apfs-recovery-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   readback:
     if: ${{ !inputs.capture_only }}
@@ -261,8 +272,6 @@ jobs:
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
             artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
