@@ -436,6 +436,9 @@ func audit(root string, r registry, actual inventory) error {
 		if !reflect.DeepEqual(names, w.Jobs) {
 			return fmt.Errorf("workflow job inventory changed: %s", w.Path)
 		}
+		if err = auditReplayEvidence(string(data)); err != nil {
+			return fmt.Errorf("%s: %w", w.Path, err)
+		}
 		jobs[w.Path] = names
 	}
 	var expected []entrypoint

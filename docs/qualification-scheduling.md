@@ -78,6 +78,12 @@ Apple campaign, including all current-Go HFS construction experiments, every
 portable host and all three Apple verifier versions. Archived Apple event bytes
 and original observations are checked alongside the Go source snapshots. A
 copied Go receipt in a readback archive cannot replace its original producer.
+Every Go executor retains its own original plan, receipt, events and source
+snapshot in one metadata artifact, including reader-only jobs. The workflow
+audit rejects a replay executor that loses this retention step. Apple jobs keep
+their own verdicts and continuation receipts. Their metadata uploads omit the
+copied producer ledgers already retained by the executors; original output
+archives still carry those copies for native input/output binding.
 Output identities must have their required native verification, including each
 randomized ciphertext and the recovery families' matching source versions.
 Restored approved inputs carry admission records, never assertion verdicts.
