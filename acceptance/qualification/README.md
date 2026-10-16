@@ -1,8 +1,8 @@
 # Qualification coverage
 
-This directory describes the acceptance obligations before changing their CI
-execution. It does not replace the acceptance tests or certify a workflow run.
-The existing required gates remain authoritative.
+This directory declares acceptance obligations and executes the existing tests
+against verified native inputs. The source audit alone does not certify a run;
+execution receipts and the existing required gates establish completion.
 
 `registry.json` records each capability's purpose, independent expectation,
 entrypoints, collector/verifier scripts, retained and fresh source versions,
@@ -29,8 +29,8 @@ execution results. The same internal resolver admits committed trees and local
 content-addressed bundles. See [catalog identities, bounds and candidate
 preparation](../../docs/native-corpus.md). The default audit checks catalog and
 registry agreement; `-verify-corpus all` also checks every retained member and
-original manifest. It runs in the existing source-check job. Replay adoption and
-case-level execution receipts remain separate work.
+original manifest. It runs in the existing source-check job. The replay runner
+uses the same resolver and records case-level execution evidence.
 
 The Go syntax audit discovers entrypoints, skip calls (including helpers and
 nested subtests), and bare returns in an entrypoint's own body. Seven existing
@@ -45,9 +45,9 @@ changed manifest files and changed retained case/source inventories. The full
 workflow bytes bind selectors, matrix axes, conditions, deadlines and gate
 dependencies without introducing another YAML parser or partial CI mode.
 This conservative binding requires a coverage review whenever those files
-change. Runtime missing/skipped-case detection belongs to the case receipts in
-[#79](https://github.com/deploymenttheory/go-apfs-v3/issues/79); a static digest
-does not establish execution coverage or assertion correctness.
+change. Runtime missing/skipped-case detection uses the execution events and independently
+required case inventory; a static digest does not establish execution coverage
+or assertion correctness.
 
 Git checkout keeps Go/YAML/JSON source contracts at LF on every host. The later
 `acceptance/testdata/** -text` rule still preserves exact original native bytes.
@@ -86,3 +86,49 @@ entrypoint is inventoried independently.
 
 See [the harness design and work order](../../docs/qualification.md) and
 [the original performance baseline](../../docs/qualification-evidence/README.md).
+
+Portable execution uses the reviewed `replay.json` recipes and the verified
+catalog. Each recipe describes the original entrypoint's real subtest boundaries,
+source cases, encoding/encryption variants and required outputs. Run the existing
+selector through the shared runner:
+
+```sh
+go run ./acceptance/qualification -replay -- -v -timeout 5m ./acceptance -run '^TestNativeFileReading$'
+go run ./acceptance/qualification -replay -- -race -timeout 5m ./acceptance -run '^TestNativeImageBuilding$/macos-27/'
+```
+
+Before starting Go, the runner declares every required case and output. It always
+uses fresh assertions (`-count=1`) and consumes the original `go test -json`
+events. A missing run, skip, duplicate, failure, unexpected child, missing output,
+source/input mutation or interrupted process prevents receipt publication.
+`artifacts/qualification/replay-*/` retains the plan and events for diagnosis,
+including failed executions. A `receipt.json` appears only after completion.
+Required native continuations fail when their inputs are missing; inputless
+continuation entrypoints in a broad retained suite provide no successful verdict.
+
+Receipts bind actual production and assertion source digests, immutable input
+identities, the actual host/toolchain/build flags, race mode, original execution
+origin and the produced file hashes. There are separate fingerprint domains for
+Apple capture, portable replay and Apple verification. Capture records check
+returned per-case observations against the reviewed inventory; they preserve
+native refusals as observations. Apple-verification fingerprints bind the actual
+portable bytes and native tool/source identities. Origins are never rewritten. Existing verifier-only reuse requires its explicit
+admitted source run and an unchanged portable contract. Historical ledgers and original captured data are unchanged.
+
+Existing output archives carry their replay proof under `.qualification/`;
+ledger bytes are excluded from the output identity to avoid self-reference.
+The Apple programs declare required source/profile/host/output sets before
+checking them and record success only after the original assertions. Identical
+plaintext host outputs retain each host obligation while sharing one native
+check. Distinct ciphertexts each unlock independently. Final Go-after-Apple
+outputs have separate verification scopes. CI retains the events and receipts;
+the existing capture, replay, readback and required-job gates remain in place.
+
+Input location does not imply fresh-capture requirements. The existing fresh
+workflows explicitly require compression boundaries, copy truncation/set-ID or
+metadata collapse/reuse controls where applicable. The internal input map keeps
+HFS file and catalog corpora distinct even though their direct-test overrides
+share an environment variable. Missing or changed inputs never fall back to a
+different corpus. Embedded/external build assets need an explicit identity
+contract before being introduced; the current source identity gate refuses to
+silently omit them.

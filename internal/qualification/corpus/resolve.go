@@ -40,6 +40,30 @@ func (r *Resolved) Path() string       { return r.path }
 func (r *Resolved) ID() string         { return r.entry.ID }
 func (r *Resolved) TreeSHA256() string { return r.entry.TreeSHA256 }
 
+// Manifest returns the bounded original bytes of a declared capture document.
+// The digest is checked again at the read, so planning cannot silently consume
+// a different manifest after corpus admission.
+func (r *Resolved) Manifest(name string) ([]byte, error) {
+	if r.root == nil {
+		return nil, errors.New("corpus is closed")
+	}
+	for _, capture := range r.entry.Captures {
+		if capture.Manifest != name {
+			continue
+		}
+		data, err := originalManifest(r.root, name)
+		if err != nil {
+			return nil, err
+		}
+		sum := sha256.Sum256(data)
+		if int64(len(data)) != capture.OriginalBytes || hex.EncodeToString(sum[:]) != capture.OriginalSHA256 {
+			return nil, errors.New("capture document changed after admission")
+		}
+		return data, nil
+	}
+	return nil, fmt.Errorf("undeclared capture document: %s", name)
+}
+
 func New(catalog Catalog, options Options) (*Resolver, error) {
 	// Detach metadata slices from the caller before retaining admitted inputs.
 	data, err := json.Marshal(catalog)

@@ -123,6 +123,8 @@ def continue_native(raw, command, work, previous):
 
 
 def verify(corpus, outputs, major):
+    from qualification import NativeEvidence, ReplayEvidence
+    from qualification_cases import ROOT, image_targets
     require_disposable_host()
     producer = version(major)
     command = Commands(outputs / f'offline-editing-statistics-transitions-{major}.diagnostics.json')
@@ -130,6 +132,15 @@ def verify(corpus, outputs, major):
     require({path.parent.name for path in paths} == {'macos-15', 'macos-26', 'macos-27'},
             'every native statistics producer')
     count = continuations = 0
+    input_id = 'apfs-directory-statistics-transitions'
+    replay = ReplayEvidence(outputs, ROOT)
+    replay.bind_input(input_id, corpus)
+    evidence = NativeEvidence(replay, image_targets(corpus, outputs, input_id,
+        'offline-editing-statistics-transitions-',
+        [f'macos-{{source}}/{{case}}/{segment}-{encoding}.dmg'
+         for segment in ('before-compression', 'final') for encoding in ('UDRO', 'UDZO')]),
+        ROOT, outputs, 'offline-editing-statistics-transitions', major,
+        continuation=lambda case, file: file['path'].endswith('/final-UDZO.dmg'))
     with tempfile.TemporaryDirectory(prefix='statistics-readback-') as temporary:
         work = Path(temporary)
         for path in paths:
@@ -148,24 +159,26 @@ def verify(corpus, outputs, major):
                         relative = Path(path.parent.name, case['id'], segment + '-' + encoding + '.dmg')
                         images = [outputs / ('offline-editing-statistics-transitions-' + host) / relative
                                   for host in ('Linux', 'Windows', 'macOS')]
-                        require(all(image.is_file() for image in images), 'all portable statistics outputs')
-                        require(len({sha256(image) for image in images}) == 1, 'byte-identical transition outputs')
-                        image, raw = images[0], work / 'output.raw'
-                        digest = sha256(image)
-                        command('hdiutil', 'verify', image)
-                        writable_copy(image, raw, command, native_hash)
-                        require(raw.stat().st_size == case['source']['uncompressedBytes'], 'original geometry')
-                        generations = inspect(raw, command, work, before, expected)
-                        if segment == 'final' and encoding == 'UDZO':
-                            continue_native(raw, command, work, generations)
-                            continuations += 1
-                        raw.unlink()
-                        require(sha256(image) == digest, 'portable transition image immutable')
-                        count += 1
+                        with evidence.case(images):
+                            require(all(image.is_file() for image in images), 'all portable statistics outputs')
+                            require(len({sha256(image) for image in images}) == 1, 'byte-identical transition outputs')
+                            image, raw = images[0], work / 'output.raw'
+                            digest = sha256(image)
+                            command('hdiutil', 'verify', image)
+                            writable_copy(image, raw, command, native_hash)
+                            require(raw.stat().st_size == case['source']['uncompressedBytes'], 'original geometry')
+                            generations = inspect(raw, command, work, before, expected)
+                            if segment == 'final' and encoding == 'UDZO':
+                                continue_native(raw, command, work, generations)
+                                continuations += 1
+                            raw.unlink()
+                            require(sha256(image) == digest, 'portable transition image immutable')
+                            count += 1
     require(count == 24 and continuations == 6, 'complete transition readback and continuation')
     (outputs / f'offline-editing-statistics-transitions-{major}.result.json').write_text(json.dumps({
         'producer': producer, 'verified': count, 'continuations': continuations,
         'commandsSHA256': sha256(command.path)}, indent=2) + '\n')
+    evidence.finish()
 
 
 if __name__ == '__main__':

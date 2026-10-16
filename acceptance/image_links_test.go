@@ -123,10 +123,7 @@ func TestNativeHFSJournaledImageLinkEditing(t *testing.T) {
 }
 func testImageLinks(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 	t.Helper()
-	root := os.Getenv(rootEnv)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, rootEnv, retained)
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native link evidence absent", err)
@@ -186,39 +183,41 @@ func testImageLinks(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 					compareMetadataState(t, metadataReader(t, native, kind), state.Files, kind)
 				}
 				for _, format := range []string{"UDRO", "UDZO"} {
-					current, ids := source, newLinkIdentities(c.Before.Files)
-					for _, phase := range []string{"links", "links-final", "removed"} {
-						state, ok := c.States[phase]
-						if !ok || state.CheckerStatus != 0 || len(state.Operations) == 0 {
-							t.Fatal("complete native link phase required")
-						}
-						changes := imageLinkChanges(state.Operations)
-						destination := filepath.Join(output, phase+"-"+format+".dmg")
-						if _, err = imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes); err != nil {
-							t.Fatal(phase, err)
-						}
-						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-						if _, err = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); err != nil {
-							t.Fatal(err)
-						}
-						if fileDigest(t, repeat) != fileDigest(t, destination) {
-							t.Fatal("nonreproducible link edits")
-						}
-						ids.compare(t, metadataReader(t, destination, kind), metadataExpected(state, m.ModificationSeconds), kind)
-						if c.Before.Journal != nil {
-							image, err := diskimage.Open(destination)
-							if err != nil {
+					t.Run(format, func(t *testing.T) {
+						current, ids := source, newLinkIdentities(c.Before.Files)
+						for _, phase := range []string{"links", "links-final", "removed"} {
+							state, ok := c.States[phase]
+							if !ok || state.CheckerStatus != 0 || len(state.Operations) == 0 {
+								t.Fatal("complete native link phase required")
+							}
+							changes := imageLinkChanges(state.Operations)
+							destination := filepath.Join(output, phase+"-"+format+".dmg")
+							if _, err = imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes); err != nil {
+								t.Fatal(phase, err)
+							}
+							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+							if _, err = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); err != nil {
 								t.Fatal(err)
 							}
-							part, err := image.Partition(0)
-							if err != nil {
-								t.Fatal(err)
+							if fileDigest(t, repeat) != fileDigest(t, destination) {
+								t.Fatal("nonreproducible link edits")
 							}
-							verifyEditJournal(t, part, c.Before.Journal)
-							image.Close()
+							ids.compare(t, metadataReader(t, destination, kind), metadataExpected(state, m.ModificationSeconds), kind)
+							if c.Before.Journal != nil {
+								image, err := diskimage.Open(destination)
+								if err != nil {
+									t.Fatal(err)
+								}
+								part, err := image.Partition(0)
+								if err != nil {
+									t.Fatal(err)
+								}
+								verifyEditJournal(t, part, c.Before.Journal)
+								image.Close()
+							}
+							current = destination
 						}
-						current = destination
-					}
+					})
 				}
 				for _, change := range []imageedit.Change{
 					{Operation: "ln", Path: "/Fixture", Destination: "/Fixture/not-a-file"},

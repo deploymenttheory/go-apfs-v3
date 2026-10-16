@@ -196,10 +196,7 @@ func imageMetadataCases(kind string) []string {
 
 func testImageMetadata(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 	t.Helper()
-	root := os.Getenv(rootEnv)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, rootEnv, retained)
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("required native metadata references absent", err)
@@ -254,41 +251,43 @@ func testImageMetadata(t *testing.T, kind, rootEnv, outputEnv, retained string) 
 				}
 				when := time.Unix(m.ModificationSeconds, 0)
 				for _, format := range []string{"UDRO", "UDZO"} {
-					current := source
-					for _, phase := range []string{"metadata", "metadata-final"} {
-						state, ok := c.States[phase]
-						if !ok || state.CheckerStatus != 0 || len(state.Operations) == 0 {
-							t.Fatal("native state absent")
-						}
-						native := openArchive(t, dir, state.Archive)
-						compareMetadataState(t, metadataReader(t, native, kind), state.Files, kind)
-						destination := filepath.Join(output, phase+"-"+format+".dmg")
-						changes := imageMetadataChanges(state.Operations)
-						if _, err = imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes); err != nil {
-							t.Fatal(phase, err)
-						}
-						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-						if _, err = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); err != nil {
-							t.Fatal(err)
-						}
-						if fileDigest(t, destination) != fileDigest(t, repeat) {
-							t.Fatal("nonreproducible metadata image")
-						}
-						compareMetadataState(t, metadataReader(t, destination, kind), metadataExpected(state, m.ModificationSeconds), kind)
-						if kind == "hfs" && c.Before.Journal != nil {
-							img, err := diskimage.Open(destination)
-							if err != nil {
+					t.Run(format, func(t *testing.T) {
+						current := source
+						for _, phase := range []string{"metadata", "metadata-final"} {
+							state, ok := c.States[phase]
+							if !ok || state.CheckerStatus != 0 || len(state.Operations) == 0 {
+								t.Fatal("native state absent")
+							}
+							native := openArchive(t, dir, state.Archive)
+							compareMetadataState(t, metadataReader(t, native, kind), state.Files, kind)
+							destination := filepath.Join(output, phase+"-"+format+".dmg")
+							changes := imageMetadataChanges(state.Operations)
+							if _, err = imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes); err != nil {
+								t.Fatal(phase, err)
+							}
+							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+							if _, err = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); err != nil {
 								t.Fatal(err)
 							}
-							part, err := img.Partition(0)
-							if err != nil {
-								t.Fatal(err)
+							if fileDigest(t, destination) != fileDigest(t, repeat) {
+								t.Fatal("nonreproducible metadata image")
 							}
-							verifyEditJournal(t, part, c.Before.Journal)
-							img.Close()
+							compareMetadataState(t, metadataReader(t, destination, kind), metadataExpected(state, m.ModificationSeconds), kind)
+							if kind == "hfs" && c.Before.Journal != nil {
+								img, err := diskimage.Open(destination)
+								if err != nil {
+									t.Fatal(err)
+								}
+								part, err := img.Partition(0)
+								if err != nil {
+									t.Fatal(err)
+								}
+								verifyEditJournal(t, part, c.Before.Journal)
+								img.Close()
+							}
+							current = destination
 						}
-						current = destination
-					}
+					})
 				}
 				for _, change := range []imageedit.Change{{Operation: "xattr", Path: "/Fixture/small", Attribute: "com.apple.decmpfs", Data: bytes.NewReader(nil)}, {Operation: "xattr", Path: "/Fixture/small", Attribute: "com.apple.FinderInfo", Data: bytes.NewReader(make([]byte, 31))}, {Operation: "xattr", Path: "/Fixture/small", Attribute: "org.go-apfs.missing", DeleteAttribute: true}, {Operation: "chown", Path: "/Fixture/small", Metadata: &filesystem.Metadata{UID: filesystem.Observed(^uint32(0))}}} {
 					out := filepath.Join(t.TempDir(), "rejected.dmg")
@@ -341,30 +340,32 @@ func TestNativeImageMetadataEditingContinuation(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, source := range paths {
-		if !expected[filepath.Base(source)] {
-			t.Fatal("unexpected native continuation source", filepath.Base(source))
-		}
-		delete(expected, filepath.Base(source))
-		var control struct {
-			Before   fileObservation
-			Expected nativeImageMetadataState
-		}
-		b, err := os.ReadFile(strings.TrimSuffix(source, ".raw") + ".json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = json.Unmarshal(b, &control); err != nil {
-			t.Fatal(err)
-		}
-		digest := fileDigest(t, source)
-		compareMetadataState(t, metadataReader(t, source, kind), control.Before, kind)
-		destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
-		if _, err = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, imageMetadataChanges(control.Expected.Operations)); err != nil {
-			t.Fatal(err)
-		}
-		compareMetadataState(t, metadataReader(t, destination, kind), metadataExpected(control.Expected, 1749283750), kind)
-		if fileDigest(t, source) != digest {
-			t.Fatal("continued edits changed native source")
-		}
+		t.Run(filepath.Base(source), func(t *testing.T) {
+			if !expected[filepath.Base(source)] {
+				t.Fatal("unexpected native continuation source", filepath.Base(source))
+			}
+			delete(expected, filepath.Base(source))
+			var control struct {
+				Before   fileObservation
+				Expected nativeImageMetadataState
+			}
+			b, err := os.ReadFile(strings.TrimSuffix(source, ".raw") + ".json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = json.Unmarshal(b, &control); err != nil {
+				t.Fatal(err)
+			}
+			digest := fileDigest(t, source)
+			compareMetadataState(t, metadataReader(t, source, kind), control.Before, kind)
+			destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
+			if _, err = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, imageMetadataChanges(control.Expected.Operations)); err != nil {
+				t.Fatal(err)
+			}
+			compareMetadataState(t, metadataReader(t, destination, kind), metadataExpected(control.Expected, 1749283750), kind)
+			if fileDigest(t, source) != digest {
+				t.Fatal("continued edits changed native source")
+			}
+		})
 	}
 }

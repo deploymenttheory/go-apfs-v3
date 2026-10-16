@@ -136,10 +136,7 @@ func TestNativeHFSJournaledImageCopy(t *testing.T) {
 
 func testImageCopy(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 	t.Helper()
-	root := os.Getenv(rootEnv)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, rootEnv, retained)
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native copy evidence absent", err)
@@ -212,42 +209,44 @@ func testImageCopy(t *testing.T, kind, rootEnv, outputEnv, retained string) {
 					t.Fatal(err)
 				}
 				for _, format := range []string{"UDRO", "UDZO"} {
-					current, ids := source, newLinkIdentities(c.Before.Files)
-					for _, phase := range []string{"copy", "copy-final"} {
-						state := c.States[phase]
-						destination := filepath.Join(out, phase+"-"+format+".dmg")
-						report := applyImageCopies(t, current, destination, host, format, when, state.Operations)
-						omissions := 0
-						if phase == "copy" {
-							omissions = 2
-						}
-						if len(report.OmittedAttributes) != omissions {
-							t.Fatal("native copy-view omissions not reported", report.OmittedAttributes)
-						}
-						if omissions == 2 && (report.OmittedAttributes[0].Source != "/Fixture/inline-fork-compressed" || report.OmittedAttributes[0].Destination != "/Fixture/Copies/inline-fork" || report.OmittedAttributes[0].Attribute != "com.apple.ResourceFork" || report.OmittedAttributes[0].Reason == "" || report.OmittedAttributes[1].Source != "/Fixture/inactive-malformed" || report.OmittedAttributes[1].Attribute != "com.apple.decmpfs" || report.OmittedAttributes[1].Reason == "") {
-							t.Fatal("incorrect compressed-copy omission", report.OmittedAttributes)
-						}
-						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-						applyImageCopies(t, current, repeat, host, format, when, state.Operations)
-						if fileDigest(t, repeat) != fileDigest(t, destination) {
-							t.Fatal("nonreproducible copying")
-						}
-						want := metadataExpected(nativeImageMetadataState{nativeEditState: state.nativeEditState, ClockFields: state.ClockFields}, m.ModificationSeconds)
-						ids.compare(t, metadataReader(t, destination, kind), want, kind)
-						if c.Before.Journal != nil {
-							image, err := diskimage.Open(destination)
-							if err != nil {
-								t.Fatal(err)
+					t.Run(format, func(t *testing.T) {
+						current, ids := source, newLinkIdentities(c.Before.Files)
+						for _, phase := range []string{"copy", "copy-final"} {
+							state := c.States[phase]
+							destination := filepath.Join(out, phase+"-"+format+".dmg")
+							report := applyImageCopies(t, current, destination, host, format, when, state.Operations)
+							omissions := 0
+							if phase == "copy" {
+								omissions = 2
 							}
-							part, err := image.Partition(0)
-							if err != nil {
-								t.Fatal(err)
+							if len(report.OmittedAttributes) != omissions {
+								t.Fatal("native copy-view omissions not reported", report.OmittedAttributes)
 							}
-							verifyEditJournal(t, part, c.Before.Journal)
-							image.Close()
+							if omissions == 2 && (report.OmittedAttributes[0].Source != "/Fixture/inline-fork-compressed" || report.OmittedAttributes[0].Destination != "/Fixture/Copies/inline-fork" || report.OmittedAttributes[0].Attribute != "com.apple.ResourceFork" || report.OmittedAttributes[0].Reason == "" || report.OmittedAttributes[1].Source != "/Fixture/inactive-malformed" || report.OmittedAttributes[1].Attribute != "com.apple.decmpfs" || report.OmittedAttributes[1].Reason == "") {
+								t.Fatal("incorrect compressed-copy omission", report.OmittedAttributes)
+							}
+							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+							applyImageCopies(t, current, repeat, host, format, when, state.Operations)
+							if fileDigest(t, repeat) != fileDigest(t, destination) {
+								t.Fatal("nonreproducible copying")
+							}
+							want := metadataExpected(nativeImageMetadataState{nativeEditState: state.nativeEditState, ClockFields: state.ClockFields}, m.ModificationSeconds)
+							ids.compare(t, metadataReader(t, destination, kind), want, kind)
+							if c.Before.Journal != nil {
+								image, err := diskimage.Open(destination)
+								if err != nil {
+									t.Fatal(err)
+								}
+								part, err := image.Partition(0)
+								if err != nil {
+									t.Fatal(err)
+								}
+								verifyEditJournal(t, part, c.Before.Journal)
+								image.Close()
+							}
+							current = destination
 						}
-						current = destination
-					}
+					})
 				}
 				for _, command := range []imageedit.CopyCommand{{Sources: []string{"/Fixture/CopySource"}, Destination: "/Fixture/CopySource/Nested", Options: imageedit.CopyOptions{Archive: true}}, {Sources: []string{"/Fixture/independent"}, Destination: "/Fixture/independent"}, {Sources: []string{"/Fixture/independent"}, Destination: "/Fixture/empty", Options: imageedit.CopyOptions{NoClobber: true}}} {
 					rejected := filepath.Join(t.TempDir(), "rejected.dmg")

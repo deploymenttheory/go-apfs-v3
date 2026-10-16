@@ -61,6 +61,8 @@ def verify(expected_major, references, outputs, diagnostics):
     diagnostics.mkdir(parents=True)
     command = Commands(diagnostics / 'commands.json')
     names = set()
+    from qualification_cases import recovery_verification
+    evidence = recovery_verification(references, outputs, diagnostics, expected_major, apfs=False)
     with tempfile.TemporaryDirectory(prefix='verify-hfs-recovery-') as temporary:
         work = Path(temporary)
         for case in manifest['cases']:
@@ -69,28 +71,31 @@ def verify(expected_major, references, outputs, diagnostics):
                 image = outputs / name
                 names.add(name)
                 before = sha256(image)
-                check(image, case['recovered']['files'], work, command)
-                require(sha256(image) == before, 'native readback changed portable evidence')
-                if format_name == 'UDRO':
-                    raw = work / (case['id'] + '-continued.raw')
-                    writable_copy(image, raw, command, disk_hash)
-                    check(raw, case['recovered']['files'], work, command, modify=True)
-                    device = attach(raw, command, readonly=True)
-                    try:
-                        command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
-                    finally:
-                        command('hdiutil', 'detach', device)
+                with evidence.case([image]):
+                    check(image, case['recovered']['files'], work, command)
+                    require(sha256(image) == before, 'native readback changed portable evidence')
+                    if format_name == 'UDRO':
+                        raw = work / (case['id'] + '-continued.raw')
+                        writable_copy(image, raw, command, disk_hash)
+                        check(raw, case['recovered']['files'], work, command, modify=True)
+                        device = attach(raw, command, readonly=True)
+                        try:
+                            command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
+                        finally:
+                            command('hdiutil', 'detach', device)
                 # Portable mutation after recovery has its own actual output.
                 # Only the shared inode's mode and ctime change.
             edited = outputs / (case['id'] + '-edited.dmg')
-            names.add(edited.name)
-            expected = json.loads(json.dumps(case['recovered']['files']))
-            for entry in expected['entries']:
-                if entry['path'] in ('Fixture/retained', 'Fixture/alias'):
-                    entry['mode'] = entry['mode'] & ~0o7777 | 0o600
-                    entry['changeNS'] = 1749283750 * 1000000000
-            check(edited, expected, work, command)
+            with evidence.case([edited]):
+                names.add(edited.name)
+                expected = json.loads(json.dumps(case['recovered']['files']))
+                for entry in expected['entries']:
+                    if entry['path'] in ('Fixture/retained', 'Fixture/alias'):
+                        entry['mode'] = entry['mode'] & ~0o7777 | 0o600
+                        entry['changeNS'] = 1749283750 * 1000000000
+                check(edited, expected, work, command)
     require({path.name for path in outputs.glob('*.dmg')} == names, 'exact portable output inventory')
+    evidence.finish()
 
 
 if __name__ == '__main__':

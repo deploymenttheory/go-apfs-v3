@@ -39,10 +39,7 @@ type containerObservation struct {
 // allocation, mixed case policies and native System/Data group identities.
 func TestNativeContainerBuilding(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("APFS_NATIVE_IMAGE_BUILDING")
-	if root == "" {
-		root = "testdata/image-building"
-	}
+	root := nativeInput(t, "APFS_NATIVE_IMAGE_BUILDING", "testdata/image-building")
 	manifests, err := filepath.Glob(filepath.Join(root, "*", "containers", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)

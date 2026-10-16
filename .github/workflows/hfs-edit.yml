@@ -62,12 +62,44 @@ jobs:
         run: python3 acceptance/native/image_links.py --expected-major "${{ matrix.major }}" --kind hfs --references artifacts/${{ matrix.prefix }}-editing/macos-${{ matrix.major }} --output artifacts/${{ matrix.prefix }}-editing/links/macos-${{ matrix.major }}
       - name: Record Apple application, framework and directory copying
         run: python3 acceptance/native/image_copy.py --expected-major "${{ matrix.major }}" --kind hfs --references artifacts/${{ matrix.prefix }}-editing/macos-${{ matrix.major }} --output artifacts/${{ matrix.prefix }}-editing/copy/macos-${{ matrix.major }}
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "${{ matrix.prefix }}-editing=artifacts/${{ matrix.prefix }}-editing"
+          --input "${{ matrix.prefix }}-catalog-editing=artifacts/${{ matrix.prefix }}-editing"
+          --output "artifacts/qualification/capture-${{ matrix.prefix }}-editing"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "${{ matrix.prefix }}-metadata-editing=artifacts/${{ matrix.prefix }}-editing/metadata"
+          --output "artifacts/qualification/capture-${{ matrix.prefix }}-metadata-editing"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "${{ matrix.prefix }}-link-editing=artifacts/${{ matrix.prefix }}-editing/links"
+          --output "artifacts/qualification/capture-${{ matrix.prefix }}-link-editing"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "${{ matrix.prefix }}-copy=artifacts/${{ matrix.prefix }}-editing/copy"
+          --output "artifacts/qualification/capture-${{ matrix.prefix }}-copy"
       - name: Retain original raw disks, native states, observations and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ matrix.prefix }}-edit-reference-${{ matrix.major }}
           path: artifacts/${{ matrix.prefix }}-editing
+          if-no-files-found: error
+      - name: Retain required capture execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-hfs-edit-${{ github.job }}-${{ strategy.job-index }}
+          path: artifacts/qualification/
           if-no-files-found: error
 
   replay:
@@ -115,7 +147,7 @@ jobs:
         # Race coverage owns this bounded family on Linux, instead of repeating
         # its full-disk I/O and compression in the combined quality job. Each
         # Linux job covers both filesystems from one native source version.
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '${{ matrix.tests }}'
+        run: go run ./acceptance/qualification -replay -- ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run '${{ matrix.tests }}'
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           APFS_NATIVE_HFS_EDITS: ../artifacts/${{ matrix.prefix }}-editing
@@ -127,7 +159,7 @@ jobs:
       - name: Compare native metadata and allocated attribute transitions
         if: matrix.operations == 'file contents, modes and metadata'
         shell: bash
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$METADATA_TESTS"
+        run: go run ./acceptance/qualification -replay -- ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$METADATA_TESTS"
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           METADATA_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageMetadataEditing$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
@@ -138,7 +170,7 @@ jobs:
       - name: Compare first-link conversion, alias chains and literal symlinks
         if: matrix.operations == 'file contents, modes and metadata'
         shell: bash
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$LINK_TESTS"
+        run: go run ./acceptance/qualification -replay -- ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run "$LINK_TESTS"
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           LINK_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageLinkEditing$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
@@ -207,7 +239,7 @@ jobs:
         # Copying owns a separate bounded job: adding it to the existing three
         # race-instrumented edit families exceeded their ten-minute job budget.
         shell: bash
-        run: go test ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+        run: go run ./acceptance/qualification -replay -- ${{ matrix.race }} -v -count=1 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
         env:
           CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
           APFS_NATIVE_HFS_COPY: ../artifacts/${{ matrix.prefix }}-editing/copy
@@ -272,7 +304,7 @@ jobs:
       - name: Read native allocation and tree changes, then modify the same filesystems again with Go
         run: |
           mkdir -p artifacts/continued-go
-          go test -v -count=1 -timeout 2m ./acceptance -run '^TestNativeHFSImageEditingContinuation$'
+          go run ./acceptance/qualification -replay -- -v -count=1 -timeout 2m ./acceptance -run '^TestNativeHFSImageEditingContinuation$'
         env:
           APFS_HFS_EDIT_CONTINUATION: ../artifacts/continued-native
           APFS_HFS_EDIT_CONTINUED_OUTPUT: ../artifacts/continued-go
@@ -281,7 +313,7 @@ jobs:
       - name: Check catalog creation, moves, removal and subsequent native allocation
         run: python3 acceptance/native/verify_hfs_catalog_editing.py --expected-major "${{ matrix.major }}" --corpus artifacts/${{ matrix.prefix }}-editing --outputs artifacts/outputs --continuation artifacts/catalog-continued-native ${{ matrix.journal }}
       - name: Edit native catalog changes again with Go
-        run: go test -v -count=1 -timeout 2m ./acceptance -run '^TestNativeHFSImageCatalogEditingContinuation$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 2m ./acceptance -run '^TestNativeHFSImageCatalogEditingContinuation$'
         env:
           APFS_HFS_CATALOG_CONTINUATION: ../artifacts/catalog-continued-native
           APFS_HFS_CATALOG_CONTINUED_OUTPUT: ../artifacts/catalog-continued-go
@@ -290,7 +322,7 @@ jobs:
       - name: Qualify metadata storage, FinderInfo and continued native attribute writes
         run: python3 acceptance/native/verify_image_metadata.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --corpus artifacts/${{ matrix.prefix }}-editing/metadata --outputs artifacts/outputs --continuation artifacts/metadata-continued-native
       - name: Re-edit native metadata and compare the complete independent result
-        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageMetadataEditingContinuation$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageMetadataEditingContinuation$'
         env:
           APFS_IMAGE_METADATA_KIND: hfs
           APFS_IMAGE_METADATA_CONTINUATION: ../artifacts/metadata-continued-native
@@ -300,7 +332,7 @@ jobs:
       - name: Qualify hard links, literal symlinks and signed frameworks with Apple tools
         run: python3 acceptance/native/verify_image_links.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --corpus artifacts/${{ matrix.prefix }}-editing/links --outputs artifacts/outputs --continuation artifacts/links-continued-native
       - name: Re-edit native link changes against a separate Apple-only control
-        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageLinkEditingContinuation$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageLinkEditingContinuation$'
         env:
           APFS_IMAGE_LINK_KIND: hfs
           APFS_IMAGE_LINK_CONTINUATION: ../artifacts/links-continued-native
@@ -338,7 +370,7 @@ jobs:
       - name: Qualify copied applications, frameworks and native copy continuation
         run: python3 acceptance/native/verify_image_copy.py --expected-major "${{ matrix.major }}" --kind hfs --prefix ${{ matrix.prefix }} --corpus artifacts/${{ matrix.prefix }}-editing/copy --outputs artifacts/outputs --continuation artifacts/copy-continued-native
       - name: Copy again from Apple's subsequent state against a separate native control
-        run: go test -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageCopyContinuation$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 3m ./acceptance -run '^TestNativeImageCopyContinuation$'
         env:
           APFS_IMAGE_COPY_KIND: hfs
           APFS_IMAGE_COPY_CONTINUATION: ../artifacts/copy-continued-native
@@ -373,6 +405,16 @@ jobs:
             artifacts/copy-continued-go/*.diagnostics.json
             artifacts/copy-continued-native.tgz
           if-no-files-found: warn
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-hfs-edit-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/qualification/
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
+          if-no-files-found: error
 
   complete:
     name: Require existing HFS edit qualification

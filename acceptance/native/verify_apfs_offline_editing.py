@@ -158,6 +158,8 @@ def continue_native(raw, case, command, work):
 
 
 def verify(corpus, outputs, major, statistics=False):
+    from qualification import NativeEvidence, ReplayEvidence
+    from qualification_cases import ROOT, image_targets
     require_disposable_host()
     producer = version(major)
     family = 'statistics' if statistics else 'apfs'
@@ -165,6 +167,15 @@ def verify(corpus, outputs, major, statistics=False):
     count = 0
     paths = sorted(corpus.glob('macos-*/manifest.json'))
     require(len(paths) == 3, 'all three native source versions')
+    input_id = 'apfs-directory-statistics' if statistics else 'apfs-geometry'
+    patterns = ([f'macos-{{source}}/{{case}}-{encoding}.dmg' for encoding in ('UDRO', 'UDZO')]
+                if statistics else [f'macos-{{source}}/{{case}}/edited-{encoding}.dmg' for encoding in ('UDRO', 'UDZO')])
+    replay = ReplayEvidence(outputs, ROOT)
+    replay.bind_input(input_id, corpus)
+    evidence = NativeEvidence(replay, image_targets(corpus, outputs, input_id,
+        'offline-editing-' + family + '-', patterns), ROOT, outputs,
+        'offline-editing-' + family, major,
+        continuation=lambda case, file: file['path'].endswith('-UDZO.dmg'))
     with tempfile.TemporaryDirectory(prefix='offline-editing-apfs-readback-') as tmp:
         work = Path(tmp)
         for manifest_path in paths:
@@ -178,24 +189,26 @@ def verify(corpus, outputs, major, statistics=False):
                                 Path(manifest_path.parent.name, case['id'], 'edited-' + format_name + '.dmg'))
                     images = [outputs / ('offline-editing-' + family + '-' + host) / relative
                               for host in ('Linux', 'Windows', 'macOS')]
-                    require(all(image.is_file() for image in images), 'all portable host outputs')
-                    require(len({sha256(image) for image in images}) == 1, 'reproducible across hosts')
-                    image, raw = images[0], work / 'output.raw'
-                    digest = sha256(image)
-                    command('hdiutil', 'verify', image)
-                    writable_copy(image, raw, command, native_hash)
-                    require(raw.stat().st_size == case['capacityBytes'], 'original geometry retained')
-                    inspect(raw, case, command, work)
-                    if format_name == 'UDZO':
-                        continue_native(raw, case, command, work)
-                        inspect(raw, case, command, work, continued=True)
-                    raw.unlink()
-                    require(sha256(image) == digest, 'original portable output immutable')
-                    count += 1
+                    with evidence.case(images):
+                        require(all(image.is_file() for image in images), 'all portable host outputs')
+                        require(len({sha256(image) for image in images}) == 1, 'reproducible across hosts')
+                        image, raw = images[0], work / 'output.raw'
+                        digest = sha256(image)
+                        command('hdiutil', 'verify', image)
+                        writable_copy(image, raw, command, native_hash)
+                        require(raw.stat().st_size == case['capacityBytes'], 'original geometry retained')
+                        inspect(raw, case, command, work)
+                        if format_name == 'UDZO':
+                            continue_native(raw, case, command, work)
+                            inspect(raw, case, command, work, continued=True)
+                        raw.unlink()
+                        require(sha256(image) == digest, 'original portable output immutable')
+                        count += 1
     require(count == (12 if statistics else 24), 'all source-version, profile and encoding combinations')
     (outputs / f'offline-editing-{family}-{major}.result.json').write_text(json.dumps({
         'producer': producer, 'verified': count, 'continuations': count // 2,
         'commandsSHA256': sha256(command.path)}, indent=2) + '\n')
+    evidence.finish()
 
 
 if __name__ == '__main__':

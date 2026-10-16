@@ -24,10 +24,7 @@ import (
 // match v3's decoding of genuine native images. It does not qualify file reads.
 func TestNativeVolumeInspection(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("APFS_NATIVE_CORPUS")
-	if root == "" {
-		root = "testdata/native"
-	}
+	root := nativeInput(t, "APFS_NATIVE_CORPUS", "testdata/native")
 	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)

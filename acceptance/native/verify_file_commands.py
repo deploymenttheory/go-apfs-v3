@@ -162,6 +162,10 @@ def main():
     require(version.split('.')[0] == args.expected_major, 'wrong native runner')
     require(not args.allow_same_owner or (args.producers == args.expected_major and args.consumers == 'macOS'), 'same-owner mode is local-only')
     cases, entries = 0, 0
+    from qualification_cases import image_verification, require_axes
+    require_axes(args)
+    evidence = image_verification(args.corpus, args.outputs, 'file-commands', 'file-commands-',
+        ['macos-{source}/{profile}/before/metadata/manifest.json', 'macos-{source}/{profile}/after/metadata/manifest.json'], 'file-commands', int(args.expected_major))
     for consumer in args.consumers.split(','):
         for major in args.producers.split(','):
             corpus = args.corpus / ('macos-' + major)
@@ -171,10 +175,12 @@ def main():
             require(len(manifest['cases']) == 4 and {c['id'] for c in manifest['cases']} == required, 'native cases')
             for case in manifest['cases']:
                 output = args.outputs / ('file-commands-' + consumer) / ('macos-' + major) / case['id'].split('/')[1]
-                entries += verify_case(corpus, output, case, args.allow_same_owner)
-                cases += 1
-                print(f"macOS {version}: verified {consumer} file commands from macOS {major}: {case['id']}", flush=True)
+                with evidence.case([output / state / "metadata/manifest.json" for state in ("before", "after")], identical=False):
+                    entries += verify_case(corpus, output, case, args.allow_same_owner)
+                    cases += 1
+                    print(f"macOS {version}: verified {consumer} file commands from macOS {major}: {case['id']}", flush=True)
     print(json.dumps({'macOS': version, 'workspacePairs': cases, 'entries': entries, 'nativeCommands': cases * 23}))
+    evidence.finish()
 
 
 if __name__ == '__main__':

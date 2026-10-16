@@ -65,6 +65,11 @@ def verify(corpus, outputs, continuation, major):
     continuation.mkdir(parents=True)
     command = Commands(outputs / f'apfs-directories-{major}.diagnostics.json')
     count = 0
+    from qualification_cases import image_verification
+    input_id = 'apfs-directory-editing'
+    evidence = image_verification(corpus, outputs, input_id, 'apfs-directories-',
+        ['macos-{source}/{case}/catalog-UDRO.dmg', 'macos-{source}/{case}/catalog-UDZO.dmg', 'macos-{source}/{case}/catalog-final-UDRO.dmg', 'macos-{source}/{case}/catalog-final-UDZO.dmg'], 'apfs_directory_editing', major,
+        manifest='manifest.json', continued=lambda name: name.endswith('/catalog-final-UDZO.dmg'))
     with tempfile.TemporaryDirectory(prefix='apfs-directory-readback-') as tmp:
         work = Path(tmp)
         for path in sorted(corpus.glob('macos-*/manifest.json')):
@@ -75,27 +80,29 @@ def verify(corpus, outputs, continuation, major):
                     for format_name in ('UDRO', 'UDZO'):
                         relative = Path(path.parent.name, case['id'], phase + '-' + format_name + '.dmg')
                         images = [outputs / ('apfs-directories-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                        require(all(image.is_file() for image in images), 'all portable directory outputs present')
-                        require(len({sha256(image) for image in images}) == 1, 'byte-identical APFS directory outputs across hosts')
-                        image, raw = images[0], work / 'output.raw'
-                        digest = sha256(image)
-                        command('hdiutil', 'verify', image)
-                        writable_copy(image, raw, command, native_hash)
-                        check(raw, case, phase, command, work)
-                        if phase == 'catalog-final' and format_name == 'UDZO':
-                            check(raw, case, phase, command, work, modify=True)
-                            # Check the resulting allocation/tree with Apple's
-                            # checker before supplying it to the next Go edit.
-                            cleanup, physical, _ = attached(raw, raw_command(command, raw), readonly=True)
-                            try:
-                                check_filesystem(physical, raw_command(command, raw))
-                            finally:
-                                command('hdiutil', 'detach', cleanup)
-                            shutil.copyfile(raw, continuation / (path.parent.name + '-' + case['id'] + '.raw'))
-                        raw.unlink()
-                        require(sha256(image) == digest, 'portable image changed during native verification')
-                        count += 1
+                        with evidence.case(images):
+                            require(all(image.is_file() for image in images), 'all portable directory outputs present')
+                            require(len({sha256(image) for image in images}) == 1, 'byte-identical APFS directory outputs across hosts')
+                            image, raw = images[0], work / 'output.raw'
+                            digest = sha256(image)
+                            command('hdiutil', 'verify', image)
+                            writable_copy(image, raw, command, native_hash)
+                            check(raw, case, phase, command, work)
+                            if phase == 'catalog-final' and format_name == 'UDZO':
+                                check(raw, case, phase, command, work, modify=True)
+                                # Check the resulting allocation/tree with Apple's
+                                # checker before supplying it to the next Go edit.
+                                cleanup, physical, _ = attached(raw, raw_command(command, raw), readonly=True)
+                                try:
+                                    check_filesystem(physical, raw_command(command, raw))
+                                finally:
+                                    command('hdiutil', 'detach', cleanup)
+                                shutil.copyfile(raw, continuation / (path.parent.name + '-' + case['id'] + '.raw'))
+                            raw.unlink()
+                            require(sha256(image) == digest, 'portable image changed during native verification')
+                            count += 1
     require(count == 24, 'complete directory readback inventory')
+    evidence.finish()
 
 
 def verify_continued(directory, major):
@@ -104,31 +111,36 @@ def verify_continued(directory, major):
     command = Commands(directory / f'apfs-directory-continued-{major}.diagnostics.json')
     images = list(directory.glob('*.dmg'))
     require(len(images) == 6, 'complete Go/native/Go directory continuation inventory')
+    from qualification_cases import continuation_verification
+    evidence = continuation_verification(directory, 'apfs', 'apfs_directory_editing-continued', major,
+        metadata=False, raw_suffix=False)
     with tempfile.TemporaryDirectory(prefix='apfs-directory-continued-') as tmp:
         work = Path(tmp)
         for image in images:
-            raw = work / 'continued.raw'
-            writable_copy(image, raw, command, native_hash)
-            native = raw_command(command, raw)
-            cleanup, physical, inventory = attached(raw, native, readonly=True)
-            directory = work / 'mount'
-            try:
-                check_filesystem(physical, native)
-                mount(inventory['Volumes'][0], directory, native, readonly=True)
-                root = directory / 'Fixture'
-                require((root / 'Catalog/continued-go/renamed').read_bytes() == payload('continued-catalog', 8193), 'continued Go create/move bytes')
-                require(not (root / 'Catalog/native-created').exists(), 'Go recursive removal survives native remount')
-                require(not (root / 'third').exists(), 'last hard link removed by Go')
-                require(not (root / 'Catalog/native-dir-link').is_symlink(), 'Go removed native directory symlink entry')
-                require((root / 'Catalog/native-retained/contents').read_bytes() == b'Untouched symlink target\n',
-                        'recursive symlink removal preserves a live target and its contents')
-                require((root / 'guards').is_dir(), 'symlink removal never traverses its target')
-                require(len(list((root / 'Catalog/other/Moved').iterdir())) == 47, 'namespace preserved across continued edits')
-                native('codesign', '--verify', '--deep', '--strict', root / 'Example.app')
-            finally:
-                native('hdiutil', 'detach', cleanup)
-                shutil.rmtree(directory)
-            raw.unlink()
+            with evidence.case([image]):
+                raw = work / 'continued.raw'
+                writable_copy(image, raw, command, native_hash)
+                native = raw_command(command, raw)
+                cleanup, physical, inventory = attached(raw, native, readonly=True)
+                directory = work / 'mount'
+                try:
+                    check_filesystem(physical, native)
+                    mount(inventory['Volumes'][0], directory, native, readonly=True)
+                    root = directory / 'Fixture'
+                    require((root / 'Catalog/continued-go/renamed').read_bytes() == payload('continued-catalog', 8193), 'continued Go create/move bytes')
+                    require(not (root / 'Catalog/native-created').exists(), 'Go recursive removal survives native remount')
+                    require(not (root / 'third').exists(), 'last hard link removed by Go')
+                    require(not (root / 'Catalog/native-dir-link').is_symlink(), 'Go removed native directory symlink entry')
+                    require((root / 'Catalog/native-retained/contents').read_bytes() == b'Untouched symlink target\n',
+                            'recursive symlink removal preserves a live target and its contents')
+                    require((root / 'guards').is_dir(), 'symlink removal never traverses its target')
+                    require(len(list((root / 'Catalog/other/Moved').iterdir())) == 47, 'namespace preserved across continued edits')
+                    native('codesign', '--verify', '--deep', '--strict', root / 'Example.app')
+                finally:
+                    native('hdiutil', 'detach', cleanup)
+                    shutil.rmtree(directory)
+                raw.unlink()
+    evidence.finish()
 
 
 if __name__ == '__main__':

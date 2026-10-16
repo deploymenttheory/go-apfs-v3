@@ -18,10 +18,7 @@ import (
 // scratch as well as image editing. A new actor context captures the previous
 // reader; no host UID or process authorization is substituted for the native one.
 func TestNativeSessionPermissionInheritance(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_PERMISSION_INHERITANCE")
-	if root == "" {
-		root = "testdata/permission-inheritance"
-	}
+	root := nativeInput(t, "APFS_NATIVE_PERMISSION_INHERITANCE", "testdata/permission-inheritance")
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native session permission controls absent", err)

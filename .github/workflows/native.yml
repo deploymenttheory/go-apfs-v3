@@ -74,6 +74,7 @@ concurrency:
 env:
   GOTOOLCHAIN: local
   CGO_ENABLED: "0"
+  APFS_REQUIRED_CONTROLS: compression-boundaries
 
 jobs:
   offline_reference:
@@ -113,12 +114,68 @@ jobs:
       - name: Capture Apple cp ACL preservation and inheritance composition
         if: ${{ inputs.offline_reference_kind == 'copy-permissions' }}
         run: python3 acceptance/native/permission_inheritance.py --copy-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing/macos-${{ matrix.major }}
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'apfs' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-geometry=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-apfs-geometry"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'hfs' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "hfs-metadata-growth=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-hfs-metadata-growth"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'stats' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-directory-statistics=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-apfs-directory-statistics"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'hfs-fragmented' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "hfs-fragmented-metadata=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-hfs-fragmented-metadata"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'permissions' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "permission-inheritance=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-permission-inheritance"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'stats-transitions' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-directory-statistics-transitions=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-apfs-directory-statistics-transitions"
+      - name: Record required native capture observations
+        if: ${{ inputs.offline_reference_kind == 'copy-permissions' }}
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "copy-permissions=artifacts/offline-editing"
+          --output "artifacts/qualification/capture-copy-permissions"
       - name: Retain original disks, observations and command diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: offline-editing-reference-${{ matrix.major }}
           path: artifacts/offline-editing
+          if-no-files-found: error
+      - name: Retain required capture execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          path: artifacts/qualification/
           if-no-files-found: error
 
   offline_edits:
@@ -197,6 +254,96 @@ jobs:
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario image-building --output artifacts/native/image-building/macos-${{ matrix.major }}
       - name: Record complete disks, snapshots, encrypted volumes and unused sectors for repacking
         run: python3 acceptance/native/image_repacking.py --expected-major "${{ matrix.major }}" --references artifacts/native --output artifacts/native/image-repacking/macos-${{ matrix.major }}
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "snapshots=artifacts/native/snapshots"
+          --output "artifacts/qualification/capture-snapshots"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-lifecycle=artifacts/native/apfs-lifecycle"
+          --output "artifacts/qualification/capture-apfs-lifecycle"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "native=artifacts/native/volumes"
+          --output "artifacts/qualification/capture-native"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "files=artifacts/native/files"
+          --output "artifacts/qualification/capture-files"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "semantics=artifacts/native/semantics"
+          --output "artifacts/qualification/capture-semantics"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "compression=artifacts/native/compression"
+          --output "artifacts/qualification/capture-compression"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "encryption=artifacts/native/encryption"
+          --output "artifacts/qualification/capture-encryption"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "encrypted-dmg=artifacts/native/encrypted-dmg"
+          --output "artifacts/qualification/capture-encrypted-dmg"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "preservation=artifacts/native/preservation"
+          --output "artifacts/qualification/capture-preservation"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "replacement=artifacts/native/replacement"
+          --output "artifacts/qualification/capture-replacement"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "tree-edits=artifacts/native/tree-edits"
+          --output "artifacts/qualification/capture-tree-edits"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "metadata-edits=artifacts/native/metadata-edits"
+          --output "artifacts/qualification/capture-metadata-edits"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "file-commands=artifacts/native/file-commands"
+          --output "artifacts/qualification/capture-file-commands"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "image-building=artifacts/native/image-building"
+          --output "artifacts/qualification/capture-image-building"
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "image-repacking=artifacts/native/image-repacking"
+          --output "artifacts/qualification/capture-image-repacking"
       - name: Explain the recorded reference data
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
@@ -257,6 +404,13 @@ jobs:
             artifacts/native/image-repacking/macos-${{ matrix.major }}/
             artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}/
           if-no-files-found: error
+      - name: Retain required capture execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          path: artifacts/qualification/
+          if-no-files-found: error
 
   replay:
     name: Compare Go with macOS reference data (${{ matrix.platform }})
@@ -298,7 +452,7 @@ jobs:
         # retains every other acceptance family, including future additions.
         # Offline editing has its own required capture/replay/readback matrix;
         # replaying its retained full-disk controls here duplicates that work.
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -393,7 +547,7 @@ jobs:
           name: native-corpus-${{ matrix.major }}
           path: artifacts/native
       - name: Build and compare filesystems, containers, compression and encrypted images
-        run: go test -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNative(Image|Container)Building$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNative(Image|Container)Building$'
         env:
           APFS_NATIVE_IMAGE_BUILDING: ../artifacts/native/image-building
           APFS_IMAGE_BUILDING_OUTPUT: ../artifacts/image-building
@@ -432,6 +586,8 @@ jobs:
             major: 26
           - runner: xcode-27
             major: 27
+    env:
+      READBACK_RUN: ${{ inputs.readback_run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Validate archived capture and replay evidence for a verifier-only rerun
@@ -532,6 +688,15 @@ jobs:
           must agree across hosts and expose the same native disk bytes.
           No Go verifier supplies these results.
           EOF
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
+          if-no-files-found: error
 
   complete:
     name: Require all filesystem compatibility checks
@@ -601,6 +766,12 @@ jobs:
           done
       - name: Capture freshly Apple-formatted controls, exact disks and native outcomes
         run: python3 acceptance/native/hfs_header_growth.py --expected-major "${{ matrix.major }}" --go-images artifacts/hfs-go --output artifacts/hfs-header-growth/macos-${{ matrix.major }}
+      - name: Record required native capture observations
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "hfs-header-growth=artifacts/hfs-header-growth"
+          --output "artifacts/qualification/capture-hfs-header-growth"
       - name: Explain the retained native outcomes
         env:
           HFS_MAJOR: ${{ matrix.major }}
@@ -627,4 +798,11 @@ jobs:
           path: |
             artifacts/hfs-header-growth/
             artifacts/hfs-go/
+          if-no-files-found: error
+      - name: Retain required capture execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          path: artifacts/qualification/
           if-no-files-found: error

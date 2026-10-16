@@ -149,28 +149,30 @@ func compareImageBuilding(t *testing.T, reader filesystem.Reader, want fileObser
 
 func buildEmptyAPFS(t *testing.T, r filesystem.Reader, want fileObservation, output string, clock time.Time) {
 	t.Helper()
-	ctx := context.Background()
-	id, err := filesystem.LookupExact(ctx, r, want.Root+"/empty-build-root")
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(output, "empty")
-	if err = os.MkdirAll(path, 0700); err != nil {
-		t.Fatal(err)
-	}
-	options := pack.Options{Format: "UDZO", Volume: pack.VolumeOptions{Name: "Example", Time: clock, Capacity: 64 << 20}}
-	root := buildRoot{r, id}
-	destination := filepath.Join(path, "UDZO.dmg")
-	if _, err = pack.Create(ctx, destination, root, options); err != nil {
-		t.Fatal(err)
-	}
-	repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-	if _, err = pack.Create(ctx, repeat, root, options); err != nil {
-		t.Fatal(err)
-	}
-	if fileDigest(t, destination) != fileDigest(t, repeat) {
-		t.Fatal("empty APFS build is not deterministic")
-	}
+	t.Run("empty/UDZO", func(t *testing.T) {
+		ctx := context.Background()
+		id, err := filesystem.LookupExact(ctx, r, want.Root+"/empty-build-root")
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(output, "empty")
+		if err = os.MkdirAll(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+		options := pack.Options{Format: "UDZO", Volume: pack.VolumeOptions{Name: "Example", Time: clock, Capacity: 64 << 20}}
+		root := buildRoot{r, id}
+		destination := filepath.Join(path, "UDZO.dmg")
+		if _, err = pack.Create(ctx, destination, root, options); err != nil {
+			t.Fatal(err)
+		}
+		repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+		if _, err = pack.Create(ctx, repeat, root, options); err != nil {
+			t.Fatal(err)
+		}
+		if fileDigest(t, destination) != fileDigest(t, repeat) {
+			t.Fatal("empty APFS build is not deterministic")
+		}
+	})
 }
 
 func fileDigest(t *testing.T, path string) [32]byte {

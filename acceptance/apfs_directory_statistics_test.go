@@ -103,10 +103,7 @@ func compareStatisticsChanges(t *testing.T, volume *apfs.Volume, state directory
 }
 
 func TestNativeAPFSDirectoryStatistics(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_DIRECTORY_STATISTICS")
-	if root == "" {
-		root = "testdata/apfs-directory-statistics"
-	}
+	root := nativeInput(t, "APFS_NATIVE_DIRECTORY_STATISTICS", "testdata/apfs-directory-statistics")
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native directory statistics absent", err)
@@ -153,23 +150,25 @@ func TestNativeAPFSDirectoryStatistics(t *testing.T) {
 						t.Fatal(err)
 					}
 					for _, format := range []string{"UDRO", "UDZO"} {
-						output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
-						_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Format: format, Time: when}, func(editor *imageedit.Editor) error {
-							for _, change := range apfsGeometryChanges() {
-								if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
-									return err
+						t.Run(format, func(t *testing.T) {
+							output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
+							_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Format: format, Time: when}, func(editor *imageedit.Editor) error {
+								for _, change := range apfsGeometryChanges() {
+									if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
+										return err
+									}
 								}
+								return nil
+							})
+							if err != nil {
+								t.Fatal(format, err)
 							}
-							return nil
+							volume := &openAPFSEditVolume(t, output).Volumes[0]
+							compareAPFSEditedState(t, volume, c.Before[0].Files, c.After[0].Files, when)
+							generations := map[uint64]statisticsGeneration{}
+							compareStatisticsChanges(t, before, c.Before[0], generations)
+							compareStatisticsChanges(t, volume, c.After[0], generations)
 						})
-						if err != nil {
-							t.Fatal(format, err)
-						}
-						volume := &openAPFSEditVolume(t, output).Volumes[0]
-						compareAPFSEditedState(t, volume, c.Before[0].Files, c.After[0].Files, when)
-						generations := map[uint64]statisticsGeneration{}
-						compareStatisticsChanges(t, before, c.Before[0], generations)
-						compareStatisticsChanges(t, volume, c.After[0], generations)
 					}
 				})
 			}

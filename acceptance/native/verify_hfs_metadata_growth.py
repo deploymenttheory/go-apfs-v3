@@ -130,12 +130,22 @@ def continue_native(raw, command, work):
 
 
 def verify(corpus, outputs, major, fragmented=False):
+    from qualification import NativeEvidence, ReplayEvidence
+    from qualification_cases import ROOT, image_targets
     require_disposable_host()
     producer = version(major)
     prefix = 'offline-editing-hfs-fragmented' if fragmented else 'offline-editing-hfs'
     command = Commands(outputs / f'{prefix}-{major}.diagnostics.json')
     manifests = sorted(corpus.glob('macos-*/manifest.json'))
     require({p.parent.name for p in manifests} == {'macos-15', 'macos-26', 'macos-27'}, 'all native source versions')
+    input_id = 'hfs-fragmented-metadata' if fragmented else 'hfs-metadata-growth'
+    patterns = [f'macos-{{source}}/{{case}}/{stage}-{encoding}.dmg'
+                for stage in (('edited', 'collapsed', 'reused') if fragmented else ('edited',))
+                for encoding in ('UDRO', 'UDZO')]
+    replay = ReplayEvidence(outputs, ROOT)
+    replay.bind_input(input_id, corpus)
+    evidence = NativeEvidence(replay, image_targets(corpus, outputs, input_id, prefix + '-', patterns),
+        ROOT, outputs, prefix, major, continuation=lambda case, file: file['path'].endswith('/edited-UDZO.dmg'))
     count = 0
     with tempfile.TemporaryDirectory(prefix=prefix + '-readback-') as temporary:
         work = Path(temporary)
@@ -154,30 +164,32 @@ def verify(corpus, outputs, major, fragmented=False):
                   for encoding in ('UDRO', 'UDZO'):
                     relative = Path(path.parent.name, case['id'], stage + '-' + encoding + '.dmg')
                     images = [outputs / (prefix + '-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                    require(all(p.is_file() for p in images), 'all three portable outputs')
-                    require(len({sha256(p) for p in images}) == 1, 'byte-identical across hosts')
-                    image, raw = images[0], work / 'output.raw'
-                    digest = sha256(image)
-                    command('hdiutil', 'verify', image)
-                    writable_copy(image, raw, command, native_hash)
-                    require(raw.stat().st_size == case['source']['uncompressedBytes'], 'original geometry preserved')
-                    journal = case['before'].get('journal')
-                    if journal is not None:
-                        got = read_journal(raw)
-                        require(got is not None, 'original journaling retained')
-                        for field in ('infoBlock', 'offset', 'size', 'sha256', 'infoSHA256', 'backingFiles'):
-                            require(got[field] == journal[field], 'original journal storage: ' + field)
-                    inspect(raw, case, command, work, before, expected, lifecycle=None if stage == "edited" else stage)
-                    if encoding == 'UDZO' and stage == 'edited':
-                        continue_native(raw, command, work)
-                        inspect(raw, case, command, work, before, expected, continued=True)
-                    raw.unlink()
-                    require(sha256(image) == digest, 'portable completed output changed')
-                    count += 1
+                    with evidence.case(images):
+                        require(all(p.is_file() for p in images), 'all three portable outputs')
+                        require(len({sha256(p) for p in images}) == 1, 'byte-identical across hosts')
+                        image, raw = images[0], work / 'output.raw'
+                        digest = sha256(image)
+                        command('hdiutil', 'verify', image)
+                        writable_copy(image, raw, command, native_hash)
+                        require(raw.stat().st_size == case['source']['uncompressedBytes'], 'original geometry preserved')
+                        journal = case['before'].get('journal')
+                        if journal is not None:
+                            got = read_journal(raw)
+                            require(got is not None, 'original journaling retained')
+                            for field in ('infoBlock', 'offset', 'size', 'sha256', 'infoSHA256', 'backingFiles'):
+                                require(got[field] == journal[field], 'original journal storage: ' + field)
+                        inspect(raw, case, command, work, before, expected, lifecycle=None if stage == "edited" else stage)
+                        if encoding == 'UDZO' and stage == 'edited':
+                            continue_native(raw, command, work)
+                            inspect(raw, case, command, work, before, expected, continued=True)
+                        raw.unlink()
+                        require(sha256(image) == digest, 'portable completed output changed')
+                        count += 1
     require(count == 36, 'all native profiles and both DMG encodings')
     (outputs / f'{prefix}-{major}.result.json').write_text(json.dumps({
         'producer': producer, 'verified': count, 'continuations': 6 if fragmented else 18,
         'commandsSHA256': sha256(command.path)}, indent=2) + '\n')
+    evidence.finish()
 
 
 if __name__ == '__main__':

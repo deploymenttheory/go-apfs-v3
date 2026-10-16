@@ -33,6 +33,11 @@ def verify(corpus, outputs, continuation, major, kind, prefix):
     manifests = sorted(corpus.glob('macos-*/manifest.json'))
     require({p.parent.name for p in manifests} == {'macos-15', 'macos-26', 'macos-27'}, 'all three native copy sources required')
     count = 0
+    from qualification_cases import image_verification
+    input_id = 'apfs-copy' if kind == 'apfs' else ('hfs-journaled-copy' if prefix == 'hfs-journaled' else 'hfs-copy')
+    evidence = image_verification(corpus, outputs, input_id, prefix + '-copy-',
+        ['macos-{source}/{case}/copy-UDRO.dmg', 'macos-{source}/{case}/copy-UDZO.dmg', 'macos-{source}/{case}/copy-final-UDRO.dmg', 'macos-{source}/{case}/copy-final-UDZO.dmg'], 'image_copy', major,
+        manifest='manifest.json', continued=lambda name: name.endswith('/copy-final-UDZO.dmg'))
     with tempfile.TemporaryDirectory(prefix='copy-readback-') as temporary:
         work = Path(temporary)
         for path in manifests:
@@ -46,34 +51,36 @@ def verify(corpus, outputs, continuation, major, kind, prefix):
                     for phase in ('copy', 'copy-final'):
                         relative = Path(path.parent.name, case['id'], phase + '-' + encoding + '.dmg')
                         images = [outputs / (prefix + '-copy-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                        require(all(image.is_file() for image in images), 'all host copy outputs required')
-                        require(len({sha256(image) for image in images}) == 1, 'copy outputs byte-identical across hosts')
-                        image, raw = images[0], work / 'output.raw'
-                        digest = sha256(image)
-                        command('hdiutil', 'verify', image)
-                        writable_copy(image, raw, command, native_hash)
-                        inspect(raw, kind, command, work, ids, case['states'][phase])
-                        if phase == 'copy-final' and encoding == 'UDZO':
-                            with mounted(raw, kind, command, work, writable=True) as (root, native):
-                                apply(root, operations('native'), native, None)
-                            before = observe(raw, kind, command, work)['files']
-                            name = path.parent.name + '-' + case['id']
-                            shutil.copyfile(raw, continuation / (name + '.raw'))
-                            # Apple mutates a separate copy to supply expectations;
-                            # no Go-generated continuation defines its own oracle.
-                            control = work / 'control.raw'
-                            shutil.copyfile(raw, control)
-                            ops = operations('continued')
-                            with mounted(control, kind, command, work, writable=True) as (root, native):
-                                clocks = apply(root, ops, native, None)
-                            expected = observe(control, kind, command, work)
-                            expected.update(operations=ops, clockFields=clocks)
-                            (continuation / (name + '.json')).write_text(json.dumps({'before': before, 'expected': expected}, indent=2) + '\n')
-                            control.unlink()
-                        raw.unlink()
-                        require(sha256(image) == digest, 'portable copy image remains immutable')
-                        count += 1
+                        with evidence.case(images):
+                            require(all(image.is_file() for image in images), 'all host copy outputs required')
+                            require(len({sha256(image) for image in images}) == 1, 'copy outputs byte-identical across hosts')
+                            image, raw = images[0], work / 'output.raw'
+                            digest = sha256(image)
+                            command('hdiutil', 'verify', image)
+                            writable_copy(image, raw, command, native_hash)
+                            inspect(raw, kind, command, work, ids, case['states'][phase])
+                            if phase == 'copy-final' and encoding == 'UDZO':
+                                with mounted(raw, kind, command, work, writable=True) as (root, native):
+                                    apply(root, operations('native'), native, None)
+                                before = observe(raw, kind, command, work)['files']
+                                name = path.parent.name + '-' + case['id']
+                                shutil.copyfile(raw, continuation / (name + '.raw'))
+                                # Apple mutates a separate copy to supply expectations;
+                                # no Go-generated continuation defines its own oracle.
+                                control = work / 'control.raw'
+                                shutil.copyfile(raw, control)
+                                ops = operations('continued')
+                                with mounted(control, kind, command, work, writable=True) as (root, native):
+                                    clocks = apply(root, ops, native, None)
+                                expected = observe(control, kind, command, work)
+                                expected.update(operations=ops, clockFields=clocks)
+                                (continuation / (name + '.json')).write_text(json.dumps({'before': before, 'expected': expected}, indent=2) + '\n')
+                                control.unlink()
+                            raw.unlink()
+                            require(sha256(image) == digest, 'portable copy image remains immutable')
+                            count += 1
     require(count == 24, 'complete native copy readback inventory')
+    evidence.finish()
 
 
 def verify_continued(directory, controls, major, kind, prefix):
@@ -84,17 +91,22 @@ def verify_continued(directory, controls, major, kind, prefix):
     expected_names = {f'macos-{source}-{case}.dmg' for source in (15, 26, 27) for case in cases}
     images = sorted(directory.glob('*.dmg'))
     require({p.name for p in images} == expected_names, 'all copy continuations required')
+    from qualification_cases import continuation_verification
+    evidence = continuation_verification(directory, kind, 'image_copy-continued', major,
+        metadata=False, raw_suffix=False)
     with tempfile.TemporaryDirectory(prefix='copy-continued-') as temporary:
         work = Path(temporary)
         for image in images:
-            control = json.loads((controls / (image.stem + '.json')).read_text())
-            raw = work / 'continued.raw'
-            digest = sha256(image)
-            command('hdiutil', 'verify', image)
-            writable_copy(image, raw, command, native_hash)
-            inspect(raw, kind, command, work, Identities(control['before']), control['expected'])
-            raw.unlink()
-            require(sha256(image) == digest, 'continued copy image remains immutable')
+            with evidence.case([image]):
+                control = json.loads((controls / (image.stem + '.json')).read_text())
+                raw = work / 'continued.raw'
+                digest = sha256(image)
+                command('hdiutil', 'verify', image)
+                writable_copy(image, raw, command, native_hash)
+                inspect(raw, kind, command, work, Identities(control['before']), control['expected'])
+                raw.unlink()
+                require(sha256(image) == digest, 'continued copy image remains immutable')
+    evidence.finish()
 
 
 if __name__ == '__main__':

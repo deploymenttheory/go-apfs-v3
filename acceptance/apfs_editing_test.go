@@ -21,10 +21,7 @@ import (
 // The same contract runs against retained evidence and independently refreshed
 // CI captures. It proves existing identities and native semantics, not rebuilds.
 func TestNativeAPFSImageEditing(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_APFS_EDITS")
-	if root == "" {
-		root = "testdata/apfs-editing"
-	}
+	root := nativeInput(t, "APFS_NATIVE_APFS_EDITS", "testdata/apfs-editing")
 	paths, e := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if e != nil || len(paths) == 0 {
 		t.Fatal("required APFS editing evidence absent", e)
@@ -67,46 +64,48 @@ func TestNativeAPFSImageEditing(t *testing.T) {
 					}
 					when := time.Unix(manifest.ModificationSeconds, 0).UTC()
 					for _, format := range []string{"UDRO", "UDZO"} {
-						current := source
-						for _, phase := range []string{"peak", "final"} {
-							state, ok := c.States[phase]
-							if !ok || state.CheckerStatus != 0 {
-								t.Fatal("missing independent native state")
-							}
-							changes := apfsEditChanges(phase)
-							destination := filepath.Join(output, phase+"-"+format+".dmg")
-							report, e := imageedit.Apply(ctx, current, destination, imageedit.Options{Format: format, Time: when}, changes)
-							if e != nil {
-								t.Fatal(e)
-							}
-							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-							if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
-								t.Fatal(e)
-							}
-							if fileDigest(t, repeat) != fileDigest(t, destination) {
-								t.Fatal("nonreproducible APFS edit")
-							}
-							got := openAPFSEditVolume(t, destination)
-							if got.UUID != original.UUID || got.Volumes[0].UUID != original.Volumes[0].UUID || got.BlockCount != original.BlockCount || report.Transaction != uint64(got.XID) {
-								t.Fatal("APFS identity/geometry/transaction changed")
-							}
-							want := state.Files
-							want.Entries = append([]nativeFile(nil), want.Entries...)
-							changed := map[string]bool{"small": true, "inline-compressed": true, "resource-compressed": true, "alias": true, "fragmented-data": true}
-							if phase == "final" {
-								for _, name := range []string{"fragmented-resource", "empty", "independent"} {
-									changed[name] = true
+						t.Run(format, func(t *testing.T) {
+							current := source
+							for _, phase := range []string{"peak", "final"} {
+								state, ok := c.States[phase]
+								if !ok || state.CheckerStatus != 0 {
+									t.Fatal("missing independent native state")
 								}
-							}
-							for i := range want.Entries {
-								if changed[strings.TrimPrefix(want.Entries[i].Path, "Fixture/")] {
-									want.Entries[i].ChangeNS = when.UnixNano()
+								changes := apfsEditChanges(phase)
+								destination := filepath.Join(output, phase+"-"+format+".dmg")
+								report, e := imageedit.Apply(ctx, current, destination, imageedit.Options{Format: format, Time: when}, changes)
+								if e != nil {
+									t.Fatal(e)
 								}
+								repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+								if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
+									t.Fatal(e)
+								}
+								if fileDigest(t, repeat) != fileDigest(t, destination) {
+									t.Fatal("nonreproducible APFS edit")
+								}
+								got := openAPFSEditVolume(t, destination)
+								if got.UUID != original.UUID || got.Volumes[0].UUID != original.Volumes[0].UUID || got.BlockCount != original.BlockCount || report.Transaction != uint64(got.XID) {
+									t.Fatal("APFS identity/geometry/transaction changed")
+								}
+								want := state.Files
+								want.Entries = append([]nativeFile(nil), want.Entries...)
+								changed := map[string]bool{"small": true, "inline-compressed": true, "resource-compressed": true, "alias": true, "fragmented-data": true}
+								if phase == "final" {
+									for _, name := range []string{"fragmented-resource", "empty", "independent"} {
+										changed[name] = true
+									}
+								}
+								for i := range want.Entries {
+									if changed[strings.TrimPrefix(want.Entries[i].Path, "Fixture/")] {
+										want.Entries[i].ChangeNS = when.UnixNano()
+									}
+								}
+								compareFiles(t, &got.Volumes[0], want)
+								compareAPFSEditAttributes(t, &got.Volumes[0], want)
+								current = destination
 							}
-							compareFiles(t, &got.Volumes[0], want)
-							compareAPFSEditAttributes(t, &got.Volumes[0], want)
-							current = destination
-						}
+						})
 					}
 					if fileDigest(t, source) != before {
 						t.Fatal("APFS edit changed source")
@@ -243,10 +242,12 @@ func TestNativeAPFSImageEditingContinuation(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, source := range paths {
-		destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
-		if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, []imageedit.Change{{Path: "/Fixture/alias", Data: editPattern{"continued-go", 8193}}}); e != nil {
-			t.Fatal(e)
-		}
-		openAPFSEditVolume(t, destination)
+		t.Run(filepath.Base(source), func(t *testing.T) {
+			destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
+			if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, []imageedit.Change{{Path: "/Fixture/alias", Data: editPattern{"continued-go", 8193}}}); e != nil {
+				t.Fatal(e)
+			}
+			openAPFSEditVolume(t, destination)
+		})
 	}
 }

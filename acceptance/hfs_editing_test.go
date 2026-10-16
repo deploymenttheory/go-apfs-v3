@@ -132,10 +132,7 @@ func testNativeHFSImageEditing(t *testing.T, journaled bool) {
 		contract, rootEnv, outputEnv, retained = "journaled-hfs-file-edits", "APFS_NATIVE_HFS_JOURNALED_EDITS", "APFS_HFS_JOURNALED_EDIT_OUTPUT", "testdata/hfs-journaled-editing"
 	}
 	ctx := context.Background()
-	root := os.Getenv(rootEnv)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, rootEnv, retained)
 	paths, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -194,80 +191,82 @@ func testNativeHFSImageEditing(t *testing.T, journaled bool) {
 					t.Fatal(e)
 				}
 				for _, format := range []string{"UDRO", "UDZO"} {
-					current := source
-					for _, phase := range []string{"peak", "final"} {
-						state, ok := c.States[phase]
-						if !ok || state.CheckerStatus != 0 {
-							t.Fatal("native state/checker missing")
-						}
-						changes := editChanges(phase)
-						when := time.Unix(manifest.ModificationSeconds, 0).UTC()
-						destination := filepath.Join(output, phase+"-"+format+".dmg")
-						if _, e = imageedit.Apply(ctx, current, destination, imageedit.Options{Format: format, Time: when}, changes); e != nil {
-							t.Fatal(e)
-						}
-						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-						if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
-							t.Fatal(e)
-						}
-						if fileDigest(t, repeat) != fileDigest(t, destination) {
-							t.Fatal("nonreproducible image edits")
-						}
-						img, e := diskimage.Open(destination)
-						if e != nil {
-							t.Fatal(e)
-						}
-						part, e := img.Partition(0)
-						if e != nil {
-							t.Fatal(e)
-						}
-						v, e := hfsplus.Open(part)
-						if e != nil {
-							t.Fatal(e)
-						}
-						if v.VolumeID != original.VolumeID || v.Name != original.Name || v.BlockCount != original.BlockCount || v.BlockSize != original.BlockSize || v.Journaled != original.Journaled {
-							t.Fatal("existing volume identity or geometry changed")
-						}
-						if e = hfsplus.ValidateMutation(ctx, part); e != nil {
-							t.Fatal(e)
-						}
-						want := state.Files
-						changed := map[uint64]bool{}
-						for _, op := range changes {
-							id, e := filesystem.Lookup(ctx, v, op.Path)
+					t.Run(format, func(t *testing.T) {
+						current := source
+						for _, phase := range []string{"peak", "final"} {
+							state, ok := c.States[phase]
+							if !ok || state.CheckerStatus != 0 {
+								t.Fatal("native state/checker missing")
+							}
+							changes := editChanges(phase)
+							when := time.Unix(manifest.ModificationSeconds, 0).UTC()
+							destination := filepath.Join(output, phase+"-"+format+".dmg")
+							if _, e = imageedit.Apply(ctx, current, destination, imageedit.Options{Format: format, Time: when}, changes); e != nil {
+								t.Fatal(e)
+							}
+							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+							if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
+								t.Fatal(e)
+							}
+							if fileDigest(t, repeat) != fileDigest(t, destination) {
+								t.Fatal("nonreproducible image edits")
+							}
+							img, e := diskimage.Open(destination)
 							if e != nil {
 								t.Fatal(e)
 							}
-							changed[id] = true
-						}
-						// Native ctime records the CI clock. Offline edits intentionally
-						// use an explicit clock; all other observations remain native.
-						want.Entries = append([]nativeFile(nil), want.Entries...)
-						for i := range want.Entries {
-							if changed[want.Entries[i].Object] {
-								want.Entries[i].ChangeNS = when.UnixNano()
+							part, e := img.Partition(0)
+							if e != nil {
+								t.Fatal(e)
 							}
-						}
-						if phase == "final" {
+							v, e := hfsplus.Open(part)
+							if e != nil {
+								t.Fatal(e)
+							}
+							if v.VolumeID != original.VolumeID || v.Name != original.Name || v.BlockCount != original.BlockCount || v.BlockSize != original.BlockSize || v.Journaled != original.Journaled {
+								t.Fatal("existing volume identity or geometry changed")
+							}
+							if e = hfsplus.ValidateMutation(ctx, part); e != nil {
+								t.Fatal(e)
+							}
+							want := state.Files
+							changed := map[uint64]bool{}
+							for _, op := range changes {
+								id, e := filesystem.Lookup(ctx, v, op.Path)
+								if e != nil {
+									t.Fatal(e)
+								}
+								changed[id] = true
+							}
+							// Native ctime records the CI clock. Offline edits intentionally
+							// use an explicit clock; all other observations remain native.
+							want.Entries = append([]nativeFile(nil), want.Entries...)
 							for i := range want.Entries {
-								if strings.HasSuffix(want.Entries[i].Path, "/small") || strings.HasSuffix(want.Entries[i].Path, "/inline-compressed") || strings.HasSuffix(want.Entries[i].Path, "/resource-compressed") {
+								if changed[want.Entries[i].Object] {
 									want.Entries[i].ChangeNS = when.UnixNano()
 								}
 							}
-						}
-						compareFiles(t, v, want)
-						compareEditRawAttributes(t, v, want)
-						for _, entry := range want.Entries {
-							beforeID, e := filesystem.Lookup(ctx, original, entry.Path)
-							if e != nil || beforeID != entry.Object {
-								t.Fatal("native file identity lost", entry.Path, e)
+							if phase == "final" {
+								for i := range want.Entries {
+									if strings.HasSuffix(want.Entries[i].Path, "/small") || strings.HasSuffix(want.Entries[i].Path, "/inline-compressed") || strings.HasSuffix(want.Entries[i].Path, "/resource-compressed") {
+										want.Entries[i].ChangeNS = when.UnixNano()
+									}
+								}
 							}
+							compareFiles(t, v, want)
+							compareEditRawAttributes(t, v, want)
+							for _, entry := range want.Entries {
+								beforeID, e := filesystem.Lookup(ctx, original, entry.Path)
+								if e != nil || beforeID != entry.Object {
+									t.Fatal("native file identity lost", entry.Path, e)
+								}
+							}
+							verifyEditJournal(t, part, c.Before.Journal)
+							verifyEditHeaders(t, part, c.Before.Headers.ExtentsTree.TotalNodes, phase)
+							img.Close()
+							current = destination
 						}
-						verifyEditJournal(t, part, c.Before.Journal)
-						verifyEditHeaders(t, part, c.Before.Headers.ExtentsTree.TotalNodes, phase)
-						img.Close()
-						current = destination
-					}
+					})
 				}
 				if fileDigest(t, source) != sourceHash {
 					t.Fatal("source changed")

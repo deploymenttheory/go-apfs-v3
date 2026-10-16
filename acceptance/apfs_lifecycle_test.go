@@ -97,10 +97,7 @@ type lifecycleStorage struct {
 // claim that portable snapshot/clone/encryption mutation has been implemented.
 func TestNativeAPFSLifecycleControls(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("APFS_NATIVE_LIFECYCLE")
-	if root == "" {
-		root = "testdata/apfs-lifecycle"
-	}
+	root := nativeInput(t, "APFS_NATIVE_LIFECYCLE", "testdata/apfs-lifecycle")
 	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json*"))
 	if err != nil {
 		t.Fatal(err)

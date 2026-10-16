@@ -121,10 +121,7 @@ func journalDiskHash(t *testing.T, source block.Source, markUnmounted bool) stri
 // readback misses. Publishing additionally proves complete recovered ownership,
 // metadata/forks/link identities, source immutability and reproducible encoding.
 func TestNativeHFSJournalRecovery(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_HFS_RECOVERY")
-	if root == "" {
-		root = "testdata/hfs-recovery"
-	}
+	root := nativeInput(t, "APFS_NATIVE_HFS_RECOVERY", "testdata/hfs-recovery")
 	paths, err := filepath.Glob(filepath.Join(root, "*", "recovery.json"))
 	if err != nil || len(paths) != 3 {
 		t.Fatal("macOS 15, 26 and 27 journal recovery references required", err)
@@ -207,43 +204,45 @@ func TestNativeHFSJournalRecovery(t *testing.T) {
 						t.Fatal(err)
 					}
 					for _, format := range []string{"UDRO", "UDZO"} {
-						output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
-						result, err := imageedit.RecoverJournal(ctx, sourcePath, output, imageedit.JournalRecoveryOptions{Format: format})
-						if err != nil || result.Journal == nil {
-							t.Fatal("completed recovery", result, err)
-						}
-						image, err := diskimage.Open(output)
-						if err != nil {
-							t.Fatal(err)
-						}
-						view, err := image.Partition(0)
-						if err != nil {
-							t.Fatal(err)
-						}
-						if journalDiskHash(t, view, false) != want {
-							t.Fatal("publication changed sectors beyond validated unmounted marking")
-						}
-						volume, err := hfsplus.Open(view)
-						if err != nil || !volume.Clean || !volume.Journaled {
-							t.Fatal("recovered filesystem", err)
-						}
-						compareMetadataState(t, volume, c.Recovered.Files, "hfs")
-						if err = image.Close(); err != nil {
-							t.Fatal(err)
-						}
-						if format == "UDRO" {
-							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-							if _, err = imageedit.RecoverJournal(ctx, sourcePath, repeat, imageedit.JournalRecoveryOptions{Format: format}); err != nil {
+						t.Run(format, func(t *testing.T) {
+							output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
+							result, err := imageedit.RecoverJournal(ctx, sourcePath, output, imageedit.JournalRecoveryOptions{Format: format})
+							if err != nil || result.Journal == nil {
+								t.Fatal("completed recovery", result, err)
+							}
+							image, err := diskimage.Open(output)
+							if err != nil {
 								t.Fatal(err)
 							}
-							if fileDigest(t, output) != fileDigest(t, repeat) {
-								t.Fatal("recovery is not reproducible")
+							view, err := image.Partition(0)
+							if err != nil {
+								t.Fatal(err)
 							}
-							edited := filepath.Join(outputRoot, c.ID+"-edited.dmg")
-							if _, err = imageedit.Apply(ctx, output, edited, imageedit.Options{Format: "UDRO", Time: time.Unix(1749283750, 0)}, []filesystem.Change{{Operation: "chmod", Path: "/Fixture/retained", Mode: "0600"}}); err != nil {
-								t.Fatal("recovered image not editable", err)
+							if journalDiskHash(t, view, false) != want {
+								t.Fatal("publication changed sectors beyond validated unmounted marking")
 							}
-						}
+							volume, err := hfsplus.Open(view)
+							if err != nil || !volume.Clean || !volume.Journaled {
+								t.Fatal("recovered filesystem", err)
+							}
+							compareMetadataState(t, volume, c.Recovered.Files, "hfs")
+							if err = image.Close(); err != nil {
+								t.Fatal(err)
+							}
+							if format == "UDRO" {
+								repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+								if _, err = imageedit.RecoverJournal(ctx, sourcePath, repeat, imageedit.JournalRecoveryOptions{Format: format}); err != nil {
+									t.Fatal(err)
+								}
+								if fileDigest(t, output) != fileDigest(t, repeat) {
+									t.Fatal("recovery is not reproducible")
+								}
+								edited := filepath.Join(outputRoot, c.ID+"-edited.dmg")
+								if _, err = imageedit.Apply(ctx, output, edited, imageedit.Options{Format: "UDRO", Time: time.Unix(1749283750, 0)}, []filesystem.Change{{Operation: "chmod", Path: "/Fixture/retained", Mode: "0600"}}); err != nil {
+									t.Fatal("recovered image not editable", err)
+								}
+							}
+						})
 					}
 					failed := filepath.Join(t.TempDir(), "canceled.dmg")
 					canceled, cancel := context.WithCancel(ctx)

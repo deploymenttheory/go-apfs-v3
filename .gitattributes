@@ -7,6 +7,8 @@
 *.json text eol=lf
 *.go text eol=lf
 *.yml text eol=lf
+go.mod text eol=lf
+go.sum text eol=lf
 
 # Native hashes bind exact original bytes, including scripts and plist output.
 acceptance/testdata/** -text

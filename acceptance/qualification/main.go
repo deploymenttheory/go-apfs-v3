@@ -1,5 +1,6 @@
-// Command qualification audits the acceptance contract without executing native
-// filesystem tools or acceptance cases. It deliberately does not certify a run.
+// Command qualification audits the acceptance contract and records portable Go
+// replay evidence. It never invokes native filesystem tools. A source audit alone
+// deliberately does not certify execution.
 package main
 
 import (
@@ -113,7 +114,13 @@ func main() {
 	bundle := flag.String("bundle-corpus", "", "prepare content-addressed local bundles for one corpus ID or all")
 	bundles := flag.String("bundle-dir", "", "existing local bundle directory; no network downloads occur")
 	describe := flag.Bool("describe-catalog", false, "describe catalog inputs, sizes and native source versions")
+	replay := flag.Bool("replay", false, "execute existing acceptance entrypoints with complete case evidence; go test arguments follow --")
+	receipts := flag.String("receipt-dir", "artifacts/qualification", "directory for execution plans, original events and receipts")
 	flag.Parse()
+	if *replay && (*list || *describe || *bootstrap != "" || *bundle != "" || *verify != "") || !*replay && len(flag.Args()) != 0 {
+		fmt.Fprintln(os.Stderr, "choose one qualification action; go test arguments require -replay")
+		os.Exit(1)
+	}
 	var auditOutput io.Writer = os.Stdout
 	if *bundle != "" {
 		auditOutput = os.Stderr
@@ -125,7 +132,13 @@ func main() {
 	if !*list {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
-		if err := corpusWork(ctx, *root, *registryPath, corpusAction{*corpusCatalog, *bootstrap, *verify, *bundle, *bundles, *describe}, os.Stdout); err != nil {
+		var err error
+		if *replay {
+			err = runReplay(ctx, replayOptions{*root, *registryPath, *corpusCatalog, *bundles, *receipts, flag.Args()}, os.Stdout)
+		} else {
+			err = corpusWork(ctx, *root, *registryPath, corpusAction{*corpusCatalog, *bootstrap, *verify, *bundle, *bundles, *describe}, os.Stdout)
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -156,6 +169,9 @@ func run(root, path string, list bool, out io.Writer) error {
 		return errors.New("registry contains trailing JSON")
 	}
 	if err = audit(root, r, actual); err != nil {
+		return err
+	}
+	if _, err = readReplayContract(root, r); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(out, "Coverage contract audited: %d families, %d entrypoints, %d reviewed exits, %d manifests, %d workflows. Execution verdicts remain required.\n", len(r.Families), len(actual.Entrypoints), len(actual.Exits), len(r.Manifests), len(r.Workflows))

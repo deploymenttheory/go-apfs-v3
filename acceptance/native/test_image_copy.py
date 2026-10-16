@@ -1,5 +1,6 @@
 import importlib
 import copy
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import sys
@@ -85,7 +86,9 @@ class ImageCopyControls(unittest.TestCase):
                 (directory / 'copy-UDRO.dmg').write_bytes(data)
             with patch.object(verify_image_copy, 'require_disposable_host'), \
                  patch.object(verify_image_copy, 'version'), \
+                 patch('qualification_cases.image_verification') as evidence, \
                  patch.object(verify_image_copy, 'Commands') as commands:
+                evidence.return_value.case.side_effect = lambda images: nullcontext()
                 with self.assertRaisesRegex(ValueError, 'byte-identical'):
                     verify_image_copy.verify(corpus, outputs, root / 'continued', 15, 'apfs', 'apfs')
                 commands.return_value.assert_not_called()

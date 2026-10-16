@@ -16,6 +16,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  APFS_REQUIRED_CONTROLS: copy-truncation,copy-setid,metadata-collapse-reuse
+
 jobs:
   capture:
     if: inputs.readback_run == ''
@@ -56,12 +59,68 @@ jobs:
       - name: Capture native directory-stat, fork, move and deletion transitions
         if: matrix.family == 'statistics-transitions'
         run: python3 acceptance/native/apfs_directory_statistics.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics-transitions/macos-${{ matrix.major }}
+      - name: Record required native capture observations
+        if: matrix.family == 'apfs'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-geometry=artifacts/offline-editing-apfs"
+          --output "artifacts/qualification/capture-apfs-geometry"
+      - name: Record required native capture observations
+        if: matrix.family == 'hfs'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "hfs-metadata-growth=artifacts/offline-editing-hfs"
+          --output "artifacts/qualification/capture-hfs-metadata-growth"
+      - name: Record required native capture observations
+        if: matrix.family == 'hfs-fragmented'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "hfs-fragmented-metadata=artifacts/offline-editing-hfs-fragmented"
+          --output "artifacts/qualification/capture-hfs-fragmented-metadata"
+      - name: Record required native capture observations
+        if: matrix.family == 'permissions'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "permission-inheritance=artifacts/offline-editing-permissions"
+          --output "artifacts/qualification/capture-permission-inheritance"
+      - name: Record required native capture observations
+        if: matrix.family == 'copy-permissions'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "copy-permissions=artifacts/offline-editing-copy-permissions"
+          --output "artifacts/qualification/capture-copy-permissions"
+      - name: Record required native capture observations
+        if: matrix.family == 'statistics'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-directory-statistics=artifacts/offline-editing-statistics"
+          --output "artifacts/qualification/capture-apfs-directory-statistics"
+      - name: Record required native capture observations
+        if: matrix.family == 'statistics-transitions'
+        run: >-
+          python3 acceptance/native/qualification_capture.py
+          --expected-major "${{ matrix.major }}"
+          --input "apfs-directory-statistics-transitions=artifacts/offline-editing-statistics-transitions"
+          --output "artifacts/qualification/capture-apfs-directory-statistics-transitions"
       - name: Retain original disks and diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ matrix.family }}
+          if-no-files-found: error
+      - name: Retain required capture execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-offline-editing-${{ github.job }}-${{ strategy.job-index }}
+          path: artifacts/qualification/
           if-no-files-found: error
 
   replay:
@@ -92,7 +151,7 @@ jobs:
           name: offline-editing-${{ matrix.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ matrix.family }}
       - name: Compare exact native contents, identities, metadata and volume policy
-        run: go test -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNative(PermissionInheritance|SessionPermissionInheritance)$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || matrix.family == 'copy-permissions' && '^TestNativeCopyPermissions$' || matrix.family == 'statistics-transitions' && '^TestNativeAPFSDirectoryStatisticsTransitions$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 25m ./acceptance -run '${{ matrix.family == 'apfs' && '^TestNativeAPFSGeometryEditing$' || matrix.family == 'hfs' && '^TestNativeHFSMetadataGrowth$' || matrix.family == 'permissions' && '^TestNative(PermissionInheritance|SessionPermissionInheritance)$' || matrix.family == 'statistics' && '^TestNativeAPFSDirectoryStatistics$' || matrix.family == 'copy-permissions' && '^TestNativeCopyPermissions$' || matrix.family == 'statistics-transitions' && '^TestNativeAPFSDirectoryStatisticsTransitions$' || '^TestNativeHFSFragmentedMetadataGrowth$' }}'
         env:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.major }}
           APFS_NATIVE_APFS_GEOMETRY: ../artifacts/offline-editing-apfs
@@ -153,6 +212,8 @@ jobs:
           - {runner: macos-15, major: 15}
           - {runner: macos-26, major: 26}
           - {runner: xcode-27, major: 27}
+    env:
+      READBACK_RUN: ${{ inputs.readback_run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
@@ -203,6 +264,15 @@ jobs:
         with:
           name: offline-editing-${{ matrix.family }}-readback-${{ matrix.major }}
           path: artifacts/outputs/*.json
+          if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-offline-editing-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   qualified:
