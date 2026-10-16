@@ -1,6 +1,6 @@
-"""Admit complete original Apple -> Go -> Apple evidence after identical merges.
+"""Admit complete original Apple -> Go -> Apple evidence for compatible content.
 
-PRs and manual campaigns always execute. Missing, incompatible or interrupted
+Code changes and manual campaigns execute. Missing, incompatible or interrupted
 evidence selects the full campaign. This controller runs only ordinary-file Go
 verification on Linux; it never executes Apple filesystem tools.
 """
@@ -12,6 +12,7 @@ import subprocess
 from ci_reuse import host, main as decide
 from reference_campaign import authenticated_checkout, FULL_NATIVE_GATE, PROOF_STEPS
 from release_assets import require
+from execution_reuse import source_document, verify_summary
 
 
 def restored_source_job(job):
@@ -119,25 +120,24 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     require(len(revisions) == 1, 'native campaign used inconsistent tested checkouts')
     tested = revisions.pop()
     source = authenticated_checkout(client, run, tested)
-    require(source['tree_sha'] == tree, 'prior native campaign tested different merged contents')
     origin = {'repository': client.repository, 'revision': tested, 'run': str(run['id']),
               'attempt': str(run['run_attempt']), 'completed_at': run['updated_at']}
     origin_path = workspace / 'origin.json'
-    origin_path.write_text(json.dumps({'schema': 1, 'workflow': 'native', 'origin': origin,
-                                      'tree_sha': tree, 'artifacts': declared}, indent=2) + '\n')
+    document = source_document(source, origin, tree, declared, 'native', execute)
+    origin_path.write_text(json.dumps(document, indent=2) + '\n')
     result = execute(['go', 'run', './acceptance/qualification', '-check-execution-evidence', str(evidence),
                       '-execution-origin', str(origin_path)], capture_output=True, text=True)
     (workspace / 'evidence.stdout.log').write_text(result.stdout)
     (workspace / 'evidence.stderr.log').write_text(result.stderr)
     result.check_returncode()
     proof = json.loads(result.stdout)
-    require(proof['schema'] == 1 and proof['origin'] == origin and proof['tree_sha'] == tree and
-            proof['qualified_cases'] > 0 and proof['original_receipts'], 'original native proof incomplete')
-    report = {'schema': 1, 'reuse': True, 'reason': 'identical merged contents with complete original Apple/Go proof',
-              'source': source, 'run': run, 'jobs': jobs, 'artifacts': artifacts, 'proof': proof}
+    verify_summary(proof, document, tree)
+    report = {'schema': 1, 'reuse': True, 'reason': 'compatible contents with complete original Apple/Go proof',
+              'source': source, 'run': run, 'jobs': jobs, 'artifacts': artifacts, 'proof': proof,
+              'current_tree_sha': tree}
     (workspace / 'inheritance.json').write_text(json.dumps(report, indent=2) + '\n')
     return report
 
 
 if __name__ == '__main__':
-    decide(workflow='native', qualifier=qualify)
+    decide(workflow='native', qualifier=qualify, inspector=inspect)

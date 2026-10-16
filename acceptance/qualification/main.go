@@ -131,6 +131,7 @@ func main() {
 	inputDir := flag.String("input-dir", "", "absent absolute managed scratch for materialized reference input trees")
 	checkExecution := flag.String("check-execution-evidence", "", "verify authenticated original workflow receipts on identical source contents")
 	executionOrigin := flag.String("execution-origin", "", "authenticated original checkout and artifact inventory")
+	classifyChanges := flag.String("classify-changes-from", "", "classify exact committed source changes; grants no execution verdict")
 	flag.Parse()
 	if (*checkExecution != "") != (*executionOrigin != "") {
 		fmt.Fprintln(os.Stderr, "execution evidence verification requires its authenticated original inventory")
@@ -145,7 +146,7 @@ func main() {
 		os.Exit(1)
 	}
 	standalone := 0
-	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkExecution != ""} {
+	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkExecution != "", *classifyChanges != ""} {
 		if chosen {
 			standalone++
 		}
@@ -155,7 +156,7 @@ func main() {
 		os.Exit(1)
 	}
 	var auditOutput io.Writer = os.Stdout
-	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" {
+	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" || *classifyChanges != "" {
 		auditOutput = os.Stderr
 	}
 	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
@@ -166,7 +167,13 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		var err error
-		if *checkExecution != "" {
+		if *classifyChanges != "" {
+			var changes executionChanges
+			changes, err = classifyExecutionChanges(ctx, *root, *classifyChanges)
+			if err == nil {
+				err = json.NewEncoder(os.Stdout).Encode(changes)
+			}
+		} else if *checkExecution != "" {
 			var data []byte
 			var origin executionEvidenceOrigin
 			data, err = readCandidateDocument(*executionOrigin, 1<<20)

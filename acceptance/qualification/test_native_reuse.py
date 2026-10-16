@@ -111,15 +111,16 @@ class CompleteNativeReuse(unittest.TestCase):
                     reuse.qualify(client, run, 'f' * 40 if failure == 'tree' else 'e' * 40, directory, execute)
                 self.assertFalse((directory / 'inheritance.json').exists())
 
-    def test_pr_manual_and_refresh_events_keep_all_native_execution(self):
+    def test_unknown_pr_manual_and_refresh_events_keep_all_native_execution(self):
         for event in ('pull_request', 'workflow_dispatch', 'schedule'):
             with self.subTest(event=event), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 with patch.dict('os.environ', {'GITHUB_EVENT_NAME': event, 'GITHUB_REF': 'refs/heads/main',
+                                               'GITHUB_EVENT_PATH': str(root / 'missing-event.json'),
                                                'GITHUB_OUTPUT': str(root / 'output')}), \
                      patch('sys.argv', ['native_reuse.py', '--workspace', str(root / 'decision')]), \
                      patch.object(ci_reuse, 'GitHub') as api:
-                    ci_reuse.main(workflow='native', qualifier=reuse.qualify)
+                    ci_reuse.main(workflow='native', qualifier=reuse.qualify, inspector=reuse.inspect)
                 api.assert_not_called()
                 self.assertEqual((root / 'output').read_text(), 'reuse=false\n')
 

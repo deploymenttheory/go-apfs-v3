@@ -68,7 +68,7 @@ event bytes, assertion/source fingerprints, retained inputs and recorded build
 tools. Build, library-race and source-check jobs must also have succeeded.
 Inheritance retains the original receipt digests and tested revision explicitly.
 
-Pull requests and manual dispatches still execute full portable CI. Missing,
+Implementation pull requests and manual dispatches execute full portable CI. Missing,
 expired, failed or incompatible prior evidence selects full execution. The
 existing quality gate requires either complete original proof or every freshly
 executed group.
@@ -82,11 +82,31 @@ Output identities must have their required native verification, including each
 randomized ciphertext and the recovery families' matching source versions.
 Restored approved inputs carry admission records, never assertion verdicts.
 
-PRs, manual campaigns and scheduled refreshes continue to execute fully. Both
-original completion gates remain required. Documentation/release-only
-classification is not yet enabled. Hosted positive inheritance and the final
-timing campaigns remain outstanding; local admission tests do not establish
-runner-minute savings.
+Implementation PRs, manual campaigns and scheduled refreshes continue to execute
+fully. Both original completion gates remain required. Hosted positive inheritance
+and the final timing campaigns remain outstanding; local admission tests do not
+establish runner-minute savings.
+
+A single Go classifier compares original committed Git objects before a
+documentation PR looks for prior evidence and again during evidence admission.
+Only recognised Markdown documentation and changes to an existing single-package
+release version label qualify for this source projection. Captured evidence,
+code, fixtures, workflow/build configuration, agent instructions, aliases,
+deleted helpers and unknown files require the complete work. Release-label
+additions/deletions, expanded schemas, duplicate keys and invalid versions do too.
+
+Classification grants no verdict. A documentation PR still needs a recent,
+authenticated complete original campaign for its base. The original source tree,
+tested revision, receipt bytes and digests are retained beside the current tree
+and exact changed paths. Missing or incompatible proof selects full execution.
+If a prior PR already reused evidence, its record supplies only an original run
+ID hint: admission rechecks that original run's API state, jobs, uploads, source,
+fingerprints and event bytes directly. It never chains inherited verdicts.
+
+The native workflow now evaluates admission on every PR instead of omitting the
+workflow through a path filter. Its existing required completion gate receives
+either validated original evidence or the complete fresh campaign. Fork PRs
+and events with incomplete provenance execute fully.
 
 Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
 retains its per-source race instrumentation; Windows and macOS still compare all
