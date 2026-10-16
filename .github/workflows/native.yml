@@ -924,14 +924,20 @@ jobs:
           test "$EVIDENCE" = success
           if [ "$INHERITED" = true ]; then exit 0; fi
           test "$INHERITED" = false
-          if [ -z "$REUSED_RUN" ]; then test "$OFFLINE_EDITS" = success && test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
+          if [ -z "$REUSED_RUN" ]; then
+            for result in "$OFFLINE_EDITS" "$APFS_EDITS" "$HFS_RECOVERY" "$APFS_RECOVERY"; do
+              test "$result" = success
+            done
+          fi
           test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,
             # successful replays and unchanged Go code/inputs before downloading.
             test "$READBACK" = success
           else
-            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$BUILDERS" = success && test "$READBACK" = success
+            for result in "$PRODUCERS" "$HFS_REFERENCES" "$CONSUMERS" "$BUILDERS" "$READBACK"; do
+              test "$result" = success
+            done
           fi
 
   hfs_reference:
