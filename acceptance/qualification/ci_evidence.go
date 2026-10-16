@@ -1,0 +1,180 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/corpus"
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/publication"
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
+)
+
+type ciEvidenceArtifact struct {
+	Name string `json:"name"`
+	Job  string `json:"job"`
+	Host string `json:"host"`
+}
+
+// The controller authenticates the original successful workflow and upload jobs
+// before constructing this document. A caller-supplied origin is not authority.
+type ciEvidenceOrigin struct {
+	Schema    int                  `json:"schema"`
+	Origin    publication.Origin   `json:"origin"`
+	Tree      string               `json:"tree_sha"`
+	Artifacts []ciEvidenceArtifact `json:"artifacts"`
+}
+
+type ciEvidenceSummary struct {
+	Schema    int                `json:"schema"`
+	Origin    publication.Origin `json:"origin"`
+	Tree      string             `json:"tree_sha"`
+	Receipts  []receipt.File     `json:"original_receipts"`
+	CaseCount int                `json:"qualified_cases"`
+}
+
+func checkCIEvidence(ctx context.Context, root, directory string, origin ciEvidenceOrigin) (ciEvidenceSummary, error) {
+	summary := ciEvidenceSummary{Schema: 1, Origin: origin.Origin, Tree: origin.Tree, Receipts: []receipt.File{}}
+	if origin.Schema != 1 || origin.Origin.Validate() != nil || len(origin.Artifacts) == 0 || len(origin.Artifacts) > 1000 {
+		return summary, errors.New("authenticated complete CI origin and artifact inventory required")
+	}
+	tree, err := commandText(ctx, root, "git", "rev-parse", "HEAD^{tree}")
+	if err != nil || origin.Tree != tree {
+		return summary, errors.Join(err, errors.New("CI evidence tested different source contents"))
+	}
+	production, contract, err := sourceIdentities(ctx, root)
+	if err != nil {
+		return summary, err
+	}
+	data, err := regularFile(root, "acceptance/qualification/corpus.json")
+	if err != nil {
+		return summary, err
+	}
+	catalog, err := corpus.Read(strings.NewReader(string(data)))
+	if err != nil {
+		return summary, err
+	}
+	inputs := map[string]string{}
+	for _, entry := range catalog.Entries {
+		inputs[entry.ID] = entry.TreeSHA256
+	}
+	data, err = regularFile(root, "acceptance/qualification/registry.json")
+	if err != nil {
+		return summary, err
+	}
+	var r registry
+	if err = corpus.StrictJSON(data, &r); err != nil {
+		return summary, err
+	}
+	optional := map[string]bool{}
+	for _, exit := range r.Exits {
+		optional[exit.Function] = true
+	}
+	data, err = regularFile(root, "go.mod")
+	if err != nil {
+		return summary, err
+	}
+	version := ""
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "go" {
+			version = fields[1]
+		}
+	}
+	if version == "" {
+		return summary, errors.New("project Go toolchain version missing")
+	}
+	seenArtifacts, seenReceipts, receiptArtifacts := map[string]bool{}, map[string]string{}, map[string]string{}
+	entries, err := os.ReadDir(directory)
+	if err != nil || len(entries) != len(origin.Artifacts) {
+		return summary, errors.Join(err, errors.New("CI artifact directories differ from authenticated inventory"))
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || !slices.ContainsFunc(origin.Artifacts, func(a ciEvidenceArtifact) bool { return a.Name == entry.Name() }) {
+			return summary, errors.New("unexpected or aliased CI artifact directory")
+		}
+	}
+	for _, artifact := range origin.Artifacts {
+		index, ok := strings.CutPrefix(artifact.Name, "qualification-ci-"+artifact.Job+"-")
+		n, parseErr := strconv.Atoi(index)
+		if !ok || parseErr != nil || n < 0 || strconv.Itoa(n) != index || filepath.Base(artifact.Name) != artifact.Name || strings.ContainsAny(artifact.Name, `/\`) || seenArtifacts[artifact.Name] || !slices.Contains([]string{"linux", "darwin", "windows"}, artifact.Host) {
+			return summary, errors.New("invalid or duplicate authenticated CI artifact")
+		}
+		seenArtifacts[artifact.Name] = true
+		base := filepath.Join(directory, artifact.Name)
+		var receipts []string
+		err = filepath.WalkDir(base, func(name string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() && !entry.Type().IsRegular() {
+				return errors.New("CI execution evidence contains aliased or special members")
+			}
+			if !entry.IsDir() && entry.Name() == "receipt.json" {
+				if len(receipts) >= 10000 {
+					return errors.New("CI receipt inventory exceeds bound")
+				}
+				receipts = append(receipts, name)
+			}
+			return ctx.Err()
+		})
+		if err != nil || len(receipts) == 0 {
+			return summary, errors.Join(err, fmt.Errorf("required CI execution evidence missing: %s", artifact.Name))
+		}
+		for _, name := range receipts {
+			data, err = readCandidateDocument(name, 32<<20)
+			if err != nil {
+				return summary, err
+			}
+			var record receipt.Receipt
+			if err = corpus.StrictJSON(data, &record); err != nil {
+				return summary, err
+			}
+			data, err = readCandidateDocument(filepath.Join(filepath.Dir(name), "plan.json"), 32<<20)
+			if err != nil {
+				return summary, err
+			}
+			var plan receipt.Plan
+			if err = corpus.StrictJSON(data, &plan); err != nil {
+				return summary, err
+			}
+			expected := receipt.Origin{Revision: origin.Origin.Revision, Run: origin.Origin.Run, Attempt: origin.Origin.Attempt, Job: artifact.Job}
+			if err = receipt.VerifyStoredEvents(ctx, filepath.Dir(name), plan, expected, record, optional); err != nil {
+				return summary, err
+			}
+			if plan.Stage != "replay" || plan.Production != production || plan.Contract != contract || plan.Environment.OS != artifact.Host || len(plan.Environment.Tools) < 5 || !strings.HasPrefix(plan.Environment.Toolchain, "go version go"+version+" ") {
+				return summary, errors.New("CI execution source, assertion, host or actual toolchain identity differs")
+			}
+			for _, input := range plan.Inputs {
+				if input.Use != "retained" || inputs[input.ID] != input.TreeSHA256 {
+					return summary, errors.New("CI execution input differs from the current retained catalog")
+				}
+			}
+			relative, err := filepath.Rel(directory, name)
+			if err != nil {
+				return summary, err
+			}
+			file, err := digestFile(ctx, directory, filepath.ToSlash(relative))
+			if err != nil {
+				return summary, err
+			}
+			key := artifact.Job + "/" + record.Fingerprint
+			if previous, exists := seenReceipts[key]; exists {
+				if previous != file.SHA256 || receiptArtifacts[key] != artifact.Name {
+					return summary, errors.New("conflicting copies of original CI execution evidence")
+				}
+				continue
+			}
+			seenReceipts[key] = file.SHA256
+			receiptArtifacts[key] = artifact.Name
+			summary.Receipts = append(summary.Receipts, file)
+			summary.CaseCount += len(plan.Cases)
+		}
+	}
+	return summary, nil
+}

@@ -2881,8 +2881,9 @@
   "workflows": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "2d84008dfb311e4816875c474adffc6438ba2f1eec58c471b36f263ecc7f365d",
+      "sha256": "35df015a8cb8e5a1ca3ba0bace0288a8c7d64d796efe5fcfef9005afc98210b1",
       "jobs": [
+        "evidence",
         "source_checks",
         "portable",
         "offline_retained",

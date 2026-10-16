@@ -129,7 +129,13 @@ func main() {
 	referenceOrigin := flag.String("reference-origin", "", "authenticated original Actions origin document for candidate evidence verification")
 	materialize := flag.String("materialize-references", "", "comma-separated approved independent inputs to materialize as managed ordinary files")
 	inputDir := flag.String("input-dir", "", "absent absolute managed scratch for materialized reference input trees")
+	checkCI := flag.String("check-ci-evidence", "", "verify authenticated original CI receipts on identical source contents")
+	ciOrigin := flag.String("ci-origin", "", "authenticated original CI checkout and artifact inventory")
 	flag.Parse()
+	if (*checkCI != "") != (*ciOrigin != "") {
+		fmt.Fprintln(os.Stderr, "CI evidence verification requires its authenticated original inventory")
+		os.Exit(1)
+	}
 	if (*referenceOrigin != "") != (*checkEvidence != "") {
 		fmt.Fprintln(os.Stderr, "candidate evidence verification requires an explicit authenticated reference origin")
 		os.Exit(1)
@@ -139,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 	standalone := 0
-	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != ""} {
+	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkCI != ""} {
 		if chosen {
 			standalone++
 		}
@@ -149,7 +155,7 @@ func main() {
 		os.Exit(1)
 	}
 	var auditOutput io.Writer = os.Stdout
-	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" {
+	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkCI != "" {
 		auditOutput = os.Stderr
 	}
 	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
@@ -160,7 +166,21 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		var err error
-		if *prepare != "" {
+		if *checkCI != "" {
+			var data []byte
+			var origin ciEvidenceOrigin
+			data, err = readCandidateDocument(*ciOrigin, 1<<20)
+			if err == nil {
+				err = corpus.StrictJSON(data, &origin)
+			}
+			if err == nil {
+				var summary ciEvidenceSummary
+				summary, err = checkCIEvidence(ctx, *root, *checkCI, origin)
+				if err == nil {
+					err = json.NewEncoder(os.Stdout).Encode(summary)
+				}
+			}
+		} else if *prepare != "" {
 			err = prepareReferences(ctx, *root, *registryPath, *prepare, *candidateDir)
 		} else if *materialize != "" {
 			err = materializeReferences(ctx, *root, *registryPath, *referencePin, *bundles, *materialize, *inputDir)
