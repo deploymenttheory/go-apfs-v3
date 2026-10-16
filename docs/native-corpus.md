@@ -216,6 +216,13 @@ source checkout; it does not authenticate a caller-supplied origin on its own.
 Individual ciphertext needs separate native scopes; copies of one scope do not
 count as several checks.
 
+Campaign provenance retains the original tested Git commit and its tree, not
+just the run API's head SHA. Pull-request receipts normally name GitHub's tested
+synthetic merge commit. The run API can lose its pull-request association after
+merge; checkout authentication then uses the associated closed PR's original
+base/head pair and GitHub's signed merge object. These source facts are preserved
+in permanent qualification evidence without changing original receipt origins.
+
 The refresh controller has durable issue-backed first-observed and last-success
 clocks, explicit contention deferral and one marker-addressed stale incident.
 It only advances success after permanent publication from the matching completed
@@ -242,6 +249,11 @@ catalog-update PR; it never merges it. Retrying an already published candidate
 keeps its original objects and catalog. The first complete hosted qualification,
 publication and reviewed promotion remain required before this work can be
 declared operational; no pin has been approved in this checkout.
+
+GitHub can hold workflows on bot-created promotion PRs for reviewer approval.
+The reviewer starts those checks with **Approve workflows to run** as part of
+the normal reviewed promotion. The publisher does not approve its own PR or
+replace that gate with another token. See [GitHub's workflow token rules](https://docs.github.com/en/actions/concepts/security/github_token).
 
 Jobs may fetch selected corpus IDs with repeated `release_assets.py --input`
 options. The complete reviewed catalog and permanent proof are still checked;

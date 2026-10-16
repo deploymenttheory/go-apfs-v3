@@ -48,7 +48,8 @@ class CandidatePublication(unittest.TestCase):
         origin = {'repository': 'owner/filesystems', 'revision': 'b' * 40,
                   'run': '123', 'attempt': '1', 'completed_at': '2026-10-16T03:00:00Z'}
         campaign = {'state': 'ready', 'origin': origin, 'native': {'id': 123}, 'ci': {'id': 124},
-                    'jobs': [], 'artifacts': [], 'captures': ['source-control'], 'proof': ['proof-control']}
+                    'jobs': [], 'artifacts': [], 'source': {'tested_revision': origin['revision']},
+                    'captures': ['source-control'], 'proof': ['proof-control']}
         client = Mock(repository=origin['repository'])
         client.repository = origin['repository']
         client.request.side_effect = urllib.error.HTTPError('https://api.github.com/release', 404, 'absent', {}, None)

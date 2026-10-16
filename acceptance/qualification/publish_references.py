@@ -158,7 +158,7 @@ def publish(client, campaign, workspace, execute=subprocess.run):
     require(not workspace.exists(), 'publication requires absent managed scratch')
     workspace.mkdir(parents=True, mode=0o700)
     control = workspace / 'control'; control.mkdir()
-    for name in ('native', 'ci', 'jobs', 'artifacts', 'origin'):
+    for name in ('native', 'ci', 'jobs', 'artifacts', 'origin', 'source'):
         write_document(control / (name + '.json'), campaign[name])
     origin = campaign['origin']
     contract_result = execute(['go', 'run', './acceptance/qualification', '-capture-contract'],
