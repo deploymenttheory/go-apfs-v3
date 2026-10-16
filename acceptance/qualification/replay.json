@@ -394,7 +394,8 @@
       "test": "TestNativeHFSCatalogGrowth",
       "layout": "growth",
       "input": "hfs-header-growth",
-      "manifest": "macos-*/manifest.json"
+      "manifest": "macos-*/manifest.json",
+      "capture_contract": "hfs-header-growth"
     },
     {
       "test": "TestNativeHFSFragmentedMetadataGrowth",

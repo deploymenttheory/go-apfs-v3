@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -126,7 +127,7 @@ func TestIndependentCorpusWritersCannotShareScratch(t *testing.T) {
 }
 
 func TestFreshRecoveryMatchesOriginalContractBehindRetainedIndex(t *testing.T) {
-	for _, scenario := range []string{"apfs-checkpoint-recovery", "hfs-journal-recovery"} {
+	for _, scenario := range []string{"apfs-checkpoint-recovery", "hfs-journal-recovery", "hfs-header-growth"} {
 		spec := replayTest{Manifest: "macos-*/recovery.json", CaptureContract: scenario}
 		original := corpus.Capture{Manifest: "macos-15/recovery.json", Major: 15, Role: "native-capture", Contract: scenario, Cases: []string{"cases/committed", "cases/interrupted"}}
 		indexed := original
@@ -145,6 +146,47 @@ func TestFreshRecoveryMatchesOriginalContractBehindRetainedIndex(t *testing.T) {
 		changed.Cases = []string{"cases/committed"}
 		if err := matchCaptureCases(spec, corpus.Entry{Captures: []corpus.Capture{changed}}, reference); err == nil {
 			t.Fatal("projection dropped a required case")
+		}
+	}
+}
+
+func TestReadableIndexesAlwaysDeclareOriginalCaptureContracts(t *testing.T) {
+	root := "../.."
+	data, err := regularFile(root, "acceptance/qualification/registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var registry registry
+	if err = corpus.StrictJSON(data, &registry); err != nil {
+		t.Fatal(err)
+	}
+	recipes, err := readReplayContract(root, registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(filepath.Join(root, "acceptance/qualification/corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	catalog, err := corpus.Read(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, spec := range recipes.Tests {
+		for _, entry := range catalog.Entries {
+			if entry.ID != spec.Input {
+				continue
+			}
+			for _, capture := range entry.Captures {
+				matched, err := path.Match(spec.Manifest, capture.Manifest)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if matched && capture.Role == "retained-index" && spec.CaptureContract == "" {
+					t.Errorf("%s must distinguish the original native contract from %s", spec.Test, capture.Contract)
+				}
+			}
 		}
 	}
 }
