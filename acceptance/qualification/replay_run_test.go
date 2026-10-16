@@ -47,6 +47,9 @@ func TestReference(t *testing.T){
 	writeControl(t, root, "acceptance/control_test.go", strings.ReplaceAll(code, "MODE", mode))
 	manifestPath := "acceptance/testdata/apfs-geometry/macos-15/manifest.json"
 	manifestText := `{"schema":1,"scenario":"unit-control","producer":{"system":"macOS","version":"15.0","build":"unit-control","architecture":"synthetic"},"cases":[{"id":"apfs"}]}`
+	if mode == "repacking" {
+		manifestText = strings.TrimSuffix(manifestText, "}") + `,"rejections":[]}`
+	}
 	writeControl(t, root, manifestPath, manifestText)
 	definition := corpus.Definition{ID: "apfs-geometry", Path: "acceptance/testdata/apfs-geometry", Bindings: []corpus.Binding{{Family: "geometry-control", CaptureClass: "apple-independent"}}, Manifests: []corpus.ManifestReference{{Path: "macos-15/manifest.json", SHA256: digest(manifestText), Cases: []string{"cases/apfs"}}}}
 	catalog, err := corpus.Build(context.Background(), root, []corpus.Definition{definition})
@@ -110,6 +113,25 @@ func TestReplayPublishesOnlyCompleteExecution(t *testing.T) {
 				}
 				if len(record.Verdicts) != 3 || len(record.Outputs) != 2 {
 					t.Fatal("case, format or actual output evidence lost", len(record.Verdicts), len(record.Outputs))
+				}
+				if len(record.Plan.Environment.Tools) < 5 {
+					t.Fatal("actual compiler and linker evidence missing")
+				}
+				data, err = os.ReadFile(filepath.Join(filepath.Dir(paths[0]), "source-inputs.json"))
+				if err != nil {
+					t.Fatal("standalone execution lost its original input snapshot", err)
+				}
+				var snapshot replayEvidence
+				if err = corpus.StrictJSON(data, &snapshot); err != nil || len(snapshot.Inputs) != 1 || snapshot.OutputEnvironment != "" {
+					t.Fatal("standalone source evidence depends on a writer archive", err)
+				}
+				archivedPlan, err := os.ReadFile(filepath.Join(filepath.Dir(paths[0]), "outputs/APFS_GEOMETRY_OUTPUT/.qualification", record.Fingerprint, "plan.json"))
+				if err != nil {
+					t.Fatal("original pre-execution plan was not retained with output evidence", err)
+				}
+				originalPlan, err := os.ReadFile(filepath.Join(filepath.Dir(paths[0]), "plan.json"))
+				if err != nil || !bytes.Equal(archivedPlan, originalPlan) {
+					t.Fatal("archived plan was reconstructed or changed after execution", err)
 				}
 				python, err := exec.LookPath("python3")
 				if err != nil {

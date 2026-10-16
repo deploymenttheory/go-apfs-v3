@@ -36,6 +36,8 @@ type replayTest struct {
 	KindEnvironment string   `json:"kind_environment,omitempty"`
 	Seeds           int      `json:"seeds,omitempty"`
 	Controls        []string `json:"controls,omitempty"`
+	FreshRaceHosts  []string `json:"fresh_race_hosts,omitempty"`
+	NativeScope     string   `json:"native_scope,omitempty"`
 }
 
 type replayContract struct {
@@ -81,6 +83,17 @@ func readReplayContract(root string, r registry) (replayContract, error) {
 			return contract, fmt.Errorf("invalid/unregistered replay test: %s", test.Test)
 		}
 		last = test.Test
+		if test.NativeScope != "" && test.NativeScope != "matching-source" {
+			return contract, errors.New("unknown native verification source scope")
+		}
+		if !slices.IsSorted(test.FreshRaceHosts) {
+			return contract, errors.New("fresh race host inventory is not sorted")
+		}
+		for index, host := range test.FreshRaceHosts {
+			if !slices.Contains([]string{"linux", "windows", "darwin"}, host) || slices.Contains(test.FreshRaceHosts[:index], host) || test.Input == "" {
+				return contract, errors.New("invalid/duplicate fresh race host")
+			}
+		}
 		if test.Output != "" {
 			owner := test.Input
 			if owner == "" {
@@ -124,7 +137,7 @@ func (a *admittedInputs) close() error {
 	return err
 }
 
-func admitReplayInputs(ctx context.Context, root, catalogPath, bundles string, r registry, contract replayContract, selected []replayTest) (_ *admittedInputs, err error) {
+func admitReplayInputs(ctx context.Context, root, catalogPath, bundles, referencePin string, r registry, contract replayContract, selected []replayTest) (_ *admittedInputs, err error) {
 	if !filepath.IsAbs(catalogPath) {
 		catalogPath = filepath.Join(root, filepath.FromSlash(catalogPath))
 	}
@@ -146,6 +159,12 @@ func admitReplayInputs(ctx context.Context, root, catalogPath, bundles string, r
 	}
 	if err = corpus.MatchRetainedDefinitions(catalog, definitions); err != nil {
 		return nil, err
+	}
+	if referencePin != "" {
+		catalog, err = approvedReferences(ctx, root, referencePin, bundles, catalog, contract)
+		if err != nil {
+			return nil, err
+		}
 	}
 	retained, err := corpus.New(catalog, corpus.Options{Repository: root, Bundles: bundles})
 	if err != nil {
@@ -191,6 +210,9 @@ func admitReplayInputs(ctx context.Context, root, catalogPath, bundles string, r
 				return nil, fmt.Errorf("current native input %s: %w", binding.ID, captureErr)
 			}
 			entry = candidate.Entries[0]
+			if referencePin != "" && entry.TreeSHA256 != reference.TreeSHA256 {
+				return nil, errors.New("native input override differs from the reviewed reference pin")
+			}
 			use = "native-capture"
 			if entry.TreeSHA256 == reference.TreeSHA256 {
 				use = "retained"

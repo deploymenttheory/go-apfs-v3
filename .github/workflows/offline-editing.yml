@@ -3,6 +3,10 @@ name: Offline image editing compatibility
 on:
   workflow_call:
     inputs:
+      reuse_references:
+        description: Use independently qualified inputs only after the caller admits the reviewed pin
+        type: boolean
+        default: false
       readback_run:
         description: Completed run whose captures and portable output jobs must have passed
         type: string
@@ -26,6 +30,7 @@ jobs:
     uses: ./.github/workflows/offline-family.yml
     with:
       family: ${{ matrix.family }}
+      reuse_references: ${{ inputs.reuse_references }}
       readback_run: ${{ inputs.readback_run }}
       readback_family: ${{ inputs.readback_family }}
 

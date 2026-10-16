@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GOTOOLCHAIN: local
@@ -63,8 +63,19 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   offline_retained:
@@ -112,8 +123,19 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   portable_acceptance:
@@ -201,8 +223,19 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   build:
@@ -332,8 +365,19 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   quality:

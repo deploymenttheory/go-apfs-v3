@@ -3,6 +3,10 @@ name: Existing APFS filesystem editing
 on:
   workflow_call:
     inputs:
+      reuse_references:
+        description: Use independently qualified inputs only after the caller admits the reviewed pin
+        type: boolean
+        default: false
       capture_only:
         type: boolean
         default: false
@@ -17,13 +21,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: apfs-edit-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: apfs-edit-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   capture:
     name: Record Apple-created APFS file, directory and metadata edits (macOS ${{ matrix.major }})
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ inputs.reuse_references && 'ubuntu-24.04' || matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -34,43 +38,74 @@ jobs:
           - {runner: xcode-27, major: 27}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        if: ${{ inputs.reuse_references }}
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore verified original Apple reference inputs
+        if: ${{ inputs.reuse_references }}
+        shell: bash
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: '0'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 acceptance/qualification/reference_reuse.py materialize
+          --assets "$RUNNER_TEMP/native-reference-assets"
+          --artifact "apfs-edit-reference-${{ matrix.major }}"
+          --major "${{ matrix.major }}"
+          --destination "artifacts/apfs-editing"
+          --scratch "$RUNNER_TEMP"
+          --proof "artifacts/qualification/capture-approved-${{ matrix.major }}/admission.json"
       - name: Require a disposable GitHub-hosted VM
+        if: ${{ !(inputs.reuse_references) }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Capture existing identities, native allocation and file edits
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/apfs_editing.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-editing/macos-${{ matrix.major }}
       - name: Capture native creation, rename, hard-link unlink and directory metadata
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/apfs_directory_editing.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-editing/directories/macos-${{ matrix.major }}
       - name: Record native ownership, timestamps, flags and attribute storage transitions
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/image_metadata.py --expected-major "${{ matrix.major }}" --kind apfs --references artifacts/apfs-editing/macos-${{ matrix.major }} --output artifacts/apfs-editing/metadata/macos-${{ matrix.major }}
       - name: Record Apple hard-link conversion, symbolic links and complete link lifetimes
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/image_links.py --expected-major "${{ matrix.major }}" --kind apfs --references artifacts/apfs-editing/macos-${{ matrix.major }} --output artifacts/apfs-editing/links/macos-${{ matrix.major }}
       - name: Record Apple application, framework and directory copying
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/image_copy.py --expected-major "${{ matrix.major }}" --kind apfs --references artifacts/apfs-editing/macos-${{ matrix.major }} --output artifacts/apfs-editing/copy/macos-${{ matrix.major }}
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-editing=artifacts/apfs-editing"
           --output "artifacts/qualification/capture-apfs-editing"
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-directory-editing=artifacts/apfs-editing/directories"
           --output "artifacts/qualification/capture-apfs-directory-editing"
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-metadata-editing=artifacts/apfs-editing/metadata"
           --output "artifacts/qualification/capture-apfs-metadata-editing"
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-link-editing=artifacts/apfs-editing/links"
           --output "artifacts/qualification/capture-apfs-link-editing"
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
@@ -82,13 +117,26 @@ jobs:
         with:
           name: apfs-edit-reference-${{ matrix.major }}
           path: artifacts/apfs-editing
+          compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-apfs-edit-${{ github.job }}-${{ strategy.job-index }}
-          path: artifacts/qualification/
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   replay:
@@ -296,8 +344,16 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-apfs-edit-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/.qualification/*/*.json
+            artifacts/**/.qualification/*/*.jsonl
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl

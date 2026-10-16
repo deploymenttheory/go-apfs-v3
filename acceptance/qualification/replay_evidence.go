@@ -37,6 +37,11 @@ func publishReplayEvidence(ctx context.Context, scratch string, result receipt.R
 		metadata.Continuations = append(metadata.Continuations, continuationEvidence{Input: input.identity, Files: input.files})
 	}
 	slices.SortFunc(metadata.Continuations, func(a, b continuationEvidence) int { return strings.Compare(a.Input.ID, b.Input.ID) })
+	// Readers also need their complete original source snapshot even when no
+	// writer output directory exists to carry a .qualification copy.
+	if err := newJSON(filepath.Join(scratch, "source-inputs.json"), metadata); err != nil {
+		return err
+	}
 	for variable, root := range roots {
 		metadata.OutputEnvironment = variable
 		directory := filepath.Join(root, ".qualification", result.Fingerprint)
@@ -46,8 +51,10 @@ func publishReplayEvidence(ctx context.Context, scratch string, result receipt.R
 		if err := newJSON(filepath.Join(directory, "inputs.json"), metadata); err != nil {
 			return err
 		}
-		if err := copyEvidence(ctx, filepath.Join(scratch, "events.jsonl"), filepath.Join(directory, "events.jsonl")); err != nil {
-			return err
+		for _, name := range []string{"plan.json", "events.jsonl"} {
+			if err := copyEvidence(ctx, filepath.Join(scratch, name), filepath.Join(directory, name)); err != nil {
+				return err
+			}
 		}
 		if err := newJSON(filepath.Join(directory, "receipt.json"), result); err != nil {
 			return err
