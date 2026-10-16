@@ -2675,43 +2675,43 @@
     },
     {
       "path": "acceptance/apfs_checkpoint_recovery_test.go",
-      "sha256": "79afe53995a4897e89f7a2426cb6cd403bec53c7dbf5040a96cfb1ef3013134a"
+      "sha256": "c608185d231b2a4fb69a9563970b8467fb3f46ca126f814ac52723fa4bf3bbcf"
     },
     {
       "path": "acceptance/apfs_directory_editing_test.go",
-      "sha256": "e5a8e55125c055047f3dbd77c70c3d6f33eb4f8d6a853c1ab15378ca2dbc2724"
+      "sha256": "969af641ce9194b5470580bfb5cd933aded153fbd47c967563671ede7f15edb0"
     },
     {
       "path": "acceptance/apfs_directory_statistics_test.go",
-      "sha256": "c8d557b3a9620f8a45faa171288c6ba50aa10770375a1f8567354006ebd9b039"
+      "sha256": "be7586b58e5204b11192c2e1bf57923379a41574d72114384cfe05a38a2a078e"
     },
     {
       "path": "acceptance/apfs_directory_statistics_transitions_test.go",
-      "sha256": "231599dd5d4ac657547c1caae3fd46426498441e530188f5e140c803d0ab645d"
+      "sha256": "162d363b57b168fef9a3d4dfbe5844d1ca11e6bc8f84d40fe2b96ac5455f0ec8"
     },
     {
       "path": "acceptance/apfs_editing_test.go",
-      "sha256": "a387f0bf4dca11a4a518a5ab3ad4c32f9c725e3bab618a30556c9652045e6459"
+      "sha256": "e0d93a55ab778acbfafac85c2940f69ce9450d1a1fde42d40d56407a1a7109b0"
     },
     {
       "path": "acceptance/apfs_geometry_editing_test.go",
-      "sha256": "50f4bec0791aeffc8183b371550ea83d05b68d4e969162886dd404fee19b4cce"
+      "sha256": "4b7766624b59a4088c9f6c216cf0e7161ffc0609495800442b79d4a5d0ebfd27"
     },
     {
       "path": "acceptance/apfs_lifecycle_test.go",
-      "sha256": "9f6c203df421c43f81eb11b25771fbaf67fca05caea2df66188c5c946971bf3c"
+      "sha256": "9dbcca294597e6d2e1785d91feba7593a81531cb6fe6b561935cc689a9ccb4ab"
     },
     {
       "path": "acceptance/compression_fuzz_test.go",
-      "sha256": "0e9ce0521f736ed7a095d89bb53566429a90989412aaef1ed3d0b9219bc1bc07"
+      "sha256": "2e5a90ab1e2b2c2335409fa8ed43f7fa4ed002cdfcd08a67e16c91fd194fc49a"
     },
     {
       "path": "acceptance/compression_writing_test.go",
-      "sha256": "f3a38acc79912eaa4606ffe77f0a518a47953dc526f09f7ff45b1fcd37503af3"
+      "sha256": "e91af7293ac2c50f7ce9b0a238f3033ed39db12d3cded232a4d76d66c1a7cdde"
     },
     {
       "path": "acceptance/container_building_test.go",
-      "sha256": "ea0567d56d68f2b6701f7bbbb5f823bfd387e48d5ec22e108a1751b23a560767"
+      "sha256": "c380d930e0cedc86f73647c0ee7d09c9752529391a7019f476f2dc5d0c109931"
     },
     {
       "path": "acceptance/content_replacement_test.go",
@@ -2727,7 +2727,7 @@
     },
     {
       "path": "acceptance/encrypted_output_test.go",
-      "sha256": "336b1fcbf1eaa0c609f7fcc3cb8a5de63539ce71fe88a52387ea1bee54700f63"
+      "sha256": "aeec37880ebfe9e45ed8e78520921387acbf8155d531aed4d91670ec89c71854"
     },
     {
       "path": "acceptance/file_commands_test.go",
@@ -2743,7 +2743,7 @@
     },
     {
       "path": "acceptance/file_reading_test.go",
-      "sha256": "2681c29df1adfcf0f76e3ba302db1babf89e286d75d714376b7cd509e930b172"
+      "sha256": "8652e24e9fa1fdd810e6b9f31b4ae6f13811b9bb2b138c08a5b0bfe921fe9d10"
     },
     {
       "path": "acceptance/file_semantics_test.go",
@@ -2751,51 +2751,55 @@
     },
     {
       "path": "acceptance/hfs_catalog_editing_test.go",
-      "sha256": "010731b60cb2e96d7c387e90af4120921d8591cfcd3253d7ee97a39d7ba0bee5"
+      "sha256": "ed1be11ac716347f7b880fa4045219597f97fd655d2b4a93e713f6fd1cfee309"
     },
     {
       "path": "acceptance/hfs_editing_test.go",
-      "sha256": "6c8e99dd5876c3575f052828ce68cd0769077f6f0a33803f2c8cfb338d8354cb"
+      "sha256": "baae06b0291668438de567452c2ab2362e5915d739d84e430f48356031f3c7c9"
     },
     {
       "path": "acceptance/hfs_header_growth_test.go",
-      "sha256": "db7e43f9816fa327828b013e8ace6d0cafcbf3e1a1df077487a147a608469f77"
+      "sha256": "b8ab488ef304704a03102dca3d48b7f86f199a12fd62552943ca052dd8da09d3"
     },
     {
       "path": "acceptance/hfs_journal_recovery_test.go",
-      "sha256": "5963441c12a8a1882c07642a402c5a64db64820fe2291d089959ad62aa34c8f7"
+      "sha256": "1f0e5d5cb07b33af9c82ec56aec6df6ffd94359a809f0140f67cf29110194fb9"
     },
     {
       "path": "acceptance/hfs_metadata_growth_test.go",
-      "sha256": "7fbd54480310689eb393b39cdc3db24ac41b8781483f776eae5a36ff22c81ec1"
+      "sha256": "a7be1d87b7f368c3693e7bd2fb48e126ae93f21a26fc2cef23c16c2e4e4cceb5"
     },
     {
       "path": "acceptance/image_building_test.go",
-      "sha256": "8a68bf383e97163bbbb72f60cb80535155fa9cc0db08716c69d3758c595b60ac"
+      "sha256": "1eade287b81d3ba4dfa818451f37068c5dbecaac2f6e042d36607ea74e991df7"
     },
     {
       "path": "acceptance/image_copy_test.go",
-      "sha256": "b110ceb21e4c105c0ab48e1d9fe1190f2fcb1196fd79517c4e3976599cd38ae9"
+      "sha256": "70ecb969a558d04866fc19df6824e80b75a1ba3273a52f2491c15d5365f65dd0"
     },
     {
       "path": "acceptance/image_links_test.go",
-      "sha256": "2ccb29d7604e7ee38b92329ed42d3f615cd53ec8406470fff336845c375b8804"
+      "sha256": "0666e48559a2baef48640ab9d8a21e6edfc29c5f3a8f5d63e1d90d6467c5b81e"
     },
     {
       "path": "acceptance/image_metadata_test.go",
-      "sha256": "2258d3ab162fb65ddf637f3043d426ce4f6f8ff5a943ec9bdb664261f61a557d"
+      "sha256": "a65f312eda2cb6c6544075124e8d8425fefd9129e231ffa35bcd393c5ea4bcd5"
     },
     {
       "path": "acceptance/image_repacking_test.go",
-      "sha256": "7bc4d7d94d81c8c1881ed504f565fa565108cd020399f4ba729e57bf58f497bf"
+      "sha256": "5d5a99293a738f20ced80e75a676a9a29db68d7565db736cfbaa460c09beeda1"
     },
     {
       "path": "acceptance/metadata_edits_test.go",
       "sha256": "126fcb9e23f95da20f1c2b7c975892cd25168782c0ad75369d27ee9c9d7b7ae2"
     },
     {
+      "path": "acceptance/native_controls_test.go",
+      "sha256": "78c578462507a7ba3552022b1643c9dd1b937f0c12d144fe0f09785a91774f8a"
+    },
+    {
       "path": "acceptance/permission_inheritance_test.go",
-      "sha256": "1cbccd75968012a8267906e6da1291db1f34586be850d167c313401ee4a4d30e"
+      "sha256": "6e47496aaafa0fedb6dad8413493dacd3195e9d977697c09c0574f79a298a1f4"
     },
     {
       "path": "acceptance/preservation_test.go",
@@ -2803,7 +2807,7 @@
     },
     {
       "path": "acceptance/session_permissions_test.go",
-      "sha256": "dca8e3599b4b67d34042abc3c7ca96564f7b66295c9f780808f8ca9826452993"
+      "sha256": "a16b0d7357f3e8ad19858208eeb8da9138fb9fd78ba05f996cc196b56fc3c12c"
     },
     {
       "path": "acceptance/snapshot_reading_test.go",
@@ -2815,13 +2819,13 @@
     },
     {
       "path": "acceptance/volume_inspection_test.go",
-      "sha256": "3ac68118cf83caebddc5d6cb05f22a950fe27e418eef588c16c7d8a68641a91d"
+      "sha256": "d6fe4a04d6495438c8cbbc3446047cb6d9cf9c28515b786bc046b97b77584369"
     }
   ],
   "workflows": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "c957a284a2799be5dd7ebc4936ed5f6d8b36eeba41b2614c0d7ce606c9e77b93",
+      "sha256": "782db074ec2dc7cf7ac0945db97aab3a34b8b0dfbcef42038115be7849a5f17c",
       "jobs": [
         "source_checks",
         "portable",
@@ -2835,7 +2839,7 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "71818ff748902a950bc6f83288b25b5ade470c26fa2a469ba04f7c32ce680c13",
+      "sha256": "fa85925c2363e7ee8a814d00efbeff6d96526a88774f34f7edc0dde50e06b45c",
       "jobs": [
         "offline_reference",
         "offline_edits",
@@ -2853,7 +2857,7 @@
     },
     {
       "path": ".github/workflows/offline-editing.yml",
-      "sha256": "d0caf45aed98a38d26691948de236c708e2d529acc55fff0f501d20655a7ca0a",
+      "sha256": "73eff34d7787354d57596e1641c7a640a6eb255e1b3caf4db61b3d9d52b21703",
       "jobs": [
         "capture",
         "replay",
@@ -2864,7 +2868,7 @@
     },
     {
       "path": ".github/workflows/apfs-edit.yml",
-      "sha256": "bc97a79307352ce499f9f8727f1077eb4759a8d0b8017a303c0c9401f8a39a3b",
+      "sha256": "06402a48830570c6e2476f460dce7671c9e25207339929f61dca101eb4991785",
       "jobs": [
         "capture",
         "replay",
@@ -2874,7 +2878,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "5d2f2b26c5be37b5d40b2e058579c57986cf938ce3191bbbc95287632c2cb808",
+      "sha256": "f100b1641781dd45fd2bcb4964bbebb13d1d89a91a169831c12eb84b6c207724",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2886,7 +2890,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "13dfb4b321c186a994a6c47d24d7d4c1b604ebcb54bfae83e40b685d8d5efecb",
+      "sha256": "8e5d378052413ffd00ecefebb76e299b7779abc0f7a5c2b6b2c16735ea7159f5",
       "jobs": [
         "capture",
         "replay",
@@ -2896,7 +2900,7 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "70aaedd58141516a21c45c9144ddd31f81b02a32f9d5e9afd4a46f9d5148f58c",
+      "sha256": "1b9ad98de7f49832709e2b936f78091074a580ea1e58c83d4ad2e5362afe3736",
       "jobs": [
         "capture",
         "replay",

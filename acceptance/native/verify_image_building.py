@@ -246,7 +246,7 @@ def verify_container(image, expected, case_id, command):
 
 
 
-def verify_containers(corpus, outputs, major, consumers, command):
+def verify_containers(corpus, outputs, major, consumers, command, evidence):
     corpus = corpus / 'containers'
     manifest = json.loads((corpus / 'manifest.json').read_text())
     require(manifest['schema'] == 1 and manifest['scenario'] == 'image-building/containers', 'container corpus schema')
@@ -261,10 +261,10 @@ def verify_containers(corpus, outputs, major, consumers, command):
         for encoding in ('UDRO', 'UDZO'):
             images = [outputs / f'image-building-{consumer}' / f'macos-{major}' / 'containers' / case['id'] / (encoding + '.dmg')
                       for consumer in consumers]
-            total += verify_identical_outputs(images, lambda image: verify_container(image, expected, case['id'], command))
+            total += verify_identical_outputs(images, lambda image: verify_container(image, expected, case['id'], command), evidence=evidence)
             bits = encrypted_output.BUILD_PROFILES.get((case['id'], encoding))
             if bits:
-                encrypted_output.verify(images, bits, command)
+                encrypted_output.verify(images, bits, command, evidence=evidence)
     return total
 
 
@@ -297,7 +297,9 @@ def main():
         if expected_success is None and r.returncode:
             return None
         return r.stdout
-    image_capacity.compare(args.corpus, args.outputs, command, args.expected_major)
+    from qualification_cases import packaging_verification
+    evidence = packaging_verification(args)
+    image_capacity.compare(args.corpus, args.outputs, command, args.expected_major, evidence.replay)
     total = 0
     for major in args.producers.split(','):
         corpus = args.corpus / f'macos-{major}'
@@ -313,25 +315,26 @@ def main():
             for encoding in ('UDRO', 'UDZO'):
                 images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / (encoding + '.dmg')
                           for consumer in args.consumers.split(',')]
-                total += verify_identical_outputs(images, lambda image: verify(image, expected, case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS'))
+                total += verify_identical_outputs(images, lambda image: verify(image, expected, case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS'), evidence=evidence)
                 bits = encrypted_output.BUILD_PROFILES.get((case_id, encoding))
                 if bits:
-                    encrypted_output.verify(images, bits, command)
+                    encrypted_output.verify(images, bits, command, evidence=evidence)
             for policy in ('zlib', 'none'):
                 encoding = 'UDZO' if case['expected']['caseSensitive'] else 'UDRO'
                 images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id /
                           'file-compression' / policy / (encoding + '.dmg') for consumer in args.consumers.split(',')]
                 total += verify_identical_outputs(images, lambda image: verify(image, expected,
                     case['expected']['caseSensitive'], command, case['expected']['filesystem'] == 'APFS',
-                    file_compression=policy))
+                    file_compression=policy), evidence=evidence)
             if case_id == 'apfs':
                 entry = next(e for e in expected['entries'] if e['path'] == 'Fixture/empty-build-root')
                 empty = {'entries': [dict(entry, path='Fixture')],
                          'rawAttributes': [a for a in expected['rawAttributes'] if a['object'] == entry['object']]}
                 images = [args.outputs / f'image-building-{consumer}' / f'macos-{major}' / case_id / 'empty/UDZO.dmg'
                           for consumer in args.consumers.split(',')]
-                total += verify_identical_outputs(images, lambda image: verify(image, empty, False, command, True, True))
-        total += verify_containers(corpus, args.outputs, major, args.consumers.split(','), command)
+                total += verify_identical_outputs(images, lambda image: verify(image, empty, False, command, True, True), evidence=evidence)
+        total += verify_containers(corpus, args.outputs, major, args.consumers.split(','), command, evidence)
+    evidence.finish()
     print(f'Apple image checks, filesystem checks, exact mounted readback and signature verification passed: {total} entries.')
 
 

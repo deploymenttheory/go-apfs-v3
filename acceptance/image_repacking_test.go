@@ -21,10 +21,7 @@ import (
 // native checksum checks, disk hashes, volume/snapshot readback and signatures.
 func TestNativeImageRepacking(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("APFS_NATIVE_REPACKING")
-	if root == "" {
-		root = "testdata/image-repacking"
-	}
+	root := nativeInput(t, "APFS_NATIVE_REPACKING", "testdata/image-repacking")
 	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -75,19 +72,21 @@ func TestNativeImageRepacking(t *testing.T) {
 				t.Fatal("missing native rejection controls")
 			}
 			for _, r := range c.Rejections {
-				if seen, ok := rejections[r.ID]; !ok || seen {
-					t.Fatal("invalid rejection control", r.ID)
-				}
-				rejections[r.ID] = true
-				verifyDigest(t, dir, r.Image, r.SHA256)
-				destination := filepath.Join(t.TempDir(), "refused.dmg")
-				if _, err := pack.Repack(context.Background(), filepath.Join(dir, r.Image), destination, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
-					t.Fatalf("%s: expected refusal, got %v", r.ID, err)
-				}
-				if _, err := os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
-					t.Fatal("refused input published output", r.ID, err)
-				}
-				verifyDigest(t, dir, r.Image, r.SHA256)
+				t.Run("rejected/"+r.ID, func(t *testing.T) {
+					if seen, ok := rejections[r.ID]; !ok || seen {
+						t.Fatal("invalid rejection control", r.ID)
+					}
+					rejections[r.ID] = true
+					verifyDigest(t, dir, r.Image, r.SHA256)
+					destination := filepath.Join(t.TempDir(), "refused.dmg")
+					if _, err := pack.Repack(context.Background(), filepath.Join(dir, r.Image), destination, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
+						t.Fatalf("%s: expected refusal, got %v", r.ID, err)
+					}
+					if _, err := os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
+						t.Fatal("refused input published output", r.ID, err)
+					}
+					verifyDigest(t, dir, r.Image, r.SHA256)
+				})
 			}
 			for _, v := range c.Cases {
 				id := strings.TrimPrefix(v.ID, "image-repacking/")
@@ -202,15 +201,17 @@ func TestNativeImageRepacking(t *testing.T) {
 						// The legacy credential-free refusal above remains a separate control.
 						for _, r := range c.Rejections {
 							if r.ID == "encrypted-container" {
-								repackEncryptedInput(t, filepath.Join(dir, r.Image), output, native.DiskBytes, native.DiskSHA256)
-								verifyDigest(t, dir, r.Image, r.SHA256)
+								t.Run("encrypted-input", func(t *testing.T) {
+									repackEncryptedInput(t, filepath.Join(dir, r.Image), output, native.DiskBytes, native.DiskSHA256)
+									verifyDigest(t, dir, r.Image, r.SHA256)
+								})
 							}
 						}
 					}
 					verifyDigest(t, dir, v.Image, v.SHA256)
 				})
 			}
-			repackNativeRawEncrypted(t, major)
+			t.Run("hfsplus-encrypted-raw/UDZO", func(t *testing.T) { repackNativeRawEncrypted(t, major) })
 		})
 	}
 	if required := os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"); required != "" {

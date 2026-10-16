@@ -61,6 +61,11 @@ def verify(corpus, outputs, continuation, major, journaled):
     command = Commands(outputs / f'hfs-catalog-{major}.diagnostics.json')
     prefix = 'hfs-journaled' if journaled else 'hfs'
     count = 0
+    from qualification_cases import image_verification
+    input_id = 'hfs-journaled-catalog-editing' if journaled else 'hfs-catalog-editing'
+    evidence = image_verification(corpus, outputs, input_id, prefix + '-catalog-',
+        ['macos-{source}/{case}/catalog.dmg', 'macos-{source}/{case}/catalog-final.dmg'], 'hfs_catalog_editing', major,
+        manifest='catalog-manifest.json', continued=lambda name: name.endswith('/catalog-final.dmg'))
     with tempfile.TemporaryDirectory(prefix='hfs-catalog-qualification-') as tmp:
         work = Path(tmp)
         for manifest_path in sorted(corpus.glob('macos-*/catalog-manifest.json')):
@@ -70,21 +75,23 @@ def verify(corpus, outputs, continuation, major, journaled):
                 for phase in ('catalog', 'catalog-final'):
                     relative = Path(manifest_path.parent.name, case['id'], phase + '.dmg')
                     images = [outputs / (prefix + '-catalog-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                    require(all(image.is_file() for image in images), 'every portable catalog image present')
-                    require(len({sha256(image) for image in images}) == 1, 'catalog output bytes match across hosts')
-                    image = images[0]
-                    digest = sha256(image)
-                    command('hdiutil', 'verify', image)
-                    raw = work / 'catalog.raw'
-                    writable_copy(image, raw, command, native_hash)
-                    check(raw, case, phase, command, work)
-                    if phase == 'catalog-final':
-                        check(raw, case, phase, command, work, modify=True)
-                        shutil.copyfile(raw, continuation / (manifest_path.parent.name + '-' + case['id'] + '.raw'))
-                    raw.unlink()
-                    require(sha256(image) == digest, 'portable catalog output immutable')
-                    count += 1
+                    with evidence.case(images):
+                        require(all(image.is_file() for image in images), 'every portable catalog image present')
+                        require(len({sha256(image) for image in images}) == 1, 'catalog output bytes match across hosts')
+                        image = images[0]
+                        digest = sha256(image)
+                        command('hdiutil', 'verify', image)
+                        raw = work / 'catalog.raw'
+                        writable_copy(image, raw, command, native_hash)
+                        check(raw, case, phase, command, work)
+                        if phase == 'catalog-final':
+                            check(raw, case, phase, command, work, modify=True)
+                            shutil.copyfile(raw, continuation / (manifest_path.parent.name + '-' + case['id'] + '.raw'))
+                        raw.unlink()
+                        require(sha256(image) == digest, 'portable catalog output immutable')
+                        count += 1
         require(count == 12, 'complete catalog output/checker inventory')
+    evidence.finish()
 
 
 def verify_continued(directory, major, journaled):
@@ -93,27 +100,32 @@ def verify_continued(directory, major, journaled):
     command = Commands(directory / f'catalog-continued-{major}.diagnostics.json')
     images = list(directory.glob('*.dmg'))
     require(len(images) == 6, 'complete Go/native/Go catalog continuation')
+    from qualification_cases import continuation_verification
+    evidence = continuation_verification(directory, 'hfs', 'hfs_catalog_editing-continued', major,
+        metadata=False, raw_suffix=False)
     with tempfile.TemporaryDirectory(prefix='hfs-catalog-continued-') as tmp:
         work = Path(tmp)
         for image in images:
-            raw = work / 'continued.raw'
-            writable_copy(image, raw, command, native_hash)
-            require((read_journal(raw) is not None) == journaled, 'continued catalog journal profile')
-            device = attach(raw, command, readonly=True)
-            try:
-                command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
-                mount = work / 'mount'
-                mount.mkdir()
-                command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
-                catalog = mount / 'Fixture/Catalog'
-                require((catalog / 'continued-go/renamed').read_bytes() == payload('continued-catalog', 8193), 'Go create/rename survives native remount')
-                require(not (catalog / 'native-created').exists(), 'Go recursive removal survives native remount')
-                require(len(list((catalog / 'other/Moved').iterdir())) == 47, 'original namespace retained across continued edits')
-                command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
-            finally:
-                command('hdiutil', 'detach', device)
-                shutil.rmtree(work / 'mount')
-            raw.unlink()
+            with evidence.case([image]):
+                raw = work / 'continued.raw'
+                writable_copy(image, raw, command, native_hash)
+                require((read_journal(raw) is not None) == journaled, 'continued catalog journal profile')
+                device = attach(raw, command, readonly=True)
+                try:
+                    command('sudo', '/sbin/fsck_hfs', '-fn', device.replace('/dev/disk', '/dev/rdisk'))
+                    mount = work / 'mount'
+                    mount.mkdir()
+                    command('diskutil', 'mount', 'readOnly', '-mountOptions', 'owners,noatime', '-mountPoint', mount, device)
+                    catalog = mount / 'Fixture/Catalog'
+                    require((catalog / 'continued-go/renamed').read_bytes() == payload('continued-catalog', 8193), 'Go create/rename survives native remount')
+                    require(not (catalog / 'native-created').exists(), 'Go recursive removal survives native remount')
+                    require(len(list((catalog / 'other/Moved').iterdir())) == 47, 'original namespace retained across continued edits')
+                    command('codesign', '--verify', '--deep', '--strict', mount / 'Fixture/Example.app')
+                finally:
+                    command('hdiutil', 'detach', device)
+                    shutil.rmtree(work / 'mount')
+                raw.unlink()
+    evidence.finish()
 
 
 if __name__ == '__main__':

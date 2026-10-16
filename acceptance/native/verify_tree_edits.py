@@ -111,6 +111,10 @@ def main():
     version = subprocess.check_output(["sw_vers", "-productVersion"], text=True).strip()
     require(version.split(".")[0] == args.expected_major, "wrong native verification runner")
     cases, entries = 0, 0
+    from qualification_cases import image_verification, require_axes
+    require_axes(args)
+    evidence = image_verification(args.corpus, args.outputs, 'tree-edits', 'tree-edits-',
+        ['macos-{source}/{profile}/before/metadata/manifest.json', 'macos-{source}/{profile}/after/metadata/manifest.json'], 'tree-edits', int(args.expected_major))
     for consumer in args.consumers.split(","):
         for major in args.producers.split(","):
             corpus = args.corpus / ("macos-" + major)
@@ -121,10 +125,12 @@ def main():
             require(len(manifest["cases"]) == 4 and {c["id"] for c in manifest["cases"]} == required, "incomplete native cases")
             for case in manifest["cases"]:
                 output = args.outputs / ("tree-edits-" + consumer) / ("macos-" + major) / case["id"].split("/")[1]
-                entries += verify_case(corpus, output, case)
-                cases += 1
-                print(f"macOS {version}: verified {consumer} tree edits from macOS {major}: {case['id']}", flush=True)
+                with evidence.case([output / state / "metadata/manifest.json" for state in ("before", "after")], identical=False):
+                    entries += verify_case(corpus, output, case)
+                    cases += 1
+                    print(f"macOS {version}: verified {consumer} tree edits from macOS {major}: {case['id']}", flush=True)
     print(json.dumps({"macOS": version, "workspacePairs": cases, "entries": entries, "nativeOperations": cases * 18}))
+    evidence.finish()
 
 
 if __name__ == "__main__":

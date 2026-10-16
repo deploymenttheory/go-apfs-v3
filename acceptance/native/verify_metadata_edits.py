@@ -107,6 +107,10 @@ def main():
     require(version.split('.')[0] == args.expected_major, 'wrong native verification runner')
     require(not args.allow_same_owner or (args.producers == args.expected_major and args.consumers == 'macOS'), 'same-owner mode is local-only')
     cases, entries = 0, 0
+    from qualification_cases import image_verification, require_axes
+    require_axes(args)
+    evidence = image_verification(args.corpus, args.outputs, 'metadata-edits', 'metadata-edits-',
+        ['macos-{source}/{profile}/before/metadata/manifest.json', 'macos-{source}/{profile}/after/metadata/manifest.json'], 'metadata-edits', int(args.expected_major))
     for consumer in args.consumers.split(','):
         for major in args.producers.split(','):
             corpus = args.corpus / ('macos-' + major)
@@ -117,10 +121,12 @@ def main():
             require(len(manifest['cases']) == 4 and {c['id'] for c in manifest['cases']} == required, 'native case inventory')
             for case in manifest['cases']:
                 output = args.outputs / ('metadata-edits-' + consumer) / ('macos-' + major) / case['id'].split('/')[1]
-                entries += verify_case(corpus, output, case, args.allow_same_owner)
-                cases += 1
-                print(f"macOS {version}: verified {consumer} metadata edits from macOS {major}: {case['id']}", flush=True)
+                with evidence.case([output / state / "metadata/manifest.json" for state in ("before", "after")], identical=False):
+                    entries += verify_case(corpus, output, case, args.allow_same_owner)
+                    cases += 1
+                    print(f"macOS {version}: verified {consumer} metadata edits from macOS {major}: {case['id']}", flush=True)
     print(json.dumps({'macOS': version, 'workspacePairs': cases, 'entries': entries, 'nativeOperations': cases * 29}))
+    evidence.finish()
 
 
 if __name__ == '__main__':

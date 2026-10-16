@@ -30,6 +30,8 @@ def main():
     require_disposable_host()
     version(args.expected_major)
     command = Commands(args.outputs / f'image-repacking-{args.expected_major}.diagnostics.json')
+    from qualification_cases import packaging_verification
+    evidence = packaging_verification(args, repacking=True)
     checked = 0
     for major in args.producers.split(','):
         corpus = args.corpus / f'macos-{major}'
@@ -58,14 +60,14 @@ def main():
                         require(actual[key] == value, f'{major}/{case_id}/{encoding}: {key} differs from native source')
                     require(sha256(image) == before, 'verification changed output')
                     return before, len(images)
-                checked += verify_identical_outputs(images, verify_one)
+                checked += verify_identical_outputs(images, verify_one, evidence=evidence)
                 if case_id == 'hfsx-apm-raw' and encoding == 'UDRO':
-                    encrypted_output.verify(images, 128, command)
+                    encrypted_output.verify(images, 128, command, evidence=evidence)
                 elif case_id != 'hfsx-apm-raw' and encoding == 'UDZO':
-                    encrypted_output.verify(images, 256, command)
+                    encrypted_output.verify(images, 256, command, evidence=evidence)
                 if case_id == 'hfsplus-gpt' and encoding == 'UDZO':
-                    encrypted_output.verify(images, 256, command, directory='rewrapped', old_password='public-repack-password')
-                    encrypted_output.verify_decrypted(images, command)
+                    encrypted_output.verify(images, 256, command, directory='rewrapped', old_password='public-repack-password', evidence=evidence)
+                    encrypted_output.verify_decrypted(images, command, evidence=evidence)
         encrypted_corpus = args.corpus.parent / 'encrypted-dmg' / f'macos-{major}'
         encrypted_manifest = json.loads((encrypted_corpus / 'manifest.json').read_text())
         raw_case = next(c for c in encrypted_manifest['cases'] if c['id'] == 'disk-image-encryption/hfsplus-raw-aes256')
@@ -76,15 +78,17 @@ def main():
         expected = encrypted_output.disk_hash(source, encrypted_output.password_command(command, source, raw_password))
         images = [args.outputs / f'image-repacking-{host}' / f'macos-{major}' / 'hfsplus-encrypted-raw' / 'UDZO.dmg'
                   for host in args.consumers.split(',')]
-        require(len(images) == 3 and len({sha256(p) for p in images}) == 1, 'decrypted raw source differs across hosts')
-        before = sha256(images[0])
-        native = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', images[0]))
-        require(native['Format'] == 'UDZO' and not native['Properties']['Encrypted'], 'raw-source decryption policy')
-        command('hdiutil', 'verify', images[0])
-        require(encrypted_output.disk_hash(images[0], command) == expected, 'decrypted raw disk differs from Apple source')
-        require(sha256(images[0]) == before, 'native verification changed decrypted raw image')
-        encrypted_output.verify(images, 128, command, old_password=raw_password)
+        with evidence.case(images):
+            require(len(images) == 3 and len({sha256(p) for p in images}) == 1, 'decrypted raw source differs across hosts')
+            before = sha256(images[0])
+            native = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', images[0]))
+            require(native['Format'] == 'UDZO' and not native['Properties']['Encrypted'], 'raw-source decryption policy')
+            command('hdiutil', 'verify', images[0])
+            require(encrypted_output.disk_hash(images[0], command) == expected, 'decrypted raw disk differs from Apple source')
+            require(sha256(images[0]) == before, 'native verification changed decrypted raw image')
+        encrypted_output.verify(images, 128, command, old_password=raw_password, evidence=evidence)
         require(sha256(source) == raw_case['sha256'], 'encrypted raw source changed during native readback')
+    evidence.finish()
     print(f'Native sector preservation, filesystem/snapshot readback and cross-host reproducibility passed: {checked} DMGs.')
 
 

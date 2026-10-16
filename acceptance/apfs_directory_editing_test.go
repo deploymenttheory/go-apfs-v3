@@ -83,10 +83,7 @@ func compareAPFSDirectoryState(t *testing.T, v *apfs.Volume, before, want fileOb
 	compareAPFSEditAttributes(t, v, want)
 }
 func TestNativeAPFSImageDirectoryEditing(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_APFS_DIRECTORY_EDITS")
-	if root == "" {
-		root = "testdata/apfs-directory-editing"
-	}
+	root := nativeInput(t, "APFS_NATIVE_APFS_DIRECTORY_EDITS", "testdata/apfs-directory-editing")
 	paths, e := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if e != nil || len(paths) == 0 {
 		t.Fatal("required APFS directory evidence absent", e)
@@ -127,32 +124,34 @@ func TestNativeAPFSImageDirectoryEditing(t *testing.T) {
 				}
 				when := time.Unix(manifest.ModificationSeconds, 0).UTC()
 				for _, format := range []string{"UDRO", "UDZO"} {
-					current := source
-					for _, phase := range []string{"catalog", "catalog-final"} {
-						state, ok := c.States[phase]
-						if !ok || state.CheckerStatus != 0 {
-							t.Fatal("native directory state missing")
+					t.Run(format, func(t *testing.T) {
+						current := source
+						for _, phase := range []string{"catalog", "catalog-final"} {
+							state, ok := c.States[phase]
+							if !ok || state.CheckerStatus != 0 {
+								t.Fatal("native directory state missing")
+							}
+							destination := filepath.Join(output, phase+"-"+format+".dmg")
+							changes := apfsDirectoryChanges(phase)
+							report, e := imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes)
+							if e != nil {
+								t.Fatal(phase, e)
+							}
+							repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+							if _, e = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
+								t.Fatal(e)
+							}
+							if fileDigest(t, repeat) != fileDigest(t, destination) {
+								t.Fatal("nonreproducible directory edits")
+							}
+							got := openAPFSEditVolume(t, destination)
+							if got.UUID != original.UUID || got.Volumes[0].UUID != original.Volumes[0].UUID || got.BlockCount != original.BlockCount || report.Transaction != uint64(got.XID) {
+								t.Fatal("container identity/geometry changed")
+							}
+							compareAPFSDirectoryState(t, &got.Volumes[0], c.Before.Files, state.Files, when)
+							current = destination
 						}
-						destination := filepath.Join(output, phase+"-"+format+".dmg")
-						changes := apfsDirectoryChanges(phase)
-						report, e := imageedit.Apply(context.Background(), current, destination, imageedit.Options{Format: format, Time: when}, changes)
-						if e != nil {
-							t.Fatal(phase, e)
-						}
-						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-						if _, e = imageedit.Apply(context.Background(), current, repeat, imageedit.Options{Format: format, Time: when}, changes); e != nil {
-							t.Fatal(e)
-						}
-						if fileDigest(t, repeat) != fileDigest(t, destination) {
-							t.Fatal("nonreproducible directory edits")
-						}
-						got := openAPFSEditVolume(t, destination)
-						if got.UUID != original.UUID || got.Volumes[0].UUID != original.Volumes[0].UUID || got.BlockCount != original.BlockCount || report.Transaction != uint64(got.XID) {
-							t.Fatal("container identity/geometry changed")
-						}
-						compareAPFSDirectoryState(t, &got.Volumes[0], c.Before.Files, state.Files, when)
-						current = destination
-					}
+					})
 				}
 				for _, phase := range []string{"catalog", "catalog-final"} {
 					state := c.States[phase]
@@ -199,11 +198,13 @@ func TestNativeAPFSImageDirectoryEditingContinuation(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, source := range paths {
-		destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
-		changes := []imageedit.Change{{Operation: "mkdir", Path: "/Fixture/Catalog/continued-go"}, {Path: "/Fixture/Catalog/continued-go/payload", Data: editPattern{"continued-catalog", 8193}}, {Operation: "mv", Path: "/Fixture/Catalog/continued-go/payload", Destination: "/Fixture/Catalog/continued-go/renamed"}, {Operation: "rm", Path: "/Fixture/Catalog/native-dir-link", Recursive: true}, {Operation: "rm", Path: "/Fixture/Catalog/native-created", Recursive: true}, {Operation: "rm", Path: "/Fixture/third"}}
-		if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, changes); e != nil {
-			t.Fatal(e)
-		}
-		openAPFSEditVolume(t, destination)
+		t.Run(filepath.Base(source), func(t *testing.T) {
+			destination := filepath.Join(output, strings.TrimSuffix(filepath.Base(source), ".raw")+".dmg")
+			changes := []imageedit.Change{{Operation: "mkdir", Path: "/Fixture/Catalog/continued-go"}, {Path: "/Fixture/Catalog/continued-go/payload", Data: editPattern{"continued-catalog", 8193}}, {Operation: "mv", Path: "/Fixture/Catalog/continued-go/payload", Destination: "/Fixture/Catalog/continued-go/renamed"}, {Operation: "rm", Path: "/Fixture/Catalog/native-dir-link", Recursive: true}, {Operation: "rm", Path: "/Fixture/Catalog/native-created", Recursive: true}, {Operation: "rm", Path: "/Fixture/third"}}
+			if _, e = imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: time.Unix(1749283750, 0)}, changes); e != nil {
+				t.Fatal(e)
+			}
+			openAPFSEditVolume(t, destination)
+		})
 	}
 }

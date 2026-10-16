@@ -105,5 +105,6 @@ to obtain a faster result.
 
 Native image creation, attachment, filesystem checking, snapshots and mutation
 run exclusively on guarded disposable CI VMs. Local work uses ordinary files
-and mocked native commands; the qualification tooling has no native execution
-path.
+and mocked native commands. The portable qualification CLI and corpus resolver
+have no native filesystem execution path; Apple programs retain their disposable
+host guards.

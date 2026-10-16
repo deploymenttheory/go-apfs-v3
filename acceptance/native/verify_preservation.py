@@ -192,6 +192,10 @@ def main():
     version = subprocess.check_output(["sw_vers", "-productVersion"], text=True).strip()
     require(version.split(".")[0] == args.expected_major, "wrong macOS verification runner")
     cases, entries = 0, 0
+    from qualification_cases import image_verification, require_axes
+    require_axes(args)
+    evidence = image_verification(args.corpus, args.outputs, 'preservation', 'preservation-',
+        ['macos-{source}/{profile}/workspace/metadata/manifest.json', *['macos-{source}/{profile}/appledouble/{profile}-' + name + '.appledouble' for name in ('example.txt', 'empty', 'binary.bin')]], 'preservation', int(args.expected_major))
     for consumer in args.consumers.split(","):
         for major in args.producers.split(","):
             corpus = args.corpus / ("macos-" + major)
@@ -202,11 +206,13 @@ def main():
             require({c["id"] for c in manifest["cases"]} == required and len(manifest["cases"]) == 4, "native inventory")
             for case in manifest["cases"]:
                 output = args.outputs / ("preservation-" + consumer) / ("macos-" + major) / case["id"].split("/")[1]
-                with tempfile.TemporaryDirectory(prefix="apfs-v3-native-unpack-") as scratch:
-                    entries += verify_case(corpus, output, case, Path(scratch))
-                cases += 1
-                print(f"macOS {version}: verified {consumer} output from macOS {major}: {case['id']}", flush=True)
+                with evidence.case([output / "workspace/metadata/manifest.json", *[output / "appledouble" / (case["id"].split("/")[1] + "-" + name + ".appledouble") for name in ("example.txt", "empty", "binary.bin")]], identical=False):
+                    with tempfile.TemporaryDirectory(prefix="apfs-v3-native-unpack-") as scratch:
+                        entries += verify_case(corpus, output, case, Path(scratch))
+                    cases += 1
+                    print(f"macOS {version}: verified {consumer} output from macOS {major}: {case['id']}", flush=True)
     print(json.dumps({"macOS": version, "workspaces": cases, "entries": entries, "nativeUnpackComparisons": cases * 3}))
+    evidence.finish()
 
 
 if __name__ == "__main__":

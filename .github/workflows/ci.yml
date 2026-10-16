@@ -56,8 +56,16 @@ jobs:
           cache: false
       - name: Test libraries, readers, workspaces and future acceptance families
         # Full-disk writers have separate required retained-corpus jobs below.
-        run: go test -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
+        run: go run ./acceptance/qualification -replay -- -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
       - run: go vet ./...
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/qualification/
+          if-no-files-found: error
 
   offline_retained:
     name: Retained offline editing (${{ matrix.family }}, macOS ${{ matrix.source }}, ${{ matrix.os }})
@@ -92,7 +100,15 @@ jobs:
           SOURCE_MAJOR: ${{ matrix.source }}
         run: |
           test_pattern="${SELECTED_TESTS//SOURCE/$SOURCE_MAJOR}"
-          go test -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
+          go run ./acceptance/qualification -replay -- -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/qualification/
+          if-no-files-found: error
 
   portable_acceptance:
     name: Retained acceptance (${{ matrix.family }}, ${{ matrix.source == 'all' && 'all sources' || format('macOS {0} sources', matrix.source) }}, ${{ matrix.os }})
@@ -145,50 +161,58 @@ jobs:
           cache: false
       - name: Compare the complete family with retained Apple observations
         if: matrix.source == 'all'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}'
       - name: Compare each HFS journal source version independently
         if: matrix.family == 'HFS journal recovery'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFSJournalRecovery$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFSJournalRecovery$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS checkpoint recovery with this retained native source version
         if: matrix.family == 'APFS checkpoint recovery'
-        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
       # Source-version jobs keep the growing edit suites within the same bounded
       # deadlines on every host. All three versions remain required by quality.
       - name: Compare APFS file edits with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS directory edits with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS metadata with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS link lifetimes with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
       - name: Compare APFS preserved copying with retained Apple observations
         if: matrix.family == 'existing APFS edits'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$/macos-${{ matrix.source }}(/|$)'
       # Each HFS capability gets one five-minute test budget inside its own
       # ten-minute job. Sequential budgets previously exhausted the job while
       # passing on slower Windows runners, before preserved copying could run.
       - name: Compare this HFS capability with retained Apple observations
         if: startsWith(matrix.family, 'HFS ') && matrix.family != 'HFS journal recovery' && matrix.family != 'HFS copy'
-        run: go test -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}/macos-${{ matrix.source }}(/|$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '${{ matrix.tests }}/macos-${{ matrix.source }}(/|$)'
       # Copy profiles share the existing family job, but each needs its own
       # test-process deadline on slower hosts. All four remain required.
       - name: Compare nonjournaled HFS+ copying with retained Apple observations
         if: matrix.family == 'HFS copy'
-        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
       - name: Compare nonjournaled HFSX copying with retained Apple observations
         if: matrix.family == 'HFS copy'
-        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
       - name: Compare journaled HFS+ copying with retained Apple observations
         if: matrix.family == 'HFS copy'
-        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
       - name: Compare journaled HFSX copying with retained Apple observations
         if: matrix.family == 'HFS copy'
-        run: go test -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/qualification/
+          if-no-files-found: error
 
   build:
     name: Cross-build (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -320,9 +344,17 @@ jobs:
           go-version-file: go.mod
           cache: false
       - name: Compare the complete family with retained native observations under race instrumentation
-        run: go test -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
+        run: go run ./acceptance/qualification -replay -- -race -v -count=1 -parallel 2 -timeout '${{ matrix.timeout || '5m' }}' ./acceptance -run '${{ matrix.tests }}' -skip '${{ matrix.skip }}'
         env:
           APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          path: |
+            artifacts/qualification/
+          if-no-files-found: error
 
   quality:
     needs: [source_checks, portable, portable_acceptance, offline_retained, race_library, race_acceptance]

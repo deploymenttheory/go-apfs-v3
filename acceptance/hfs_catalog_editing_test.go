@@ -110,10 +110,7 @@ func testCatalogEditing(t *testing.T, journaled bool) {
 	if journaled {
 		env, retained, outputEnv, contract = "APFS_NATIVE_HFS_JOURNALED_EDITS", "testdata/hfs-journaled-catalog-editing", "APFS_HFS_JOURNALED_CATALOG_OUTPUT", "journaled-hfs-catalog-edits"
 	}
-	root := os.Getenv(env)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, env, retained)
 	paths, e := filepath.Glob(filepath.Join(root, "*", "catalog-manifest.json"))
 	if e != nil || len(paths) == 0 {
 		t.Fatal("required native catalog references absent", e)
@@ -152,67 +149,69 @@ func testCatalogEditing(t *testing.T, journaled bool) {
 				}
 				when := time.Unix(manifest.ModificationSeconds, 0).UTC()
 				for _, phase := range []string{"catalog", "catalog-final"} {
-					state, ok := c.States[phase]
-					if !ok || state.CheckerStatus != 0 {
-						t.Fatal("native catalog state absent")
-					}
-					destination := filepath.Join(output, phase+".dmg")
-					report, e := imageedit.Apply(ctx, current, destination, imageedit.Options{Format: "UDZO", Time: when}, catalogChanges(phase))
-					if e != nil {
-						t.Fatal(phase, e)
-					}
-					repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-					if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: "UDZO", Time: when}, catalogChanges(phase)); e != nil {
-						t.Fatal(e)
-					}
-					if fileDigest(t, destination) != fileDigest(t, repeat) {
-						t.Fatal("catalog operations are not reproducible")
-					}
-					image, e := diskimage.Open(destination)
-					if e != nil {
-						t.Fatal(e)
-					}
-					part, e := image.Partition(0)
-					if e != nil {
-						t.Fatal(e)
-					}
-					v, e := hfsplus.Open(part)
-					if e != nil {
-						t.Fatal(e)
-					}
-					if v.Journaled != journaled || v.VolumeID != report.VolumeID || v.BlockCount != uint32((64<<20)/4096) {
-						t.Fatal("volume identity/profile")
-					}
-					if e = hfsplus.ValidateMutation(ctx, part); e != nil {
-						t.Fatal(e)
-					}
-					compareCatalogState(t, v, c.Before.Files, state.Files, when)
-					verifyEditJournal(t, part, c.Before.Journal)
-					var h [512]byte
-					if _, e = part.ReadAt(h[:], 1024); e != nil {
-						t.Fatal(e)
-					}
-					if phase == "catalog" && v.FreeBlocks >= c.Before.Headers.Primary.FreeBlocks {
-						t.Fatal("catalog/file allocation not exercised")
-					}
-					image.Close()
-					current = destination
-					raw := openEditArchive(t, dir, state.Archive)
-					native, e := diskimage.Open(raw)
-					if e != nil {
-						t.Fatal(e)
-					}
-					p, e := native.Partition(0)
-					if e != nil {
-						t.Fatal(e)
-					}
-					nv, e := hfsplus.Open(p)
-					if e != nil {
-						t.Fatal(e)
-					}
-					compareFiles(t, nv, state.Files)
-					compareEditRawAttributes(t, nv, state.Files)
-					native.Close()
+					t.Run(phase, func(t *testing.T) {
+						state, ok := c.States[phase]
+						if !ok || state.CheckerStatus != 0 {
+							t.Fatal("native catalog state absent")
+						}
+						destination := filepath.Join(output, phase+".dmg")
+						report, e := imageedit.Apply(ctx, current, destination, imageedit.Options{Format: "UDZO", Time: when}, catalogChanges(phase))
+						if e != nil {
+							t.Fatal(phase, e)
+						}
+						repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+						if _, e = imageedit.Apply(ctx, current, repeat, imageedit.Options{Format: "UDZO", Time: when}, catalogChanges(phase)); e != nil {
+							t.Fatal(e)
+						}
+						if fileDigest(t, destination) != fileDigest(t, repeat) {
+							t.Fatal("catalog operations are not reproducible")
+						}
+						image, e := diskimage.Open(destination)
+						if e != nil {
+							t.Fatal(e)
+						}
+						part, e := image.Partition(0)
+						if e != nil {
+							t.Fatal(e)
+						}
+						v, e := hfsplus.Open(part)
+						if e != nil {
+							t.Fatal(e)
+						}
+						if v.Journaled != journaled || v.VolumeID != report.VolumeID || v.BlockCount != uint32((64<<20)/4096) {
+							t.Fatal("volume identity/profile")
+						}
+						if e = hfsplus.ValidateMutation(ctx, part); e != nil {
+							t.Fatal(e)
+						}
+						compareCatalogState(t, v, c.Before.Files, state.Files, when)
+						verifyEditJournal(t, part, c.Before.Journal)
+						var h [512]byte
+						if _, e = part.ReadAt(h[:], 1024); e != nil {
+							t.Fatal(e)
+						}
+						if phase == "catalog" && v.FreeBlocks >= c.Before.Headers.Primary.FreeBlocks {
+							t.Fatal("catalog/file allocation not exercised")
+						}
+						image.Close()
+						current = destination
+						raw := openEditArchive(t, dir, state.Archive)
+						native, e := diskimage.Open(raw)
+						if e != nil {
+							t.Fatal(e)
+						}
+						p, e := native.Partition(0)
+						if e != nil {
+							t.Fatal(e)
+						}
+						nv, e := hfsplus.Open(p)
+						if e != nil {
+							t.Fatal(e)
+						}
+						compareFiles(t, nv, state.Files)
+						compareEditRawAttributes(t, nv, state.Files)
+						native.Close()
+					})
 				}
 				if fileDigest(t, source) != originalHash {
 					t.Fatal("catalog editing changed original")

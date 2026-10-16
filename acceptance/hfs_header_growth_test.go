@@ -83,10 +83,7 @@ type hfsSectorProbe struct {
 // A readable primary never turns a recorded native checker failure into a pass.
 func TestNativeHFSCatalogGrowth(t *testing.T) {
 	t.Parallel()
-	root := os.Getenv("APFS_NATIVE_HFS_GROWTH")
-	if root == "" {
-		root = "testdata/hfs-header-growth"
-	}
+	root := nativeInput(t, "APFS_NATIVE_HFS_GROWTH", "testdata/hfs-header-growth")
 	manifests, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil || len(manifests) == 0 {
 		t.Fatal("missing retained HFS growth evidence", root, err)

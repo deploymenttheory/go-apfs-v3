@@ -117,10 +117,7 @@ func compareStatisticsTransition(t *testing.T, volume *apfs.Volume, original, ex
 }
 
 func TestNativeAPFSDirectoryStatisticsTransitions(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_DIRECTORY_STATISTICS_TRANSITIONS")
-	if root == "" {
-		root = "testdata/apfs-directory-statistics-transitions"
-	}
+	root := nativeInput(t, "APFS_NATIVE_DIRECTORY_STATISTICS_TRANSITIONS", "testdata/apfs-directory-statistics-transitions")
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native statistics transitions absent", err)
@@ -170,9 +167,11 @@ func TestNativeAPFSDirectoryStatisticsTransitions(t *testing.T) {
 							t.Fatal(err)
 						}
 						for _, format := range []string{"UDRO", "UDZO"} {
-							if _, err := pack.Repack(context.Background(), current, filepath.Join(root, segment+"-"+format+".dmg"), format); err != nil {
-								t.Fatal("export native statistics check", err)
-							}
+							t.Run(segment+"/"+format, func(t *testing.T) {
+								if _, err := pack.Repack(context.Background(), current, filepath.Join(root, segment+"-"+format+".dmg"), format); err != nil {
+									t.Fatal("export native statistics check", err)
+								}
+							})
 						}
 					}
 					for index, state := range c.States {

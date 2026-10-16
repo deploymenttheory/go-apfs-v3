@@ -4,6 +4,7 @@ Each randomized ciphertext must unlock independently. Complete native device
 hashes must equal the plaintext image whose filesystem/metadata/signatures were
 already checked. No Go decoder supplies this verdict.
 """
+from contextlib import nullcontext
 import hashlib
 import plistlib
 
@@ -44,7 +45,7 @@ def password_command(command, image, password):
     return unlocked
 
 
-def verify(images, bits, command, directory="encrypted", old_password=None):
+def verify(images, bits, command, directory="encrypted", old_password=None, evidence=None):
     """images are the plaintext outputs; encrypted siblings use the same format."""
     require_disposable_host()
     require(len(images) == 3, 'all portable encryption producers required')
@@ -53,40 +54,42 @@ def verify(images, bits, command, directory="encrypted", old_password=None):
     ciphertexts = []
     for plain in images:
         image = plain.parent / directory / plain.name
-        before = sha256(image)
-        unlocked = password_command(command, image, PASSWORD)
-        native = plistlib.loads(unlocked('hdiutil', 'imageinfo', '-plist', image))
-        require(native['Format'] == plain.stem and native['Properties']['Encrypted'], 'native encrypted output format')
-        store, ciphers = native['Backing Store Information'], []
-        while isinstance(store, dict):
-            if 'Encryption' in store:
-                ciphers.append(store['Encryption'])
-            store = store.get('Backing Store Information')
-        require(ciphers == [f'AES-{bits}'], 'native output cipher')
-        command('hdiutil', 'imageinfo', '-plist', '-stdinpass', image,
-                fixture_input=b'public-wrong-output-password\0', expected_success=False)
-        if old_password is not None:
+        with evidence.case([image]) if evidence is not None else nullcontext():
+            before = sha256(image)
+            unlocked = password_command(command, image, PASSWORD)
+            native = plistlib.loads(unlocked('hdiutil', 'imageinfo', '-plist', image))
+            require(native['Format'] == plain.stem and native['Properties']['Encrypted'], 'native encrypted output format')
+            store, ciphers = native['Backing Store Information'], []
+            while isinstance(store, dict):
+                if 'Encryption' in store:
+                    ciphers.append(store['Encryption'])
+                store = store.get('Backing Store Information')
+            require(ciphers == [f'AES-{bits}'], 'native output cipher')
             command('hdiutil', 'imageinfo', '-plist', '-stdinpass', image,
-                    fixture_input=old_password.encode() + b'\0', expected_success=False)
-        unlocked('hdiutil', 'verify', image)
-        require(disk_hash(image, unlocked) == expected, 'encryption changed decoded disk sectors')
-        require(sha256(image) == before, 'native encrypted readback changed output')
-        ciphertexts.append(before)
+                    fixture_input=b'public-wrong-output-password\0', expected_success=False)
+            if old_password is not None:
+                command('hdiutil', 'imageinfo', '-plist', '-stdinpass', image,
+                        fixture_input=old_password.encode() + b'\0', expected_success=False)
+            unlocked('hdiutil', 'verify', image)
+            require(disk_hash(image, unlocked) == expected, 'encryption changed decoded disk sectors')
+            require(sha256(image) == before, 'native encrypted readback changed output')
+            ciphertexts.append(before)
     require(len(set(ciphertexts)) == len(images), 'independent builds reused encrypted output bytes')
     print(f'Apple decrypted {len(images)} distinct AES-{bits} images to the exact qualified disk: {images[0]}', flush=True)
 
 
-def verify_decrypted(images, command):
+def verify_decrypted(images, command, evidence=None):
     """Explicit decryption must yield one reproducible, unencrypted disk."""
     require_disposable_host()
     decrypted = [p.parent / 'decrypted' / p.name for p in images]
     require(len(decrypted) == 3 and len({sha256(p) for p in decrypted}) == 1,
             'decrypted output differs between hosts')
-    before = sha256(decrypted[0])
-    native = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', decrypted[0]))
-    require(native['Format'] == images[0].stem and not native['Properties']['Encrypted'],
-            'explicit decryption did not remove image encryption')
-    command('hdiutil', 'verify', decrypted[0])
-    require(disk_hash(decrypted[0], command) == disk_hash(images[0], command),
-            'decryption changed native disk sectors')
-    require(sha256(decrypted[0]) == before, 'native readback changed decrypted output')
+    with evidence.case(decrypted) if evidence is not None else nullcontext():
+        before = sha256(decrypted[0])
+        native = plistlib.loads(command('hdiutil', 'imageinfo', '-plist', decrypted[0]))
+        require(native['Format'] == images[0].stem and not native['Properties']['Encrypted'],
+                'explicit decryption did not remove image encryption')
+        command('hdiutil', 'verify', decrypted[0])
+        require(disk_hash(decrypted[0], command) == disk_hash(images[0], command),
+                'decryption changed native disk sectors')
+        require(sha256(decrypted[0]) == before, 'native readback changed decrypted output')

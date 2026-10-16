@@ -185,10 +185,7 @@ func compareAPFSEditedState(t *testing.T, v *apfs.Volume, before, want fileObser
 // TestNativeAPFSGeometryEditing compares larger/container-wide edits with Apple before
 // and after observations. Native output verification is a separate CI program.
 func TestNativeAPFSGeometryEditing(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_APFS_GEOMETRY")
-	if root == "" {
-		root = "testdata/apfs-geometry"
-	}
+	root := nativeInput(t, "APFS_NATIVE_APFS_GEOMETRY", "testdata/apfs-geometry")
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("offline editing native references absent", err)
@@ -246,43 +243,45 @@ func TestNativeAPFSGeometryEditing(t *testing.T) {
 				}
 				when := time.Unix(1749283750, 0).UTC()
 				for _, format := range []string{"UDRO", "UDZO"} {
-					destination := filepath.Join(output, "edited-"+format+".dmg")
-					options := imageedit.Options{Volume: target.UUID, Format: format, Time: when}
-					var report imageedit.Report
-					if format == "UDZO" {
-						report, err = imageedit.Edit(context.Background(), source, destination, options, func(editor *imageedit.Editor) error {
-							for _, change := range apfsGeometryChanges() {
-								if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
-									return err
+					t.Run(format, func(t *testing.T) {
+						destination := filepath.Join(output, "edited-"+format+".dmg")
+						options := imageedit.Options{Volume: target.UUID, Format: format, Time: when}
+						var report imageedit.Report
+						if format == "UDZO" {
+							report, err = imageedit.Edit(context.Background(), source, destination, options, func(editor *imageedit.Editor) error {
+								for _, change := range apfsGeometryChanges() {
+									if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
+										return err
+									}
 								}
-							}
-							return nil
-						})
-					} else {
-						report, err = imageedit.Apply(context.Background(), source, destination, options, apfsGeometryChanges())
-					}
-					if err != nil {
-						t.Fatal(err)
-					}
-					got := openAPFSEditVolume(t, destination)
-					if got.UUID != original.UUID || got.BlockCount != original.BlockCount || report.VolumeID != target.UUID {
-						t.Fatal("container geometry/identity changed")
-					}
-					for _, state := range c.After {
-						volume := apfsVolumeByUUID(t, got, state.UUID)
-						if state.Name == c.TargetVolume {
-							compareAPFSEditedState(t, volume, target.Files, state.Files, when)
+								return nil
+							})
 						} else {
-							for _, before := range c.Before {
-								if before.UUID == state.UUID {
-									compareMetadataState(t, volume, before.Files, "apfs")
+							report, err = imageedit.Apply(context.Background(), source, destination, options, apfsGeometryChanges())
+						}
+						if err != nil {
+							t.Fatal(err)
+						}
+						got := openAPFSEditVolume(t, destination)
+						if got.UUID != original.UUID || got.BlockCount != original.BlockCount || report.VolumeID != target.UUID {
+							t.Fatal("container geometry/identity changed")
+						}
+						for _, state := range c.After {
+							volume := apfsVolumeByUUID(t, got, state.UUID)
+							if state.Name == c.TargetVolume {
+								compareAPFSEditedState(t, volume, target.Files, state.Files, when)
+							} else {
+								for _, before := range c.Before {
+									if before.UUID == state.UUID {
+										compareMetadataState(t, volume, before.Files, "apfs")
+									}
 								}
 							}
+							if volume.ReserveBlocks*4096 != state.ReserveBytes || volume.QuotaBlocks*4096 != state.QuotaBytes {
+								t.Fatal("space policy changed")
+							}
 						}
-						if volume.ReserveBlocks*4096 != state.ReserveBytes || volume.QuotaBlocks*4096 != state.QuotaBytes {
-							t.Fatal("space policy changed")
-						}
-					}
+					})
 				}
 				digest := fileDigest(t, source)
 				if hex.EncodeToString(digest[:]) != c.Source.UncompressedSHA256 {

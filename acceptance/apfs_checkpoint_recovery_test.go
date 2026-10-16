@@ -145,10 +145,7 @@ func checkpointDiskHash(t *testing.T, source block.Source, selectedAddress uint6
 // selected XID and its read-only mount supplies every expected file value.
 // Deliberate checksum damage has separate provenance and Apple-checked controls.
 func TestNativeAPFSCheckpointRecovery(t *testing.T) {
-	root := os.Getenv("APFS_NATIVE_CHECKPOINT_RECOVERY")
-	if root == "" {
-		root = "testdata/apfs-recovery"
-	}
+	root := nativeInput(t, "APFS_NATIVE_CHECKPOINT_RECOVERY", "testdata/apfs-recovery")
 	paths, err := filepath.Glob(filepath.Join(root, "*", "recovery.json"))
 	if err != nil || len(paths) != 3 {
 		t.Fatal("macOS 15, 26 and 27 checkpoint references required", err)
@@ -277,40 +274,42 @@ func compareCheckpointRecovery(t *testing.T, dir string, major int, c checkpoint
 		t.Fatal(err)
 	}
 	for _, format := range []string{"UDRO", "UDZO"} {
-		output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
-		result, err := imageedit.RecoverCheckpoint(ctx, sourcePath, output, imageedit.CheckpointRecoveryOptions{Format: format})
-		if err != nil || result.Checkpoint == nil || !result.Checkpoint.FilesystemValidated || result.Transaction != c.Native.SelectedXID {
-			t.Fatal("completed checkpoint recovery", result, err)
-		}
-		if c.Damage != nil && (len(result.Checkpoint.DiscardedDescriptors) != 1 || uint64(result.Checkpoint.DiscardedDescriptors[0]) != c.Damage.DisabledControlDescriptor) {
-			t.Fatal("wrong damaged descriptor discarded", result.Checkpoint)
-		}
-		image, err := diskimage.Open(output)
-		if err != nil {
-			t.Fatal(err)
-		}
-		view, err := image.Partition(0)
-		if err != nil || checkpointDiskHash(t, view, 0) != want {
-			t.Fatal("recovery changed sectors beyond explicit checkpoint normalization", err)
-		}
-		container, err := apfs.Open(view)
-		if err != nil || len(container.Volumes) != 1 || container.Volumes[0].UUID != c.Native.VolumeUUID || uint64(container.XID) != c.Native.SelectedXID {
-			t.Fatal("recovered identity/transaction", err)
-		}
-		compareMetadataState(t, &container.Volumes[0], c.Native.Files, "apfs")
-		if err = image.Close(); err != nil {
-			t.Fatal(err)
-		}
-		if format == "UDRO" {
-			repeat := filepath.Join(t.TempDir(), "repeat.dmg")
-			if _, err = imageedit.RecoverCheckpoint(ctx, sourcePath, repeat, imageedit.CheckpointRecoveryOptions{Format: format}); err != nil || fileDigest(t, repeat) != fileDigest(t, output) {
-				t.Fatal("checkpoint recovery not reproducible", err)
+		t.Run(format, func(t *testing.T) {
+			output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
+			result, err := imageedit.RecoverCheckpoint(ctx, sourcePath, output, imageedit.CheckpointRecoveryOptions{Format: format})
+			if err != nil || result.Checkpoint == nil || !result.Checkpoint.FilesystemValidated || result.Transaction != c.Native.SelectedXID {
+				t.Fatal("completed checkpoint recovery", result, err)
 			}
-			edited := filepath.Join(outputRoot, c.ID+"-edited.dmg")
-			if _, err = imageedit.Apply(ctx, output, edited, imageedit.Options{Format: "UDZO", Time: time.Unix(1749283750, 0)}, []filesystem.Change{{Operation: "chmod", Path: "/Fixture/retained", Mode: "0600"}}); err != nil {
-				t.Fatal("recovered image not editable", err)
+			if c.Damage != nil && (len(result.Checkpoint.DiscardedDescriptors) != 1 || uint64(result.Checkpoint.DiscardedDescriptors[0]) != c.Damage.DisabledControlDescriptor) {
+				t.Fatal("wrong damaged descriptor discarded", result.Checkpoint)
 			}
-		}
+			image, err := diskimage.Open(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			view, err := image.Partition(0)
+			if err != nil || checkpointDiskHash(t, view, 0) != want {
+				t.Fatal("recovery changed sectors beyond explicit checkpoint normalization", err)
+			}
+			container, err := apfs.Open(view)
+			if err != nil || len(container.Volumes) != 1 || container.Volumes[0].UUID != c.Native.VolumeUUID || uint64(container.XID) != c.Native.SelectedXID {
+				t.Fatal("recovered identity/transaction", err)
+			}
+			compareMetadataState(t, &container.Volumes[0], c.Native.Files, "apfs")
+			if err = image.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if format == "UDRO" {
+				repeat := filepath.Join(t.TempDir(), "repeat.dmg")
+				if _, err = imageedit.RecoverCheckpoint(ctx, sourcePath, repeat, imageedit.CheckpointRecoveryOptions{Format: format}); err != nil || fileDigest(t, repeat) != fileDigest(t, output) {
+					t.Fatal("checkpoint recovery not reproducible", err)
+				}
+				edited := filepath.Join(outputRoot, c.ID+"-edited.dmg")
+				if _, err = imageedit.Apply(ctx, output, edited, imageedit.Options{Format: "UDZO", Time: time.Unix(1749283750, 0)}, []filesystem.Change{{Operation: "chmod", Path: "/Fixture/retained", Mode: "0600"}}); err != nil {
+					t.Fatal("recovered image not editable", err)
+				}
+			}
+		})
 	}
 	if _, err = imageedit.RecoverCheckpoint(ctx, sourcePath, sourcePath, imageedit.CheckpointRecoveryOptions{}); !os.IsExist(err) {
 		t.Fatal("source overwrite admitted", err)

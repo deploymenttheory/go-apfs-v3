@@ -83,23 +83,27 @@ def verify(expected_major, references, outputs, diagnostics):
     diagnostics.mkdir(parents=True)
     command = Commands(diagnostics / 'commands.json')
     expected_names = set()
+    from qualification_cases import recovery_verification
+    evidence = recovery_verification(references, outputs, diagnostics, expected_major, apfs=True)
     with tempfile.TemporaryDirectory(prefix='verify-apfs-checkpoints-') as temporary:
         work = Path(temporary)
         for case in manifest['cases']:
             for format_name in ('UDRO', 'UDZO'):
                 image = outputs / (case['id'] + '-' + format_name + '.dmg')
                 expected_names.add(image.name)
-                command('hdiutil', 'verify', image)
-                check(image, case['native']['files'], work, command)
-                if format_name == 'UDRO':
-                    raw = work / 'continued.raw'
-                    writable_copy(image, raw, command, disk_hash)
-                    check(raw, case['native']['files'], work, command, modify=True)
-                    check(raw, None, work, command, continued=True)
-                    raw.unlink()
+                with evidence.case([image]):
+                    command('hdiutil', 'verify', image)
+                    check(image, case['native']['files'], work, command)
+                    if format_name == 'UDRO':
+                        raw = work / 'continued.raw'
+                        writable_copy(image, raw, command, disk_hash)
+                        check(raw, case['native']['files'], work, command, modify=True)
+                        check(raw, None, work, command, continued=True)
+                        raw.unlink()
             edited = outputs / (case['id'] + '-edited.dmg')
-            expected_names.add(edited.name)
-            check(edited, changed_observation(case['native']['files'], mode=0o600), work, command)
+            with evidence.case([edited]):
+                expected_names.add(edited.name)
+                check(edited, changed_observation(case['native']['files'], mode=0o600), work, command)
         faults = json.loads((outputs / 'faults.json').read_text())
         original = next(case for case in manifest['cases'] if case['id'] == 'apfs-committed')
         expected_system = {'recovered-Linux': 'linux', 'recovered-Windows': 'windows', 'recovered-macOS': 'darwin'}[outputs.parent.name]
@@ -113,26 +117,28 @@ def verify(expected_major, references, outputs, diagnostics):
             require(stage not in seen and stage in ('data', 'metadata', 'ephemeral', 'mapping', 'superblock', 'block-zero')
                     and fault['partialBytes'] == 7 and fault['trace'][-1]['stage'] == stage,
                     'actual torn write at each named publication boundary')
-            seen.add(stage)
-            require(fault['modified'] == (stage == 'block-zero'), 'only fully published new checkpoints expose new data')
             image = outputs / fault['output']
-            expected_names.add(image.name)
-            require(sha256(image) == fault['outputSHA256'], 'actual portable fault recovery output digest')
-            digest, count = hashlib.sha256(), 0
-            with gzip.open(outputs / f'fault-{stage}-interrupted.raw.gz', 'rb') as stream:
-                while data := stream.read(128 << 10):
-                    count += len(data)
-                    require(count <= 128 << 20, 'bounded actual interrupted Go input')
-                    digest.update(data)
-            require(count == 128 << 20 and digest.hexdigest() == fault['inputSHA256'], 'retained actual torn input digest')
-            observation = changed_observation(original['native']['files'], payload=faults) if fault['modified'] else original['native']['files']
-            check(image, observation, work, command)
-            raw = work / 'fault-continued.raw'
-            writable_copy(image, raw, command, disk_hash)
-            check(raw, observation, work, command, modify=True)
-            check(raw, None, work, command, continued=True)
-            raw.unlink()
+            with evidence.case([image]):
+                seen.add(stage)
+                require(fault['modified'] == (stage == 'block-zero'), 'only fully published new checkpoints expose new data')
+                expected_names.add(image.name)
+                require(sha256(image) == fault['outputSHA256'], 'actual portable fault recovery output digest')
+                digest, count = hashlib.sha256(), 0
+                with gzip.open(outputs / f'fault-{stage}-interrupted.raw.gz', 'rb') as stream:
+                    while data := stream.read(128 << 10):
+                        count += len(data)
+                        require(count <= 128 << 20, 'bounded actual interrupted Go input')
+                        digest.update(data)
+                require(count == 128 << 20 and digest.hexdigest() == fault['inputSHA256'], 'retained actual torn input digest')
+                observation = changed_observation(original['native']['files'], payload=faults) if fault['modified'] else original['native']['files']
+                check(image, observation, work, command)
+                raw = work / 'fault-continued.raw'
+                writable_copy(image, raw, command, disk_hash)
+                check(raw, observation, work, command, modify=True)
+                check(raw, None, work, command, continued=True)
+                raw.unlink()
     require({path.name for path in outputs.glob('*.dmg')} == expected_names, 'exact portable recovery output inventory')
+    evidence.finish()
 
 
 if __name__ == '__main__':

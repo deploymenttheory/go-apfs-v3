@@ -24,7 +24,7 @@ func buildCompressionOutputs(t *testing.T, r filesystem.Reader, want fileObserva
 	// Source-version coverage and fresh compression controls are separate
 	// contracts. The older retained construction corpus predates these added
 	// boundary files; fresh Apple captures must contain every required control.
-	if os.Getenv("APFS_NATIVE_IMAGE_BUILDING") != "" {
+	if requireNativeControl(t, "compression-boundaries") {
 		paths := map[string]bool{}
 		for _, entry := range want.Entries {
 			paths[entry.Path] = true

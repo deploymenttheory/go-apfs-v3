@@ -55,6 +55,11 @@ def verify(corpus, outputs, continuation, major, kind, prefix):
     manifests = sorted(corpus.glob('macos-*/manifest.json'))
     require(len(manifests) == 3, 'all source versions supply link controls')
     count = 0
+    from qualification_cases import image_verification
+    input_id = 'apfs-link-editing' if kind == 'apfs' else ('hfs-journaled-link-editing' if prefix == 'hfs-journaled' else 'hfs-link-editing')
+    evidence = image_verification(corpus, outputs, input_id, prefix + '-links-',
+        ['macos-{source}/{case}/links-UDRO.dmg', 'macos-{source}/{case}/links-UDZO.dmg', 'macos-{source}/{case}/links-final-UDRO.dmg', 'macos-{source}/{case}/links-final-UDZO.dmg', 'macos-{source}/{case}/removed-UDRO.dmg', 'macos-{source}/{case}/removed-UDZO.dmg'], 'image_links', major,
+        manifest='manifest.json', continued=lambda name: name.endswith('/removed-UDZO.dmg'))
     with tempfile.TemporaryDirectory(prefix='link-readback-') as temporary:
         work = Path(temporary)
         for path in manifests:
@@ -67,34 +72,36 @@ def verify(corpus, outputs, continuation, major, kind, prefix):
                     for phase in ('links', 'links-final', 'removed'):
                         relative = Path(path.parent.name, case['id'], phase + '-' + encoding + '.dmg')
                         images = [outputs / (prefix + '-links-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                        require(all(image.is_file() for image in images), 'all portable link images supplied')
-                        require(len({sha256(image) for image in images}) == 1, 'link outputs identical across hosts')
-                        image, raw = images[0], work / 'output.raw'
-                        digest = sha256(image)
-                        command('hdiutil', 'verify', image)
-                        writable_copy(image, raw, command, native_hash)
-                        inspect(raw, kind, command, work, ids, case['states'][phase])
-                        if phase == 'removed' and encoding == 'UDZO':
-                            with mounted(raw, kind, command, work, writable=True) as (root, native):
-                                apply(root, operations('native'), native)
-                            before = observe(raw, kind, command, work, signed=True)['files']
-                            name = path.parent.name + '-' + case['id']
-                            shutil.copyfile(raw, continuation / (name + '.raw'))
-                            # A separate Apple-only copy, never a Go result,
-                            # supplies the complete continuation expectation.
-                            control = work / 'control.raw'
-                            shutil.copyfile(raw, control)
-                            ops = operations('continued')
-                            with mounted(control, kind, command, work, writable=True) as (root, native):
-                                clocks = apply(root, ops, native)
-                            expected = observe(control, kind, command, work, signed=True)
-                            expected.update(operations=ops, clockFields=clocks)
-                            (continuation / (name + '.json')).write_text(json.dumps({'before': before, 'expected': expected}, indent=2) + '\n')
-                            control.unlink()
-                        raw.unlink()
-                        require(sha256(image) == digest, 'portable link image remains immutable')
-                        count += 1
+                        with evidence.case(images):
+                            require(all(image.is_file() for image in images), 'all portable link images supplied')
+                            require(len({sha256(image) for image in images}) == 1, 'link outputs identical across hosts')
+                            image, raw = images[0], work / 'output.raw'
+                            digest = sha256(image)
+                            command('hdiutil', 'verify', image)
+                            writable_copy(image, raw, command, native_hash)
+                            inspect(raw, kind, command, work, ids, case['states'][phase])
+                            if phase == 'removed' and encoding == 'UDZO':
+                                with mounted(raw, kind, command, work, writable=True) as (root, native):
+                                    apply(root, operations('native'), native)
+                                before = observe(raw, kind, command, work, signed=True)['files']
+                                name = path.parent.name + '-' + case['id']
+                                shutil.copyfile(raw, continuation / (name + '.raw'))
+                                # A separate Apple-only copy, never a Go result,
+                                # supplies the complete continuation expectation.
+                                control = work / 'control.raw'
+                                shutil.copyfile(raw, control)
+                                ops = operations('continued')
+                                with mounted(control, kind, command, work, writable=True) as (root, native):
+                                    clocks = apply(root, ops, native)
+                                expected = observe(control, kind, command, work, signed=True)
+                                expected.update(operations=ops, clockFields=clocks)
+                                (continuation / (name + '.json')).write_text(json.dumps({'before': before, 'expected': expected}, indent=2) + '\n')
+                                control.unlink()
+                            raw.unlink()
+                            require(sha256(image) == digest, 'portable link image remains immutable')
+                            count += 1
     require(count == 36, 'complete link readback inventory')
+    evidence.finish()
 
 
 def verify_continued(directory, controls, major, kind, prefix):
@@ -103,14 +110,19 @@ def verify_continued(directory, controls, major, kind, prefix):
     command = Commands(directory / f'{prefix}-links-continued-{major}.diagnostics.json')
     images = sorted(directory.glob('*.dmg'))
     require(len(images) == 6, 'all native source/profile continuations present')
+    from qualification_cases import continuation_verification
+    evidence = continuation_verification(directory, kind, 'image_links-continued', major,
+        metadata=False, raw_suffix=False)
     with tempfile.TemporaryDirectory(prefix='links-continued-') as temporary:
         work = Path(temporary)
         for image in images:
-            control = json.loads((controls / (image.stem + '.json')).read_text())
-            raw = work / 'continued.raw'
-            writable_copy(image, raw, command, native_hash)
-            inspect(raw, kind, command, work, Identities(control['before']), control['expected'])
-            raw.unlink()
+            with evidence.case([image]):
+                control = json.loads((controls / (image.stem + '.json')).read_text())
+                raw = work / 'continued.raw'
+                writable_copy(image, raw, command, native_hash)
+                inspect(raw, kind, command, work, Identities(control['before']), control['expected'])
+                raw.unlink()
+    evidence.finish()
 
 
 if __name__ == '__main__':

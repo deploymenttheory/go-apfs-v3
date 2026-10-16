@@ -104,6 +104,8 @@ def continue_native(raw, command, work, copies=False):
 
 
 def verify(corpus, outputs, major, copies=False):
+    from qualification import NativeEvidence, ReplayEvidence
+    from qualification_cases import ROOT, image_targets
     require_disposable_host()
     producer = version(major)
     family = 'copy-permissions' if copies else 'permissions'
@@ -111,6 +113,13 @@ def verify(corpus, outputs, major, copies=False):
     command = Commands(outputs / f'offline-editing-{family}-{major}.diagnostics.json')
     manifests = sorted(corpus.glob('macos-*/manifest.json'))
     require(len(manifests) == 3, 'all native permission source versions')
+    replay = ReplayEvidence(outputs, ROOT)
+    replay.bind_input(contract, corpus)
+    evidence = NativeEvidence(replay, image_targets(corpus, outputs, contract,
+        'offline-editing-' + family + '-',
+        [f'macos-{{source}}/{{case}}-{encoding}.dmg' for encoding in ('UDRO', 'UDZO')]),
+        ROOT, outputs, 'offline-editing-' + family, major,
+        continuation=lambda case, file: file['path'].endswith('-UDZO.dmg'))
     count = 0
     with tempfile.TemporaryDirectory(prefix='offline-editing-' + family + '-readback-') as tmp:
         work = Path(tmp)
@@ -122,24 +131,26 @@ def verify(corpus, outputs, major, copies=False):
                 for encoding in ('UDRO', 'UDZO'):
                     relative = Path(path.parent.name, case['id'] + '-' + encoding + '.dmg')
                     images = [outputs / ('offline-editing-' + family + '-' + host) / relative for host in ('Linux', 'Windows', 'macOS')]
-                    require(all(image.is_file() for image in images), 'all portable permission outputs')
-                    require(len({sha256(image) for image in images}) == 1, 'permission outputs identical across hosts')
-                    image, raw = images[0], work / 'output.raw'
-                    digest = sha256(image)
-                    command('hdiutil', 'verify', image)
-                    writable_copy(image, raw, command, native_hash)
-                    require(raw.stat().st_size == case['source']['uncompressedBytes'], 'permission geometry retained')
-                    inspect(raw, case, command, work, copies=copies)
-                    if encoding == 'UDZO':
-                        continue_native(raw, command, work, copies=copies)
-                        inspect(raw, case, command, work, continued=True, copies=copies)
-                    raw.unlink()
-                    require(sha256(image) == digest, 'permission portable source immutable')
-                    count += 1
+                    with evidence.case(images):
+                        require(all(image.is_file() for image in images), 'all portable permission outputs')
+                        require(len({sha256(image) for image in images}) == 1, 'permission outputs identical across hosts')
+                        image, raw = images[0], work / 'output.raw'
+                        digest = sha256(image)
+                        command('hdiutil', 'verify', image)
+                        writable_copy(image, raw, command, native_hash)
+                        require(raw.stat().st_size == case['source']['uncompressedBytes'], 'permission geometry retained')
+                        inspect(raw, case, command, work, copies=copies)
+                        if encoding == 'UDZO':
+                            continue_native(raw, command, work, copies=copies)
+                            inspect(raw, case, command, work, continued=True, copies=copies)
+                        raw.unlink()
+                        require(sha256(image) == digest, 'permission portable source immutable')
+                        count += 1
     (outputs / f'offline-editing-{family}-{major}.verdict.json').write_text(json.dumps({
         'schema': 1, 'contract': contract, 'producer': producer,
         'verifiedOutputs': count, 'portableHostsByteIdentical': True,
         'nativeACLAndSetIDReadback': True, 'nativeContinuedCreationAndWrites': True}, indent=2) + '\n')
+    evidence.finish()
 
 
 if __name__ == '__main__':

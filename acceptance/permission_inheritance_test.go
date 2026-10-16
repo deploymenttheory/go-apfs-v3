@@ -208,7 +208,7 @@ func TestNativePermissionInheritance(t *testing.T) {
 
 func TestNativeCopyPermissions(t *testing.T) {
 	var required []string
-	if os.Getenv("APFS_NATIVE_COPY_PERMISSIONS") != "" {
+	if requireNativeControl(t, "copy-truncation") {
 		required = []string{"truncate"}
 	}
 	testNativePermissions(t, "APFS_NATIVE_COPY_PERMISSIONS", "testdata/copy-permissions", "copy-permissions", "APFS_COPY_PERMISSIONS_OUTPUT", true, required...)
@@ -223,10 +223,7 @@ func TestNativeCopyTruncationPermissions(t *testing.T) {
 }
 
 func testNativePermissions(t *testing.T, env, retained, contract, outputEnv string, copies bool, requiredOperations ...string) {
-	root := os.Getenv(env)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, env, retained)
 	tools := 4
 	if copies {
 		tools = 5
@@ -259,7 +256,7 @@ func testNativePermissions(t *testing.T, env, retained, contract, outputEnv stri
 				}
 			}
 		}
-		if copies && os.Getenv(env) != "" {
+		if copies && requireNativeControl(t, "copy-setid") {
 			for _, c := range manifest.Cases {
 				var modes bool
 				for _, op := range c.Operations {
@@ -332,27 +329,29 @@ func testNativePermissions(t *testing.T, env, retained, contract, outputEnv stri
 						t.Fatal(err)
 					}
 					for _, format := range []string{"UDRO", "UDZO"} {
-						output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
-						_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Time: when, Format: format, ActorUID: filesystem.Observed(manifest.Producer.ActorUID)}, func(editor *imageedit.Editor) error {
-							// Later creation inherits the ACL of the earlier new child
-							// across separate commands on one shared scratch disk.
-							for index, change := range permissionChanges(c) {
-								op := c.Operations[index]
-								if op.Op == "copy" {
-									command := imageedit.CopyCommand{Sources: []string{"/Fixture/" + op.Source}, Destination: "/Fixture/" + op.Path, Options: imageedit.CopyOptions{Preserve: op.Preserve, NoAttributes: op.NoAttributes}}
-									if _, err := editor.Copy([]imageedit.CopyCommand{command}); err != nil {
+						t.Run(format, func(t *testing.T) {
+							output := filepath.Join(outputRoot, c.ID+"-"+format+".dmg")
+							_, err := imageedit.Edit(context.Background(), source, output, imageedit.Options{Time: when, Format: format, ActorUID: filesystem.Observed(manifest.Producer.ActorUID)}, func(editor *imageedit.Editor) error {
+								// Later creation inherits the ACL of the earlier new child
+								// across separate commands on one shared scratch disk.
+								for index, change := range permissionChanges(c) {
+									op := c.Operations[index]
+									if op.Op == "copy" {
+										command := imageedit.CopyCommand{Sources: []string{"/Fixture/" + op.Source}, Destination: "/Fixture/" + op.Path, Options: imageedit.CopyOptions{Preserve: op.Preserve, NoAttributes: op.NoAttributes}}
+										if _, err := editor.Copy([]imageedit.CopyCommand{command}); err != nil {
+											return err
+										}
+									} else if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
 										return err
 									}
-								} else if _, err := editor.Apply([]imageedit.Change{change}); err != nil {
-									return err
 								}
+								return nil
+							})
+							if err != nil {
+								t.Fatal(format, err)
 							}
-							return nil
+							comparePermissions(t, metadataReader(t, output, kind), c.Before.Files, permissionFiles(t, c.After), when)
 						})
-						if err != nil {
-							t.Fatal(format, err)
-						}
-						comparePermissions(t, metadataReader(t, output, kind), c.Before.Files, permissionFiles(t, c.After), when)
 					}
 					refused := filepath.Join(t.TempDir(), "refused.dmg")
 					_, err := imageedit.Apply(context.Background(), source, refused, imageedit.Options{Time: when}, []imageedit.Change{{Path: "/Fixture/write-user", Data: bytes.NewReader([]byte("must refuse without actor"))}})

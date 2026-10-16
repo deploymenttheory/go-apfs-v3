@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -28,10 +29,7 @@ func encryptedRepackBits(profile, format string) uint32 {
 // complete source device with the decrypted and re-encrypted output devices.
 func repackNativeRawEncrypted(t *testing.T, major string) {
 	t.Helper()
-	root := os.Getenv("APFS_NATIVE_ENCRYPTED_DMG")
-	if root == "" {
-		root = "testdata/encrypted-dmg"
-	}
+	root := nativeInput(t, "APFS_NATIVE_ENCRYPTED_DMG", "testdata/encrypted-dmg")
 	dir := filepath.Join(root, "macos-"+major)
 	var c corpus
 	decodeEvidence(t, filepath.Join(dir, "manifest.json"), &c)
@@ -81,24 +79,26 @@ func repackNativeRawEncrypted(t *testing.T, major string) {
 func repackEncryptedInput(t *testing.T, source, output string, diskBytes int64, diskSHA256 string) {
 	t.Helper()
 	for _, operation := range []string{"rewrapped", "decrypted"} {
-		dir := filepath.Join(output, operation)
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			t.Fatal(err)
-		}
-		o := diskimage.RepackOptions{Format: "UDZO", SourcePassword: []byte("public-repack-password"), Decrypt: operation == "decrypted"}
-		if !o.Decrypt {
-			o.Encryption = &diskimage.EncryptionOptions{KeyBits: 256, Password: []byte(outputImagePassword)}
-		}
-		report, err := pack.RepackWithOptions(context.Background(), source, filepath.Join(dir, "UDZO.dmg"), o)
-		if err != nil {
-			t.Fatal(operation, err)
-		}
-		if report.DiskBytes != diskBytes || report.DiskSHA256 != diskSHA256 || report.SourceEncryption == nil || report.SourceEncryption.KeyBits != 128 {
-			t.Fatalf("%s changed native sectors or source profile: %+v", operation, report)
-		}
-		if o.Decrypt && report.Encryption != nil || !o.Decrypt && (report.Encryption == nil || report.Encryption.KeyBits != 256) {
-			t.Fatal("incorrect output encryption policy", operation)
-		}
+		t.Run(operation+"/UDZO", func(t *testing.T) {
+			dir := filepath.Join(output, operation)
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			o := diskimage.RepackOptions{Format: "UDZO", SourcePassword: []byte("public-repack-password"), Decrypt: operation == "decrypted"}
+			if !o.Decrypt {
+				o.Encryption = &diskimage.EncryptionOptions{KeyBits: 256, Password: []byte(outputImagePassword)}
+			}
+			report, err := pack.RepackWithOptions(context.Background(), source, filepath.Join(dir, "UDZO.dmg"), o)
+			if err != nil {
+				t.Fatal(operation, err)
+			}
+			if report.DiskBytes != diskBytes || report.DiskSHA256 != diskSHA256 || report.SourceEncryption == nil || report.SourceEncryption.KeyBits != 128 {
+				t.Fatalf("%s changed native sectors or source profile: %+v", operation, report)
+			}
+			if o.Decrypt && report.Encryption != nil || !o.Decrypt && (report.Encryption == nil || report.Encryption.KeyBits != 256) {
+				t.Fatal("incorrect output encryption policy", operation)
+			}
+		})
 	}
 }
 
@@ -123,36 +123,38 @@ func buildEncryptedOutput(t *testing.T, plain string, bits uint32, produce func(
 	if bits == 0 {
 		return
 	}
-	dir := filepath.Join(filepath.Dir(plain), "encrypted")
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(dir, filepath.Base(plain))
-	password := []byte(outputImagePassword)
-	o := &diskimage.EncryptionOptions{KeyBits: bits, Password: password}
-	if err := produce(path, o); err != nil {
-		t.Fatal(err)
-	}
-	if string(password) != outputImagePassword {
-		t.Fatal("output changed caller's password")
-	}
-	before := fileDigest(t, path)
-	reference, err := diskimage.Open(plain)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reference.Close()
-	image, err := diskimage.OpenWithPassword(context.Background(), path, password)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer image.Close()
-	if image.Encryption == nil || image.Encryption.KeyBits != bits || image.Size() != reference.Size() ||
-		image.Format != reference.Format || !reflect.DeepEqual(image.Partitions, reference.Partitions) {
-		t.Fatal("encrypted output profile or disk layout changed")
-	}
-	if before != fileDigest(t, path) {
-		t.Fatal("reading changed encrypted image")
-	}
-	clear(password)
+	t.Run(fmt.Sprintf("encrypted-aes%d", bits), func(t *testing.T) {
+		dir := filepath.Join(filepath.Dir(plain), "encrypted")
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(dir, filepath.Base(plain))
+		password := []byte(outputImagePassword)
+		o := &diskimage.EncryptionOptions{KeyBits: bits, Password: password}
+		if err := produce(path, o); err != nil {
+			t.Fatal(err)
+		}
+		if string(password) != outputImagePassword {
+			t.Fatal("output changed caller's password")
+		}
+		before := fileDigest(t, path)
+		reference, err := diskimage.Open(plain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reference.Close()
+		image, err := diskimage.OpenWithPassword(context.Background(), path, password)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer image.Close()
+		if image.Encryption == nil || image.Encryption.KeyBits != bits || image.Size() != reference.Size() ||
+			image.Format != reference.Format || !reflect.DeepEqual(image.Partitions, reference.Partitions) {
+			t.Fatal("encrypted output profile or disk layout changed")
+		}
+		if before != fileDigest(t, path) {
+			t.Fatal("reading changed encrypted image")
+		}
+		clear(password)
+	})
 }

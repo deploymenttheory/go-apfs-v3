@@ -237,10 +237,7 @@ func TestNativeHFSMetadataLifecycle(t *testing.T) {
 }
 
 func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract string, count int, requireLifecycle bool) {
-	root := os.Getenv(environment)
-	if root == "" {
-		root = retained
-	}
+	root := nativeInput(t, environment, retained)
 	paths, err := filepath.Glob(filepath.Join(root, "macos-*", "manifest.json"))
 	if err != nil || len(paths) == 0 {
 		t.Fatal("native HFS completion references absent", err)
@@ -284,6 +281,9 @@ func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract s
 				if c.Fragmented {
 					outputVariable = "APFS_HFS_FRAGMENTED_METADATA_OUTPUT"
 				}
+				if requireLifecycle {
+					outputVariable = "APFS_HFS_METADATA_LIFECYCLE_OUTPUT"
+				}
 				output := os.Getenv(outputVariable)
 				if output == "" {
 					output = t.TempDir()
@@ -294,47 +294,51 @@ func testNativeHFSMetadataGrowth(t *testing.T, environment, retained, contract s
 				}
 				when := time.Unix(1749283750, 0).UTC()
 				for _, format := range []string{"UDRO", "UDZO"} {
-					destination := filepath.Join(output, "edited-"+format+".dmg")
-					_, err := imageedit.Edit(context.Background(), source, destination, imageedit.Options{Time: when, Format: format}, func(editor *imageedit.Editor) error { _, err := editor.Apply(hfsMetadataChanges(c)); return err })
-					if err != nil {
-						t.Fatal(err)
-					}
-					compareHFSEditedState(t, metadataReader(t, destination, "hfs"), before, want, when)
-					if c.Fragmented {
-						if (requireLifecycle || os.Getenv(environment) != "") && (c.Collapsed == nil || c.Reused == nil) {
-							t.Fatal("fresh fragmented controls omit root collapse and reuse")
+					t.Run(format, func(t *testing.T) {
+						destination := filepath.Join(output, "edited-"+format+".dmg")
+						_, err := imageedit.Edit(context.Background(), source, destination, imageedit.Options{Time: when, Format: format}, func(editor *imageedit.Editor) error { _, err := editor.Apply(hfsMetadataChanges(c)); return err })
+						if err != nil {
+							t.Fatal(err)
 						}
-						if c.Collapsed != nil && c.Reused != nil {
-							previous := destination
-							for _, step := range []struct {
-								name    string
-								state   *hfsMetadataState
-								archive hfsGrowthArchive
-							}{
-								{"collapsed", c.Collapsed, c.NativeCollapsed}, {"reused", c.Reused, c.NativeReused},
-							} {
-								verifyDigest(t, directory, step.archive.Image, step.archive.SHA256)
-								next := filepath.Join(output, step.name+"-"+format+".dmg")
-								var changes []imageedit.Change
-								if step.name == "collapsed" {
-									for n := 0; n < 256; n++ {
-										changes = append(changes, imageedit.Change{Operation: "rm", Path: "/Fixture/" + fmt.Sprintf("%05d-", n) + strings.Repeat("long-name-", 24)})
-									}
-								} else {
-									attribute := make([]byte, 512)
-									for n := range attribute {
-										attribute[n] = byte(n)
-									}
-									changes = []imageedit.Change{{Operation: "cp", Path: "/Fixture/reused", Data: bytes.NewReader([]byte("Metadata growth contents\n"))}, {Operation: "xattr", Path: "/Fixture/reused", Attribute: "org.go-apfs.growth", Data: bytes.NewReader(attribute)}}
+						compareHFSEditedState(t, metadataReader(t, destination, "hfs"), before, want, when)
+						if c.Fragmented {
+							if (requireLifecycle || requireNativeControl(t, "metadata-collapse-reuse")) && (c.Collapsed == nil || c.Reused == nil) {
+								t.Fatal("fresh fragmented controls omit root collapse and reuse")
+							}
+							if c.Collapsed != nil && c.Reused != nil {
+								previous := destination
+								for _, step := range []struct {
+									name    string
+									state   *hfsMetadataState
+									archive hfsGrowthArchive
+								}{
+									{"collapsed", c.Collapsed, c.NativeCollapsed}, {"reused", c.Reused, c.NativeReused},
+								} {
+									t.Run(step.name, func(t *testing.T) {
+										verifyDigest(t, directory, step.archive.Image, step.archive.SHA256)
+										next := filepath.Join(output, step.name+"-"+format+".dmg")
+										var changes []imageedit.Change
+										if step.name == "collapsed" {
+											for n := 0; n < 256; n++ {
+												changes = append(changes, imageedit.Change{Operation: "rm", Path: "/Fixture/" + fmt.Sprintf("%05d-", n) + strings.Repeat("long-name-", 24)})
+											}
+										} else {
+											attribute := make([]byte, 512)
+											for n := range attribute {
+												attribute[n] = byte(n)
+											}
+											changes = []imageedit.Change{{Operation: "cp", Path: "/Fixture/reused", Data: bytes.NewReader([]byte("Metadata growth contents\n"))}, {Operation: "xattr", Path: "/Fixture/reused", Attribute: "org.go-apfs.growth", Data: bytes.NewReader(attribute)}}
+										}
+										if _, err := imageedit.Apply(context.Background(), previous, next, imageedit.Options{Time: when, Format: format}, changes); err != nil {
+											t.Fatal(step.name, err)
+										}
+										compareHFSEditedState(t, metadataReader(t, next, "hfs"), before, hfsMetadataFiles(t, directory, *step.state), when)
+										previous = next
+									})
 								}
-								if _, err := imageedit.Apply(context.Background(), previous, next, imageedit.Options{Time: when, Format: format}, changes); err != nil {
-									t.Fatal(step.name, err)
-								}
-								compareHFSEditedState(t, metadataReader(t, next, "hfs"), before, hfsMetadataFiles(t, directory, *step.state), when)
-								previous = next
 							}
 						}
-					}
+					})
 				}
 				digest := fileDigest(t, source)
 				if hex.EncodeToString(digest[:]) != c.Source.UncompressedSHA256 {

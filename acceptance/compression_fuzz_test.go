@@ -19,7 +19,8 @@ import (
 // decoding and panic freedom. No second fixture generator or codec oracle exists.
 func FuzzCompressionCodecs(f *testing.F) {
 	ctx := context.Background()
-	image, err := diskimage.Open("testdata/compression/macos-27/apfs.dmg")
+	root := nativeInput(f, "APFS_NATIVE_COMPRESSION", "testdata/compression")
+	image, err := diskimage.Open(root + "/macos-27/apfs.dmg")
 	if err != nil {
 		f.Fatal(err)
 	}

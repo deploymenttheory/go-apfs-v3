@@ -70,12 +70,17 @@ def measure(image, command):
     return result
 
 
-def compare(corpus, outputs, command, major):
+def compare(corpus, outputs, command, major, replay):
     """Use one native source producer for all four filesystem profiles."""
     from container_building import require_disposable_host
     require_disposable_host()
     source = corpus / 'macos-15'
     manifest = json.loads((source / 'manifest.json').read_text())
+    from qualification import NativeEvidence
+    from qualification_cases import ROOT, reference_cases
+    targets = [outputs / 'image-building-Linux/macos-15' / case['id'].split('/')[1] / 'UDRO.dmg'
+               for _, case in reference_cases(corpus, 'image-building', sources=(15,))]
+    evidence = NativeEvidence(replay, targets, ROOT, outputs, 'image-capacity', major, continuation=True)
     results = []
     report = outputs / f'image-capacity-{major}.diagnostics.json'
     for case in manifest['cases']:
@@ -86,32 +91,34 @@ def compare(corpus, outputs, command, major):
         native_format = ('Case-sensitive ' if case['expected']['caseSensitive'] else '') + (
             'APFS' if filesystem == 'APFS' else 'HFS+')
         go_image = outputs / 'image-building-Linux/macos-15' / case_id / 'UDRO.dmg'
-        result = {'case': case_id, 'go': measure(go_image, command)}
-        results.append(result)
-        report.write_text(json.dumps(results, indent=2) + '\n')
-        with tempfile.TemporaryDirectory(prefix='apfs-capacity-control-') as work:
-            work = Path(work)
-            mount = work / 'source'; mount.mkdir()
-            attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-plist',
-                '-nobrowse', '-mountpoint', mount, source_image))
-            device = attached['system-entities'][0]['dev-entry']
-            try:
-                for policy in ('automatic', 'matching-go-capacity'):
-                    image = work / f'{policy}.dmg'
-                    # Explicit sizing is observed too: Apple's copy/formatter
-                    # may refuse an image this small. Record that honestly.
-                    arguments = [] if policy == 'automatic' else [
-                        '-sectors', str(result['go']['totalBytes'] // 512)]
-                    created = command('hdiutil', 'create', '-srcfolder', mount / 'Fixture',
-                        '-fs', native_format, '-layout', 'NONE', '-volname', 'Example',
-                        '-format', 'UDRO', *arguments, image,
-                        expected_success=True if policy == 'automatic' else None)
-                    result['apple-' + policy] = (measure(image, command) if created is not None
-                        else {'created': False})
-                    report.write_text(json.dumps(results, indent=2) + '\n')
-            finally:
-                command('hdiutil', 'detach', device)
-        print('Native capacity control:', json.dumps(result, sort_keys=True), flush=True)
-        require(result['apple-matching-go-capacity'].get('created') is not False,
-                f'{case_id}: Apple cannot build the same source at the Go capacity')
+        with evidence.case([go_image]):
+            result = {'case': case_id, 'go': measure(go_image, command)}
+            results.append(result)
+            report.write_text(json.dumps(results, indent=2) + '\n')
+            with tempfile.TemporaryDirectory(prefix='apfs-capacity-control-') as work:
+                work = Path(work)
+                mount = work / 'source'; mount.mkdir()
+                attached = plistlib.loads(command('hdiutil', 'attach', '-readonly', '-plist',
+                    '-nobrowse', '-mountpoint', mount, source_image))
+                device = attached['system-entities'][0]['dev-entry']
+                try:
+                    for policy in ('automatic', 'matching-go-capacity'):
+                        image = work / f'{policy}.dmg'
+                        # Explicit sizing is observed too: Apple's copy/formatter
+                        # may refuse an image this small. Record that honestly.
+                        arguments = [] if policy == 'automatic' else [
+                            '-sectors', str(result['go']['totalBytes'] // 512)]
+                        created = command('hdiutil', 'create', '-srcfolder', mount / 'Fixture',
+                            '-fs', native_format, '-layout', 'NONE', '-volname', 'Example',
+                            '-format', 'UDRO', *arguments, image,
+                            expected_success=True if policy == 'automatic' else None)
+                        result['apple-' + policy] = (measure(image, command) if created is not None
+                            else {'created': False})
+                        report.write_text(json.dumps(results, indent=2) + '\n')
+                finally:
+                    command('hdiutil', 'detach', device)
+            print('Native capacity control:', json.dumps(result, sort_keys=True), flush=True)
+            require(result['apple-matching-go-capacity'].get('created') is not False,
+                    f'{case_id}: Apple cannot build the same source at the Go capacity')
+    evidence.finish()
     return results

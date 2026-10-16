@@ -72,10 +72,7 @@ func TestNativeFileReading(t *testing.T) {
 
 func testFileCorpus(t *testing.T, scenario, environment, fallback string, minimum int, extra func(*testing.T, filesystem.Reader, fileObservation, string)) {
 	t.Helper()
-	root := os.Getenv(environment)
-	if root == "" {
-		root = fallback
-	}
+	root := nativeInput(t, environment, fallback)
 	paths, err := filepath.Glob(filepath.Join(root, "*", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
