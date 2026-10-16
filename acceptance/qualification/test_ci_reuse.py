@@ -106,11 +106,12 @@ class CompleteCIReuse(unittest.TestCase):
                     reuse.qualify(client, run, 'f' * 40 if failure == 'tree' else 'e' * 40, workspace, execute)
                 self.assertFalse((workspace / 'inheritance.json').exists())
 
-    def test_pull_request_and_manual_events_always_execute_full_ci(self):
+    def test_unknown_pull_request_and_manual_events_execute_full_ci(self):
         for event in ('pull_request', 'workflow_dispatch'):
             with self.subTest(event=event), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 with patch.dict('os.environ', {'GITHUB_EVENT_NAME': event, 'GITHUB_REF': 'refs/heads/main',
+                                               'GITHUB_EVENT_PATH': str(root / 'missing-event.json'),
                                                'GITHUB_OUTPUT': str(root / 'output')}), \
                      patch('sys.argv', ['ci_reuse.py', '--workspace', str(root / 'decision')]), \
                      patch.object(reuse, 'GitHub') as api:
@@ -129,6 +130,7 @@ class CompleteCIReuse(unittest.TestCase):
                  patch.object(reuse.subprocess, 'check_output', side_effect=['d' * 40, '', 'e' * 40]), \
                  patch.object(reuse.subprocess, 'run'), \
                  patch.object(reuse, 'choose', return_value={'id': 123}), \
+                 patch.object(reuse, 'original_run', return_value={'id': 123}), \
                  patch.object(reuse, 'qualify', side_effect=ValueError('missing original case')):
                 reuse.main()
             self.assertEqual((root / 'output').read_text(), 'reuse=false\n')

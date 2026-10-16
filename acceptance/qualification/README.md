@@ -115,6 +115,13 @@ native refusals as observations. Apple-verification fingerprints bind the actual
 portable bytes and native tool/source identities. Origins are never rewritten. Existing verifier-only reuse requires its explicit
 admitted source run and an unchanged portable contract. Historical ledgers and original captured data are unchanged.
 
+`-classify-changes-from <exact-original-revision>` inspects committed Git objects
+and grants no execution verdict. Event admission uses this same classifier when
+considering documentation or recognised release-label changes. The original
+complete campaign and every source/input/tool/receipt check remain required;
+unknown dependencies execute the full bench. Source projections retain both
+trees and original execution origins. See the [event policy](../../docs/qualification-scheduling.md).
+
 Existing output archives carry their replay proof under `.qualification/`;
 ledger bytes are excluded from the output identity to avoid self-reference.
 The Apple programs declare required source/profile/host/output sets before

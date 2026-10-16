@@ -1,4 +1,4 @@
-"""Reuse complete CI evidence for identical merged content, or execute CI fully.
+"""Admit complete original CI evidence for compatible content, or execute fully.
 
 This controller changes no assertion scope and invokes no Apple tools. Its API
 checks authenticate the original workflow and uploads; Go independently verifies
@@ -14,6 +14,8 @@ import subprocess
 
 from reference_campaign import authenticated_checkout
 from release_assets import GitHub, require
+from execution_reuse import (classify, eligible_run, original_run, pull_request_base,
+                             source_document, verify_summary)
 
 
 PROOF_STEP = 'Retain required case execution evidence'
@@ -37,6 +39,18 @@ def choose(client, revision, now, workflow="ci"):
                 r['conclusion'] == 'success' and r['repository']['full_name'] == client.repository and
                 r['head_repository']['full_name'] == client.repository and
                 0 <= (now - datetime.fromisoformat(r['updated_at'].replace('Z', '+00:00'))).total_seconds() <= 86400]
+    return max(eligible, key=lambda r: r['id']) if eligible else None
+
+
+def choose_base(client, revision, now, workflow):
+    run = choose(client, revision, now, workflow=workflow)
+    if run:
+        return run
+    runs = client.pages(f'/repos/{client.repository}/actions/workflows/{workflow}.yml/runs',
+                        field='workflow_runs', parameters={'head_sha': revision, 'branch': 'main',
+                                                          'status': 'completed'})
+    eligible = [r for r in runs if r['head_sha'] == revision and r['head_branch'] == 'main' and
+                r['event'] in ('push', 'workflow_dispatch') and eligible_run(client, r, now, workflow)]
     return max(eligible, key=lambda r: r['id']) if eligible else None
 
 
@@ -114,10 +128,9 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     require(len(revisions) == 1, 'CI campaign used inconsistent tested checkouts')
     tested = revisions.pop()
     source = authenticated_checkout(client, run, tested)
-    require(source['tree_sha'] == tree, 'prior CI tested different merged contents')
     origin = {'repository': client.repository, 'revision': tested, 'run': str(run['id']),
               'attempt': str(run['run_attempt']), 'completed_at': run['updated_at']}
-    document = {'schema': 1, 'workflow': 'ci', 'origin': origin, 'tree_sha': tree, 'artifacts': declared}
+    document = source_document(source, origin, tree, declared, 'ci', execute)
     origin_path = workspace / 'origin.json'
     origin_path.write_text(json.dumps(document, indent=2) + '\n')
     result = execute(['go', 'run', './acceptance/qualification', '-check-execution-evidence', str(evidence),
@@ -126,35 +139,50 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     (workspace / 'evidence.stderr.log').write_text(result.stderr)
     result.check_returncode()
     proof = json.loads(result.stdout)
-    require(proof['schema'] == 1 and proof['origin'] == origin and proof['tree_sha'] == tree and
-            proof['qualified_cases'] > 0 and proof['original_receipts'], 'original CI proof is incomplete')
-    report = {'schema': 1, 'reuse': True, 'reason': 'identical merged contents with complete original CI proof',
-              'source': source, 'run': run, 'jobs': jobs, 'artifacts': artifacts, 'proof': proof}
+    verify_summary(proof, document, tree)
+    report = {'schema': 1, 'reuse': True, 'reason': 'compatible contents with complete original CI proof',
+              'source': source, 'run': run, 'jobs': jobs, 'artifacts': artifacts, 'proof': proof,
+              'current_tree_sha': tree}
     (workspace / 'inheritance.json').write_text(json.dumps(report, indent=2) + '\n')
     return report
 
 
-def main(workflow="ci", qualifier=None):
+def main(workflow="ci", qualifier=None, inspector=None, execute=None):
     qualifier = qualifier or qualify
+    inspector = inspector or inspect
+    execute = execute or subprocess.run
     label = "CI" if workflow == "ci" else "macOS filesystem compatibility"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--workspace', type=Path, required=True)
     args = parser.parse_args()
     report = {'schema': 1, 'reuse': False, 'reason': 'this event requires fresh complete ' + label}
-    if os.environ['GITHUB_EVENT_NAME'] == 'push' and os.environ['GITHUB_REF'] == 'refs/heads/main':
+    event = os.environ['GITHUB_EVENT_NAME']
+    if event == 'pull_request' or event == 'push' and os.environ['GITHUB_REF'] == 'refs/heads/main':
         try:
-            client = GitHub(os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_TOKEN'])
+            base = pull_request_base() if event == 'pull_request' else None
             revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
             require(revision == os.environ['GITHUB_SHA'], 'CI controller checkout differs from its event')
-            subprocess.run(['git', 'diff', '--quiet', 'HEAD'], check=True)
+            execute(['git', 'diff', '--quiet', 'HEAD'], check=True)
             require(not subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'], text=True).strip(),
                     'untracked source dependencies require fresh CI')
             tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
-            run = choose(client, revision, datetime.now(timezone.utc), workflow=workflow)
+            changes = classify(base, execute) if base else None
+            if changes:
+                require(changes['current_revision'] == revision and changes['current_tree_sha'] == tree and
+                        changes['classification'] in ('identical', 'documentation-or-release-only'),
+                        'changed or unknown dependencies require fresh complete execution')
+            client = GitHub(os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_TOKEN'])
+            now = datetime.now(timezone.utc)
+            run = (choose_base(client, base, now, workflow) if base else
+                   choose(client, revision, now, workflow=workflow))
             if run:
-                report = qualifier(client, run, tree, args.workspace)
+                run = original_run(client, run, workflow, now, inspector, execute)
+                report = qualifier(client, run, tree, args.workspace, execute=execute)
+                if changes:
+                    report['event_changes'] = changes
+                report['reason'] = ('compatible contents with complete original ' + label + ' proof')
             else:
-                report['reason'] = 'no compatible complete ' + label + ' exists for this merged PR'
+                report['reason'] = 'no compatible complete ' + label + ' exists for this event'
         except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
             report = {'schema': 1, 'reuse': False, 'reason': 'prior evidence was not admitted: ' + str(error)}
     args.workspace.mkdir(parents=True, exist_ok=True)

@@ -20,10 +20,11 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin executi
 	if origin.Schema != 1 || origin.Workflow != "ci" || origin.Origin.Validate() != nil || len(origin.Artifacts) == 0 || len(origin.Artifacts) > 1000 {
 		return summary, errors.New("authenticated complete CI origin and artifact inventory required")
 	}
-	tree, err := commandText(ctx, root, "git", "rev-parse", "HEAD^{tree}")
-	if err != nil || origin.Tree != tree {
-		return summary, errors.Join(err, errors.New("CI evidence tested different source contents"))
+	projection, err := checkExecutionSource(ctx, root, origin)
+	if err != nil {
+		return summary, err
 	}
+	summary.Projection = projection
 	production, contract, err := sourceIdentities(ctx, root)
 	if err != nil {
 		return summary, err

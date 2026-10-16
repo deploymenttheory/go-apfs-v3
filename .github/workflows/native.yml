@@ -3,18 +3,6 @@ run-name: ${{ inputs.reference_refresh && 'Independent Apple reference refresh' 
 
 on:
   pull_request:
-    paths:
-      - '**/*.go'
-      - go.mod
-      - go.sum
-      - 'acceptance/**'
-      - '.github/workflows/native.yml'
-      - '.github/workflows/hfs-edit.yml'
-      - '.github/workflows/hfs-recovery.yml'
-      - '.github/workflows/apfs-edit.yml'
-      - '.github/workflows/apfs-recovery.yml'
-      - '.github/workflows/offline-editing.yml'
-      - '.github/workflows/offline-family.yml'
   push:
     branches: [main]
   workflow_dispatch:
