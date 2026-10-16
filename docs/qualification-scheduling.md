@@ -36,6 +36,12 @@ Module and compilation caches are enabled. The replay runner always supplies
 Already-compressed portable output archives use artifact compression level zero;
 archive contents and native verification remain unchanged.
 
+Assertion identities include library unit-test sources as well as acceptance
+tests. Adding or changing those assertions invalidates prior test evidence;
+changing a test while replay runs prevents receipt publication. Changing only a
+test updates the assertion fingerprint while keeping the production fingerprint
+stable.
+
 Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
 retains its per-source race instrumentation; Windows and macOS still compare all
 three native sources. Catalog comparisons keep their separate four-minute

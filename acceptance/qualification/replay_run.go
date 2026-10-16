@@ -179,11 +179,8 @@ func sourceIdentities(ctx context.Context, root string) (string, string, error) 
 		if strings.HasPrefix(name, ".github/") || strings.HasPrefix(name, "docs/") || strings.HasPrefix(name, "acceptance/testdata/") || strings.HasSuffix(name, ".md") || name == "AGENTS.md" {
 			continue
 		}
-		harness := strings.HasPrefix(name, "acceptance/") || strings.HasPrefix(name, "internal/qualification/")
+		harness := strings.HasPrefix(name, "acceptance/") || strings.HasPrefix(name, "internal/qualification/") || strings.HasSuffix(name, "_test.go")
 		if !harness && name != "go.mod" && name != "go.sum" && !slices.Contains([]string{".go", ".s", ".S", ".c", ".h", ".syso"}, filepath.Ext(name)) {
-			continue
-		}
-		if strings.HasSuffix(name, "_test.go") && !harness {
 			continue
 		}
 		if harness && (!strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, ".json") || name == "acceptance/qualification/corpus.json" || name == "acceptance/qualification/references.json" || strings.HasPrefix(name, "acceptance/native/")) {
