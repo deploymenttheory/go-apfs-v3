@@ -129,11 +129,11 @@ func main() {
 	referenceOrigin := flag.String("reference-origin", "", "authenticated original Actions origin document for candidate evidence verification")
 	materialize := flag.String("materialize-references", "", "comma-separated approved independent inputs to materialize as managed ordinary files")
 	inputDir := flag.String("input-dir", "", "absent absolute managed scratch for materialized reference input trees")
-	checkCI := flag.String("check-ci-evidence", "", "verify authenticated original CI receipts on identical source contents")
-	ciOrigin := flag.String("ci-origin", "", "authenticated original CI checkout and artifact inventory")
+	checkExecution := flag.String("check-execution-evidence", "", "verify authenticated original workflow receipts on identical source contents")
+	executionOrigin := flag.String("execution-origin", "", "authenticated original checkout and artifact inventory")
 	flag.Parse()
-	if (*checkCI != "") != (*ciOrigin != "") {
-		fmt.Fprintln(os.Stderr, "CI evidence verification requires its authenticated original inventory")
+	if (*checkExecution != "") != (*executionOrigin != "") {
+		fmt.Fprintln(os.Stderr, "execution evidence verification requires its authenticated original inventory")
 		os.Exit(1)
 	}
 	if (*referenceOrigin != "") != (*checkEvidence != "") {
@@ -145,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 	standalone := 0
-	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkCI != ""} {
+	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkExecution != ""} {
 		if chosen {
 			standalone++
 		}
@@ -155,7 +155,7 @@ func main() {
 		os.Exit(1)
 	}
 	var auditOutput io.Writer = os.Stdout
-	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkCI != "" {
+	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" {
 		auditOutput = os.Stderr
 	}
 	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
@@ -166,16 +166,23 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		var err error
-		if *checkCI != "" {
+		if *checkExecution != "" {
 			var data []byte
-			var origin ciEvidenceOrigin
-			data, err = readCandidateDocument(*ciOrigin, 1<<20)
+			var origin executionEvidenceOrigin
+			data, err = readCandidateDocument(*executionOrigin, 1<<20)
 			if err == nil {
 				err = corpus.StrictJSON(data, &origin)
 			}
 			if err == nil {
-				var summary ciEvidenceSummary
-				summary, err = checkCIEvidence(ctx, *root, *checkCI, origin)
+				var summary executionEvidenceSummary
+				switch origin.Workflow {
+				case "ci":
+					summary, err = checkCIEvidence(ctx, *root, *checkExecution, origin)
+				case "native":
+					summary, err = checkNativeEvidence(ctx, *root, *checkExecution, origin)
+				default:
+					err = errors.New("unknown execution evidence workflow")
+				}
 				if err == nil {
 					err = json.NewEncoder(os.Stdout).Encode(summary)
 				}

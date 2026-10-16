@@ -21,7 +21,7 @@ JOB_NAMES = {'portable': 'Portable tests (', 'offline_retained': 'Retained offli
              'portable_acceptance': 'Retained acceptance (', 'race_acceptance': 'Acceptance race checks ('}
 
 
-def choose(client, revision, now):
+def choose(client, revision, now, workflow="ci"):
     require(re.fullmatch('[a-f0-9]{40}', revision), 'explicit current merge revision required')
     root = f'/repos/{client.repository}'
     pulls = client.pages(root + '/commits/' + revision + '/pulls')
@@ -30,10 +30,10 @@ def choose(client, revision, now):
     if len(merged) != 1:
         return None
     head = merged[0]['head']['sha']
-    runs = client.pages(root + '/actions/workflows/ci.yml/runs', field='workflow_runs',
+    runs = client.pages(root + f'/actions/workflows/{workflow}.yml/runs', field='workflow_runs',
                         parameters={'head_sha': head, 'event': 'pull_request', 'status': 'completed'})
     eligible = [r for r in runs if r['head_sha'] == head and r['event'] == 'pull_request' and
-                r['path'] == '.github/workflows/ci.yml' and r['status'] == 'completed' and
+                r['path'] == f'.github/workflows/{workflow}.yml' and r['status'] == 'completed' and
                 r['conclusion'] == 'success' and r['repository']['full_name'] == client.repository and
                 r['head_repository']['full_name'] == client.repository and
                 0 <= (now - datetime.fromisoformat(r['updated_at'].replace('Z', '+00:00'))).total_seconds() <= 86400]
@@ -117,11 +117,11 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     require(source['tree_sha'] == tree, 'prior CI tested different merged contents')
     origin = {'repository': client.repository, 'revision': tested, 'run': str(run['id']),
               'attempt': str(run['run_attempt']), 'completed_at': run['updated_at']}
-    document = {'schema': 1, 'origin': origin, 'tree_sha': tree, 'artifacts': declared}
+    document = {'schema': 1, 'workflow': 'ci', 'origin': origin, 'tree_sha': tree, 'artifacts': declared}
     origin_path = workspace / 'origin.json'
     origin_path.write_text(json.dumps(document, indent=2) + '\n')
-    result = execute(['go', 'run', './acceptance/qualification', '-check-ci-evidence', str(evidence),
-                      '-ci-origin', str(origin_path)], capture_output=True, text=True)
+    result = execute(['go', 'run', './acceptance/qualification', '-check-execution-evidence', str(evidence),
+                      '-execution-origin', str(origin_path)], capture_output=True, text=True)
     (workspace / 'evidence.stdout.log').write_text(result.stdout)
     (workspace / 'evidence.stderr.log').write_text(result.stderr)
     result.check_returncode()
@@ -134,11 +134,13 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     return report
 
 
-def main():
+def main(workflow="ci", qualifier=None):
+    qualifier = qualifier or qualify
+    label = "CI" if workflow == "ci" else "macOS filesystem compatibility"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--workspace', type=Path, required=True)
     args = parser.parse_args()
-    report = {'schema': 1, 'reuse': False, 'reason': 'this event requires fresh complete CI'}
+    report = {'schema': 1, 'reuse': False, 'reason': 'this event requires fresh complete ' + label}
     if os.environ['GITHUB_EVENT_NAME'] == 'push' and os.environ['GITHUB_REF'] == 'refs/heads/main':
         try:
             client = GitHub(os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_TOKEN'])
@@ -148,11 +150,11 @@ def main():
             require(not subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'], text=True).strip(),
                     'untracked source dependencies require fresh CI')
             tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip()
-            run = choose(client, revision, datetime.now(timezone.utc))
+            run = choose(client, revision, datetime.now(timezone.utc), workflow=workflow)
             if run:
-                report = qualify(client, run, tree, args.workspace)
+                report = qualifier(client, run, tree, args.workspace)
             else:
-                report['reason'] = 'no compatible complete CI exists for this merged PR'
+                report['reason'] = 'no compatible complete ' + label + ' exists for this merged PR'
         except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
             report = {'schema': 1, 'reuse': False, 'reason': 'prior evidence was not admitted: ' + str(error)}
     args.workspace.mkdir(parents=True, exist_ok=True)
@@ -161,7 +163,7 @@ def main():
         stream.write('reuse=' + str(report['reuse']).lower() + '\n')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as stream:
-            stream.write('CI execution: ' + report['reason'] + '\n')
+            stream.write(label + ' execution: ' + report['reason'] + '\n')
             if report['reuse']:
                 stream.write(f"Original run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{report['run']['id']}\n")
     print(json.dumps({'reuse': report['reuse'], 'reason': report['reason']}, indent=2))

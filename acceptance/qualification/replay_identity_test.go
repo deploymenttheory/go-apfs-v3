@@ -3,11 +3,47 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestNativeAndGoAssertionIdentitiesIncludeTheSameLibrarySources(t *testing.T) {
+	root := replayControlModule(t, "valid")
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		python, err = exec.LookPath("python")
+	}
+	if err != nil {
+		t.Fatal("native evidence compatibility requires Python", err)
+	}
+	repository, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"", "source_test.go", "block/reader_test.go"} {
+		if name != "" {
+			writeControl(t, root, name, "package control\n// Library assertions.\n")
+		}
+		production, assertions, err := sourceIdentities(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command(python, "-c", "import json,sys; sys.path.insert(0,'acceptance/native'); import qualification; print(json.dumps(qualification.source_identities(sys.argv[1])))", root)
+		command.Dir = repository
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("native source identity: %v\n%s", err, output)
+		}
+		var native []string
+		if err = json.Unmarshal(output, &native); err != nil || len(native) != 2 || native[0] != production || native[1] != assertions {
+			t.Fatalf("Go/native assertion identities diverged for %s: %v %v", name, native, err)
+		}
+	}
+}
 
 func TestLibraryUnitChangesInvalidateAssertionIdentity(t *testing.T) {
 	for _, name := range []string{"source_test.go", "block/reader_test.go"} {

@@ -15,7 +15,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
 )
 
-func ciEvidenceControl(t *testing.T) (string, string, ciEvidenceOrigin) {
+func ciEvidenceControl(t *testing.T) (string, string, executionEvidenceOrigin) {
 	t.Helper()
 	root := replayControlModule(t, "valid")
 	version, err := commandText(context.Background(), root, "go", "env", "GOVERSION")
@@ -50,7 +50,7 @@ func ciEvidenceControl(t *testing.T) (string, string, ciEvidenceOrigin) {
 	if err = os.CopyFS(filepath.Join(directory, "qualification-ci-portable-0"), os.DirFS(filepath.Join(root, "artifacts/qualification"))); err != nil {
 		t.Fatal(err)
 	}
-	origin := ciEvidenceOrigin{Schema: 1, Origin: publication.Origin{Repository: "owner/filesystems", Revision: revision, Run: "123", Attempt: "1", Completed: time.Now().UTC()}, Tree: tree, Artifacts: []ciEvidenceArtifact{{Name: "qualification-ci-portable-0", Job: "portable", Host: runtime.GOOS}}}
+	origin := executionEvidenceOrigin{Schema: 1, Workflow: "ci", Origin: publication.Origin{Repository: "owner/filesystems", Revision: revision, Run: "123", Attempt: "1", Completed: time.Now().UTC()}, Tree: tree, Artifacts: []executionEvidenceArtifact{{Name: "qualification-ci-portable-0", Job: "portable", Host: runtime.GOOS}}}
 	return root, directory, origin
 }
 
@@ -74,7 +74,7 @@ func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing
 	for _, kind := range []string{"tree", "attempt", "host", "missing", "duplicate"} {
 		t.Run(kind, func(t *testing.T) {
 			changed := origin
-			changed.Artifacts = append([]ciEvidenceArtifact(nil), origin.Artifacts...)
+			changed.Artifacts = append([]executionEvidenceArtifact(nil), origin.Artifacts...)
 			switch kind {
 			case "tree":
 				changed.Tree = strings.Repeat("a", 40)
@@ -100,7 +100,7 @@ func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing
 		t.Fatal(err)
 	}
 	duplicatedOrigin := origin
-	duplicatedOrigin.Artifacts = append(append([]ciEvidenceArtifact(nil), origin.Artifacts...), ciEvidenceArtifact{Name: "qualification-ci-portable-1", Job: "portable", Host: runtime.GOOS})
+	duplicatedOrigin.Artifacts = append(append([]executionEvidenceArtifact(nil), origin.Artifacts...), executionEvidenceArtifact{Name: "qualification-ci-portable-1", Job: "portable", Host: runtime.GOOS})
 	if _, err = checkCIEvidence(context.Background(), root, directory, duplicatedOrigin); err == nil {
 		t.Fatal("one execution replaced a different required CI artifact")
 	}

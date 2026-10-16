@@ -12,36 +12,12 @@ import (
 	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/corpus"
-	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/publication"
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
 )
 
-type ciEvidenceArtifact struct {
-	Name string `json:"name"`
-	Job  string `json:"job"`
-	Host string `json:"host"`
-}
-
-// The controller authenticates the original successful workflow and upload jobs
-// before constructing this document. A caller-supplied origin is not authority.
-type ciEvidenceOrigin struct {
-	Schema    int                  `json:"schema"`
-	Origin    publication.Origin   `json:"origin"`
-	Tree      string               `json:"tree_sha"`
-	Artifacts []ciEvidenceArtifact `json:"artifacts"`
-}
-
-type ciEvidenceSummary struct {
-	Schema    int                `json:"schema"`
-	Origin    publication.Origin `json:"origin"`
-	Tree      string             `json:"tree_sha"`
-	Receipts  []receipt.File     `json:"original_receipts"`
-	CaseCount int                `json:"qualified_cases"`
-}
-
-func checkCIEvidence(ctx context.Context, root, directory string, origin ciEvidenceOrigin) (ciEvidenceSummary, error) {
-	summary := ciEvidenceSummary{Schema: 1, Origin: origin.Origin, Tree: origin.Tree, Receipts: []receipt.File{}}
-	if origin.Schema != 1 || origin.Origin.Validate() != nil || len(origin.Artifacts) == 0 || len(origin.Artifacts) > 1000 {
+func checkCIEvidence(ctx context.Context, root, directory string, origin executionEvidenceOrigin) (executionEvidenceSummary, error) {
+	summary := executionEvidenceSummary{Schema: 1, Origin: origin.Origin, Tree: origin.Tree, Receipts: []receipt.File{}}
+	if origin.Schema != 1 || origin.Workflow != "ci" || origin.Origin.Validate() != nil || len(origin.Artifacts) == 0 || len(origin.Artifacts) > 1000 {
 		return summary, errors.New("authenticated complete CI origin and artifact inventory required")
 	}
 	tree, err := commandText(ctx, root, "git", "rev-parse", "HEAD^{tree}")
@@ -76,18 +52,9 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin ciEvide
 	for _, exit := range r.Exits {
 		optional[exit.Function] = true
 	}
-	data, err = regularFile(root, "go.mod")
+	version, err := projectGoVersion(root)
 	if err != nil {
 		return summary, err
-	}
-	version := ""
-	for line := range strings.SplitSeq(string(data), "\n") {
-		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "go" {
-			version = fields[1]
-		}
-	}
-	if version == "" {
-		return summary, errors.New("project Go toolchain version missing")
 	}
 	seenArtifacts, seenReceipts, receiptArtifacts := map[string]bool{}, map[string]string{}, map[string]string{}
 	entries, err := os.ReadDir(directory)
@@ -95,7 +62,7 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin ciEvide
 		return summary, errors.Join(err, errors.New("CI artifact directories differ from authenticated inventory"))
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() || !slices.ContainsFunc(origin.Artifacts, func(a ciEvidenceArtifact) bool { return a.Name == entry.Name() }) {
+		if !entry.IsDir() || !slices.ContainsFunc(origin.Artifacts, func(a executionEvidenceArtifact) bool { return a.Name == entry.Name() }) {
 			return summary, errors.New("unexpected or aliased CI artifact directory")
 		}
 	}

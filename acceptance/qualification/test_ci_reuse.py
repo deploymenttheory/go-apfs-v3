@@ -79,7 +79,7 @@ class CompleteCIReuse(unittest.TestCase):
             (directory / 'receipt.json').write_text(json.dumps({
                 'origin': {'revision': 'c' * 40}, 'plan': {'environment': {'os': 'linux'}}}))
             return subprocess.CompletedProcess(command, 0)
-        origin = json.loads(Path(command[command.index('-ci-origin') + 1]).read_text())
+        origin = json.loads(Path(command[command.index('-execution-origin') + 1]).read_text())
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps({
             'schema': 1, 'origin': origin['origin'], 'tree_sha': origin['tree_sha'], 'qualified_cases': 3,
             'original_receipts': [{'path': 'original/receipt.json', 'sha256': 'f' * 64, 'bytes': 100}]}), stderr='')
@@ -97,7 +97,7 @@ class CompleteCIReuse(unittest.TestCase):
         for failure in ('tree', 'events'):
             client, _, run, *_ = self.fixture()
             def execute(command, **kwargs):
-                if failure == 'events' and '-check-ci-evidence' in command:
+                if failure == 'events' and '-check-execution-evidence' in command:
                     return subprocess.CompletedProcess(command, 1, stdout='', stderr='original event digest differs')
                 return self.execute(command, **kwargs)
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
