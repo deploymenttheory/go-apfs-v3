@@ -8,6 +8,38 @@ from unittest.mock import patch
 import readback_source
 
 
+class ReviewedInputReadbackPrerequisites(unittest.TestCase):
+    def job(self, family=None):
+        label = f'{family} editing controls' if family else 'filesystem reference data'
+        return {'name': f'Restore reviewed Apple {label} (macOS 15, 26 and 27)',
+                'conclusion': 'success', 'steps': [
+                    {'name': name, 'conclusion': 'success'} for name in [
+                        'Restore verified original Apple reference inputs',
+                        'Retain reviewed original input bytes (macOS 15)',
+                        'Retain reviewed original input bytes (macOS 26)',
+                        'Retain reviewed original input bytes (macOS 27)']]}
+
+    def test_complete_reviewed_input_restore_covers_all_original_source_versions(self):
+        for family in (None, *readback_source.OFFLINE_FAMILIES):
+            with self.subTest(family=family):
+                job = self.job(family)
+                result = readback_source.restored_input_requirements(job)
+                self.assertEqual(len(result), 3)
+                self.assertTrue(all(f'macOS {major}' in ' '.join(result) for major in (15, 26, 27)))
+
+    def test_missing_skipped_failed_duplicate_or_unrelated_restore_cannot_replace_inputs(self):
+        for mutation in ('missing', 'skipped', 'failed-upload', 'failed-job', 'duplicate', 'unrelated'):
+            job = self.job('statistics')
+            if mutation == 'missing': job['steps'].pop()
+            elif mutation == 'skipped': job['steps'][0]['conclusion'] = 'skipped'
+            elif mutation == 'failed-upload': job['steps'][2]['conclusion'] = 'failure'
+            elif mutation == 'failed-job': job['conclusion'] = 'failure'
+            elif mutation == 'duplicate': job['steps'].append(job['steps'][0])
+            elif mutation == 'unrelated': job['name'] = job['name'].replace('statistics', 'unknown')
+            with self.subTest(mutation=mutation):
+                self.assertEqual(readback_source.restored_input_requirements(job), set())
+
+
 class ArchivedReadback(unittest.TestCase):
     def run_source(self, changes=b'', failed=None):
         run = {'status': 'completed', 'path': '.github/workflows/native.yml', 'head_sha': 'a' * 40}
