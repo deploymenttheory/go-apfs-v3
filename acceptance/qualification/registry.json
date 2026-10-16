@@ -2896,8 +2896,9 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "95b52b2819de230984a0715a573cece043451b9ea49a3b3e38e50e17846132e9",
+      "sha256": "60483079a42cf4594388db68f98c2dd9d33e77f551df82a06af8d09f38496b51",
       "jobs": [
+        "evidence",
         "references",
         "offline_reference",
         "offline_edits",

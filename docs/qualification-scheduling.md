@@ -42,8 +42,9 @@ changing a test while replay runs prevents receipt publication. Changing only a
 test updates the assertion fingerprint while keeping the production fingerprint
 stable.
 
-On a main-branch merge, portable CI may inherit a complete successful CI run from
-that exact PR within the preceding 24 hours. Checkout authentication requires
+On a main-branch merge, CI and native qualification may each inherit their own
+complete successful run from that exact PR within the preceding 24 hours.
+Checkout authentication requires
 identical complete Git trees, and verification checks the original case plans,
 event bytes, assertion/source fingerprints, retained inputs and recorded build
 tools. Build, library-race and source-check jobs must also have succeeded.
@@ -52,9 +53,22 @@ Inheritance retains the original receipt digests and tested revision explicitly.
 Pull requests and manual dispatches still execute full portable CI. Missing,
 expired, failed or incompatible prior evidence selects full execution. The
 existing quality gate requires either complete original proof or every freshly
-executed group. Native qualification remains independently required. Native
-campaign inheritance and documentation/release-only classification are not yet
-enabled.
+executed group.
+
+Native inheritance independently requires the original complete Apple → Go →
+Apple campaign, including all current-Go HFS construction experiments, every
+portable host and all three Apple verifier versions. Archived Apple event bytes
+and original observations are checked alongside the Go source snapshots. A
+copied Go receipt in a readback archive cannot replace its original producer.
+Output identities must have their required native verification, including each
+randomized ciphertext and the recovery families' matching source versions.
+Restored approved inputs carry admission records, never assertion verdicts.
+
+PRs, manual campaigns and scheduled refreshes continue to execute fully. Both
+original completion gates remain required. Documentation/release-only
+classification is not yet enabled. Hosted positive inheritance and the final
+timing campaigns remain outstanding; local admission tests do not establish
+runner-minute savings.
 
 Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
 retains its per-source race instrumentation; Windows and macOS still compare all
