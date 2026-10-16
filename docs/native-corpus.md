@@ -182,8 +182,9 @@ The original `corpus.json` snapshot and its audit remain unchanged.
 The normal native workflow now resolves the reviewed pin before scheduling its
 independent input jobs. An absent pin or changed collector/helper/recipe contract
 requires fresh capture on the original macOS 15, 26 and 27 runners. With a
-compatible pin, those 39 jobs run on Linux and restore the exact original capture
-artifact layouts. Asset or integrity failures after selecting reuse fail the
+compatible pin, 13 Linux jobs each restore all three original source versions,
+retaining the same 39 capture artifact layouts. Asset or integrity failures after
+selecting reuse fail the
 campaign. They cannot turn into a successful skip. Explicit reference refreshes
 always capture afresh.
 
@@ -194,6 +195,11 @@ identical original bytes. A Linux resolver never records a new Apple capture
 verdict. Every existing portable replay, source version, native verifier and
 subsequent native modification still runs. The matched current-Go HFS experiment
 also remains fresh on every native campaign.
+
+The resolver's three original archive uploads must all succeed before archived
+readback can admit those input prerequisites. That admission records restoration
+of approved input bytes; it does not claim that Linux performed Apple capture.
+All original portable comparisons and native output checks remain required.
 
 Restoring the 39 downloaded capture artifacts and assembling their logical roots
 again reproduced all 42 independent input trees: 3,837 files and 607,864,154

@@ -30,17 +30,13 @@ env:
 jobs:
   capture:
     if: inputs.readback_run == ''
-    name: Record Apple ${{ inputs.family }} editing controls (macOS ${{ matrix.major }})
-    runs-on: ${{ inputs.reuse_references && 'ubuntu-24.04' || matrix.runner }}
+    name: ${{ inputs.reuse_references && 'Restore reviewed Apple' || 'Record Apple' }} ${{ inputs.family }} editing controls (macOS ${{ inputs.reuse_references && '15, 26 and 27' || matrix.major }})
+    runs-on: ${{ matrix.major == 'all' && 'ubuntu-24.04' || matrix.major == 15 && 'macos-15' || matrix.major == 26 && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, macos-26, xcode-27]
-        include:
-          - {runner: macos-15, major: 15}
-          - {runner: macos-26, major: 26}
-          - {runner: xcode-27, major: 27}
+        major: ${{ inputs.reuse_references && fromJSON('["all"]') || fromJSON('[15,26,27]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -55,14 +51,16 @@ jobs:
           GOTOOLCHAIN: local
           CGO_ENABLED: '0'
           GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python3 acceptance/qualification/reference_reuse.py materialize
-          --assets "$RUNNER_TEMP/native-reference-assets"
-          --artifact "offline-editing-${{ inputs.family }}-reference-${{ matrix.major }}"
-          --major "${{ matrix.major }}"
-          --destination "artifacts/offline-editing-${{ inputs.family }}"
-          --scratch "$RUNNER_TEMP"
-          --proof "artifacts/qualification/capture-approved-${{ matrix.major }}/admission.json"
+        run: |
+          for source_major in 15 26 27; do
+            python3 acceptance/qualification/reference_reuse.py materialize \
+              --assets "$RUNNER_TEMP/native-reference-assets" \
+              --artifact "offline-editing-${{ inputs.family }}-reference-$source_major" \
+              --major "$source_major" \
+              --destination "artifacts/reviewed-inputs-$source_major" \
+              --scratch "$RUNNER_TEMP" \
+              --proof "artifacts/qualification/capture-approved-$source_major/admission.json"
+          done
       - name: Require a disposable GitHub-hosted VM
         if: ${{ !(inputs.reuse_references) }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
@@ -137,11 +135,38 @@ jobs:
           --input "apfs-directory-statistics-transitions=artifacts/offline-editing-statistics-transitions"
           --output "artifacts/qualification/capture-apfs-directory-statistics-transitions"
       - name: Retain original disks and diagnostics
-        if: always()
+        if: ${{ always() && !(inputs.reuse_references) }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: offline-editing-${{ inputs.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ inputs.family }}
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 15)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-15
+          path: artifacts/reviewed-inputs-15
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 26)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-26
+          path: artifacts/reviewed-inputs-26
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 27)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-27
+          path: artifacts/reviewed-inputs-27
+          include-hidden-files: true
           compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence

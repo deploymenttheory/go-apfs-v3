@@ -261,19 +261,13 @@ jobs:
   produce:
     needs: references
     if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
-    name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
-    runs-on: ${{ needs.references.outputs.reuse == 'true' && 'ubuntu-24.04' || matrix.runner }}
+    name: ${{ needs.references.outputs.reuse == 'true' && 'Restore reviewed Apple' || 'Record Apple' }} filesystem reference data (macOS ${{ needs.references.outputs.reuse == 'true' && '15, 26 and 27' || matrix.major }})
+    runs-on: ${{ matrix.major == 'all' && 'ubuntu-24.04' || matrix.major == 15 && 'macos-15' || matrix.major == 26 && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: macos-15
-            major: 15
-          - runner: macos-26
-            major: 26
-          - runner: xcode-27
-            major: 27
+        major: ${{ needs.references.outputs.reuse == 'true' && fromJSON('["all"]') || fromJSON('[15,26,27]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -288,14 +282,16 @@ jobs:
           GOTOOLCHAIN: local
           CGO_ENABLED: '0'
           GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python3 acceptance/qualification/reference_reuse.py materialize
-          --assets "$RUNNER_TEMP/native-reference-assets"
-          --artifact "native-corpus-${{ matrix.major }}"
-          --major "${{ matrix.major }}"
-          --destination "artifacts/native"
-          --scratch "$RUNNER_TEMP"
-          --proof "artifacts/qualification/capture-approved-${{ matrix.major }}/admission.json"
+        run: |
+          for source_major in 15 26 27; do
+            python3 acceptance/qualification/reference_reuse.py materialize \
+              --assets "$RUNNER_TEMP/native-reference-assets" \
+              --artifact "native-corpus-$source_major" \
+              --major "$source_major" \
+              --destination "artifacts/reviewed-inputs-$source_major" \
+              --scratch "$RUNNER_TEMP" \
+              --proof "artifacts/qualification/capture-approved-$source_major/admission.json"
+          done
       - name: Require a disposable GitHub-hosted VM for native filesystem tests
         if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
@@ -474,12 +470,12 @@ jobs:
           final-owner removal, settled encryption/decryption, password replacement,
           independently credentialed peers and actual native snapshot revert.
 
-          The fifteen steps above isolate what is being checked. The uploaded images,
+          The original captured cases isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
       - name: Upload Apple-tool diagnostics, including failures
-        if: always()
+        if: ${{ always() && !(needs.references.outputs.reuse == 'true') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-${{ matrix.major }}
@@ -489,11 +485,11 @@ jobs:
             artifacts/native/apfs-lifecycle/*.incomplete.zip
           if-no-files-found: error
       - name: Upload reference images, observations and provenance
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-corpus-${{ matrix.major }}
           path: |
-          compression-level: 0
             artifacts/native/volumes/macos-${{ matrix.major }}/
             artifacts/native/files/macos-${{ matrix.major }}/
             artifacts/native/semantics/macos-${{ matrix.major }}/
@@ -509,6 +505,34 @@ jobs:
             artifacts/native/image-building/macos-${{ matrix.major }}/
             artifacts/native/image-repacking/macos-${{ matrix.major }}/
             artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}/
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 15)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-15
+          path: artifacts/reviewed-inputs-15
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 26)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-26
+          path: artifacts/reviewed-inputs-26
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 27)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-27
+          path: artifacts/reviewed-inputs-27
+          include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence
         if: always()
