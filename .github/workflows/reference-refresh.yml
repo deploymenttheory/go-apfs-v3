@@ -1,0 +1,52 @@
+name: Refresh independent Apple filesystem references
+
+on:
+  schedule:
+    - cron: '23 1-6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: native-reference-refresh-control
+  cancel-in-progress: false
+
+jobs:
+  coordinate:
+    name: Defer Apple capture during active implementation qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Require the trusted default branch
+        run: test "$GITHUB_REF" = refs/heads/main
+      - name: Record the independent capture dependency contract
+        run: go run ./acceptance/qualification -capture-contract > "$RUNNER_TEMP/capture-contract"
+      - name: Persist deferral, stale incident and complete capture dispatch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 acceptance/qualification/refresh_control.py
+          --contract "$(cat "$RUNNER_TEMP/capture-contract")"
+          --output artifacts/reference-refresh/decision.json
+          --dispatch
+      - name: Retain every refresh decision separately from successful qualification
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: reference-refresh-decision
+          path: artifacts/reference-refresh/
+          if-no-files-found: error
+

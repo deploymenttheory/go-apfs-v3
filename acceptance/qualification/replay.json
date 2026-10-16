@@ -196,7 +196,8 @@
         "UDRO",
         "UDZO"
       ],
-      "capture_contract": "apfs-checkpoint-recovery"
+      "capture_contract": "apfs-checkpoint-recovery",
+      "native_scope": "matching-source"
     },
     {
       "test": "TestNativeAPFSDirectoryStatistics",
@@ -236,6 +237,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -247,6 +251,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -265,6 +272,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -283,6 +293,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -294,6 +307,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -420,6 +436,9 @@
       "variants": [
         "catalog",
         "catalog-final"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -438,6 +457,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -449,6 +471,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -467,6 +492,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -478,6 +506,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -490,7 +521,11 @@
         "UDRO",
         "UDZO"
       ],
-      "capture_contract": "hfs-journal-recovery"
+      "capture_contract": "hfs-journal-recovery",
+      "fresh_race_hosts": [
+        "linux"
+      ],
+      "native_scope": "matching-source"
     },
     {
       "test": "TestNativeHFSJournaledImageCatalogEditing",
@@ -501,6 +536,9 @@
       "variants": [
         "catalog",
         "catalog-final"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -512,6 +550,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -523,6 +564,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -534,6 +578,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {
@@ -545,6 +592,9 @@
       "variants": [
         "UDRO",
         "UDZO"
+      ],
+      "fresh_race_hosts": [
+        "linux"
       ]
     },
     {

@@ -2881,7 +2881,7 @@
   "workflows": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "e87a7206ef927e7a676f19915f77f6b3332239e7970d73932ab49470128f774e",
+      "sha256": "2d84008dfb311e4816875c474adffc6438ba2f1eec58c471b36f263ecc7f365d",
       "jobs": [
         "source_checks",
         "portable",
@@ -2895,8 +2895,9 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "9b9c07d5c641199d41038c934384ddd2bf429bad62fceb314f9aaeb5100cabf5",
+      "sha256": "2f4f3ec27b726538ad639f2ba693a5b1f97a0672442e06c7e8d5fc084bb35e63",
       "jobs": [
+        "references",
         "offline_reference",
         "offline_edits",
         "apfs_recovery",
@@ -2913,7 +2914,7 @@
     },
     {
       "path": ".github/workflows/offline-editing.yml",
-      "sha256": "ff968ab2d21670045202026acf820e10aa50417e2fc287718f7566708cfa3190",
+      "sha256": "eeee6844af0c49648ec99f05160139db0d24098f2f0e789fd612b2aa27116cb8",
       "jobs": [
         "families",
         "qualified"
@@ -2921,7 +2922,7 @@
     },
     {
       "path": ".github/workflows/apfs-edit.yml",
-      "sha256": "9c63dcb48ec18439bc4fdc915a9ed0c9862afe766851f80d4d9a241cdfa93f74",
+      "sha256": "7bf8f227cbf657ceb9654bb9c7b7546760561229beec573d2792763aac7d06ad",
       "jobs": [
         "capture",
         "replay",
@@ -2931,7 +2932,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "a623de6b377ab20c00c916089bdace6302925524c926976679fd62b23311c7ee",
+      "sha256": "960d48941cfc4f1bdf0d4b1220e7bfb5082d5d9f04a8f771808a4a2325b6f5a8",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2943,7 +2944,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "0e3f65c746a6ea1f5fb16d564caff0c1bb3606d52b77a7143c56fc1cdb0ce591",
+      "sha256": "1ebbc70fe8eec1afebd773d1b479b15c73fd18942531834955a8dd79e02c9f45",
       "jobs": [
         "capture",
         "replay",
@@ -2953,7 +2954,7 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "b0027ac8bf3350381bedccc679de028d4e4da7120642607ba15dedf1b8f6e903",
+      "sha256": "832168614a944fdd611c4634bc8e82b014d25ca292b4266245aa1bbd18ff13d6",
       "jobs": [
         "capture",
         "replay",
@@ -2963,7 +2964,7 @@
     },
     {
       "path": ".github/workflows/offline-family.yml",
-      "sha256": "efc51a5c2f3c6e7784e1f2e013704ef992100b9ba03c508431c3e962708dd01a",
+      "sha256": "e663e6e77096cee85dab522d64f9abb13b2bcc045a57958f54277a9bd2d73e16",
       "jobs": [
         "capture",
         "replay",

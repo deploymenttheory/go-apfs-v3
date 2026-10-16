@@ -1,0 +1,78 @@
+name: Publish independently qualified Apple references
+
+on:
+  workflow_run:
+    workflows: [macOS filesystem compatibility, CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      native_run:
+        description: Completed full independent reference refresh on main
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: native-reference-refresh-control
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify original execution proof and open a reviewed input update
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: '0'
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      COMPLETED_RUN: ${{ github.event.workflow_run.id }}
+      NATIVE_RUN: ${{ inputs.native_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+      - name: Select an authenticated complete campaign and its exact source
+        id: source
+        shell: bash
+        run: |
+          origin_arguments=(--completed-run "$COMPLETED_RUN")
+          if [[ -n "$NATIVE_RUN" ]]; then
+            test "$GITHUB_REF" = refs/heads/main
+            origin_arguments=(--run "$NATIVE_RUN")
+          fi
+          python3 acceptance/qualification/publish_references.py "${origin_arguments[@]}" --select --workspace artifacts/reference-publication
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: steps.source.outputs.native_run != ''
+        with:
+          ref: ${{ steps.source.outputs.revision }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        if: steps.source.outputs.native_run != ''
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Qualify a completed reference refresh and preserve permanent candidate assets
+        if: steps.source.outputs.native_run != ''
+        shell: bash
+        env:
+          SELECTED_RUN: ${{ steps.source.outputs.native_run }}
+        run: |
+          python3 acceptance/qualification/publish_references.py --run "$SELECTED_RUN" --workspace artifacts/reference-publication
+      - name: Retain failed or successful candidate diagnostics without replacing approved inputs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: reference-publication-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/reference-publication/control/
+            artifacts/reference-publication/publication.json
+            artifacts/reference-publication/references.json
+            artifacts/reference-publication/candidate/candidate.json
+          if-no-files-found: warn

@@ -94,7 +94,9 @@ def source_identities(root):
             continue
         if name.endswith('_test.go') and not harness:
             continue
-        if harness and (not name.endswith(('.go', '.json')) or name == 'acceptance/qualification/corpus.json' or name.startswith('acceptance/native/')):
+        if harness and (not name.endswith(('.go', '.json')) or name in (
+                'acceptance/qualification/corpus.json', 'acceptance/qualification/references.json') or
+                name.startswith('acceptance/native/')):
             continue
         source = Path(root) / name
         if name.endswith('.go'):
