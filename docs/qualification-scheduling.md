@@ -42,6 +42,20 @@ changing a test while replay runs prevents receipt publication. Changing only a
 test updates the assertion fingerprint while keeping the production fingerprint
 stable.
 
+On a main-branch merge, portable CI may inherit a complete successful CI run from
+that exact PR within the preceding 24 hours. Checkout authentication requires
+identical complete Git trees, and verification checks the original case plans,
+event bytes, assertion/source fingerprints, retained inputs and recorded build
+tools. Build, library-race and source-check jobs must also have succeeded.
+Inheritance retains the original receipt digests and tested revision explicitly.
+
+Pull requests and manual dispatches still execute full portable CI. Missing,
+expired, failed or incompatible prior evidence selects full execution. The
+existing quality gate requires either complete original proof or every freshly
+executed group. Native qualification remains independently required. Native
+campaign inheritance and documentation/release-only classification are not yet
+enabled.
+
 Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
 retains its per-source race instrumentation; Windows and macOS still compare all
 three native sources. Catalog comparisons keep their separate four-minute
@@ -64,8 +78,10 @@ jobs took up to ten minutes. HFS editing has a 15-minute job envelope to retain
 headroom for all seven independent processes on slower hosts. Its assertion
 deadlines and datasets have not changed.
 
-Matrix expansion predicts 83 jobs for `ci.yml`, compared with 170 in that
-completed campaign. The independent offline chains add seven child completion
+Retained batching accounts for 83 jobs, compared with 170 in that completed CI
+campaign. Fresh CI now adds one evidence-admission job; an admitted identical
+merge executes only that job and the existing quality gate. The independent
+offline chains add seven child completion
 jobs underneath the existing outer completion gate. These are scheduling counts,
 not a measured claim about total runner time or the final reduction target.
 Expanding both CI matrices against the merged replay implementation preserves
