@@ -1858,7 +1858,7 @@
           "workflow": ".github/workflows/native.yml",
           "jobs": [
             "hfs_reference",
-            "replay"
+            "image_building_replay"
           ],
           "scope": "Fresh source versions 15/26/27 on Linux, Windows and macOS; retained replay in CI."
         },
@@ -2900,7 +2900,7 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "b25f7810dba82e95fdf31e7a8307d1ad44d07130cf7828e0f2dffd3f1f643b11",
+      "sha256": "b143ca42a023aa17c5ef2305fb243fbfe99872a2e47b4278dd5136cbefb5a6e8",
       "jobs": [
         "evidence",
         "references",

@@ -12,6 +12,13 @@ For example, permissions readback can start while HFS node-map replay is still
 running. The original outer completion gate still requires every capability.
 The source/host Cartesian product and native verifier versions remain intact.
 
+General reader comparisons no longer wait for the matched HFS construction
+experiment. Its Go checks run in the existing construction matrix, once for
+each source/host combination. Each job still receives all three native source
+inventories, as required by the original HFS test, and retains the six-minute
+process deadline. This changes dependencies without adding runner jobs or
+substituting historical Go-labelled controls for current construction evidence.
+
 Retained tests share the following jobs on Linux, Windows and macOS, for each
 macOS 15, 26 and 27 source:
 
