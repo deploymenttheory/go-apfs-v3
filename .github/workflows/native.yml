@@ -575,7 +575,7 @@ jobs:
   replay:
     if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Compare Go with macOS reference data (${{ matrix.platform }})
-    needs: [evidence, produce, hfs_reference]
+    needs: [evidence, produce]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -599,11 +599,6 @@ jobs:
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: hfs-header-growth-*
-          path: artifacts/hfs-references
-          merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
         # Required recovery subworkflows own their complete fresh/retained
         # corpus comparisons; do not duplicate full-disk recovery here.
@@ -611,9 +606,10 @@ jobs:
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
+        # Matched HFS construction controls belong to those construction jobs.
         # Offline editing has its own required capture/replay/readback matrix;
         # replaying its retained full-disk controls here duplicates that work.
-        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSCatalogGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -624,7 +620,6 @@ jobs:
           APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_NATIVE_LIFECYCLE: ../artifacts/native/apfs-lifecycle
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
-          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation
           APFS_WORKSPACE_OUTPUT: ../artifacts/preservation
           APFS_NATIVE_REPLACEMENT: ../artifacts/native/replacement
@@ -697,7 +692,7 @@ jobs:
   image_building_replay:
     if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Build images from macOS ${{ matrix.major }} references (${{ matrix.platform }})
-    needs: [evidence, produce]
+    needs: [evidence, produce, hfs_reference]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -722,6 +717,11 @@ jobs:
         with:
           name: native-corpus-${{ matrix.major }}
           path: artifacts/native
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hfs-header-growth-*
+          path: artifacts/hfs-references
+          merge-multiple: true
       - name: Build and compare filesystems, containers, compression and encrypted images
         run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNative(Image|Container)Building$'
         env:
@@ -744,6 +744,14 @@ jobs:
           path: artifacts/workspace-outputs/*.tar.gz
           compression-level: 0
           if-no-files-found: error
+      - name: Compare matched Apple and current-Go HFS construction controls
+        # The test validates the complete three-source inventory before selecting
+        # this source. Keep all three downloads; each case still executes once
+        # on every portable host across the existing construction matrix.
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNativeHFSCatalogGrowth$/^macos-${{ matrix.major }}$'
+        env:
+          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
+          APFS_REQUIRED_NATIVE_MAJORS: '${{ matrix.major }}'
       - name: Retain required case execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
