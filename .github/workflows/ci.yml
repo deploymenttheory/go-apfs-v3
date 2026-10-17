@@ -124,7 +124,7 @@ jobs:
           cache: true
       - name: Download original reviewed Apple input bundles
         if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ci-reference-inputs
           path: artifacts/ci-reference-inputs
@@ -185,7 +185,7 @@ jobs:
           cache: true
       - name: Download original reviewed Apple input bundles
         if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ci-reference-inputs
           path: artifacts/ci-reference-inputs
@@ -250,7 +250,7 @@ jobs:
           cache: true
       - name: Download original reviewed Apple input bundles
         if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ci-reference-inputs
           path: artifacts/ci-reference-inputs
@@ -446,7 +446,7 @@ jobs:
           cache: true
       - name: Download original reviewed Apple input bundles
         if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ci-reference-inputs
           path: artifacts/ci-reference-inputs

@@ -594,7 +594,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: native-corpus-*
           path: artifacts/native
@@ -713,11 +713,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: native-corpus-${{ matrix.major }}
           path: artifacts/native
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: hfs-header-growth-*
           path: artifacts/hfs-references
@@ -796,14 +796,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Require a disposable GitHub-hosted VM for native filesystem tests
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           run-id: ${{ inputs.readback_run || github.run_id }}
           github-token: ${{ github.token }}
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           run-id: ${{ inputs.readback_run || github.run_id }}
           github-token: ${{ github.token }}

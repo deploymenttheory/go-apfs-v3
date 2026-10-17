@@ -188,7 +188,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: apfs-edit-reference-${{ matrix.major }}
           path: artifacts/apfs-editing
@@ -272,12 +272,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: apfs-edit-reference-*
           path: artifacts/apfs-editing
           merge-multiple: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: apfs-edits-*
           path: artifacts/outputs
