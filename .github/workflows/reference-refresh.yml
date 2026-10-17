@@ -49,4 +49,3 @@ jobs:
           name: reference-refresh-decision
           path: artifacts/reference-refresh/
           if-no-files-found: error
-
