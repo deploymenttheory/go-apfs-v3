@@ -96,10 +96,10 @@ func replayBuildIdentity(ctx context.Context, root string) (string, []receipt.Fi
 
 func executableIdentity(ctx context.Context, filename, name string) (receipt.File, error) {
 	result := receipt.File{Path: name}
-	filename, err := filepath.EvalSymlinks(filename)
-	if err != nil {
-		return result, err
-	}
+	// Open through the same path as Go. setup-go uses directory junctions on
+	// Windows; pre-resolving them can fail even when the executable opens.
+	// Identity comes from the bounded bytes and metadata on this open handle,
+	// rather than from a canonical spelling of its installation directory.
 	input, err := os.Open(filename)
 	if err != nil {
 		return result, err
