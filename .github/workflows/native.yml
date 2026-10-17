@@ -13,6 +13,7 @@ on:
       - '.github/workflows/apfs-edit.yml'
       - '.github/workflows/apfs-recovery.yml'
       - '.github/workflows/offline-editing.yml'
+      - '.github/workflows/offline-family.yml'
   push:
     branches: [main]
   schedule:
@@ -432,7 +433,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: native-corpus-*
@@ -492,6 +493,7 @@ jobs:
         with:
           name: workspace-outputs-${{ matrix.platform }}
           path: artifacts/workspace-outputs/*.tar.gz
+          compression-level: 0
           if-no-files-found: error
       - name: Explain the compatibility result
         shell: bash
@@ -541,7 +543,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           name: native-corpus-${{ matrix.major }}
@@ -566,6 +568,7 @@ jobs:
         with:
           name: workspace-outputs-image-building-${{ matrix.platform }}-macos-${{ matrix.major }}
           path: artifacts/workspace-outputs/*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   readback:
@@ -766,7 +769,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - name: Build explicitly labelled Go construction controls
         run: |
           mkdir -p artifacts/hfs-empty artifacts/hfs-go

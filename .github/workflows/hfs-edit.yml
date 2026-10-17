@@ -107,7 +107,7 @@ jobs:
     name: Edit existing Apple HFS filesystems (${{ matrix.profile }}, ${{ matrix.platform }}, ${{ matrix.scope }}, ${{ matrix.operations }})
     needs: capture
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -122,22 +122,12 @@ jobs:
           - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
           - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageEditing$', artifact: macOS, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file contents, modes and metadata'}
           - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageEditing$', artifact: macOS, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file contents, modes and metadata'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 15 sources', major: 15, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-15', artifact: Catalog-Linux-15, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 26 sources', major: 26, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-26', artifact: Catalog-Linux-26, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: ubuntu-24.04, platform: Linux, race: '-race', scope: 'macOS 27 sources', major: 27, tests: '^TestNativeHFSJournaledImageCatalogEditing$/macos-27', artifact: Catalog-Linux-27, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCatalogEditing$', artifact: Catalog-Windows, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: windows-2025, platform: Windows, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$', artifact: Catalog-Windows, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
-          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSImageCatalogEditing$', artifact: Catalog-macOS, prefix: hfs, profile: nonjournaled, journal: '', operations: 'file and directory entries'}
-          - {runner: macos-26, platform: macOS, race: '', scope: 'all sources', tests: '^TestNativeHFSJournaledImageCatalogEditing$', artifact: Catalog-macOS, prefix: hfs-journaled, profile: journaled, journal: '--journaled', operations: 'file and directory entries'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
@@ -156,6 +146,16 @@ jobs:
           APFS_HFS_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
           APFS_HFS_JOURNALED_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
           APFS_HFS_JOURNALED_EDIT_OUTPUT: ../artifacts/${{ matrix.prefix }}-edits-${{ matrix.platform }}
+      - name: Compare catalog creation, moves and removal with its original deadline
+        shell: bash
+        run: go run ./acceptance/qualification -replay -- ${{ matrix.race }} -v -count=1 -timeout 4m ./acceptance -run "$CATALOG_TESTS"
+        env:
+          CGO_ENABLED: ${{ matrix.platform == 'Linux' && '1' || '0' }}
+          CATALOG_TESTS: "^TestNativeHFS${{ matrix.profile == 'journaled' && 'Journaled' || '' }}ImageCatalogEditing$${{ matrix.platform == 'Linux' && format('/macos-{0}', matrix.major) || '' }}"
+          APFS_NATIVE_HFS_EDITS: ../artifacts/${{ matrix.prefix }}-editing
+          APFS_NATIVE_HFS_JOURNALED_EDITS: ../artifacts/${{ matrix.prefix }}-editing
+          APFS_HFS_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
+          APFS_HFS_JOURNALED_CATALOG_OUTPUT: ../artifacts/${{ matrix.prefix }}-catalog-${{ matrix.platform }}
       - name: Compare native metadata and allocated attribute transitions
         if: matrix.operations == 'file contents, modes and metadata'
         shell: bash
@@ -179,29 +179,22 @@ jobs:
           APFS_HFS_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
           APFS_HFS_JOURNALED_LINK_OUTPUT: ../artifacts/${{ matrix.prefix }}-links-${{ matrix.platform }}
       - name: Archive actual portable output images
-        env:
-          HFS_OUTPUT_ARTIFACT: ${{ matrix.artifact }}
         shell: bash
         run: |
           archive_options=()
           if [[ "$RUNNER_OS" == macOS ]]; then
             archive_options=(--no-mac-metadata --no-xattrs --no-acls)
           fi
-          if [[ "$HFS_OUTPUT_ARTIFACT" == Catalog-* ]]; then
-            output_directory="${{ matrix.prefix }}-catalog-${{ matrix.platform }}"
-          else
-            output_directory="${{ matrix.prefix }}-edits-${{ matrix.platform }}"
-          fi
-          output_directories=("$output_directory")
-          if [[ "$HFS_OUTPUT_ARTIFACT" != Catalog-* ]]; then
-            output_directories+=("${{ matrix.prefix }}-metadata-${{ matrix.platform }}")
-            output_directories+=("${{ matrix.prefix }}-links-${{ matrix.platform }}")
-          fi
+          output_directories=("${{ matrix.prefix }}-edits-${{ matrix.platform }}"
+                              "${{ matrix.prefix }}-catalog-${{ matrix.platform }}"
+                              "${{ matrix.prefix }}-metadata-${{ matrix.platform }}"
+                              "${{ matrix.prefix }}-links-${{ matrix.platform }}")
           tar -czf "artifacts/${{ matrix.prefix }}-edits-${{ matrix.artifact }}.tar.gz" "${archive_options[@]}" -C artifacts "${output_directories[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ matrix.prefix }}-edits-${{ matrix.artifact }}
           path: artifacts/${{ matrix.prefix }}-edits-*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   replay_copy:
@@ -229,7 +222,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
@@ -258,6 +251,7 @@ jobs:
         with:
           name: ${{ matrix.prefix }}-edits-Copy-${{ matrix.artifact }}
           path: artifacts/${{ matrix.prefix }}-edits-Copy-*.tar.gz
+          compression-level: 0
           if-no-files-found: error
 
   readback:
@@ -283,7 +277,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
       - uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*

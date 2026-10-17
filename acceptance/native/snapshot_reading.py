@@ -23,6 +23,27 @@ import sys
 MOUNT_APFS = "/System/Library/Filesystems/apfs.fs/Contents/Resources/mount_apfs"
 
 
+def detach_copy_target(command, device, target):
+    """Release only our disposable ASR copy target after its copy has ended."""
+    command("diskutil", "unmountDisk", "force", device)
+    try:
+        command("hdiutil", "detach", device)
+    except subprocess.CalledProcessError as error:
+        if error.returncode != errno.EBUSY:
+            raise
+        # unmountDisk releases filesystems, not the DiskImages device. A completed
+        # ASR target can remain busy after all normal detach attempts. hdiutil(1)
+        # provides -force for that case. Never apply it to the retained source or
+        # another device: bind the still-attached disk to this exact scratch image.
+        attached = plistlib.loads(command("hdiutil", "info", "-plist"))["images"]
+        matches = [image for image in attached
+                   if image.get("image-path") and Path(image["image-path"]).resolve() == target.resolve()
+                   and any(entity.get("dev-entry") == device for entity in image.get("system-entities", []))]
+        if len(matches) != 1:
+            raise RuntimeError("busy ASR target no longer identifies our disposable image") from error
+        command("hdiutil", "detach", device, "-force")
+
+
 def snapshot_attributes(mount, fd=None):
     """Public sys/snapshot.h API; invoked in its own bounded native command."""
     lib = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
@@ -167,8 +188,7 @@ def capture(work, corpus, command, create_files, observe_files, sha256):
         finally:
             # ASR remounts its disposable target and can leave mounted APFS
             # children. Unmount the whole target before detaching its image.
-            command("diskutil", "unmountDisk", "force", device)
-            command("hdiutil", "detach", device)
+            detach_copy_target(command, device, target)
 
 
     def info(device):

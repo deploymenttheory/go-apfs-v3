@@ -1928,6 +1928,14 @@
         {
           "workflow": ".github/workflows/offline-editing.yml",
           "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
+          "jobs": [
             "capture",
             "replay",
             "readback"
@@ -1998,6 +2006,14 @@
       "execution": [
         {
           "workflow": ".github/workflows/offline-editing.yml",
+          "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
           "jobs": [
             "capture",
             "replay",
@@ -2071,6 +2087,14 @@
         {
           "workflow": ".github/workflows/offline-editing.yml",
           "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
+          "jobs": [
             "capture",
             "replay",
             "readback"
@@ -2143,6 +2167,14 @@
         {
           "workflow": ".github/workflows/offline-editing.yml",
           "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
+          "jobs": [
             "capture",
             "replay",
             "readback"
@@ -2213,6 +2245,14 @@
       "execution": [
         {
           "workflow": ".github/workflows/offline-editing.yml",
+          "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
           "jobs": [
             "capture",
             "replay",
@@ -2340,6 +2380,14 @@
         {
           "workflow": ".github/workflows/offline-editing.yml",
           "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
+          "jobs": [
             "capture",
             "replay",
             "readback"
@@ -2411,6 +2459,14 @@
       "execution": [
         {
           "workflow": ".github/workflows/offline-editing.yml",
+          "jobs": [
+            "families",
+            "qualified"
+          ],
+          "scope": "All seven complete filesystem capability chains remain required; each chain has its own capture, replay and Apple dependencies."
+        },
+        {
+          "workflow": ".github/workflows/offline-family.yml",
           "jobs": [
             "capture",
             "replay",
@@ -2825,7 +2881,7 @@
   "workflows": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "782db074ec2dc7cf7ac0945db97aab3a34b8b0dfbcef42038115be7849a5f17c",
+      "sha256": "e87a7206ef927e7a676f19915f77f6b3332239e7970d73932ab49470128f774e",
       "jobs": [
         "source_checks",
         "portable",
@@ -2839,7 +2895,7 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "fa85925c2363e7ee8a814d00efbeff6d96526a88774f34f7edc0dde50e06b45c",
+      "sha256": "9b9c07d5c641199d41038c934384ddd2bf429bad62fceb314f9aaeb5100cabf5",
       "jobs": [
         "offline_reference",
         "offline_edits",
@@ -2857,18 +2913,15 @@
     },
     {
       "path": ".github/workflows/offline-editing.yml",
-      "sha256": "73eff34d7787354d57596e1641c7a640a6eb255e1b3caf4db61b3d9d52b21703",
+      "sha256": "ff968ab2d21670045202026acf820e10aa50417e2fc287718f7566708cfa3190",
       "jobs": [
-        "capture",
-        "replay",
-        "archive",
-        "readback",
+        "families",
         "qualified"
       ]
     },
     {
       "path": ".github/workflows/apfs-edit.yml",
-      "sha256": "06402a48830570c6e2476f460dce7671c9e25207339929f61dca101eb4991785",
+      "sha256": "9c63dcb48ec18439bc4fdc915a9ed0c9862afe766851f80d4d9a241cdfa93f74",
       "jobs": [
         "capture",
         "replay",
@@ -2878,7 +2931,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "f100b1641781dd45fd2bcb4964bbebb13d1d89a91a169831c12eb84b6c207724",
+      "sha256": "a623de6b377ab20c00c916089bdace6302925524c926976679fd62b23311c7ee",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2890,7 +2943,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "8e5d378052413ffd00ecefebb76e299b7779abc0f7a5c2b6b2c16735ea7159f5",
+      "sha256": "0e3f65c746a6ea1f5fb16d564caff0c1bb3606d52b77a7143c56fc1cdb0ce591",
       "jobs": [
         "capture",
         "replay",
@@ -2900,12 +2953,23 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "1b9ad98de7f49832709e2b936f78091074a580ea1e58c83d4ad2e5362afe3736",
+      "sha256": "b0027ac8bf3350381bedccc679de028d4e4da7120642607ba15dedf1b8f6e903",
       "jobs": [
         "capture",
         "replay",
         "readback",
         "complete"
+      ]
+    },
+    {
+      "path": ".github/workflows/offline-family.yml",
+      "sha256": "efc51a5c2f3c6e7784e1f2e013704ef992100b9ba03c508431c3e962708dd01a",
+      "jobs": [
+        "capture",
+        "replay",
+        "archive",
+        "readback",
+        "qualified"
       ]
     }
   ],
