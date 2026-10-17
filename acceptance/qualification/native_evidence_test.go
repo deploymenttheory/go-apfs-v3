@@ -291,3 +291,51 @@ func TestNativeOutputInheritanceRequiresMatchingSourceAndIndividualCiphertext(t 
 		t.Fatal("matching-source native scope accepted another source version")
 	}
 }
+
+func TestNativeContinuationRequiresAppleVerificationOnItsActualWriterVersion(t *testing.T) {
+	root := replayControlModule(t, "valid")
+	var recipes replayContract
+	data, err := regularFile(root, "acceptance/qualification/replay.json")
+	if err != nil || json.Unmarshal(data, &recipes) != nil {
+		t.Fatal("control replay policy missing", err)
+	}
+	recipes.Tests[0].Layout = "continuation"
+	data, err = json.Marshal(recipes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeControl(t, root, "acceptance/qualification/replay.json", string(data))
+	file := receipt.File{Path: "continued/macos-15-apfs.dmg", Bytes: 10, SHA256: strings.Repeat("a", 64)}
+	c := receipt.Case{Family: "geometry-control", Test: "TestReference/macos-15/apfs/UDRO", Corpus: "native-modified", Source: 15, Continuation: true, Outputs: []string{file.Path}}
+	r := registry{Families: []family{{ID: c.Family, NativeMajors: []int{15, 26, 27}}}}
+	plan := receipt.Plan{Stage: "replay", Cases: []receipt.Case{c}, Inputs: []receipt.Input{{ID: c.Corpus, Use: "native-continuation", TreeSHA256: strings.Repeat("b", 64)}}, Environment: receipt.Environment{OS: "darwin", Version: "26.6.2"}}
+	coverage := referenceCoverage{native: map[int]map[string]bool{26: {nativeFileKey(file): true}}}
+	for _, mutation := range []string{"valid", "wrong-verifier", "missing-verifier", "missing-input", "wrong-input-use", "wrong-host", "unknown-writer", "unmarked-case"} {
+		t.Run(mutation, func(t *testing.T) {
+			changed := plan
+			changed.Cases = append([]receipt.Case(nil), plan.Cases...)
+			changed.Inputs = append([]receipt.Input(nil), plan.Inputs...)
+			proof := coverage
+			switch mutation {
+			case "wrong-verifier":
+				proof.native = map[int]map[string]bool{15: {nativeFileKey(file): true}}
+			case "missing-verifier":
+				proof.native = map[int]map[string]bool{}
+			case "missing-input":
+				changed.Inputs = nil
+			case "wrong-input-use":
+				changed.Inputs[0].Use = "retained"
+			case "wrong-host":
+				changed.Environment.OS = "linux"
+			case "unknown-writer":
+				changed.Environment.Version = "99.0"
+			case "unmarked-case":
+				changed.Cases[0].Continuation = false
+			}
+			err := checkNativeOutputEvidence(root, r, map[string]receipt.Receipt{"original": {Plan: changed, Outputs: []receipt.File{file}}}, &proof)
+			if (err == nil) != (mutation == "valid") {
+				t.Fatalf("native continuation scope %s: %v", mutation, err)
+			}
+		})
+	}
+}

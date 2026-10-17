@@ -74,6 +74,10 @@ original checks, including the native workflow's individual ciphertext checks;
 the comparison does not equate its raw bytes. Native-modified continuation
 sources can include current timestamps, so their original unique hashes remain
 in the evidence and each campaign must retain its complete continuation proof.
+The source version still names the original capture. Each Apple runner creates
+its own native-modified continuation state; its subsequent Go output requires
+Apple verification of those exact bytes on that runner's macOS version. All
+three native writer/verifier environments remain separate obligations.
 JSON observations and workspace manifests use their original assertions rather
 than a raw serialization equality claim. Unknown output formats need an
 explicit policy. The report separates outputs compared by bytes from outputs

@@ -260,9 +260,9 @@ func checkNativeOutputEvidence(root string, registry registry, records map[strin
 	if err = corpus.StrictJSON(data, &recipes); err != nil {
 		return err
 	}
-	matching := map[string]bool{}
+	policies := map[string]replayTest{}
 	for _, recipe := range recipes.Tests {
-		matching[recipe.Test] = recipe.NativeScope == "matching-source"
+		policies[recipe.Test] = recipe
 	}
 	individual := map[int]map[string]map[string]bool{}
 	for key, record := range records {
@@ -275,7 +275,22 @@ func checkNativeOutputEvidence(root string, registry registry, records map[strin
 				return errors.New("original portable case has no reviewed native scope")
 			}
 			majors := registry.Families[index].NativeMajors
-			if matching[strings.Split(c.Test, "/")[0]] && len(majors) != 0 {
+			policy, known := policies[strings.Split(c.Test, "/")[0]]
+			if !known {
+				return errors.New("original portable case has no reviewed replay policy")
+			}
+			if policy.Layout == "continuation" || c.Continuation {
+				// Each native runner modifies its own copy before Go re-edits
+				// it. The output is checked again on that same runner; Source
+				// still identifies the original capture, not this native writer.
+				major, parseErr := strconv.Atoi(strings.Split(record.Plan.Environment.Version, ".")[0])
+				if policy.Layout != "continuation" || !c.Continuation || record.Plan.Environment.OS != "darwin" || parseErr != nil || !slices.Contains(majors, major) || !slices.ContainsFunc(record.Plan.Inputs, func(input receipt.Input) bool {
+					return input.ID == c.Corpus && input.Use == "native-continuation"
+				}) {
+					return errors.New("native continuation lacks its declared input and actual Apple runner scope")
+				}
+				majors = []int{major}
+			} else if policy.NativeScope == "matching-source" && len(majors) != 0 {
 				majors = []int{c.Source}
 			}
 			for _, name := range c.Outputs {
