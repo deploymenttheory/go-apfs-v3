@@ -101,49 +101,54 @@ func verifyReferenceAsset(ctx context.Context, directory string, asset publicati
 }
 
 func checkReferenceAssets(ctx context.Context, root, registryPath, pinPath, bundles string) error {
+	_, err := checkedReferenceCatalog(ctx, root, registryPath, pinPath, bundles)
+	return err
+}
+
+func checkedReferenceCatalog(ctx context.Context, root, registryPath, pinPath, bundles string) (corpus.Catalog, error) {
 	data, err := regularFile(root, registryPath)
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	var r registry
 	if err = corpus.StrictJSON(data, &r); err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	recipes, err := readReplayContract(root, r)
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	data, err = regularFile(root, "acceptance/qualification/corpus.json")
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	original, err := corpus.Read(strings.NewReader(string(data)))
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	definitions, err := corpusDefinitions(r)
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	if err = corpus.MatchRetainedDefinitions(original, definitions); err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	approved, err := approvedReferences(ctx, root, pinPath, bundles, original, recipes)
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	resolver, err := corpus.New(approved, corpus.Options{Repository: root, Bundles: bundles})
 	if err != nil {
-		return err
+		return corpus.Catalog{}, err
 	}
 	for _, entry := range approved.Entries {
 		source, err := resolver.Resolve(ctx, entry.ID)
 		if err != nil {
-			return err
+			return corpus.Catalog{}, err
 		}
 		if err = source.Close(); err != nil {
-			return err
+			return corpus.Catalog{}, err
 		}
 	}
-	return nil
+	return approved, nil
 }

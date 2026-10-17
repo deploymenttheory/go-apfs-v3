@@ -106,6 +106,20 @@ func TestReviewedReferencesAdmitNewSourcesWithoutRewritingRetainedEvidence(t *te
 		t.Fatal(err)
 	}
 	writeControl(t, root, "acceptance/qualification/references.json", string(pinData))
+	checked, err := checkedReferenceCatalog(ctx, root, "acceptance/qualification/registry.json", "acceptance/qualification/references.json", bundles)
+	if err != nil {
+		t.Fatal("complete pinned asset admission failed", err)
+	}
+	sources, err := referenceSourceIdentities(checked)
+	if err != nil || len(sources) != 3 {
+		t.Fatal("verified reference source versions are incomplete", err)
+	}
+	for position, major := range []int{15, 26, 27} {
+		expected, err := referenceSourceIdentity(candidate.Entries[0], major)
+		if err != nil || sources[position].ID != "apfs-geometry" || sources[position].Major != major || sources[position].Class != "apple-independent" || sources[position].Identity != expected {
+			t.Fatal("reference identities differ from the actual verified source files", major, err)
+		}
+	}
 	admitted, err := admitReplayInputs(ctx, root, "acceptance/qualification/corpus.json", bundles, "acceptance/qualification/references.json", r, recipes, recipes.Tests)
 	if err != nil {
 		t.Fatal(err)

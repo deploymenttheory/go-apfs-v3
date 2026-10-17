@@ -224,5 +224,58 @@ class CompleteCampaignAdmissionTests(unittest.TestCase):
             execute.assert_not_called()
 
 
+class ReviewedInputComparisonTests(unittest.TestCase):
+    def sources(self):
+        return [{'id': 'apfs-editing', 'source_major': 15, 'source_sha256': 'c' * 64,
+                 'capture_class': 'apple-independent'}]
+
+    def test_matching_pin_filename_cannot_hide_actual_source_or_auxiliary_byte_changes(self):
+        compare_campaigns.verify_replay_pin([index()], self.sources())
+        for kind in ('different-bytes', 'unknown-input', 'wrong-source-version', 'relabelled-current-go'):
+            with self.subTest(kind=kind), self.assertRaises(ValueError):
+                candidate = index()
+                source = candidate['cases'][0]['inputs'][0]
+                if kind == 'different-bytes': source['source_sha256'] = 'e' * 64
+                elif kind == 'unknown-input': source['id'] = 'other-corpus'
+                elif kind == 'wrong-source-version': candidate['cases'][0]['case']['source'] = 26
+                elif kind == 'relabelled-current-go': source['use'] = 'current-go'
+                compare_campaigns.verify_replay_pin([candidate], self.sources())
+
+    def test_current_go_experiments_and_native_modifications_cannot_replace_immutable_references(self):
+        current = index()
+        current['cases'][0]['inputs'][0]['use'] = 'current-go'
+        current['cases'][0]['inputs'][0]['source_sha256'] = 'e' * 64
+        historical = self.sources()
+        historical[0]['capture_class'] = 'current-go-experiment'
+        compare_campaigns.verify_replay_pin([current], historical)
+        continued = index()
+        continued['cases'][0]['inputs'][0]['use'] = 'native-continuation'
+        continued['cases'][0]['inputs'][0]['source_sha256'] = 'f' * 64
+        with self.assertRaises(ValueError):
+            compare_campaigns.verify_replay_pin([continued], self.sources())
+        continued['cases'][0]['case']['continuation'] = True
+        compare_campaigns.verify_replay_pin([continued], self.sources())
+
+    def test_both_roots_must_admit_the_same_permanent_release_before_comparison(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first, second = root / 'baseline', root / 'candidate'
+            for source in (first, second):
+                (source / 'acceptance/qualification').mkdir(parents=True)
+                (source / 'acceptance/qualification/references.json').write_text(json.dumps({'repository': 'owner/filesystems'}))
+            client = Mock(repository='owner/filesystems')
+            execute = Mock(return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(self.sources())))
+            with patch('compare_campaigns.fetch') as fetch:
+                result = compare_campaigns.checked_pin_sources(client, ({'root': str(first)}, {'root': str(second)}),
+                                                                root / 'assets', root / 'verifier', execute=execute)
+            self.assertEqual(result, self.sources())
+            fetch.assert_called_once()
+            self.assertEqual(execute.call_count, 2)
+            for call in execute.call_args_list:
+                self.assertIn('-check-references', call.args[0])
+                self.assertIn('-reference-identities', call.args[0])
+                self.assertTrue(call.kwargs['check'])
+
+
 if __name__ == '__main__':
     unittest.main()

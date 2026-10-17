@@ -124,6 +124,7 @@ func main() {
 	candidateDir := flag.String("candidate-dir", "artifacts/native-reference-candidate", "absent directory for candidate bundles and metadata")
 	captureOnly := flag.Bool("capture-contract", false, "print the conservative native collector dependency identity")
 	checkReferences := flag.String("check-references", "", "verify a published candidate pin and all original bundle bytes; grants no execution verdict")
+	referenceIdentities := flag.Bool("reference-identities", false, "include per-source identities after complete reference asset admission")
 	planReferences := flag.String("reference-obligations", "", "print required portable cases for a complete prepared reference candidate directory")
 	checkEvidence := flag.String("check-reference-evidence", "", "verify original candidate receipts in this directory against the complete reference obligations")
 	referenceOrigin := flag.String("reference-origin", "", "authenticated original Actions origin document for candidate evidence verification")
@@ -134,6 +135,10 @@ func main() {
 	includeExecutionIndex := flag.Bool("execution-index", false, "include source-scoped cases after full execution-evidence admission; grants no new verdict")
 	classifyChanges := flag.String("classify-changes-from", "", "classify exact committed source changes; grants no execution verdict")
 	flag.Parse()
+	if *referenceIdentities && *checkReferences == "" {
+		fmt.Fprintln(os.Stderr, "reference identities require complete pinned asset admission")
+		os.Exit(1)
+	}
 	if *includeExecutionIndex && *checkExecution == "" {
 		fmt.Fprintln(os.Stderr, "execution indexing requires full original execution-evidence admission")
 		os.Exit(1)
@@ -161,7 +166,7 @@ func main() {
 		os.Exit(1)
 	}
 	var auditOutput io.Writer = os.Stdout
-	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" || *classifyChanges != "" {
+	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" || *classifyChanges != "" || *referenceIdentities {
 		auditOutput = os.Stderr
 	}
 	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
@@ -232,7 +237,19 @@ func main() {
 				err = json.NewEncoder(os.Stdout).Encode(obligations)
 			}
 		} else if *checkReferences != "" {
-			err = checkReferenceAssets(ctx, *root, *registryPath, *checkReferences, *bundles)
+			if *referenceIdentities {
+				var catalog corpus.Catalog
+				catalog, err = checkedReferenceCatalog(ctx, *root, *registryPath, *checkReferences, *bundles)
+				if err == nil {
+					var identities []referenceSource
+					identities, err = referenceSourceIdentities(catalog)
+					if err == nil {
+						err = json.NewEncoder(os.Stdout).Encode(identities)
+					}
+				}
+			} else {
+				err = checkReferenceAssets(ctx, *root, *registryPath, *checkReferences, *bundles)
+			}
 		} else if *captureOnly {
 			var identity string
 			identity, err = readCaptureContract(ctx, *root, *registryPath)

@@ -26,6 +26,14 @@ events, source snapshots, receipts, outputs and their authenticated origins
 against each campaign's source checkout. Saved status flags cannot substitute
 for that admission. Failed or incomplete originals prevent comparison.
 
+The release's pinned catalog, permanent qualification evidence and original
+input bundles are also fetched and admitted by Go for both source checkouts.
+Every immutable primary or auxiliary replay input must match the verified
+pin's source-version identity. Merely committing the same pin while replaying
+different retained data or fallback captures fails comparison. Historical HFS
+controls and fresh current-Go experiments retain their separate roles; fresh
+native-modified continuation sources retain their own execution proof.
+
 The case index retains actual invocation origins, tools, flags and receipt
 digests once per invocation. Case input identities use the existing source-version
 projection, including primary and auxiliary inputs. Source versions, hosts,

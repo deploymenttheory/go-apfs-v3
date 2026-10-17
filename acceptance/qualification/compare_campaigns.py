@@ -15,7 +15,7 @@ import subprocess
 
 import ci_reuse
 import native_reuse
-from release_assets import GitHub, read_document, require
+from release_assets import GitHub, fetch, read_document, require
 
 
 def canonical(value):
@@ -204,6 +204,55 @@ def assertion_sources(root):
     return files
 
 
+def checked_pin_sources(client, source_roots, directory, verifier, execute=subprocess.run):
+    """Admit the exact permanent release once; Go computes source identities."""
+    directory = Path(directory)
+    directory.mkdir(parents=True)
+    pin = read_document(Path(source_roots[0]['root']) / 'acceptance/qualification/references.json', 64 << 10)
+    require(pin['repository'] == client.repository, 'comparison pin belongs to another repository')
+    fetch(pin, directory, client=client)
+    result = None
+    for number, source in enumerate(source_roots):
+        root = Path(source['root'])
+        response = execute([str(verifier), '-root', str(root), '-check-references',
+                            str(root / 'acceptance/qualification/references.json'),
+                            '-bundle-dir', str(directory), '-reference-identities'],
+                           check=True, capture_output=True, text=True)
+        original = response.stdout
+        identities = json.loads(original)
+        require(isinstance(identities, list) and identities, 'verified pin has no source identities')
+        if result is not None:
+            require(identities == result, 'source checkouts interpret the reviewed pin differently')
+        result = identities
+        (directory / f'sources-{number}.json').write_text(original, encoding='utf-8')
+    return result
+
+
+def verify_replay_pin(indexes, sources):
+    """The same pin file is insufficient if execution used different bytes."""
+    expected = {(source['id'], source['source_major']): source for source in sources}
+    require(len(expected) == len(sources), 'reviewed source identity inventory is duplicated')
+    for index in indexes:
+        invocations = {item['original_receipt']['sha256']: item for item in index['invocations']}
+        for item in index['cases']:
+            if invocations[item['original_receipt_sha256']]['stage'] != 'replay':
+                continue
+            for source in item['inputs']:
+                if source['use'] == 'native-continuation':
+                    require(item['case'].get('continuation') is True,
+                            'fresh modified source is not a declared continuation')
+                    continue
+                reference = expected.get((source['id'], item['case'].get('source', 0)))
+                require(reference, 'replay source is absent from the reviewed pin: ' + source['id'])
+                if source['use'] == 'current-go':
+                    require(reference['capture_class'] == 'current-go-experiment',
+                            'independent Apple input was relabelled as current-Go data')
+                else:
+                    require(source['use'] in ('retained', 'native-capture') and
+                            source['source_sha256'] == reference['source_sha256'],
+                            'replay actually used different bytes from the reviewed pin: ' + source['id'])
+
+
 def admit_campaign(client, sources, runs, directory, verifier, execute=subprocess.run):
     """Run the existing complete API admission and the Go inspector once per rail."""
     root, tree = Path(sources['root']), sources['tree']
@@ -263,8 +312,11 @@ def compare_campaigns(client, baseline_root, candidate_root, baseline_runs, cand
     inspector_root = Path(__file__).resolve().parents[2]
     subprocess.run(['go', 'build', '-o', str(verifier), './acceptance/qualification'],
                    cwd=inspector_root, check=True)
+    pinned_sources = checked_pin_sources(client, (baseline, candidate), workspace / 'references', verifier)
     old = admit_campaign(client, baseline, baseline_runs, workspace / 'baseline', verifier)
     new = admit_campaign(client, candidate, candidate_runs, workspace / 'candidate', verifier)
+    verify_replay_pin(old['indexes'], pinned_sources)
+    verify_replay_pin(new['indexes'], pinned_sources)
     productions = {invocation['production_sha256'] for campaign in (old, new)
                    for index in campaign['indexes'] for invocation in index['invocations']
                    if invocation['production_sha256']}
@@ -274,6 +326,7 @@ def compare_campaigns(client, baseline_root, candidate_root, baseline_runs, cand
                    'candidate': {'sources': candidate, 'runs': list(candidate_runs)},
                    'production_sha256': productions.pop(),
                    'assertion_sources': old_assertions,
+                   'reviewed_sources': pinned_sources,
                    'inspector_sha256': hashlib.sha256(verifier.read_bytes()).hexdigest()})
     (workspace / 'comparison.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     return report
