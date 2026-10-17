@@ -11,6 +11,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/replay"
 )
 
 // An index describes original execution evidence after admission. It does not
@@ -36,10 +37,11 @@ type executionIndexedInvocation struct {
 }
 
 type executionIndexedCase struct {
-	Receipt string                  `json:"original_receipt_sha256"`
-	Case    receipt.Case            `json:"case"`
-	Inputs  []executionIndexedInput `json:"inputs"`
-	Outputs []receipt.File          `json:"outputs"`
+	Receipt  string                  `json:"original_receipt_sha256"`
+	Case     receipt.Case            `json:"case"`
+	Controls []string                `json:"required_controls"`
+	Inputs   []executionIndexedInput `json:"inputs"`
+	Outputs  []receipt.File          `json:"outputs"`
 }
 
 func indexExecutionEvidence(ctx context.Context, root, directory string, summary executionEvidenceSummary) (executionIndex, error) {
@@ -71,7 +73,16 @@ func indexExecutionEvidence(ctx context.Context, root, directory string, summary
 			return index, err
 		}
 		metadata := replayEvidence{}
+		controls := map[string]bool{}
 		if record.Plan.Stage == "replay" {
+			for _, flag := range record.Plan.Environment.Flags {
+				if value, ok := strings.CutPrefix(flag, "required-controls="); ok {
+					controls, err = replay.RequiredControls(value)
+					if err != nil {
+						return index, err
+					}
+				}
+			}
 			base := filepath.Dir(name)
 			if err = checkReplaySourceEvidence(base, record.Plan); err != nil {
 				return index, err
@@ -98,9 +109,16 @@ func indexExecutionEvidence(ctx context.Context, root, directory string, summary
 				return index, err
 			}
 			item := executionIndexedCase{Receipt: original.SHA256, Case: c,
-				Inputs: []executionIndexedInput{}, Outputs: []receipt.File{}}
+				Inputs: []executionIndexedInput{}, Outputs: []receipt.File{}, Controls: []string{}}
 			if record.Plan.Stage == "replay" {
-				item.Inputs, err = indexReplayCaseInputs(c, specs[strings.Split(c.Test, "/")[0]], metadata, record.Plan.Inputs, sourceCache)
+				spec := specs[strings.Split(c.Test, "/")[0]]
+				for _, control := range spec.Controls {
+					if controls[control] {
+						item.Controls = append(item.Controls, control)
+					}
+				}
+				slices.Sort(item.Controls)
+				item.Inputs, err = indexReplayCaseInputs(c, spec, metadata, record.Plan.Inputs, sourceCache)
 				if err != nil {
 					return index, err
 				}

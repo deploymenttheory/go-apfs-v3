@@ -17,6 +17,7 @@ import (
 var captureIndependentExecutionFiles = []string{
 	"acceptance/qualification/ci_evidence.go",
 	"acceptance/qualification/ci_reuse.py",
+	"acceptance/qualification/compare_campaigns.py",
 	"acceptance/qualification/execution_changes.go",
 	"acceptance/qualification/execution_evidence.go",
 	"acceptance/qualification/execution_index.go",
