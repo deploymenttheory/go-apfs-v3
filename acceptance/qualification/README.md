@@ -115,6 +115,13 @@ native refusals as observations. Apple-verification fingerprints bind the actual
 portable bytes and native tool/source identities. Origins are never rewritten. Existing verifier-only reuse requires its explicit
 admitted source run and an unchanged portable contract. Historical ledgers and original captured data are unchanged.
 
+`-classify-changes-from <exact-original-revision>` inspects committed Git objects
+and grants no execution verdict. Event admission uses this same classifier when
+considering documentation or recognised release-label changes. The original
+complete campaign and every source/input/tool/receipt check remain required;
+unknown dependencies execute the full bench. Source projections retain both
+trees and original execution origins. See the [event policy](../../docs/qualification-scheduling.md).
+
 Existing output archives carry their replay proof under `.qualification/`;
 ledger bytes are excluded from the output identity to avoid self-reference.
 The Apple programs declare required source/profile/host/output sets before
@@ -141,3 +148,16 @@ the readable retained index's scenario. That projection preserves the same case
 inventory and never rewrites either document. Snapshot lifecycle parent images
 and their original manifest are resolved inside `snapshot-reference/`; state
 images remain relative to the lifecycle capture itself.
+
+Adding `-execution-index` to `-check-execution-evidence` exports the admitted
+case and output identities for campaign comparison. The controller must still
+authenticate the complete original workflow and artifact inventory; a supplied
+origin document is not authority. The index adds no filesystem verdict and
+does not permit removing a test or required gate.
+
+Each case retains its original receipt digest. Its invocation records the
+original run, revision, host, race mode, tools and flags once. Replay source
+identities use the existing macOS-version projection, including the declared
+auxiliary inputs. A job holding additional source versions or sibling inputs
+does not change an individual case's identity. Fresh native-continuation input
+hashes remain explicitly distinct from immutable Apple reference inputs.

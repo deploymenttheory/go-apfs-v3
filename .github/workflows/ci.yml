@@ -10,15 +10,48 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GOTOOLCHAIN: local
   CGO_ENABLED: "0"
 
 jobs:
+  evidence:
+    name: Admit complete CI evidence for identical merged content
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      reuse: ${{ steps.decision.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify original source, complete gates and case evidence
+        id: decision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 acceptance/qualification/ci_reuse.py --workspace artifacts/qualification/ci-inheritance
+      - name: Retain the inheritance decision and original evidence digests
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ci-inheritance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/qualification/ci-inheritance/
+          include-hidden-files: true
+          if-no-files-found: error
+
   source_checks:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Source and native verifier checks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -41,6 +74,8 @@ jobs:
           python3 -m unittest discover -s acceptance/qualification -p 'test_*.py' -v
 
   portable:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Portable tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
@@ -63,11 +98,22 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   offline_retained:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Retained offline editing (${{ matrix.family }}, macOS ${{ matrix.source }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -112,11 +158,22 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   portable_acceptance:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Retained acceptance (${{ matrix.family }}, ${{ matrix.source == 'all' && 'all sources' || format('macOS {0} sources', matrix.source) }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.job_minutes || 10 }}
@@ -201,11 +258,22 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   build:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Cross-build Linux, macOS and Windows on amd64 and arm64
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -225,6 +293,8 @@ jobs:
           done
 
   race_library:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Library race checks
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -251,6 +321,8 @@ jobs:
           go test -race -count=1 -p 1 -timeout 5m "${library_packages[@]}"
 
   race_acceptance:
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Acceptance race checks (${{ matrix.family }})
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -332,18 +404,32 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
-            artifacts/qualification/
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   quality:
-    needs: [source_checks, portable, portable_acceptance, offline_retained, race_library, race_acceptance]
+    needs: [source_checks, portable, portable_acceptance, offline_retained, race_library, race_acceptance, evidence]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Require original complete CI evidence when inherited
+        if: ${{ needs.evidence.outputs.reuse == 'true' }}
+        env:
+          ADMITTED: ${{ needs.evidence.result }}
+        run: test "$ADMITTED" = success
       - name: Require source checks and every portable and race group
-        if: always()
+        if: ${{ always() && needs.evidence.outputs.reuse != 'true' }}
         run: test "$SOURCE_CHECKS" = success && test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
         env:
           SOURCE_CHECKS: ${{ needs.source_checks.result }}

@@ -56,10 +56,16 @@ class MeasurementTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         measure.load_jobs(root, source, "revision")
 
-    def test_original_baseline_metrics_reproduce(self):
-        path = Path(__file__).resolve().parents[2] / "docs/qualification-evidence/baseline.json"
-        ledger = json.loads(path.read_text())
-        self.assertEqual(measure.measure(path), ledger["metrics"])
+    def test_recorded_campaigns_reproduce_original_api_metrics_and_checkout_bytes(self):
+        root = Path(__file__).resolve().parents[2] / "docs/qualification-evidence"
+        for path in [root / "baseline.json", *sorted(root.rglob("campaign.json"))]:
+            with self.subTest(campaign=path.relative_to(root)):
+                ledger = json.loads(path.read_text())
+                self.assertEqual(measure.measure(path), ledger["metrics"])
+                for source in ledger.get("checkout_evidence", []):
+                    stored = (path.parent / source["path"]).read_bytes()
+                    self.assertEqual(hashlib.sha256(stored).hexdigest(), source["stored_sha256"])
+                    self.assertEqual(hashlib.sha256(gzip.decompress(stored)).hexdigest(), source["original_sha256"])
 
 
 if __name__ == "__main__":

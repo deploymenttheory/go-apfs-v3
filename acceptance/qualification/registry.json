@@ -1858,7 +1858,7 @@
           "workflow": ".github/workflows/native.yml",
           "jobs": [
             "hfs_reference",
-            "replay"
+            "image_building_replay"
           ],
           "scope": "Fresh source versions 15/26/27 on Linux, Windows and macOS; retained replay in CI."
         },
@@ -2747,11 +2747,11 @@
     },
     {
       "path": "acceptance/apfs_editing_test.go",
-      "sha256": "e0d93a55ab778acbfafac85c2940f69ce9450d1a1fde42d40d56407a1a7109b0"
+      "sha256": "c7a2c976714829997dc11ed6a40d846765fa3def140acdfe4becc0a6c388c6dc"
     },
     {
       "path": "acceptance/apfs_geometry_editing_test.go",
-      "sha256": "4b7766624b59a4088c9f6c216cf0e7161ffc0609495800442b79d4a5d0ebfd27"
+      "sha256": "9ecbfb27df015f263c033616486d380045cd2411d8f0c37f3bdc72eda922a9c3"
     },
     {
       "path": "acceptance/apfs_lifecycle_test.go",
@@ -2811,7 +2811,7 @@
     },
     {
       "path": "acceptance/hfs_editing_test.go",
-      "sha256": "baae06b0291668438de567452c2ab2362e5915d739d84e430f48356031f3c7c9"
+      "sha256": "6d7fb07b06857e4d5fea32f3768e96b435ea2bfc8c827239183a2ad9e1e84993"
     },
     {
       "path": "acceptance/hfs_header_growth_test.go",
@@ -2850,6 +2850,10 @@
       "sha256": "126fcb9e23f95da20f1c2b7c975892cd25168782c0ad75369d27ee9c9d7b7ae2"
     },
     {
+      "path": "acceptance/native_archive_test.go",
+      "sha256": "bcb0426cbaacbdf07c4e6492431bc058b8c3879086be486f6b359db436b73b37"
+    },
+    {
       "path": "acceptance/native_controls_test.go",
       "sha256": "78c578462507a7ba3552022b1643c9dd1b937f0c12d144fe0f09785a91774f8a"
     },
@@ -2881,8 +2885,9 @@
   "workflows": [
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "e87a7206ef927e7a676f19915f77f6b3332239e7970d73932ab49470128f774e",
+      "sha256": "9c01495371fdbf9a14e3ddc39db1b4ff0d62a8ad551600b332097c66f5af4e56",
       "jobs": [
+        "evidence",
         "source_checks",
         "portable",
         "offline_retained",
@@ -2895,8 +2900,10 @@
     },
     {
       "path": ".github/workflows/native.yml",
-      "sha256": "9b9c07d5c641199d41038c934384ddd2bf429bad62fceb314f9aaeb5100cabf5",
+      "sha256": "b143ca42a023aa17c5ef2305fb243fbfe99872a2e47b4278dd5136cbefb5a6e8",
       "jobs": [
+        "evidence",
+        "references",
         "offline_reference",
         "offline_edits",
         "apfs_recovery",
@@ -2913,7 +2920,7 @@
     },
     {
       "path": ".github/workflows/offline-editing.yml",
-      "sha256": "ff968ab2d21670045202026acf820e10aa50417e2fc287718f7566708cfa3190",
+      "sha256": "eeee6844af0c49648ec99f05160139db0d24098f2f0e789fd612b2aa27116cb8",
       "jobs": [
         "families",
         "qualified"
@@ -2921,7 +2928,7 @@
     },
     {
       "path": ".github/workflows/apfs-edit.yml",
-      "sha256": "9c63dcb48ec18439bc4fdc915a9ed0c9862afe766851f80d4d9a241cdfa93f74",
+      "sha256": "ad3ed1f78273c7536ad0df069d80e2146732ac470bb8728bd1bcca24e18dd89b",
       "jobs": [
         "capture",
         "replay",
@@ -2931,7 +2938,7 @@
     },
     {
       "path": ".github/workflows/hfs-edit.yml",
-      "sha256": "a623de6b377ab20c00c916089bdace6302925524c926976679fd62b23311c7ee",
+      "sha256": "bd8bac4cabaadf5e33a7563f29b8629c7376566e3768448c835ee17be0e9a31f",
       "jobs": [
         "journal_recovery",
         "capture",
@@ -2943,7 +2950,7 @@
     },
     {
       "path": ".github/workflows/hfs-recovery.yml",
-      "sha256": "0e3f65c746a6ea1f5fb16d564caff0c1bb3606d52b77a7143c56fc1cdb0ce591",
+      "sha256": "139ccecc795892f5870eef335b1231f793051d77ee5846d3d8d43b74a0f0136d",
       "jobs": [
         "capture",
         "replay",
@@ -2953,7 +2960,7 @@
     },
     {
       "path": ".github/workflows/apfs-recovery.yml",
-      "sha256": "b0027ac8bf3350381bedccc679de028d4e4da7120642607ba15dedf1b8f6e903",
+      "sha256": "b1920d34546915bb5e9303bab28b432f9b9fb9fff7e261b51564d9f4c25217c5",
       "jobs": [
         "capture",
         "replay",
@@ -2963,7 +2970,7 @@
     },
     {
       "path": ".github/workflows/offline-family.yml",
-      "sha256": "efc51a5c2f3c6e7784e1f2e013704ef992100b9ba03c508431c3e962708dd01a",
+      "sha256": "529672e6fb866cddb18bc941e42ea559f84cdaa0ae19b19a61fad2ba5c4a64e6",
       "jobs": [
         "capture",
         "replay",

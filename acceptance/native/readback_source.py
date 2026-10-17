@@ -7,6 +7,7 @@ Offline editing additionally requires unchanged native construction code and can
 select one capability while checking every source version and portable host.
 """
 import json
+from collections import Counter
 import os
 from pathlib import PurePosixPath
 import re
@@ -48,6 +49,28 @@ def offline_required_jobs(family):
              for host in ('Linux', 'Windows', 'macOS')})
 
 
+def restored_input_requirements(job):
+    """Recognise all three original input versions retained by one resolver.
+
+    These are input prerequisites, not native capture or execution verdicts.
+    Original archives keep their names and bytes. Every portable comparison and
+    subsequent Apple verification remains required by the caller.
+    """
+    if job.get('conclusion') != 'success':
+        return set()
+    name = job['name'].rsplit(' / ', 1)[-1]
+    required = set()
+    if name == 'Restore reviewed Apple filesystem reference data (macOS 15, 26 and 27)':
+        required = {f'Record Apple filesystem reference data (macOS {major})' for major in (15, 26, 27)}
+    for family in OFFLINE_FAMILIES:
+        if name == f'Restore reviewed Apple {family} editing controls (macOS 15, 26 and 27)':
+            required = {f'Record Apple {family} editing controls (macOS {major})' for major in (15, 26, 27)}
+    steps = Counter(step['name'] for step in job.get('steps', []) if step['conclusion'] == 'success')
+    expected = ['Restore verified original Apple reference inputs'] + [
+        f'Retain reviewed original input bytes (macOS {major})' for major in (15, 26, 27)]
+    return required if all(steps[name] == 1 for name in expected) else set()
+
+
 def main():
     run_id = os.environ['READBACK_RUN']
     if not run_id.isdecimal() or int(run_id) <= 0:
@@ -78,16 +101,19 @@ def main():
         required |= {f'Build images from macOS {major} references ({host})'
                      for major in (15, 26, 27) for host in ('Linux', 'Windows', 'macOS')}
     passed = set()
+    restored_inputs = set()
     page = 1
     while True:
         jobs = get(f'/actions/runs/{run_id}/jobs?filter=latest&per_page=100&page={page}')['jobs']
         passed.update(job['name'].rsplit(' / ', 1)[-1] for job in jobs
                       if job['conclusion'] == 'success')
+        for job in jobs:
+            restored_inputs.update(restored_input_requirements(job))
         if len(jobs) < 100:
             break
         page += 1
-    if not required <= passed:
-        raise ValueError(f'source run is missing successful captures/replays: {sorted(required - passed)}')
+    if not required <= passed | restored_inputs:
+        raise ValueError(f'source run is missing successful inputs/replays: {sorted(required - passed - restored_inputs)}')
     subprocess.run(['git', 'fetch', '--no-tags', '--depth=1', 'origin', sha], check=True)
     changes = subprocess.check_output(['git', 'diff', '--no-renames', '--name-only', '-z', sha, 'HEAD']).decode().split('\0')
     allowed = offline_verifier_only if offline else verifier_only

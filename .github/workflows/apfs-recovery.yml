@@ -3,6 +3,10 @@ name: APFS checkpoint recovery
 on:
   workflow_call:
     inputs:
+      reuse_references:
+        description: Use independently qualified inputs only after the caller admits the reviewed pin
+        type: boolean
+        default: false
       capture_only:
         type: boolean
         default: false
@@ -17,46 +21,106 @@ permissions:
   contents: read
 
 concurrency:
-  group: apfs-recovery-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: apfs-recovery-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   capture:
-    name: Capture interrupted Apple checkpoints and selected filesystem state (macOS ${{ matrix.major }})
-    runs-on: ${{ matrix.runner }}
+    name: ${{ inputs.reuse_references && 'Restore reviewed Apple interrupted' || 'Capture interrupted Apple' }} checkpoints and selected filesystem state (macOS ${{ inputs.reuse_references && '15, 26 and 27' || matrix.major }})
+    runs-on: ${{ matrix.major == 'all' && 'ubuntu-24.04' || matrix.major == 15 && 'macos-15' || matrix.major == 26 && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {runner: macos-15, major: 15}
-          - {runner: macos-26, major: 26}
-          - {runner: xcode-27, major: 27}
+        major: ${{ inputs.reuse_references && fromJSON('["all"]') || fromJSON('[15,26,27]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        if: ${{ inputs.reuse_references }}
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore verified original Apple reference inputs
+        if: ${{ inputs.reuse_references }}
+        shell: bash
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: '0'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for source_major in 15 26 27; do
+            python3 acceptance/qualification/reference_reuse.py materialize \
+              --assets "$RUNNER_TEMP/native-reference-assets" \
+              --artifact "apfs-recovery-reference-$source_major" \
+              --major "$source_major" \
+              --destination "artifacts/reviewed-inputs-$source_major" \
+              --scratch "$RUNNER_TEMP" \
+              --proof "artifacts/qualification/capture-approved-$source_major/admission.json"
+          done
       - name: Require a disposable GitHub-hosted VM
+        if: ${{ !(inputs.reuse_references) }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Retain real incomplete and complete checkpoints and Apple's independent verdict
+        if: ${{ !(inputs.reuse_references) }}
         run: python3 acceptance/native/apfs_checkpoint_recovery.py --expected-major "${{ matrix.major }}" --output artifacts/apfs-recovery/macos-${{ matrix.major }}
       - name: Record required native capture observations
+        if: ${{ !(inputs.reuse_references) }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-recovery=artifacts/apfs-recovery"
           --output "artifacts/qualification/capture-apfs-recovery"
       - name: Retain interrupted disks, selected state and diagnostics
-        if: always()
+        if: ${{ always() && !(inputs.reuse_references) }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: apfs-recovery-reference-${{ matrix.major }}
           path: artifacts/apfs-recovery/macos-${{ matrix.major }}
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 15)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-recovery-reference-15
+          path: artifacts/reviewed-inputs-15
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 26)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-recovery-reference-26
+          path: artifacts/reviewed-inputs-26
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 27)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-recovery-reference-27
+          path: artifacts/reviewed-inputs-27
+          include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-apfs-recovery-${{ github.job }}-${{ strategy.job-index }}
-          path: artifacts/qualification/
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   replay:
@@ -129,6 +193,19 @@ jobs:
           path: artifacts/recovered-*.tgz
           compression-level: 0
           if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-apfs-recovery-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   readback:
     if: ${{ !inputs.capture_only }}
@@ -187,7 +264,14 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-apfs-recovery-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl

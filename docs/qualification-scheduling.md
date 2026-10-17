@@ -12,6 +12,13 @@ For example, permissions readback can start while HFS node-map replay is still
 running. The original outer completion gate still requires every capability.
 The source/host Cartesian product and native verifier versions remain intact.
 
+General reader comparisons no longer wait for the matched HFS construction
+experiment. Its Go checks run in the existing construction matrix, once for
+each source/host combination. Each job still receives all three native source
+inventories, as required by the original HFS test, and retains the six-minute
+process deadline. This changes dependencies without adding runner jobs or
+substituting historical Go-labelled controls for current construction evidence.
+
 Retained tests share the following jobs on Linux, Windows and macOS, for each
 macOS 15, 26 and 27 source:
 
@@ -36,6 +43,84 @@ Module and compilation caches are enabled. The replay runner always supplies
 Already-compressed portable output archives use artifact compression level zero;
 archive contents and native verification remain unchanged.
 
+Hosted replay invocations now share verified decoded source disks under
+`RUNNER_TEMP/apfs-decoded-inputs`, with a 2 GiB logical-byte cap for the entire
+job. The portable runner chooses that location internally and records the cache
+policy in its execution environment. Ordinary local replay remains uncached.
+APFS editing, HFS editing and the larger offline families use one bounded sparse
+decoder, retaining their original per-archive bounds and captured hashes.
+
+Cached files are read-only, with original and decoded hashes checked before use
+and after each consumer. Output mutation uses separate scratch. Full-cache,
+oversized and unknown-length inputs use the bounded uncached path. OS file locks
+coordinate processes; cancelled or killed writers cannot publish partial input
+or retain a stale ownership lease. No verdict or output is cached.
+
+The retained [HFS profile and input benchmark](qualification-evidence/profiles/hfs-catalog-map-growth/README.md)
+show the limited scope of this saving. The real 120,000-file cases, UDRO/UDZO,
+all original native sources, refusals and deadlines remain unchanged. Complete
+hosted comparison and timing campaigns are still required.
+
+Assertion identities include library unit-test sources as well as acceptance
+tests. Adding or changing those assertions invalidates prior test evidence;
+changing a test while replay runs prevents receipt publication. Changing only a
+test updates the assertion fingerprint while keeping the production fingerprint
+stable.
+
+On a main-branch merge, CI and native qualification may each inherit their own
+complete successful run from that exact PR within the preceding 24 hours.
+Checkout authentication requires
+identical complete Git trees, and verification checks the original case plans,
+event bytes, assertion/source fingerprints, retained inputs and recorded build
+tools. Build, library-race and source-check jobs must also have succeeded.
+Inheritance retains the original receipt digests and tested revision explicitly.
+
+Implementation pull requests and manual dispatches execute full portable CI. Missing,
+expired, failed or incompatible prior evidence selects full execution. The
+existing quality gate requires either complete original proof or every freshly
+executed group.
+
+Native inheritance independently requires the original complete Apple → Go →
+Apple campaign, including all current-Go HFS construction experiments, every
+portable host and all three Apple verifier versions. Archived Apple event bytes
+and original observations are checked alongside the Go source snapshots. A
+copied Go receipt in a readback archive cannot replace its original producer.
+Every Go executor retains its own original plan, receipt, events and source
+snapshot in one metadata artifact, including reader-only jobs. The workflow
+audit rejects a replay executor that loses this retention step. Apple jobs keep
+their own verdicts and continuation receipts. Their metadata uploads omit the
+copied producer ledgers already retained by the executors; original output
+archives still carry those copies for native input/output binding.
+Output identities must have their required native verification, including each
+randomized ciphertext and the recovery families' matching source versions.
+Restored approved inputs carry admission records, never assertion verdicts.
+
+Implementation PRs, manual campaigns and scheduled refreshes continue to execute
+fully. Both original completion gates remain required. Hosted positive inheritance
+and the final timing campaigns remain outstanding; local admission tests do not
+establish runner-minute savings.
+
+A single Go classifier compares original committed Git objects before a
+documentation PR looks for prior evidence and again during evidence admission.
+Only recognised Markdown documentation and changes to an existing single-package
+release version label qualify for this source projection. Captured evidence,
+code, fixtures, workflow/build configuration, agent instructions, aliases,
+deleted helpers and unknown files require the complete work. Release-label
+additions/deletions, expanded schemas, duplicate keys and invalid versions do too.
+
+Classification grants no verdict. A documentation PR still needs a recent,
+authenticated complete original campaign for its base. The original source tree,
+tested revision, receipt bytes and digests are retained beside the current tree
+and exact changed paths. Missing or incompatible proof selects full execution.
+If a prior PR already reused evidence, its record supplies only an original run
+ID hint: admission rechecks that original run's API state, jobs, uploads, source,
+fingerprints and event bytes directly. It never chains inherited verdicts.
+
+The native workflow now evaluates admission on every PR instead of omitting the
+workflow through a path filter. Its existing required completion gate receives
+either validated original evidence or the complete fresh campaign. Fork PRs
+and events with incomplete provenance execute fully.
+
 Fresh HFS file and catalog comparisons share ten jobs rather than twenty. Linux
 retains its per-source race instrumentation; Windows and macOS still compare all
 three native sources. Catalog comparisons keep their separate four-minute
@@ -58,8 +143,10 @@ jobs took up to ten minutes. HFS editing has a 15-minute job envelope to retain
 headroom for all seven independent processes on slower hosts. Its assertion
 deadlines and datasets have not changed.
 
-Matrix expansion predicts 83 jobs for `ci.yml`, compared with 170 in that
-completed campaign. The independent offline chains add seven child completion
+Retained batching accounts for 83 jobs, compared with 170 in that completed CI
+campaign. Fresh CI now adds one evidence-admission job; an admitted identical
+merge executes only that job and the existing quality gate. The independent
+offline chains add seven child completion
 jobs underneath the existing outer completion gate. These are scheduling counts,
 not a measured claim about total runner time or the final reduction target.
 Expanding both CI matrices against the merged replay implementation preserves

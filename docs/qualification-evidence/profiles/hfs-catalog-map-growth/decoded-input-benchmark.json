@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "kind": "immutable-input-admission-microbenchmark",
+  "native_tools_executed": false,
+  "acceptance_verdict_granted": false,
+  "parent_revision": "5456fa5438c2788b18b7af2f654962b4572df459",
+  "working_tree_changes": true,
+  "production_sha256": "663f89aa6201b210873b91ae067216e2ffbc62859f587f39c51dfcf0af8d461b",
+  "toolchain": "go version go1.27.1 darwin/arm64",
+  "environment": {
+    "os": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M4",
+    "GOMEMLIMIT": "512MiB"
+  },
+  "command": [
+    "go",
+    "test",
+    "./internal/qualification/decoded",
+    "-run",
+    "^$",
+    "-bench",
+    "^BenchmarkRetainedHFSCatalogSource$",
+    "-benchtime=3x",
+    "-benchmem",
+    "-count=1"
+  ],
+  "source": {
+    "manifest": "acceptance/testdata/hfs-metadata-growth/macos-15/manifest.json",
+    "case": "hfsplus-catalog-map-growth",
+    "decoded_bytes": 536870912,
+    "stored_sha256": "d1a2566443d9ecce3404d59cf121f1618c99edfbc06f2e15e70e90934a748731",
+    "decoded_sha256": "998d073addd5574e0ada5b91d1199d216277f5852a1b32bee6e64f19ac33168a"
+  },
+  "samples_per_mode": 3,
+  "decode_each_time_ns_per_op": 527902167,
+  "reuse_decoded_ns_per_op": 450872347,
+  "raw_output": {
+    "path": "decoded-input-benchmark.txt",
+    "bytes": 473,
+    "sha256": "58185d49c2998f14b36f3a9899ea8a4a7af18f77eda72ca95fa803ad05df0fd5"
+  },
+  "source_files": [
+    {
+      "path": "internal/qualification/decoded/decoded_benchmark_test.go",
+      "bytes": 1997,
+      "sha256": "8d562424daeb67a5c6edbf29a82dd052b5decd94079791770bcc24d2ff7875f2"
+    },
+    {
+      "path": "internal/qualification/decoded/input.go",
+      "bytes": 10346,
+      "sha256": "5f41621ab73d051da979eff4e41fa25be73d28f56eb06d0d70846e25226c44d5"
+    },
+    {
+      "path": "internal/qualification/decoded/input_test.go",
+      "bytes": 9536,
+      "sha256": "f0c835dde1ba39d92245ca95439c1058cc3d1181a555afacef1d85fb74a92838"
+    },
+    {
+      "path": "internal/qualification/decoded/lock_unix.go",
+      "bytes": 555,
+      "sha256": "6003b9a6556d7c95b5c3ac8e279c0556c5396e3569137f6a5b3b7512665df5e4"
+    },
+    {
+      "path": "internal/qualification/decoded/lock_windows.go",
+      "bytes": 671,
+      "sha256": "3d77692ac33bca8ba779755fb477d8ea71a3cb3c7395e6bb29c0a18a1a3829a5"
+    }
+  ],
+  "executed_sources": {
+    "path": "decoded-input-sources.tar.gz",
+    "bytes": 6782,
+    "sha256": "2c7b16d592dde9ae8496b70e4400e704b825abeba9b7a202f3b2c52f17a13ff3"
+  }
+}

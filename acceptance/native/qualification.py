@@ -89,12 +89,12 @@ def source_identities(root):
     for name in sorted(paths):
         if name.startswith(('.github/', 'docs/', 'acceptance/testdata/')) or name.endswith('.md') or name == 'AGENTS.md':
             continue
-        harness = name.startswith(('acceptance/', 'internal/qualification/'))
+        harness = name.startswith(('acceptance/', 'internal/qualification/')) or name.endswith('_test.go')
         if not harness and name not in ('go.mod', 'go.sum') and Path(name).suffix not in ('.go', '.s', '.S', '.c', '.h', '.syso'):
             continue
-        if name.endswith('_test.go') and not harness:
-            continue
-        if harness and (not name.endswith(('.go', '.json')) or name == 'acceptance/qualification/corpus.json' or name.startswith('acceptance/native/')):
+        if harness and (not name.endswith(('.go', '.json')) or name in (
+                'acceptance/qualification/corpus.json', 'acceptance/qualification/references.json') or
+                name.startswith('acceptance/native/')):
             continue
         source = Path(root) / name
         if name.endswith('.go'):

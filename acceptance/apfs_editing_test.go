@@ -1,12 +1,8 @@
 package acceptance_test
 
 import (
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,35 +166,14 @@ func openAPFSEditVolume(t *testing.T, path string) *apfs.Container {
 	}
 	return c
 }
-func openAPFSEditArchive(t *testing.T, dir string, a hfsGrowthArchive) string {
+func openAPFSEditArchive(t *testing.T, dir string, archive hfsGrowthArchive) string {
 	t.Helper()
-	if a.UncompressedBytes != 128<<20 {
+	if archive.UncompressedBytes != 128<<20 {
 		t.Fatal("unbounded APFS edit archive")
 	}
-	verifyDigest(t, dir, a.Image, a.SHA256)
-	in, e := os.Open(filepath.Join(dir, a.Image))
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer in.Close()
-	z, e := gzip.NewReader(in)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer z.Close()
-	path := filepath.Join(t.TempDir(), "native.raw")
-	out, e := os.Create(path)
-	if e != nil {
-		t.Fatal(e)
-	}
-	h := sha256.New()
-	n, e := io.Copy(io.MultiWriter(out, h), io.LimitReader(z, (128<<20)+1))
-	ce := out.Close()
-	if e != nil || ce != nil || n != 128<<20 || hex.EncodeToString(h.Sum(nil)) != a.UncompressedSHA256 {
-		t.Fatal("corrupt APFS archive", e, ce)
-	}
-	return path
+	return decodedNativeArchive(t, dir, archive, 128<<20)
 }
+
 func compareAPFSEditAttributes(t *testing.T, v *apfs.Volume, want fileObservation) {
 	t.Helper()
 	for _, entry := range want.Entries {

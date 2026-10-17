@@ -1,25 +1,16 @@
 name: macOS filesystem compatibility
+run-name: ${{ inputs.reference_refresh && 'Independent Apple reference refresh' || github.workflow }}
 
 on:
   pull_request:
-    paths:
-      - '**/*.go'
-      - go.mod
-      - go.sum
-      - 'acceptance/**'
-      - '.github/workflows/native.yml'
-      - '.github/workflows/hfs-edit.yml'
-      - '.github/workflows/hfs-recovery.yml'
-      - '.github/workflows/apfs-edit.yml'
-      - '.github/workflows/apfs-recovery.yml'
-      - '.github/workflows/offline-editing.yml'
-      - '.github/workflows/offline-family.yml'
   push:
     branches: [main]
-  schedule:
-    - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
+      reference_refresh:
+        description: Qualify a complete independent Apple reference candidate; every normal gate remains required
+        type: boolean
+        default: false
       offline_edits_only:
         description: Only offline editing completion capture, portable editing and Apple readback
         type: boolean
@@ -69,8 +60,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: native-${{ github.event_name }}-${{ github.ref }}-${{ inputs.offline_edits_only && 'offline-editing' || inputs.offline_reference_capture && format('offline-editing-reference-{0}', inputs.offline_reference_kind) || 'full' }}
-  cancel-in-progress: true
+  group: native-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GOTOOLCHAIN: local
@@ -78,8 +69,67 @@ env:
   APFS_REQUIRED_CONTROLS: compression-boundaries
 
 jobs:
+  evidence:
+    name: Admit complete Apple and Go evidence for identical merged content
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      reuse: ${{ steps.decision.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Verify original full native campaign and case evidence
+        id: decision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 acceptance/qualification/native_reuse.py --workspace artifacts/qualification/native-inheritance
+      - name: Retain the inheritance decision and original evidence digests
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-inheritance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/qualification/native-inheritance/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  references:
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
+    needs: evidence
+    name: Resolve approved independent Apple reference inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      reuse: ${{ steps.source.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Admit the reviewed input pin or require fresh Apple capture
+        id: source
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FRESH_CAPTURE: ${{ inputs.reference_refresh || inputs.offline_reference_capture || inputs.apfs_checkpoint_capture || inputs.apfs_reference_capture || inputs.hfs_reference_capture }}
+        run: |
+          fresh_arguments=()
+          if [[ "$FRESH_CAPTURE" == true ]]; then
+            fresh_arguments=(--fresh)
+          fi
+          python3 acceptance/qualification/reference_reuse.py select --assets "$RUNNER_TEMP/native-reference-assets" "${fresh_arguments[@]}"
+
   offline_reference:
-    if: ${{ inputs.offline_reference_capture }}
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (inputs.offline_reference_capture) }}
     name: Record offline editing ${{ inputs.offline_reference_kind }} edit controls (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
@@ -176,170 +226,240 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
-          path: artifacts/qualification/
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   offline_edits:
-    if: ${{ inputs.offline_edits_only || (!inputs.offline_reference_capture && !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (inputs.offline_edits_only || (!inputs.offline_reference_capture && !inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
     uses: ./.github/workflows/offline-editing.yml
     with:
+      reuse_references: ${{ needs.references.outputs.reuse == 'true' }}
       readback_run: ${{ inputs.offline_edits_only && inputs.readback_run || '' }}
       readback_family: ${{ inputs.offline_edits_only && inputs.readback_run != '' && (inputs.offline_reference_kind == 'stats' && 'statistics' || inputs.offline_reference_kind == 'stats-transitions' && 'statistics-transitions' || inputs.offline_reference_kind) || '' }}
 
   apfs_recovery:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (inputs.apfs_checkpoint_capture || inputs.apfs_recovery_only || (!inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == ''))) }}
     uses: ./.github/workflows/apfs-recovery.yml
     with:
+      reuse_references: ${{ needs.references.outputs.reuse == 'true' }}
       capture_only: ${{ inputs.apfs_checkpoint_capture || false }}
 
   apfs_edits:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '') }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && inputs.readback_run == '')) }}
     uses: ./.github/workflows/apfs-edit.yml
     with:
+      reuse_references: ${{ needs.references.outputs.reuse == 'true' }}
       capture_only: ${{ inputs.apfs_reference_capture || false }}
 
   hfs_edits:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only)) }}
     uses: ./.github/workflows/hfs-edit.yml
+    with:
+      reuse_references: ${{ needs.references.outputs.reuse == 'true' }}
 
   hfs_recovery:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '') }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && inputs.readback_run == '')) }}
     uses: ./.github/workflows/hfs-recovery.yml
+    with:
+      reuse_references: ${{ needs.references.outputs.reuse == 'true' }}
 
   produce:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
-    name: Record Apple filesystem reference data (macOS ${{ matrix.major }})
-    runs-on: ${{ matrix.runner }}
+    needs: [evidence, references]
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && inputs.readback_run == '' && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only)) }}
+    name: ${{ needs.references.outputs.reuse == 'true' && 'Restore reviewed Apple' || 'Record Apple' }} filesystem reference data (macOS ${{ needs.references.outputs.reuse == 'true' && '15, 26 and 27' || matrix.major }})
+    runs-on: ${{ matrix.major == 'all' && 'ubuntu-24.04' || matrix.major == 15 && 'macos-15' || matrix.major == 26 && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: macos-15
-            major: 15
-          - runner: macos-26
-            major: 26
-          - runner: xcode-27
-            major: 27
+        major: ${{ needs.references.outputs.reuse == 'true' && fromJSON('["all"]') || fromJSON('[15,26,27]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore verified original Apple reference inputs
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        shell: bash
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: '0'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for source_major in 15 26 27; do
+            python3 acceptance/qualification/reference_reuse.py materialize \
+              --assets "$RUNNER_TEMP/native-reference-assets" \
+              --artifact "native-corpus-$source_major" \
+              --major "$source_major" \
+              --destination "artifacts/reviewed-inputs-$source_major" \
+              --scratch "$RUNNER_TEMP" \
+              --proof "artifacts/qualification/capture-approved-$source_major/admission.json"
+          done
       - name: Require a disposable GitHub-hosted VM for native filesystem tests
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Record APFS snapshot inventories and historical files
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario snapshot-reading --output artifacts/native/snapshots/macos-${{ matrix.major }}
       - name: Record native APFS clone storage, snapshot APIs and encryption lifecycle
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/apfs_lifecycle.py --expected-major "${{ matrix.major }}" --references artifacts/native/snapshots/macos-${{ matrix.major }} --output artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}
       - name: Record volume layout and identity
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --output artifacts/native/volumes/macos-${{ matrix.major }}
       - name: Record file contents, metadata and resource forks
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-reading --output artifacts/native/files/macos-${{ matrix.major }}
       - name: Record filename lookup, hard links and fragmented forks
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-semantics --output artifacts/native/semantics/macos-${{ matrix.major }}
       - name: Record compressed contents and raw compression storage
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-compression --output artifacts/native/compression/macos-${{ matrix.major }}
       - name: Record locked and unlocked APFS files and password behavior
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-encryption --output artifacts/native/encryption/macos-${{ matrix.major }}
       - name: Record AES-128 and AES-256 password-protected DMG files
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario disk-image-encryption --output artifacts/native/encrypted-dmg/macos-${{ matrix.major }}
       - name: Record portable extraction and Apple metadata packing references
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario preservation --output artifacts/native/preservation/macos-${{ matrix.major }}
       - name: Record native file replacement and compression cleanup
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario content-replacement --output artifacts/native/replacement/macos-${{ matrix.major }}
       - name: Record native file creation, rename, removal and links
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario tree-edits --output artifacts/native/tree-edits/macos-${{ matrix.major }}
       - name: Record native permissions, timestamps, extended attributes and resource-fork edits
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario metadata-edits --output artifacts/native/metadata-edits/macos-${{ matrix.major }}
       - name: Record native cp, chmod, chown, timestamps, attributes and session command references
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario file-commands --output artifacts/native/file-commands/macos-${{ matrix.major }}
       - name: Record APFS and HFS packaging inputs and signed application references
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/capture.py --expected-major "${{ matrix.major }}" --scenario image-building --output artifacts/native/image-building/macos-${{ matrix.major }}
       - name: Record complete disks, snapshots, encrypted volumes and unused sectors for repacking
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: python3 acceptance/native/image_repacking.py --expected-major "${{ matrix.major }}" --references artifacts/native --output artifacts/native/image-repacking/macos-${{ matrix.major }}
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "snapshots=artifacts/native/snapshots"
           --output "artifacts/qualification/capture-snapshots"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-lifecycle=artifacts/native/apfs-lifecycle"
           --output "artifacts/qualification/capture-apfs-lifecycle"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "native=artifacts/native/volumes"
           --output "artifacts/qualification/capture-native"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "files=artifacts/native/files"
           --output "artifacts/qualification/capture-files"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "semantics=artifacts/native/semantics"
           --output "artifacts/qualification/capture-semantics"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "compression=artifacts/native/compression"
           --output "artifacts/qualification/capture-compression"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "encryption=artifacts/native/encryption"
           --output "artifacts/qualification/capture-encryption"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "encrypted-dmg=artifacts/native/encrypted-dmg"
           --output "artifacts/qualification/capture-encrypted-dmg"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "preservation=artifacts/native/preservation"
           --output "artifacts/qualification/capture-preservation"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "replacement=artifacts/native/replacement"
           --output "artifacts/qualification/capture-replacement"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "tree-edits=artifacts/native/tree-edits"
           --output "artifacts/qualification/capture-tree-edits"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "metadata-edits=artifacts/native/metadata-edits"
           --output "artifacts/qualification/capture-metadata-edits"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "file-commands=artifacts/native/file-commands"
           --output "artifacts/qualification/capture-file-commands"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "image-building=artifacts/native/image-building"
           --output "artifacts/qualification/capture-image-building"
       - name: Record required native capture observations
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
@@ -370,12 +490,12 @@ jobs:
           final-owner removal, settled encryption/decryption, password replacement,
           independently credentialed peers and actual native snapshot revert.
 
-          The fifteen steps above isolate what is being checked. The uploaded images,
+          The original captured cases isolate what is being checked. The uploaded images,
           observations, capture scripts and hashes provide the reference data for
           the Go reader comparisons on Linux, Windows and macOS.
           EOF
       - name: Upload Apple-tool diagnostics, including failures
-        if: always()
+        if: ${{ always() && !(needs.references.outputs.reuse == 'true') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-${{ matrix.major }}
@@ -385,6 +505,7 @@ jobs:
             artifacts/native/apfs-lifecycle/*.incomplete.zip
           if-no-files-found: error
       - name: Upload reference images, observations and provenance
+        if: ${{ !(needs.references.outputs.reuse == 'true') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-corpus-${{ matrix.major }}
@@ -404,18 +525,57 @@ jobs:
             artifacts/native/image-building/macos-${{ matrix.major }}/
             artifacts/native/image-repacking/macos-${{ matrix.major }}/
             artifacts/native/apfs-lifecycle/macos-${{ matrix.major }}/
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 15)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-15
+          path: artifacts/reviewed-inputs-15
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 26)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-26
+          path: artifacts/reviewed-inputs-26
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 27)
+        if: ${{ needs.references.outputs.reuse == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-corpus-27
+          path: artifacts/reviewed-inputs-27
+          include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
-          path: artifacts/qualification/
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error
 
   replay:
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Compare Go with macOS reference data (${{ matrix.platform }})
-    needs: [produce, hfs_reference]
+    needs: [evidence, produce]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -439,11 +599,6 @@ jobs:
           pattern: native-corpus-*
           path: artifacts/native
           merge-multiple: true
-      - uses: actions/download-artifact@v7
-        with:
-          pattern: hfs-header-growth-*
-          path: artifacts/hfs-references
-          merge-multiple: true
       - name: Verify Go results against macOS 15, 26 and 27 observations
         # Required recovery subworkflows own their complete fresh/retained
         # corpus comparisons; do not duplicate full-disk recovery here.
@@ -451,9 +606,10 @@ jobs:
         # controls on all hosts; ordinary CI covers their retained corpus.
         # Image construction has separate source-version jobs below; this job
         # retains every other acceptance family, including future additions.
+        # Matched HFS construction controls belong to those construction jobs.
         # Offline editing has its own required capture/replay/readback matrix;
         # replaying its retained full-disk controls here duplicates that work.
-        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing|Copy)|APFSCheckpointRecovery$|HFSJournalRecovery$|ImageCopyContinuation|ImageBuilding$|ContainerBuilding$|APFSGeometryEditing$|APFSDirectoryStatistics(Transitions)?$|HFS(Fragmented)?MetadataGrowth$|HFSCatalogGrowth$|HFSMetadataLifecycle$|PermissionInheritance$|SessionPermissionInheritance$|Copy(SetID|Truncation)?Permissions$)'
         env:
           APFS_NATIVE_CORPUS: ../artifacts/native/volumes
           APFS_NATIVE_FILES: ../artifacts/native/files
@@ -464,7 +620,6 @@ jobs:
           APFS_NATIVE_SNAPSHOTS: ../artifacts/native/snapshots
           APFS_NATIVE_LIFECYCLE: ../artifacts/native/apfs-lifecycle
           APFS_REQUIRED_NATIVE_MAJORS: '15,26,27'
-          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
           APFS_NATIVE_PRESERVATION: ../artifacts/native/preservation
           APFS_WORKSPACE_OUTPUT: ../artifacts/preservation
           APFS_NATIVE_REPLACEMENT: ../artifacts/native/replacement
@@ -520,10 +675,24 @@ jobs:
           codec decodes them. Those recorded outcomes remain distinct; the Go LZ4
           comparison uses the native codec result in those cases.
           EOF
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   image_building_replay:
+    if: ${{ needs.evidence.outputs.reuse != 'true' }}
     name: Build images from macOS ${{ matrix.major }} references (${{ matrix.platform }})
-    needs: produce
+    needs: [evidence, produce, hfs_reference]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -548,6 +717,11 @@ jobs:
         with:
           name: native-corpus-${{ matrix.major }}
           path: artifacts/native
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: hfs-header-growth-*
+          path: artifacts/hfs-references
+          merge-multiple: true
       - name: Build and compare filesystems, containers, compression and encrypted images
         run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNative(Image|Container)Building$'
         env:
@@ -570,11 +744,32 @@ jobs:
           path: artifacts/workspace-outputs/*.tar.gz
           compression-level: 0
           if-no-files-found: error
+      - name: Compare matched Apple and current-Go HFS construction controls
+        # The test validates the complete three-source inventory before selecting
+        # this source. Keep all three downloads; each case still executes once
+        # on every portable host across the existing construction matrix.
+        run: go run ./acceptance/qualification -replay -- -v -count=1 -parallel 2 -timeout 6m ./acceptance -run '^TestNativeHFSCatalogGrowth$/^macos-${{ matrix.major }}$'
+        env:
+          APFS_NATIVE_HFS_GROWTH: ../artifacts/hfs-references/hfs-header-growth
+          APFS_REQUIRED_NATIVE_MAJORS: '${{ matrix.major }}'
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+          if-no-files-found: error
 
   readback:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != '')) }}
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !cancelled() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && ((needs.replay.result == 'success' && needs.image_building_replay.result == 'success') || inputs.readback_run != ''))) }}
     name: Verify Linux, Windows and macOS outputs with Apple tools (macOS ${{ matrix.major }})
-    needs: [replay, image_building_replay]
+    needs: [evidence, replay, image_building_replay]
     runs-on: ${{ matrix.runner }}
     # Qualify 63 distinct images, including native modification of the 24 new
     # file-compression outputs. The previous 39-image gate used up to 14 minutes.
@@ -707,7 +902,14 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
           path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -716,11 +918,13 @@ jobs:
   complete:
     name: Require all filesystem compatibility checks
     if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && always() && !inputs.hfs_reference_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only) }}
-    needs: [produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery, offline_edits]
+    needs: [evidence, produce, hfs_reference, replay, image_building_replay, readback, hfs_edits, hfs_recovery, apfs_edits, apfs_recovery, offline_edits]
     runs-on: ubuntu-24.04
     steps:
       - name: Require every macOS reference capture and Go comparison
         env:
+          EVIDENCE: ${{ needs.evidence.result }}
+          INHERITED: ${{ needs.evidence.outputs.reuse }}
           PRODUCERS: ${{ needs.produce.result }}
           CONSUMERS: ${{ needs.replay.result }}
           BUILDERS: ${{ needs.image_building_replay.result }}
@@ -733,18 +937,28 @@ jobs:
           OFFLINE_EDITS: ${{ needs.offline_edits.result }}
           REUSED_RUN: ${{ inputs.readback_run }}
         run: |
-          if [ -z "$REUSED_RUN" ]; then test "$OFFLINE_EDITS" = success && test "$APFS_EDITS" = success && test "$HFS_RECOVERY" = success && test "$APFS_RECOVERY" = success; fi
+          test "$EVIDENCE" = success
+          if [ "$INHERITED" = true ]; then exit 0; fi
+          test "$INHERITED" = false
+          if [ -z "$REUSED_RUN" ]; then
+            for result in "$OFFLINE_EDITS" "$APFS_EDITS" "$HFS_RECOVERY" "$APFS_RECOVERY"; do
+              test "$result" = success
+            done
+          fi
           test "$HFS_EDITS" = success
           if [ -n "$REUSED_RUN" ]; then
             # Each readback job verifies the source run's successful captures,
             # successful replays and unchanged Go code/inputs before downloading.
             test "$READBACK" = success
           else
-            test "$PRODUCERS" = success && test "$HFS_REFERENCES" = success && test "$CONSUMERS" = success && test "$BUILDERS" = success && test "$READBACK" = success
+            for result in "$PRODUCERS" "$HFS_REFERENCES" "$CONSUMERS" "$BUILDERS" "$READBACK"; do
+              test "$result" = success
+            done
           fi
 
   hfs_reference:
-    if: ${{ !inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture)) }}
+    needs: evidence
+    if: ${{ needs.evidence.outputs.reuse != 'true' && (!inputs.offline_edits_only && !inputs.offline_reference_capture && (!inputs.apfs_recovery_only && !inputs.apfs_checkpoint_capture && !inputs.apfs_reference_capture && !inputs.apfs_edits_only && (inputs.readback_run == '' || inputs.hfs_reference_capture))) }}
     name: Retain matched HFS catalog-growth references (macOS ${{ matrix.major }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -819,5 +1033,15 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: qualification-native-${{ github.job }}-${{ strategy.job-index }}
-          path: artifacts/qualification/
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/capture-*/
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
+            artifacts/**/*.plan.json
+            artifacts/**/*.receipt.json
+            artifacts/**/*.events.jsonl
           if-no-files-found: error

@@ -2,12 +2,9 @@ package acceptance_test
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -51,55 +48,7 @@ func openNativeDiskArchive(t *testing.T, dir string, archive hfsGrowthArchive) s
 	if archive.UncompressedBytes <= 0 || archive.UncompressedBytes > 2<<30 {
 		t.Fatal("native offline editing archive bound")
 	}
-	verifyDigest(t, dir, archive.Image, archive.SHA256)
-	in, err := os.Open(filepath.Join(dir, archive.Image))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer in.Close()
-	z, err := gzip.NewReader(in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer z.Close()
-	name := filepath.Join(t.TempDir(), "native.raw")
-	out, err := os.Create(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	digest := sha256.New()
-	buffer := make([]byte, 128<<10)
-	var offset int64
-	for {
-		n, readErr := z.Read(buffer)
-		if int64(n) > archive.UncompressedBytes-offset {
-			out.Close()
-			t.Fatal("oversized native archive")
-		}
-		data := buffer[:n]
-		digest.Write(data)
-		if bytes.Count(data, []byte{0}) != len(data) {
-			written, e := out.WriteAt(data, offset)
-			if e != nil || written != n {
-				out.Close()
-				t.Fatal("native archive write", e)
-			}
-		}
-		offset += int64(n)
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			out.Close()
-			t.Fatal(readErr)
-		}
-	}
-	err = out.Truncate(offset)
-	closeErr := out.Close()
-	if err != nil || closeErr != nil || offset != archive.UncompressedBytes || hex.EncodeToString(digest.Sum(nil)) != archive.UncompressedSHA256 {
-		t.Fatal("native disk hash/size", err, closeErr)
-	}
-	return name
+	return decodedNativeArchive(t, dir, archive, 2<<30)
 }
 
 func apfsGeometryChanges() []imageedit.Change {

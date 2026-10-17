@@ -125,3 +125,184 @@ atomically and refuses to replace a different existing file. It neither uploads
 release assets nor updates catalog locations. The selected committed/bundle
 location must be explicit in a subsequently reviewed catalog; missing evidence
 never falls back to a different input or successful skip.
+
+## Reference candidates and reviewed release pins
+
+The internal qualification command prepares a complete, unapproved independent
+capture candidate from an explicit input map:
+
+```sh
+go run ./acceptance/qualification -capture-contract
+go run ./acceptance/qualification -prepare-references /tmp/capture-inputs.json -candidate-dir /tmp/reference-candidate
+```
+
+The input map contains `schema: 1` and an `inputs` array of `id` and absolute
+`path` pairs. All 42 independent corpus IDs and all three native source versions
+are required. It refuses unknown inputs, missing reviewed cases and changed
+capture contracts before publishing candidate metadata. Matched HFS
+header-growth controls retain their original historical catalog entry and
+cannot enter independent publication. Candidate preparation is file processing;
+it grants no qualification verdict and changes no approved reference.
+
+`reference_sources.py` describes the explicit projection from complete Actions
+captures to logical corpus roots. Set-ID and truncation permission inputs share
+the complete copy-permissions capture; metadata lifecycle inputs share the
+complete fragmented-metadata capture. Corpus IDs and capability bindings remain
+distinct. Assembly preserves every original byte within each selected native
+source directory, including original collector sources and observations.
+
+The conservative capture identity excludes ordinary Go filesystem source
+changes, captured input bytes and release transport pins. It binds native
+collectors and helpers, input admission/resolution/transport code, capture
+recipes and unclassified dependencies. Known readers of execution evidence
+have a separate execution contract and do not construct Apple source bytes.
+
+For classified workflows, the capture fingerprint projects workflow-level
+inputs/environment and the capture, reusable capture-caller and unknown job
+blocks. Known execution jobs can change their batching without invalidating
+independent inputs. Native capture invocations added to those jobs are included.
+Unknown workflows, syntax, aliases or helpers retain their full-file binding.
+The source audit still binds every complete workflow byte, and execution changes
+still require fresh assertions. These derived fingerprints do not rewrite
+original workflow files or captured evidence. Matched current-Go HFS experiments
+continue to execute freshly.
+
+The release transport client streams content-addressed objects smaller than
+2 GiB, pins numeric release/asset IDs, checks sizes and SHA-256 values, and
+verifies that each asset belongs to the pinned release. Interrupted and corrupt
+downloads publish no cache entry. Repository credentials are not sent to signed
+asset redirects. Candidate releases start as drafts and become non-latest
+prereleases only after their assets have been uploaded and checked.
+
+For an already reviewed and published pin, download into an existing ordinary
+cache directory and admit it explicitly:
+
+```sh
+python3 acceptance/qualification/release_assets.py --pin acceptance/qualification/references.json --directory /tmp/reference-assets
+go run ./acceptance/qualification -check-references acceptance/qualification/references.json -bundle-dir /tmp/reference-assets
+go run ./acceptance/qualification -replay -reference-pin acceptance/qualification/references.json -bundle-dir /tmp/reference-assets -- -count=1 -timeout 5m ./acceptance -run '^TestNativeFileReading$'
+```
+
+No approved release pin is shipped yet. Admission refuses stale capture
+dependencies, corrupt catalog bytes, missing permanent qualification evidence
+or invalid corpus assets. Replay checks its selected original inputs again and
+executes fresh assertions; the candidate's historical verdicts do not qualify a
+new implementation. Release IDs and result evidence never enter input identity.
+The original `corpus.json` snapshot and its audit remain unchanged.
+
+The normal native workflow now resolves the reviewed pin before scheduling its
+independent input jobs. An absent pin or changed collector/helper/recipe contract
+requires fresh capture on the original macOS 15, 26 and 27 runners. With a
+compatible pin, 13 Linux jobs each restore all three original source versions,
+retaining the same 39 capture artifact layouts. Asset or integrity failures after
+selecting reuse fail the
+campaign. They cannot turn into a successful skip. Explicit reference refreshes
+always capture afresh.
+
+`reference_reuse.py` records input admission separately from native assertions.
+It uses the Go resolver to verify and materialize the selected corpus trees,
+then inverts the documented artifact naming projection. Aliases must have
+identical original bytes. A Linux resolver never records a new Apple capture
+verdict. Every existing portable replay, source version, native verifier and
+subsequent native modification still runs. The matched current-Go HFS experiment
+also remains fresh on every native campaign.
+
+The resolver's three original archive uploads must all succeed before archived
+readback can admit those input prerequisites. That admission records restoration
+of approved input bytes; it does not claim that Linux performed Apple capture.
+All original portable comparisons and native output checks remain required.
+
+Restoring the 39 downloaded capture artifacts and assembling their logical roots
+again reproduced all 42 independent input trees: 3,837 files and 607,864,154
+original bytes matched their catalog digests. That ordinary-file check executes
+no native tools and grants no hosted qualification or performance verdict.
+
+`-reference-obligations /tmp/reference-candidate` prints the independently
+required case inventory before returned receipts are examined. It preserves
+source versions, host, instrumentation, controls and the existing native verifier
+scope. Recovery uses its original matching-source native checks. Input
+projections must contain identical complete original files and observations;
+they do not stand in for omitted retained entrypoint executions.
+
+`-check-reference-evidence /tmp/evidence -candidate-dir /tmp/reference-candidate
+-reference-origin /tmp/origin.json` checks original plans, receipts, streams,
+source snapshots, case observations and native output identities. The origin
+document must come from the authenticated complete Actions campaign, its job
+inventory and successful required gates. The command requires the exact tested
+source checkout; it does not authenticate a caller-supplied origin on its own.
+Individual ciphertext needs separate native scopes; copies of one scope do not
+count as several checks.
+
+Campaign provenance retains the original tested Git commit and its tree, not
+just the run API's head SHA. Pull-request receipts normally name GitHub's tested
+synthetic merge commit. The run API can lose its pull-request association after
+merge; checkout authentication then uses the associated closed PR's original
+base/head pair and GitHub's signed merge object. These source facts are preserved
+in permanent qualification evidence without changing original receipt origins.
+
+The refresh controller has durable issue-backed first-observed and last-success
+clocks, explicit contention deferral and one marker-addressed stale incident.
+It only advances success after permanent publication from the matching completed
+native campaign. Duplicate completion events do not reset this clock.
+
+The [refresh workflow](../.github/workflows/reference-refresh.yml) retries hourly
+from 01:23 through 06:23 UTC. It defers to active portable CI as well as native
+implementation qualification, dispatching the complete existing native bench
+when capacity is free. Deferrals remain separate retained decisions. The former
+uncoordinated nightly native trigger is removed.
+
+The [publication workflow](../.github/workflows/reference-publication.yml) listens
+for both native and portable CI completion, since either may finish last. It
+selects a successful default-branch refresh and successful CI for the exact same
+revision. It requires the complete native gate, every source artifact and the
+execution-artifact inventory from successful upload steps. It then checks out
+that exact tested source and validates the original plans, streams, observations
+and output identities before publishing a candidate. Failed proof retains
+diagnostics and creates no release or approved pin.
+
+Candidate releases remain drafts until all addressed objects and a final Go
+catalog/corpus/evidence admission check pass. Publication opens a normal
+catalog-update PR; it never merges it. Retrying an already published candidate
+keeps its original objects and catalog. The first complete hosted qualification,
+publication and reviewed promotion remain required before this work can be
+declared operational; no pin has been approved in this checkout.
+
+GitHub can hold workflows on bot-created promotion PRs for reviewer approval.
+The reviewer starts those checks with **Approve workflows to run** as part of
+the normal reviewed promotion. The publisher does not approve its own PR or
+replace that gate with another token. See [GitHub's workflow token rules](https://docs.github.com/en/actions/concepts/security/github_token).
+
+Jobs may fetch selected corpus IDs with repeated `release_assets.py --input`
+options. The complete reviewed catalog and permanent proof are still checked;
+unrelated disk bundles are not downloaded. To supply ordinary input directories
+to native programs, use the internal resolver:
+
+```sh
+go run ./acceptance/qualification -materialize-references apfs-editing,apfs-copy -reference-pin acceptance/qualification/references.json -bundle-dir /tmp/reference-assets -input-dir /tmp/native-reference-inputs
+```
+
+Materialization verifies original and copied bytes, requires absent managed
+scratch outside the source checkout, and cleans partial copies after failure.
+The resulting input map names exact logical roots. It cannot substitute retained
+data for a current-Go experiment and grants no filesystem verdict.
+
+Qualification artifact uploads retain original plans, receipts, events, input
+bindings and capture observations, including hidden `.qualification` copies.
+Full writer outputs continue in their dedicated native-verification archives;
+the qualification metadata uploads avoid transporting a second copy of them.
+
+Every successful replay also retains `source-inputs.json` beside its original
+plan, event stream and receipt. This contains the original admitted input
+snapshots even for reader-only jobs that have no writer archive. Exported writer
+archives continue to carry their own unchanged `.qualification/` proof layout.
+
+Candidate obligations bind each case to all original files and capture documents
+under its logical `macos-15/`, `macos-26/` or `macos-27/` source directory. This
+explicit naming projection lets a one-source job and a complete three-source
+capture prove the same selected source. Sibling capabilities outside that source
+directory do not enter its projected digest. Original whole-tree digests remain
+recorded; no disk bytes, observations, collector sources or logs are rewritten.
+A changed disk or extra file inside the selected source fails coverage even if
+its original manifest is unchanged. Repacking cases that consume an encrypted
+auxiliary input bind that input's files and manifest, rather than the repacking
+control's manifest.

@@ -25,6 +25,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/corpus"
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/publication"
 )
 
 type entrypoint struct {
@@ -113,16 +116,57 @@ func main() {
 	verify := flag.String("verify-corpus", "", "verify one corpus ID or all, including exact retained files")
 	bundle := flag.String("bundle-corpus", "", "prepare content-addressed local bundles for one corpus ID or all")
 	bundles := flag.String("bundle-dir", "", "existing local bundle directory; no network downloads occur")
+	referencePin := flag.String("reference-pin", "", "reviewed release pin for replay, materialization or CI evidence; all pinned assets must already be in bundle-dir")
 	describe := flag.Bool("describe-catalog", false, "describe catalog inputs, sizes and native source versions")
 	replay := flag.Bool("replay", false, "execute existing acceptance entrypoints with complete case evidence; go test arguments follow --")
 	receipts := flag.String("receipt-dir", "artifacts/qualification", "directory for execution plans, original events and receipts")
+	prepare := flag.String("prepare-references", "", "prepare an unapproved reference candidate from an explicit native input map")
+	candidateDir := flag.String("candidate-dir", "artifacts/native-reference-candidate", "absent directory for candidate bundles and metadata")
+	captureOnly := flag.Bool("capture-contract", false, "print the conservative native collector dependency identity")
+	checkReferences := flag.String("check-references", "", "verify a published candidate pin and all original bundle bytes; grants no execution verdict")
+	referenceIdentities := flag.Bool("reference-identities", false, "include per-source identities after complete reference asset admission")
+	planReferences := flag.String("reference-obligations", "", "print required portable cases for a complete prepared reference candidate directory")
+	checkEvidence := flag.String("check-reference-evidence", "", "verify original candidate receipts in this directory against the complete reference obligations")
+	referenceOrigin := flag.String("reference-origin", "", "authenticated original Actions origin document for candidate evidence verification")
+	materialize := flag.String("materialize-references", "", "comma-separated approved independent inputs to materialize as managed ordinary files")
+	inputDir := flag.String("input-dir", "", "absent absolute managed scratch for materialized reference input trees")
+	checkExecution := flag.String("check-execution-evidence", "", "verify authenticated original workflow receipts on identical source contents")
+	executionOrigin := flag.String("execution-origin", "", "authenticated original checkout and artifact inventory")
+	includeExecutionIndex := flag.Bool("execution-index", false, "include source-scoped cases after full execution-evidence admission; grants no new verdict")
+	classifyChanges := flag.String("classify-changes-from", "", "classify exact committed source changes; grants no execution verdict")
 	flag.Parse()
-	if *replay && (*list || *describe || *bootstrap != "" || *bundle != "" || *verify != "") || !*replay && len(flag.Args()) != 0 {
+	if *referenceIdentities && *checkReferences == "" {
+		fmt.Fprintln(os.Stderr, "reference identities require complete pinned asset admission")
+		os.Exit(1)
+	}
+	if *includeExecutionIndex && *checkExecution == "" {
+		fmt.Fprintln(os.Stderr, "execution indexing requires full original execution-evidence admission")
+		os.Exit(1)
+	}
+	if (*checkExecution != "") != (*executionOrigin != "") {
+		fmt.Fprintln(os.Stderr, "execution evidence verification requires its authenticated original inventory")
+		os.Exit(1)
+	}
+	if (*referenceOrigin != "") != (*checkEvidence != "") {
+		fmt.Fprintln(os.Stderr, "candidate evidence verification requires an explicit authenticated reference origin")
+		os.Exit(1)
+	}
+	if *referencePin != "" && !*replay && *materialize == "" && *checkExecution == "" || *materialize != "" && (*referencePin == "" || *inputDir == "") {
+		fmt.Fprintln(os.Stderr, "a reviewed reference pin requires replay, input materialization or CI evidence; materialization needs an input directory")
+		os.Exit(1)
+	}
+	standalone := 0
+	for _, chosen := range []bool{*prepare != "", *captureOnly, *checkReferences != "", *planReferences != "", *checkEvidence != "", *materialize != "", *checkExecution != "", *classifyChanges != ""} {
+		if chosen {
+			standalone++
+		}
+	}
+	if standalone > 1 || standalone == 1 && (*replay || *list || *describe || *bootstrap != "" || *bundle != "" || *verify != "") || *replay && (*list || *describe || *bootstrap != "" || *bundle != "" || *verify != "") || !*replay && len(flag.Args()) != 0 {
 		fmt.Fprintln(os.Stderr, "choose one qualification action; go test arguments require -replay")
 		os.Exit(1)
 	}
 	var auditOutput io.Writer = os.Stdout
-	if *bundle != "" {
+	if *bundle != "" || *prepare != "" || *captureOnly || *planReferences != "" || *checkEvidence != "" || *checkExecution != "" || *classifyChanges != "" || *referenceIdentities {
 		auditOutput = os.Stderr
 	}
 	if err := run(*root, *registryPath, *list, auditOutput); err != nil {
@@ -133,8 +177,99 @@ func main() {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 		var err error
-		if *replay {
-			err = runReplay(ctx, replayOptions{*root, *registryPath, *corpusCatalog, *bundles, *receipts, flag.Args()}, os.Stdout)
+		if *classifyChanges != "" {
+			var changes executionChanges
+			changes, err = classifyExecutionChanges(ctx, *root, *classifyChanges)
+			if err == nil {
+				err = json.NewEncoder(os.Stdout).Encode(changes)
+			}
+		} else if *checkExecution != "" {
+			var data []byte
+			var origin executionEvidenceOrigin
+			data, err = readCandidateDocument(*executionOrigin, 1<<20)
+			if err == nil {
+				err = corpus.StrictJSON(data, &origin)
+			}
+			if err == nil {
+				var summary executionEvidenceSummary
+				switch origin.Workflow {
+				case "ci":
+					var reviewed *corpus.Catalog
+					if *referencePin != "" {
+						var checked corpus.Catalog
+						checked, err = checkedCIEvidenceReferences(ctx, *root, *registryPath, *referencePin, *bundles)
+						reviewed = &checked
+					}
+					if err == nil {
+						summary, err = checkCIEvidence(ctx, *root, *checkExecution, origin, reviewed)
+					}
+				case "native":
+					if *referencePin != "" {
+						err = errors.New("an explicit evidence reference pin is supported only for CI; native restoration has its own complete admission")
+					} else {
+						summary, err = checkNativeEvidence(ctx, *root, *checkExecution, origin)
+					}
+				default:
+					err = errors.New("unknown execution evidence workflow")
+				}
+				if err == nil {
+					if *includeExecutionIndex {
+						var index executionIndex
+						index, err = indexExecutionEvidence(ctx, *root, *checkExecution, summary)
+						if err == nil {
+							err = json.NewEncoder(os.Stdout).Encode(index)
+						}
+					} else {
+						err = json.NewEncoder(os.Stdout).Encode(summary)
+					}
+				}
+			}
+		} else if *prepare != "" {
+			err = prepareReferences(ctx, *root, *registryPath, *prepare, *candidateDir)
+		} else if *materialize != "" {
+			err = materializeReferences(ctx, *root, *registryPath, *referencePin, *bundles, *materialize, *inputDir)
+		} else if *checkEvidence != "" {
+			var origin publication.Origin
+			var data []byte
+			data, err = readCandidateDocument(*referenceOrigin, 64<<10)
+			if err == nil {
+				err = corpus.StrictJSON(data, &origin)
+			}
+			if err == nil {
+				var proof referenceEvidenceSummary
+				proof, err = checkReferenceEvidence(ctx, *root, *registryPath, *candidateDir, *checkEvidence, origin)
+				if err == nil {
+					err = json.NewEncoder(os.Stdout).Encode(proof)
+				}
+			}
+		} else if *planReferences != "" {
+			var obligations referenceObligations
+			obligations, err = planReferenceObligations(ctx, *root, *registryPath, *planReferences)
+			if err == nil {
+				err = json.NewEncoder(os.Stdout).Encode(obligations)
+			}
+		} else if *checkReferences != "" {
+			if *referenceIdentities {
+				var catalog corpus.Catalog
+				catalog, err = checkedReferenceCatalog(ctx, *root, *registryPath, *checkReferences, *bundles)
+				if err == nil {
+					var identities []referenceSource
+					identities, err = referenceSourceIdentities(catalog)
+					if err == nil {
+						err = json.NewEncoder(os.Stdout).Encode(identities)
+					}
+				}
+			} else {
+				err = checkReferenceAssets(ctx, *root, *registryPath, *checkReferences, *bundles)
+			}
+		} else if *captureOnly {
+			var identity string
+			identity, err = readCaptureContract(ctx, *root, *registryPath)
+			if err == nil {
+				_, err = fmt.Fprintln(os.Stdout, identity)
+			}
+		} else if *replay {
+			err = runReplay(ctx, replayOptions{root: *root, registry: *registryPath, catalog: *corpusCatalog, bundles: *bundles, directory: *receipts, referencePin: *referencePin, args: flag.Args()}, os.Stdout)
 		} else {
 			err = corpusWork(ctx, *root, *registryPath, corpusAction{*corpusCatalog, *bootstrap, *verify, *bundle, *bundles, *describe}, os.Stdout)
 		}
@@ -342,6 +477,9 @@ func audit(root string, r registry, actual inventory) error {
 		}
 		if !reflect.DeepEqual(names, w.Jobs) {
 			return fmt.Errorf("workflow job inventory changed: %s", w.Path)
+		}
+		if err = auditReplayEvidence(string(data)); err != nil {
+			return fmt.Errorf("%s: %w", w.Path, err)
 		}
 		jobs[w.Path] = names
 	}

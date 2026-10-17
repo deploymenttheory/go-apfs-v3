@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 
 type replayOptions struct {
 	root, registry, catalog, bundles, directory string
+	referencePin                                string
 	args                                        []string
 }
 
@@ -135,11 +137,21 @@ func executionEnvironment(ctx context.Context, root string, command testCommand)
 		return environment, err
 	}
 	environment.Toolchain = toolchain
-	build, err := commandText(ctx, root, "go", "env", "GOOS", "GOARCH", "CGO_ENABLED", "GOFLAGS", "GOTOOLCHAIN")
+	build, tools, err := replayBuildIdentity(ctx, root)
 	if err != nil {
 		return environment, err
 	}
+	environment.Tools = tools
 	environment.Flags = append(environment.Flags, "go-environment="+build, "required-native-majors="+os.Getenv("APFS_REQUIRED_NATIVE_MAJORS"), "required-controls="+os.Getenv("APFS_REQUIRED_CONTROLS"))
+	decodedCache, err := replayDecodedCacheDirectory()
+	if err != nil {
+		return environment, err
+	}
+	cachePolicy := "disabled"
+	if decodedCache != "" {
+		cachePolicy = "immutable-2GiB-job-local"
+	}
+	environment.Flags = append(environment.Flags, "decoded-input-cache="+cachePolicy)
 	switch runtime.GOOS {
 	case "darwin":
 		environment.Version, err = commandText(ctx, root, "sw_vers", "-productVersion")
@@ -176,14 +188,11 @@ func sourceIdentities(ctx context.Context, root string) (string, string, error) 
 		if strings.HasPrefix(name, ".github/") || strings.HasPrefix(name, "docs/") || strings.HasPrefix(name, "acceptance/testdata/") || strings.HasSuffix(name, ".md") || name == "AGENTS.md" {
 			continue
 		}
-		harness := strings.HasPrefix(name, "acceptance/") || strings.HasPrefix(name, "internal/qualification/")
+		harness := strings.HasPrefix(name, "acceptance/") || strings.HasPrefix(name, "internal/qualification/") || strings.HasSuffix(name, "_test.go")
 		if !harness && name != "go.mod" && name != "go.sum" && !slices.Contains([]string{".go", ".s", ".S", ".c", ".h", ".syso"}, filepath.Ext(name)) {
 			continue
 		}
-		if strings.HasSuffix(name, "_test.go") && !harness {
-			continue
-		}
-		if harness && (!strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, ".json") || name == "acceptance/qualification/corpus.json" || strings.HasPrefix(name, "acceptance/native/")) {
+		if harness && (!strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, ".json") || name == "acceptance/qualification/corpus.json" || name == "acceptance/qualification/references.json" || strings.HasPrefix(name, "acceptance/native/")) {
 			continue
 		}
 		if strings.HasSuffix(name, ".go") {
@@ -329,7 +338,7 @@ func runReplay(ctx context.Context, options replayOptions, output io.Writer) err
 		}
 		selected = append(selected, test)
 	}
-	admitted, err := admitReplayInputs(ctx, root, options.catalog, options.bundles, r, contract, selected)
+	admitted, err := admitReplayInputs(ctx, root, options.catalog, options.bundles, options.referencePin, r, contract, selected)
 	if err != nil {
 		return err
 	}
@@ -340,7 +349,7 @@ func runReplay(ctx context.Context, options replayOptions, output io.Writer) err
 	}
 	for _, test := range selected {
 		inputIndex := slices.IndexFunc(admitted.identities, func(input receipt.Input) bool { return input.ID == test.Input })
-		if inputIndex >= 0 && admitted.identities[inputIndex].Use != "retained" {
+		if inputIndex >= 0 && (admitted.identities[inputIndex].Use != "retained" || options.referencePin != "") {
 			for _, control := range test.Controls {
 				if !controls[control] {
 					return fmt.Errorf("current capture replay requires explicit control: %s", control)
@@ -379,6 +388,11 @@ func runReplay(ctx context.Context, options replayOptions, output io.Writer) err
 	}
 	environment := append([]string{}, os.Environ()...)
 	environment = append(environment, "APFS_REPLAY_INPUTS="+bindingsFile)
+	decodedCache, err := replayDecodedCacheDirectory()
+	if err != nil {
+		return err
+	}
+	environment = append(environment, "APFS_DECODED_INPUT_CACHE="+decodedCache)
 	outputRoots := map[string]string{}
 	for _, test := range selected {
 		if test.Output == "" {
@@ -513,6 +527,10 @@ func runReplay(ctx context.Context, options replayOptions, output io.Writer) err
 	currentProduction, currentContract, identityErr := sourceIdentities(ctx, root)
 	if identityErr != nil || currentProduction != production || currentContract != contractID {
 		sourceErr = errors.Join(sourceErr, identityErr, errors.New("source or qualification contract changed during replay"))
+	}
+	currentEnvironment, environmentErr := executionEnvironment(ctx, root, command)
+	if environmentErr != nil || !reflect.DeepEqual(currentEnvironment, actualEnvironment) {
+		sourceErr = errors.Join(sourceErr, environmentErr, errors.New("toolchain or build environment changed during replay"))
 	}
 	if err = errors.Join(eventErr, processErr, closeErr, sourceErr); err != nil {
 		return fmt.Errorf("replay failed; diagnostics retained in %s: %w", scratch, err)

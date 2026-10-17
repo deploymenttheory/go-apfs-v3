@@ -3,6 +3,10 @@ name: Offline filesystem capability chain
 on:
   workflow_call:
     inputs:
+      reuse_references:
+        description: Use independently qualified inputs only after the caller admits the reviewed pin
+        type: boolean
+        default: false
       family:
         description: Complete filesystem capability to capture, replay and verify
         type: string
@@ -26,97 +30,144 @@ env:
 jobs:
   capture:
     if: inputs.readback_run == ''
-    name: Record Apple ${{ inputs.family }} editing controls (macOS ${{ matrix.major }})
-    runs-on: ${{ matrix.runner }}
+    name: ${{ inputs.reuse_references && 'Restore reviewed Apple' || 'Record Apple' }} ${{ inputs.family }} editing controls (macOS ${{ inputs.reuse_references && '15, 26 and 27' || matrix.major }})
+    runs-on: ${{ matrix.major == 'all' && 'ubuntu-24.04' || matrix.major == 15 && 'macos-15' || matrix.major == 26 && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, macos-26, xcode-27]
-        include:
-          - {runner: macos-15, major: 15}
-          - {runner: macos-26, major: 26}
-          - {runner: xcode-27, major: 27}
+        major: ${{ inputs.reuse_references && fromJSON('["all"]') || fromJSON('[15,26,27]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        if: ${{ inputs.reuse_references }}
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore verified original Apple reference inputs
+        if: ${{ inputs.reuse_references }}
+        shell: bash
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: '0'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for source_major in 15 26 27; do
+            python3 acceptance/qualification/reference_reuse.py materialize \
+              --assets "$RUNNER_TEMP/native-reference-assets" \
+              --artifact "offline-editing-${{ inputs.family }}-reference-$source_major" \
+              --major "$source_major" \
+              --destination "artifacts/reviewed-inputs-$source_major" \
+              --scratch "$RUNNER_TEMP" \
+              --proof "artifacts/qualification/capture-approved-$source_major/admission.json"
+          done
       - name: Require a disposable GitHub-hosted VM
+        if: ${{ !(inputs.reuse_references) }}
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
       - name: Capture independent Apple before and after edits
-        if: inputs.family == 'apfs'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'apfs') }}
         run: python3 acceptance/native/apfs_geometry.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-apfs/macos-${{ matrix.major }}
       - name: Capture native attributes initialization and node-map extension
-        if: inputs.family == 'hfs'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'hfs') }}
         run: python3 acceptance/native/hfs_metadata_growth.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-hfs/macos-${{ matrix.major }}
       - name: Capture native fragmented metadata overflow
-        if: inputs.family == 'hfs-fragmented'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'hfs-fragmented') }}
         run: python3 acceptance/native/hfs_metadata_growth.py --fragmented-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-hfs-fragmented/macos-${{ matrix.major }}
       - name: Capture native ACL inheritance, creator ownership and set-ID effects
-        if: inputs.family == 'permissions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'permissions') }}
         run: python3 acceptance/native/permission_inheritance.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-permissions/macos-${{ matrix.major }}
       - name: Capture native cp preservation and destination ACL inheritance
-        if: inputs.family == 'copy-permissions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'copy-permissions') }}
         run: python3 acceptance/native/permission_inheritance.py --copy-only --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-copy-permissions/macos-${{ matrix.major }}
       - name: Capture native directory-stat origins and inheritance
-        if: inputs.family == 'statistics'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'statistics') }}
         run: python3 acceptance/native/apfs_geometry.py --directory-statistics --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics/macos-${{ matrix.major }}
       - name: Capture native directory-stat, fork, move and deletion transitions
-        if: inputs.family == 'statistics-transitions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'statistics-transitions') }}
         run: python3 acceptance/native/apfs_directory_statistics.py --expected-major "${{ matrix.major }}" --output artifacts/offline-editing-statistics-transitions/macos-${{ matrix.major }}
       - name: Record required native capture observations
-        if: inputs.family == 'apfs'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'apfs') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-geometry=artifacts/offline-editing-apfs"
           --output "artifacts/qualification/capture-apfs-geometry"
       - name: Record required native capture observations
-        if: inputs.family == 'hfs'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'hfs') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "hfs-metadata-growth=artifacts/offline-editing-hfs"
           --output "artifacts/qualification/capture-hfs-metadata-growth"
       - name: Record required native capture observations
-        if: inputs.family == 'hfs-fragmented'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'hfs-fragmented') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "hfs-fragmented-metadata=artifacts/offline-editing-hfs-fragmented"
           --output "artifacts/qualification/capture-hfs-fragmented-metadata"
       - name: Record required native capture observations
-        if: inputs.family == 'permissions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'permissions') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "permission-inheritance=artifacts/offline-editing-permissions"
           --output "artifacts/qualification/capture-permission-inheritance"
       - name: Record required native capture observations
-        if: inputs.family == 'copy-permissions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'copy-permissions') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "copy-permissions=artifacts/offline-editing-copy-permissions"
           --output "artifacts/qualification/capture-copy-permissions"
       - name: Record required native capture observations
-        if: inputs.family == 'statistics'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'statistics') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-directory-statistics=artifacts/offline-editing-statistics"
           --output "artifacts/qualification/capture-apfs-directory-statistics"
       - name: Record required native capture observations
-        if: inputs.family == 'statistics-transitions'
+        if: ${{ !(inputs.reuse_references) && (inputs.family == 'statistics-transitions') }}
         run: >-
           python3 acceptance/native/qualification_capture.py
           --expected-major "${{ matrix.major }}"
           --input "apfs-directory-statistics-transitions=artifacts/offline-editing-statistics-transitions"
           --output "artifacts/qualification/capture-apfs-directory-statistics-transitions"
       - name: Retain original disks and diagnostics
-        if: always()
+        if: ${{ always() && !(inputs.reuse_references) }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: offline-editing-${{ inputs.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ inputs.family }}
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 15)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-15
+          path: artifacts/reviewed-inputs-15
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 26)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-26
+          path: artifacts/reviewed-inputs-26
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+      - name: Retain reviewed original input bytes (macOS 27)
+        if: ${{ inputs.reuse_references }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: offline-editing-${{ inputs.family }}-reference-27
+          path: artifacts/reviewed-inputs-27
+          include-hidden-files: true
+          compression-level: 0
           if-no-files-found: error
       - name: Retain required capture execution evidence
         if: always()
@@ -130,8 +181,7 @@ jobs:
             artifacts/qualification/replay-*/receipt.json
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
+            artifacts/qualification/replay-*/source-inputs.json
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
@@ -194,6 +244,19 @@ jobs:
           name: offline-editing-${{ inputs.family }}-output-${{ matrix.host }}-${{ matrix.major }}
           path: artifacts/offline-editing-${{ inputs.family }}-*.tar.gz
           compression-level: 0
+          if-no-files-found: error
+      - name: Retain required case execution evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qualification-offline-editing-${{ inputs.family }}-${{ github.job }}-${{ strategy.job-index }}
+          include-hidden-files: true
+          path: |
+            artifacts/qualification/replay-*/plan.json
+            artifacts/qualification/replay-*/receipt.json
+            artifacts/qualification/replay-*/events.jsonl
+            artifacts/qualification/replay-*/inputs.json
+            artifacts/qualification/replay-*/source-inputs.json
           if-no-files-found: error
 
   archive:
@@ -294,8 +357,7 @@ jobs:
             artifacts/qualification/replay-*/receipt.json
             artifacts/qualification/replay-*/events.jsonl
             artifacts/qualification/replay-*/inputs.json
-            artifacts/**/.qualification/*/*.json
-            artifacts/**/.qualification/*/*.jsonl
+            artifacts/qualification/replay-*/source-inputs.json
             artifacts/**/*.plan.json
             artifacts/**/*.receipt.json
             artifacts/**/*.events.jsonl
