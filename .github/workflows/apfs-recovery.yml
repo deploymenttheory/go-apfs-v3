@@ -144,7 +144,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: apfs-recovery-reference-*
           path: artifacts/apfs-recovery
@@ -225,19 +225,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: apfs-recovery-reference-${{ matrix.major }}
           path: artifacts/references
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: apfs-recovered-Linux-${{ matrix.major }}
           path: artifacts/archives
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: apfs-recovered-Windows
           path: artifacts/archives
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: apfs-recovered-macOS
           path: artifacts/archives

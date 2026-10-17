@@ -199,7 +199,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
           path: artifacts/${{ matrix.prefix }}-editing
@@ -307,7 +307,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
           path: artifacts/${{ matrix.prefix }}-editing
@@ -375,12 +375,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: ${{ matrix.prefix }}-edit-reference-*
           path: artifacts/${{ matrix.prefix }}-editing
           merge-multiple: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: ${{ matrix.prefix }}-edits-*
           path: artifacts/outputs

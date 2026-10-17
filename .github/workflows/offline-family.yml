@@ -209,7 +209,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: offline-editing-${{ inputs.family }}-reference-${{ matrix.major }}
           path: artifacts/offline-editing-${{ inputs.family }}
@@ -294,14 +294,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require a disposable GitHub-hosted VM
         run: test "$RUNNER_ENVIRONMENT" = github-hosted
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           run-id: ${{ inputs.readback_run || github.run_id }}
           github-token: ${{ github.token }}
           pattern: offline-editing-${{ inputs.family }}-reference-*
           path: artifacts/offline-editing-${{ inputs.family }}
           merge-multiple: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           run-id: ${{ inputs.readback_run || github.run_id }}
           github-token: ${{ github.token }}
