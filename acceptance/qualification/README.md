@@ -148,3 +148,16 @@ the readable retained index's scenario. That projection preserves the same case
 inventory and never rewrites either document. Snapshot lifecycle parent images
 and their original manifest are resolved inside `snapshot-reference/`; state
 images remain relative to the lifecycle capture itself.
+
+Adding `-execution-index` to `-check-execution-evidence` exports the admitted
+case and output identities for campaign comparison. The controller must still
+authenticate the complete original workflow and artifact inventory; a supplied
+origin document is not authority. The index adds no filesystem verdict and
+does not permit removing a test or required gate.
+
+Each case retains its original receipt digest. Its invocation records the
+original run, revision, host, race mode, tools and flags once. Replay source
+identities use the existing macOS-version projection, including the declared
+auxiliary inputs. A job holding additional source versions or sibling inputs
+does not change an individual case's identity. Fresh native-continuation input
+hashes remain explicitly distinct from immutable Apple reference inputs.

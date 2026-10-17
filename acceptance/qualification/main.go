@@ -131,8 +131,13 @@ func main() {
 	inputDir := flag.String("input-dir", "", "absent absolute managed scratch for materialized reference input trees")
 	checkExecution := flag.String("check-execution-evidence", "", "verify authenticated original workflow receipts on identical source contents")
 	executionOrigin := flag.String("execution-origin", "", "authenticated original checkout and artifact inventory")
+	includeExecutionIndex := flag.Bool("execution-index", false, "include source-scoped cases after full execution-evidence admission; grants no new verdict")
 	classifyChanges := flag.String("classify-changes-from", "", "classify exact committed source changes; grants no execution verdict")
 	flag.Parse()
+	if *includeExecutionIndex && *checkExecution == "" {
+		fmt.Fprintln(os.Stderr, "execution indexing requires full original execution-evidence admission")
+		os.Exit(1)
+	}
 	if (*checkExecution != "") != (*executionOrigin != "") {
 		fmt.Fprintln(os.Stderr, "execution evidence verification requires its authenticated original inventory")
 		os.Exit(1)
@@ -191,7 +196,15 @@ func main() {
 					err = errors.New("unknown execution evidence workflow")
 				}
 				if err == nil {
-					err = json.NewEncoder(os.Stdout).Encode(summary)
+					if *includeExecutionIndex {
+						var index executionIndex
+						index, err = indexExecutionEvidence(ctx, *root, *checkExecution, summary)
+						if err == nil {
+							err = json.NewEncoder(os.Stdout).Encode(index)
+						}
+					} else {
+						err = json.NewEncoder(os.Stdout).Encode(summary)
+					}
 				}
 			}
 		} else if *prepare != "" {
