@@ -2,7 +2,8 @@ name: Publish independently qualified Apple references
 
 on:
   workflow_run:
-    workflows: [macOS filesystem compatibility, CI]
+    # Reference dispatches use native.yml's explicit run-name.
+    workflows: [macOS filesystem compatibility, Independent Apple reference refresh, CI]
     branches: [main]
     types: [completed]
   workflow_dispatch:
