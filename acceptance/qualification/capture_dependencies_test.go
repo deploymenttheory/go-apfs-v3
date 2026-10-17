@@ -2,9 +2,70 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestCaptureRegistryIdentitySurvivesWorkflowDigestAndExecutionMetadataRefresh(t *testing.T) {
+	root := t.TempDir()
+	data, err := regularFile("../..", "acceptance/qualification/registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r registry
+	if err = json.Unmarshal(data, &r); err != nil {
+		t.Fatal(err)
+	}
+	for _, workflow := range r.Workflows {
+		body, err := regularFile("../..", workflow.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeControl(t, root, workflow.Path, string(body))
+	}
+	original, err := captureRegistryProjection(root, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const name = ".github/workflows/native.yml"
+	body, err := regularFile(root, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay := workflowJobSection(t, string(body), "replay")
+	changed := strings.Replace(string(body), replay, strings.ReplaceAll(replay, "-parallel 2", "-parallel 1"), 1)
+	if changed == string(body) {
+		t.Fatal("actual replay scheduling control missing")
+	}
+	writeControl(t, root, name, changed)
+	for index := range r.Workflows {
+		if r.Workflows[index].Path == name {
+			r.Workflows[index].SHA256 = digest(changed)
+		}
+	}
+	r.TestSources[0].SHA256 = strings.Repeat("b", 64)
+	r.Families[0].Execution = nil
+	r.Families[0].Tests[0].File = "acceptance/renamed_assertions_test.go"
+	r.Exits = nil
+	updated, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := captureRegistryProjection(root, updated)
+	if err != nil || actual != original {
+		t.Fatal("updated workflow digest or assertion/execution metadata invalidated original Apple inputs", err)
+	}
+	r.Families[0].Collectors = append(r.Families[0].Collectors, "acceptance/native/new_collector.py")
+	updated, err = json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err = captureRegistryProjection(root, updated)
+	if err != nil || actual == original {
+		t.Fatal("changed collector definition did not require fresh Apple inputs", err)
+	}
+}
 
 const captureWorkflowControl = `name: Independent Apple input control
 env:

@@ -61,6 +61,18 @@ func captureContract(ctx context.Context, root string, recipes replayContract) (
 		if slices.Contains(captureIndependentExecutionFiles, name) {
 			continue
 		}
+		if name == "acceptance/qualification/registry.json" {
+			original, err := regularFile(root, name)
+			if err != nil {
+				return "", err
+			}
+			projected, err := captureRegistryProjection(root, original)
+			if err != nil {
+				return "", err
+			}
+			files = append(files, projected)
+			continue
+		}
 		if strings.HasSuffix(name, ".go") && !strings.HasPrefix(name, "acceptance/") && !strings.HasPrefix(name, "internal/qualification/") {
 			continue
 		}

@@ -75,6 +75,7 @@ func TestReference(t *testing.T){
 		}
 	}
 	t.Setenv("GITHUB_RUN_ID", "")
+	t.Setenv("APFS_REQUIRED_CONTROLS", "")
 	t.Setenv("READBACK_RUN", "")
 	t.Setenv("APFS_NATIVE_APFS_GEOMETRY", "")
 	t.Setenv("APFS_GEOMETRY_OUTPUT", "")

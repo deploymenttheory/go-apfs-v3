@@ -10,6 +10,41 @@ import reference_reuse as reuse
 
 
 class ReferenceReuseTests(unittest.TestCase):
+    def test_ci_without_a_pin_preserves_retained_replay_without_network_or_verdicts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            network, command = Mock(), Mock()
+            report = reuse.prepare_ci(root / 'missing.json', root / 'assets', root / 'missing-recipes.json',
+                                      run=command, fetcher=network)
+            self.assertEqual(report['mode'], 'retained')
+            self.assertEqual(report['controls'], '')
+            self.assertFalse(report['assertions_executed'])
+            network.assert_not_called()
+            command.assert_not_called()
+
+    def test_ci_requires_full_asset_admission_and_every_declared_control(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            pin, recipes = root / 'pin.json', root / 'replay.json'
+            pin.write_text(json.dumps({'catalog': {'sha256': 'a' * 64}}))
+            recipes.write_text(json.dumps({'tests': [{'controls': ['copy-setid']},
+                                                    {'controls': ['copy-truncation', 'copy-setid']}, {}]}))
+            command, network = Mock(), Mock()
+            report = reuse.prepare_ci(pin, root / 'assets', recipes, run=command, fetcher=network)
+            self.assertEqual(report['mode'], 'reviewed')
+            self.assertFalse(report['assertions_executed'])
+            self.assertEqual(report['controls'], 'copy-setid,copy-truncation')
+            command.assert_called_once_with(['go', 'run', './acceptance/qualification',
+                                            '-check-references', str(pin), '-bundle-dir', str(root / 'assets')],
+                                           check=True)
+            self.assertEqual(network.call_count, 1)
+            self.assertEqual(report['pin_sha256'], hashlib.sha256(pin.read_bytes()).hexdigest())
+            for rejected in ('fetch', 'admission'):
+                with self.subTest(rejected=rejected), self.assertRaisesRegex(ValueError, 'rejected original bytes'):
+                    reuse.prepare_ci(pin, root / 'assets', recipes,
+                                     run=Mock(side_effect=ValueError('rejected original bytes')) if rejected == 'admission' else command,
+                                     fetcher=Mock(side_effect=ValueError('rejected original bytes')) if rejected == 'fetch' else network)
+
     def test_absent_pin_and_requested_refresh_require_fresh_capture(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

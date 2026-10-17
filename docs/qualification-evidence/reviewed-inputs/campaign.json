@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "kind": "observed-reviewed-input-infrastructure",
+  "revision": "8cb4463fb7cadfc37912f337749f82505d2039d2",
+  "revision_kind": "run-api-head",
+  "warm_campaign": false,
+  "final_equivalence_claim": false,
+  "sources": [
+    {
+      "name": "native",
+      "run_id": 39019910257,
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39019910257",
+      "path": "native-jobs.json.gz",
+      "stored_sha256": "b413ebf56f7e91095ca2151923ce1ad4d217fd2707b26295dc079679cca36cd6",
+      "original_sha256": "078f7a9ccdaa82c3ed924fcd3a07cc8819928d1ff14527a01853ab4882fc0adc"
+    },
+    {
+      "name": "portable",
+      "run_id": 39019910136,
+      "url": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39019910136",
+      "path": "portable-jobs.json.gz",
+      "stored_sha256": "9d8e70ed8017298371cfdd19e67518c17052361460eaf0a32cba4c5dc0afb18f",
+      "original_sha256": "00904c4c021dff19aa010f4d5b9f2caf67c1783e233df18e5819a6f3a1ecc7be"
+    }
+  ],
+  "metrics": {
+    "campaigns": {
+      "native": {
+        "jobs_created": 223,
+        "jobs_executed": 214,
+        "jobs_skipped": 9,
+        "runner_minutes": 671.917,
+        "macos_jobs_executed": 117,
+        "macos_runner_minutes": 402.033,
+        "macos_peak_concurrency": 5,
+        "macos_median_execution_minutes": 1.75,
+        "macos_median_prestart_minutes": 10.833,
+        "macos_max_prestart_minutes": 50.967,
+        "step_minutes_all_hosts": {
+          "archive": 5.35,
+          "checks_and_other": 559.3,
+          "explicit_build": 0.15,
+          "setup_cleanup": 83.967,
+          "transfer": 10.933
+        }
+      },
+      "portable": {
+        "jobs_created": 84,
+        "jobs_executed": 84,
+        "jobs_skipped": 0,
+        "runner_minutes": 278.717,
+        "macos_jobs_executed": 23,
+        "macos_runner_minutes": 71.583,
+        "macos_peak_concurrency": 3,
+        "macos_median_execution_minutes": 2.383,
+        "macos_median_prestart_minutes": 68.5,
+        "macos_max_prestart_minutes": 92.683,
+        "step_minutes_all_hosts": {
+          "checks_and_other": 236.183,
+          "setup_cleanup": 37.933
+        }
+      }
+    },
+    "combined": {
+      "jobs_created": 307,
+      "jobs_executed": 298,
+      "jobs_skipped": 9,
+      "runner_minutes": 950.633,
+      "macos_jobs_executed": 140,
+      "macos_runner_minutes": 473.617,
+      "macos_peak_concurrency": 5,
+      "macos_median_execution_minutes": 1.783,
+      "macos_median_prestart_minutes": 21.742,
+      "macos_max_prestart_minutes": 92.683,
+      "step_minutes_all_hosts": {
+        "archive": 5.35,
+        "checks_and_other": 795.483,
+        "explicit_build": 0.15,
+        "setup_cleanup": 121.9,
+        "transfer": 10.933
+      }
+    }
+  },
+  "tested_revision": "d0c5433674b869428567231f398304739f72ac14",
+  "tested_tree_sha": "b9c431878b1043567a6112a9a5924ee295405ad9",
+  "production_sha256": "663f89aa6201b210873b91ae067216e2ffbc62859f587f39c51dfcf0af8d461b",
+  "checkout_evidence": [
+    {
+      "path": "native-run.json.gz",
+      "stored_sha256": "3637d0f2bbbb1d0a4224678916e4589133c14cc1cbd8da2d550b426d29d3bef2",
+      "original_sha256": "06dc540b3dc182d3532e33768cbf0557c2cc5c0c3eacc6d49b18109af576664d"
+    },
+    {
+      "path": "portable-run.json.gz",
+      "stored_sha256": "260f5f85c6c4f7c66f4e8680651521e6bab229afd31b7ff3b93af654d92eb6e4",
+      "original_sha256": "5281e01a88984df4611bd8243e69e8c440b4af34f2e5f37edf443f2d1ea47a8e"
+    },
+    {
+      "path": "tested-commit.json.gz",
+      "stored_sha256": "5654988f65d93a15cf0d2c5888e74c3a54b764793655b836e1127a565b6b830e",
+      "original_sha256": "f093565f3f589821f1d3b9cebced2fa345fc6152f04001e47e5ad70a3f8cf2e3"
+    },
+    {
+      "path": "portable-receipt.json.gz",
+      "stored_sha256": "cb78460e8854ae6c0efbf16d0c0d2e68038f9742aea551fcaa893858c436df42",
+      "original_sha256": "3dd077f4bf9c00df1342d3840fca9599923b2244a6ae20ea2f5704a1eb12f38d",
+      "original_receipt_path": "qualification-ci-offline_retained-0/qualification/replay-149444462/receipt.json"
+    }
+  ]
+}

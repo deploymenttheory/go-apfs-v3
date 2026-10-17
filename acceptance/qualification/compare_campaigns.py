@@ -68,9 +68,18 @@ def case_identity(item, invocation):
                 # its unique original hash, without asserting byte equality.
                 identity = 'individually-verified-native-continuation'
             inputs.append({'id': source['id'], 'use': use, 'source_sha256': identity})
-    return {'stage': stage, 'case': case,
-            'environment': build_environment(invocation['environment'], stage),
-            'inputs': inputs, 'required_controls': item['required_controls']}
+    identity = {'stage': stage, 'case': case,
+                'environment': build_environment(invocation['environment'], stage),
+                'inputs': inputs, 'required_controls': item['required_controls']}
+    if case.get('continuation'):
+        # Journaled/nonjournaled chains can share case names and mutable input
+        # IDs. Their original artifact identifies the independently authenticated
+        # executor/matrix slot. Preserve it until an explicit semantic mapping
+        # exists; changing timestamps cannot make distinct chains duplicates.
+        path = PurePosixPath(invocation['original_receipt']['path'])
+        require(len(path.parts) > 1, 'native continuation lost its original executor context')
+        identity['continuation_executor'] = path.parts[0]
+    return identity
 
 
 def output_identity(item, invocation):

@@ -78,6 +78,12 @@ The source version still names the original capture. Each Apple runner creates
 its own native-modified continuation state; its subsequent Go output requires
 Apple verification of those exact bytes on that runner's macOS version. All
 three native writer/verifier environments remain separate obligations.
+Journaled and nonjournaled chains can also share case labels and mutable input
+IDs. Continuation comparison therefore retains the original authenticated
+artifact's executor/matrix identity. Those chains cannot collapse merely because
+timestamps are normalized for comparison. Moving continuation work to another
+executor needs an explicitly reviewed semantic mapping before scope agreement
+can be claimed.
 JSON observations and workspace manifests use their original assertions rather
 than a raw serialization equality claim. Unknown output formats need an
 explicit policy. The report separates outputs compared by bytes from outputs

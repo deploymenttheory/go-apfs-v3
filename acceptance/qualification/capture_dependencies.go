@@ -3,12 +3,51 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
 )
+
+// The full registry remains an assertion/source dependency. Its capture
+// projection omits only test/execution bookkeeping; collector definitions,
+// family obligations, original manifests and unknown workflows remain bound.
+func captureRegistryProjection(root string, data []byte) (receipt.File, error) {
+	var r registry
+	if err := corpus.StrictJSON(data, &r); err != nil {
+		return receipt.File{}, err
+	}
+	r.TestSources, r.Exits = nil, nil
+	for index := range r.Families {
+		r.Families[index].Tests, r.Families[index].Execution = nil, nil
+	}
+	for index, workflow := range r.Workflows {
+		original, err := regularFile(root, workflow.Path)
+		if err != nil {
+			return receipt.File{}, err
+		}
+		projected, known := captureWorkflowProjection(workflow.Path, original)
+		if !known {
+			continue
+		}
+		r.Workflows[index].SHA256 = projected.SHA256
+		r.Workflows[index].Jobs = nil
+		for _, job := range workflow.Jobs {
+			if !slices.Contains(captureExecutionJobs[workflow.Path], job) {
+				r.Workflows[index].Jobs = append(r.Workflows[index].Jobs, job)
+			}
+		}
+	}
+	projected, err := json.Marshal(r)
+	if err != nil {
+		return receipt.File{}, err
+	}
+	sum := sha256.Sum256(projected)
+	return receipt.File{Path: "capture-registry/acceptance/qualification/registry.json", Bytes: int64(len(projected)), SHA256: hex.EncodeToString(sum[:])}, nil
+}
 
 // These programs inspect execution evidence or describe scheduling; they do
 // not construct, restore or admit Apple input bytes. Unknown files remain in

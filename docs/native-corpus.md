@@ -167,6 +167,16 @@ still require fresh assertions. These derived fingerprints do not rewrite
 original workflow files or captured evidence. Matched current-Go HFS experiments
 continue to execute freshly.
 
+The registry has a matching capture projection. It retains capture definitions,
+family obligations and original manifest identities, while omitting test-source
+digests, reviewed exit locations, test entrypoint locators and execution-job
+locators. Known workflow entries use their capture-projection digest and retain
+capture/unknown job names. Unknown workflows keep their full digest and job
+inventory. Updating the source audit's full workflow digest after a batching
+change therefore does not indirectly invalidate the same Apple inputs. The full
+registry bytes still bind the execution contract and source audit; this derived
+capture fingerprint changes no original registry or captured document.
+
 The release transport client streams content-addressed objects smaller than
 2 GiB, pins numeric release/asset IDs, checks sizes and SHA-256 values, and
 verifies that each asset belongs to the pinned release. Interrupted and corrupt
