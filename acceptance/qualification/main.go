@@ -116,7 +116,7 @@ func main() {
 	verify := flag.String("verify-corpus", "", "verify one corpus ID or all, including exact retained files")
 	bundle := flag.String("bundle-corpus", "", "prepare content-addressed local bundles for one corpus ID or all")
 	bundles := flag.String("bundle-dir", "", "existing local bundle directory; no network downloads occur")
-	referencePin := flag.String("reference-pin", "", "reviewed release pin for replay; all pinned assets must already be in bundle-dir")
+	referencePin := flag.String("reference-pin", "", "reviewed release pin for replay, materialization or CI evidence; all pinned assets must already be in bundle-dir")
 	describe := flag.Bool("describe-catalog", false, "describe catalog inputs, sizes and native source versions")
 	replay := flag.Bool("replay", false, "execute existing acceptance entrypoints with complete case evidence; go test arguments follow --")
 	receipts := flag.String("receipt-dir", "artifacts/qualification", "directory for execution plans, original events and receipts")
@@ -151,8 +151,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "candidate evidence verification requires an explicit authenticated reference origin")
 		os.Exit(1)
 	}
-	if *referencePin != "" && !*replay && *materialize == "" || *materialize != "" && (*referencePin == "" || *inputDir == "") {
-		fmt.Fprintln(os.Stderr, "a reviewed reference pin requires replay or explicit input materialization; materialization needs an input directory")
+	if *referencePin != "" && !*replay && *materialize == "" && *checkExecution == "" || *materialize != "" && (*referencePin == "" || *inputDir == "") {
+		fmt.Fprintln(os.Stderr, "a reviewed reference pin requires replay, input materialization or CI evidence; materialization needs an input directory")
 		os.Exit(1)
 	}
 	standalone := 0
@@ -194,9 +194,21 @@ func main() {
 				var summary executionEvidenceSummary
 				switch origin.Workflow {
 				case "ci":
-					summary, err = checkCIEvidence(ctx, *root, *checkExecution, origin)
+					var reviewed *corpus.Catalog
+					if *referencePin != "" {
+						var checked corpus.Catalog
+						checked, err = checkedCIEvidenceReferences(ctx, *root, *registryPath, *referencePin, *bundles)
+						reviewed = &checked
+					}
+					if err == nil {
+						summary, err = checkCIEvidence(ctx, *root, *checkExecution, origin, reviewed)
+					}
 				case "native":
-					summary, err = checkNativeEvidence(ctx, *root, *checkExecution, origin)
+					if *referencePin != "" {
+						err = errors.New("an explicit evidence reference pin is supported only for CI; native restoration has its own complete admission")
+					} else {
+						summary, err = checkNativeEvidence(ctx, *root, *checkExecution, origin)
+					}
 				default:
 					err = errors.New("unknown execution evidence workflow")
 				}

@@ -13,7 +13,7 @@ import re
 import subprocess
 
 from reference_campaign import authenticated_checkout
-from release_assets import GitHub, require
+from release_assets import GitHub, fetch, read_document, require
 from execution_reuse import (classify, eligible_run, original_run, pull_request_base,
                              source_document, verify_summary)
 
@@ -92,11 +92,24 @@ def inspect(client, run):
     return jobs, sorted(proof, key=lambda a: a['name'])
 
 
-def qualify(client, run, tree, workspace, execute=subprocess.run):
+def qualify(client, run, tree, workspace, execute=subprocess.run, reference_assets=None, source_root=None):
     jobs, artifacts = inspect(client, run)
     workspace = Path(workspace).absolute()
     require(not workspace.exists(), 'absent managed CI inheritance scratch required')
     workspace.mkdir(parents=True)
+    reference_arguments = []
+    pin_member = 'acceptance/qualification/references.json'
+    pin = Path(source_root or Path.cwd()) / pin_member
+    if pin.exists() or pin.is_symlink():
+        require(pin.is_file() and not pin.is_symlink(), 'reviewed CI source pin is missing or aliased')
+        if reference_assets is None:
+            reference_assets = workspace / 'references'
+            fetch(read_document(pin, 64 << 10), reference_assets, client=client)
+        reference_assets = Path(reference_assets).resolve(strict=True)
+        require(reference_assets.is_dir(), 'reviewed CI reference asset directory missing')
+        reference_arguments = ['-reference-pin', pin_member, '-bundle-dir', str(reference_assets)]
+    else:
+        require(reference_assets is None, 'preloaded reference assets require the original reviewed source pin')
     evidence = workspace / 'evidence'
     download = evidence / artifacts[0]['name'] if len(artifacts) == 1 else evidence
     command = ['gh', 'run', 'download', str(run['id']), '--repo', client.repository, '--dir', str(download)]
@@ -134,7 +147,7 @@ def qualify(client, run, tree, workspace, execute=subprocess.run):
     origin_path = workspace / 'origin.json'
     origin_path.write_text(json.dumps(document, indent=2) + '\n')
     result = execute(['go', 'run', './acceptance/qualification', '-check-execution-evidence', str(evidence),
-                      '-execution-origin', str(origin_path)], capture_output=True, text=True)
+                      '-execution-origin', str(origin_path), *reference_arguments], capture_output=True, text=True)
     (workspace / 'evidence.stdout.log').write_text(result.stdout)
     (workspace / 'evidence.stderr.log').write_text(result.stderr)
     result.check_returncode()

@@ -120,11 +120,11 @@ func TestDocumentationInheritanceStillRequiresOriginalCaseExecution(t *testing.T
 	root, directory, origin := ciEvidenceControl(t)
 	writeControl(t, root, "README.md", "Only documentation changed\n")
 	commitExecutionChanges(t, root)
-	if _, err := checkCIEvidence(context.Background(), root, directory, origin); err == nil {
+	if _, err := checkCIEvidence(context.Background(), root, directory, origin, nil); err == nil {
 		t.Fatal("non-identical source inherited without an explicit projection")
 	}
 	origin.Projection = documentationChanges
-	proof, err := checkCIEvidence(context.Background(), root, directory, origin)
+	proof, err := checkCIEvidence(context.Background(), root, directory, origin, nil)
 	if err != nil || proof.Projection == nil || proof.Projection.Classification != documentationChanges || proof.Origin != origin.Origin || len(proof.Receipts) != 1 {
 		t.Fatal("documentation inheritance lost original proof or source distinction", proof, err)
 	}
@@ -132,7 +132,7 @@ func TestDocumentationInheritanceStillRequiresOriginalCaseExecution(t *testing.T
 	// Git change classification must still prevent stale execution inheritance.
 	writeControl(t, root, "new-helper.sh", "unknown execution input\n")
 	commitExecutionChanges(t, root)
-	if _, err := checkCIEvidence(context.Background(), root, directory, origin); err == nil {
+	if _, err := checkCIEvidence(context.Background(), root, directory, origin, nil); err == nil {
 		t.Fatal("an unclassified dependency inherited prior verdicts")
 	}
 }

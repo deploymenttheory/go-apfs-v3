@@ -1,4 +1,5 @@
 from copy import deepcopy
+from contextlib import chdir
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -105,6 +106,51 @@ class CompleteCIReuse(unittest.TestCase):
                 with self.assertRaises((ValueError, subprocess.CalledProcessError)):
                     reuse.qualify(client, run, 'f' * 40 if failure == 'tree' else 'e' * 40, workspace, execute)
                 self.assertFalse((workspace / 'inheritance.json').exists())
+
+    def test_reviewed_ci_inputs_are_fetched_and_fully_admitted_with_original_evidence(self):
+        for preloaded in (False, True):
+            client, _, run, *_ = self.fixture()
+            with self.subTest(preloaded=preloaded), tempfile.TemporaryDirectory() as temporary, chdir(temporary):
+                root = Path(temporary)
+                pin = root / 'acceptance/qualification/references.json'
+                pin.parent.mkdir(parents=True)
+                pin.write_text(json.dumps({'schema': 1, 'repository': client.repository}))
+                prepared = root / 'shared-assets' if preloaded else None
+                if prepared:
+                    prepared.mkdir()
+                workspace = root / 'inheritance'
+                calls = []
+
+                def fetch(document, directory, client):
+                    self.assertEqual(document['repository'], client.repository)
+                    Path(directory).mkdir(parents=True)
+
+                def execute(command, **kwargs):
+                    calls.append(command)
+                    return self.execute(command, **kwargs)
+
+                with patch.object(reuse, 'fetch', side_effect=fetch) as download:
+                    proof = reuse.qualify(client, run, 'e' * 40, workspace, execute,
+                                          reference_assets=prepared)
+                self.assertTrue(proof['reuse'])
+                self.assertEqual(download.call_count, 0 if preloaded else 1)
+                verify = next(command for command in calls if '-check-execution-evidence' in command)
+                self.assertEqual(verify[verify.index('-reference-pin') + 1], 'acceptance/qualification/references.json')
+                self.assertEqual(Path(verify[verify.index('-bundle-dir') + 1]),
+                                 (prepared or workspace / 'references').resolve())
+
+    def test_unavailable_reviewed_assets_cannot_silently_use_historical_inputs(self):
+        client, _, run, *_ = self.fixture()
+        with tempfile.TemporaryDirectory() as temporary, chdir(temporary):
+            root = Path(temporary)
+            pin = root / 'acceptance/qualification/references.json'
+            pin.parent.mkdir(parents=True)
+            pin.write_text('{"schema":1}')
+            workspace = root / 'inheritance'
+            with patch.object(reuse, 'fetch', side_effect=ValueError('missing reviewed asset')), \
+                    self.assertRaisesRegex(ValueError, 'missing reviewed asset'):
+                reuse.qualify(client, run, 'e' * 40, workspace, self.execute)
+            self.assertFalse((workspace / 'inheritance.json').exists())
 
     def test_unknown_pull_request_and_manual_events_execute_full_ci(self):
         for event in ('pull_request', 'workflow_dispatch'):

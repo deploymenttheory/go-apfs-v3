@@ -15,7 +15,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
 )
 
-func checkCIEvidence(ctx context.Context, root, directory string, origin executionEvidenceOrigin) (executionEvidenceSummary, error) {
+func checkCIEvidence(ctx context.Context, root, directory string, origin executionEvidenceOrigin, reviewed *corpus.Catalog) (executionEvidenceSummary, error) {
 	summary := executionEvidenceSummary{Schema: 1, Origin: origin.Origin, Tree: origin.Tree, Receipts: []receipt.File{}}
 	if origin.Schema != 1 || origin.Workflow != "ci" || origin.Origin.Validate() != nil || len(origin.Artifacts) == 0 || len(origin.Artifacts) > 1000 {
 		return summary, errors.New("authenticated complete CI origin and artifact inventory required")
@@ -36,6 +36,9 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin executi
 	catalog, err := corpus.Read(strings.NewReader(string(data)))
 	if err != nil {
 		return summary, err
+	}
+	if reviewed != nil {
+		catalog = *reviewed
 	}
 	inputs := map[string]string{}
 	for _, entry := range catalog.Entries {
@@ -120,8 +123,11 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin executi
 			}
 			for _, input := range plan.Inputs {
 				if input.Use != "retained" || inputs[input.ID] != input.TreeSHA256 {
-					return summary, errors.New("CI execution input differs from the current retained catalog")
+					return summary, errors.New("CI execution input differs from its admitted catalog")
 				}
+			}
+			if err = checkReplaySourceEvidence(filepath.Dir(name), plan); err != nil {
+				return summary, err
 			}
 			relative, err := filepath.Rel(directory, name)
 			if err != nil {
@@ -145,4 +151,25 @@ func checkCIEvidence(ctx context.Context, root, directory string, origin executi
 		}
 	}
 	return summary, nil
+}
+
+// Only the pin in the authenticated source checkout can replace its historical
+// catalog. An arbitrary caller-selected release is not the original CI input.
+func checkedCIEvidenceReferences(ctx context.Context, root, registryPath, pinPath, bundles string) (corpus.Catalog, error) {
+	const member = "acceptance/qualification/references.json"
+	expected, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(member)))
+	if err != nil {
+		return corpus.Catalog{}, err
+	}
+	if !filepath.IsAbs(pinPath) {
+		pinPath = filepath.Join(root, filepath.FromSlash(pinPath))
+	}
+	actual, err := filepath.Abs(pinPath)
+	if err != nil || actual != expected {
+		return corpus.Catalog{}, errors.Join(err, errors.New("CI evidence requires the reviewed pin in its authenticated source checkout"))
+	}
+	if _, err = regularFile(root, member); err != nil {
+		return corpus.Catalog{}, err
+	}
+	return checkedReferenceCatalog(ctx, root, registryPath, member, bundles)
 }

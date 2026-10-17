@@ -34,6 +34,15 @@ different retained data or fallback captures fails comparison. Historical HFS
 controls and fresh current-Go experiments retain their separate roles; fresh
 native-modified continuation sources retain their own execution proof.
 
+CI evidence admission uses the pin from its authenticated source checkout and
+fully checks the release catalog, permanent provenance and every input bundle
+before matching original replay input trees. A different external pin cannot
+explain that execution. Historical campaigns without a pin retain their original
+catalog admission. Missing or corrupt reviewed assets prevent reuse and select
+fresh complete execution; they cannot silently substitute historical inputs.
+The campaign comparison shares its fetched release assets with this same CI
+admission rather than fetching a second copy for each original workflow.
+
 The case index retains actual invocation origins, tools, flags and receipt
 digests once per invocation. Case input identities use the existing source-version
 projection, including primary and auxiliary inputs. Source versions, hosts,

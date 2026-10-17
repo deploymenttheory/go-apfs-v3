@@ -71,7 +71,7 @@ func TestExecutionIndexComparesCaseSourceBytesAcrossDifferentBatchSizes(t *testi
 
 func TestExecutionIndexPreservesEveryAdmittedCaseHostRaceOriginAndOutput(t *testing.T) {
 	root, directory, origin := ciEvidenceControl(t)
-	proof, err := checkCIEvidence(context.Background(), root, directory, origin)
+	proof, err := checkCIEvidence(context.Background(), root, directory, origin, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestExecutionIndexDoesNotReadAChangedAdmittedReceipt(t *testing.T) {
 
 func TestExecutionIndexRetainsOrdinaryUnitTestsPackagesAndSkippedTests(t *testing.T) {
 	root, directory, origin := ciEvidenceControl(t, "./...")
-	proof, err := checkCIEvidence(context.Background(), root, directory, origin)
+	proof, err := checkCIEvidence(context.Background(), root, directory, origin, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

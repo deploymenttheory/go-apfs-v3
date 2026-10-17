@@ -71,7 +71,7 @@ func TestReference(t *testing.T) {
 
 func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing.T) {
 	root, directory, origin := ciEvidenceControl(t)
-	proof, err := checkCIEvidence(context.Background(), root, directory, origin)
+	proof, err := checkCIEvidence(context.Background(), root, directory, origin, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing
 			case "duplicate":
 				changed.Artifacts = append(changed.Artifacts, changed.Artifacts[0])
 			}
-			if _, err := checkCIEvidence(context.Background(), root, directory, changed); err == nil {
+			if _, err := checkCIEvidence(context.Background(), root, directory, changed, nil); err == nil {
 				t.Fatal("incompatible or incomplete original CI was admitted")
 			}
 		})
@@ -116,7 +116,7 @@ func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing
 	}
 	duplicatedOrigin := origin
 	duplicatedOrigin.Artifacts = append(append([]executionEvidenceArtifact(nil), origin.Artifacts...), executionEvidenceArtifact{Name: "qualification-ci-portable-1", Job: "portable", Host: runtime.GOOS})
-	if _, err = checkCIEvidence(context.Background(), root, directory, duplicatedOrigin); err == nil {
+	if _, err = checkCIEvidence(context.Background(), root, directory, duplicatedOrigin, nil); err == nil {
 		t.Fatal("one execution replaced a different required CI artifact")
 	}
 	if err = os.RemoveAll(duplicate); err != nil {
@@ -130,14 +130,70 @@ func TestCIInheritanceChecksOriginalExecutionAndRetainsReceiptDigests(t *testing
 	if err = os.WriteFile(eventPath, append(append([]byte(nil), events...), '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = checkCIEvidence(context.Background(), root, directory, origin); err == nil {
+	if _, err = checkCIEvidence(context.Background(), root, directory, origin, nil); err == nil {
 		t.Fatal("changed original event bytes inherited CI")
 	}
 	if err = os.WriteFile(eventPath, events, 0600); err != nil {
 		t.Fatal(err)
 	}
 	writeControl(t, root, "library_test.go", "package control\n// Changed assertions.\n")
-	if _, err = checkCIEvidence(context.Background(), root, directory, origin); err == nil {
+	if _, err = checkCIEvidence(context.Background(), root, directory, origin, nil); err == nil {
 		t.Fatal("changed library assertions inherited old CI")
+	}
+}
+
+// Exercise an actual replay against the fully admitted release fixture. The
+// historical catalog contains different bytes and cannot explain this receipt.
+func checkReviewedCIReplayControl(t *testing.T, root, bundles string) {
+	t.Helper()
+	ctx := context.Background()
+	for _, args := range [][]string{{"git", "add", "--all"}, {"git", "-c", "user.name=Qualification control", "-c", "user.email=control@example.invalid", "commit", "--quiet", "-m", "reviewed reference control"}} {
+		if _, err := commandText(ctx, root, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	revision, err := commandText(ctx, root, "git", "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := commandText(ctx, root, "git", "rev-parse", "HEAD^{tree}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GITHUB_RUN_ID", "124")
+	t.Setenv("GITHUB_RUN_ATTEMPT", "1")
+	t.Setenv("GITHUB_JOB", "portable")
+	t.Setenv("GITHUB_SHA", revision)
+	var output bytes.Buffer
+	err = runReplay(ctx, replayOptions{root: root, registry: "acceptance/qualification/registry.json", catalog: "acceptance/qualification/corpus.json", bundles: bundles, referencePin: "acceptance/qualification/references.json", directory: "artifacts/reference-ci", args: []string{"-timeout", "1m", "./acceptance", "-run", "^TestReference$/macos-15/"}}, &output)
+	if err != nil {
+		t.Fatalf("actual pinned CI replay failed: %v\n%s", err, output.String())
+	}
+	directory := t.TempDir()
+	if err = os.CopyFS(filepath.Join(directory, "qualification-ci-portable-0"), os.DirFS(filepath.Join(root, "artifacts/reference-ci"))); err != nil {
+		t.Fatal(err)
+	}
+	origin := executionEvidenceOrigin{Schema: 1, Workflow: "ci", Origin: publication.Origin{Repository: "owner/filesystems", Revision: revision, Run: "124", Attempt: "1", Completed: time.Now().UTC()}, Tree: tree, Artifacts: []executionEvidenceArtifact{{Name: "qualification-ci-portable-0", Job: "portable", Host: runtime.GOOS}}}
+	if _, err = checkCIEvidence(ctx, root, directory, origin, nil); err == nil {
+		t.Fatal("historical retained catalog explained different pinned input bytes")
+	}
+	reviewed, err := checkedCIEvidenceReferences(ctx, root, "acceptance/qualification/registry.json", "acceptance/qualification/references.json", bundles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof, err := checkCIEvidence(ctx, root, directory, origin, &reviewed)
+	if err != nil || proof.CaseCount != 3 || len(proof.Receipts) != 1 {
+		t.Fatal("fully admitted pin did not retain the original CI obligations", err)
+	}
+	indexed, err := indexExecutionEvidence(ctx, root, directory, proof)
+	if err != nil || len(indexed.Cases) != 3 || len(indexed.Tests) == 0 {
+		t.Fatal("pinned CI lost its original case or unit-test inventory", err)
+	}
+	reviewed.Entries[0].TreeSHA256 = strings.Repeat("b", 64)
+	if _, err = checkCIEvidence(ctx, root, directory, origin, &reviewed); err == nil {
+		t.Fatal("a different admitted input identity explained original CI")
+	}
+	if _, err = checkedCIEvidenceReferences(ctx, root, "acceptance/qualification/registry.json", filepath.Join(t.TempDir(), "references.json"), bundles); err == nil || !strings.Contains(err.Error(), "authenticated source checkout") {
+		t.Fatal("arbitrary external pin could replace the original reviewed CI pin", err)
 	}
 }

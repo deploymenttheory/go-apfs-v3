@@ -16,6 +16,11 @@ import (
 func TestReviewedReferencesAdmitNewSourcesWithoutRewritingRetainedEvidence(t *testing.T) {
 	ctx := context.Background()
 	root := replayControlModule(t, "valid")
+	version, err := commandText(ctx, root, "go", "env", "GOVERSION")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeControl(t, root, "go.mod", "module github.com/deploymenttheory/go-apfs-v3\n\ngo "+strings.TrimPrefix(version, "go")+"\n")
 	writeControl(t, root, "internal/qualification/control.go", "package control\n")
 	writeControl(t, root, ".github/workflows/native.yml", "name: native control\n")
 	writeControl(t, root, ".gitignore", "fresh/\nartifacts/\n")
@@ -120,6 +125,7 @@ func TestReviewedReferencesAdmitNewSourcesWithoutRewritingRetainedEvidence(t *te
 			t.Fatal("reference identities differ from the actual verified source files", major, err)
 		}
 	}
+	checkReviewedCIReplayControl(t, root, bundles)
 	admitted, err := admitReplayInputs(ctx, root, "acceptance/qualification/corpus.json", bundles, "acceptance/qualification/references.json", r, recipes, recipes.Tests)
 	if err != nil {
 		t.Fatal(err)

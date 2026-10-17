@@ -316,7 +316,7 @@ def verify_replay_pin(indexes, sources):
                             'replay actually used different bytes from the reviewed pin: ' + source['id'])
 
 
-def admit_campaign(client, sources, runs, directory, verifier, execute=subprocess.run):
+def admit_campaign(client, sources, runs, directory, verifier, execute=subprocess.run, reference_assets=None):
     """Run the existing complete API admission and the Go inspector once per rail."""
     root, tree = Path(sources['root']), sources['tree']
     indexes, reports = [], {}
@@ -348,7 +348,11 @@ def admit_campaign(client, sources, runs, directory, verifier, execute=subproces
             return result
 
         controller = ci_reuse if workflow == 'ci' else native_reuse
-        reports[workflow] = controller.qualify(client, run, tree, target, execute=inspect)
+        options = {'execute': inspect}
+        if workflow == 'ci':
+            options['reference_assets'] = reference_assets
+            options['source_root'] = root
+        reports[workflow] = controller.qualify(client, run, tree, target, **options)
         indexes.append(read_document(target / 'index.json', 128 << 20))
     return {'sources': sources, 'reports': reports, 'indexes': indexes}
 
@@ -379,8 +383,10 @@ def compare_campaigns(client, baseline_root, candidate_root, baseline_runs, cand
     subprocess.run(['go', 'build', '-o', str(verifier), './acceptance/qualification'],
                    cwd=inspector_root, check=True)
     pinned_sources = checked_pin_sources(client, (baseline, candidate), workspace / 'references', verifier)
-    old = admit_campaign(client, baseline, baseline_runs, workspace / 'baseline', verifier)
-    new = admit_campaign(client, candidate, candidate_runs, workspace / 'candidate', verifier)
+    old = admit_campaign(client, baseline, baseline_runs, workspace / 'baseline', verifier,
+                         reference_assets=workspace / 'references')
+    new = admit_campaign(client, candidate, candidate_runs, workspace / 'candidate', verifier,
+                         reference_assets=workspace / 'references')
     verify_replay_pin(old['indexes'], pinned_sources)
     verify_replay_pin(new['indexes'], pinned_sources)
     productions = {invocation['production_sha256'] for campaign in (old, new)

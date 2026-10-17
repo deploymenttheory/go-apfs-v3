@@ -217,7 +217,7 @@ class CompleteCampaignAdmissionTests(unittest.TestCase):
                 value['evidence']['origin'] = {'run': str(len(calls))}
                 return subprocess.CompletedProcess(command, 0, stdout=json.dumps(value), stderr='')
 
-            def qualify(client, run, tree, target, execute):
+            def qualify(client, run, tree, target, execute, reference_assets=None, source_root=None):
                 self.assertEqual(tree, 'a' * 40)
                 target.mkdir(parents=True)
                 result = execute(['go', 'run', './acceptance/qualification',
