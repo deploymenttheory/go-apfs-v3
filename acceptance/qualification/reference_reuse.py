@@ -34,6 +34,30 @@ def select(pin_path, assets, fresh=False, run=subprocess.check_output, fetcher=f
             'catalog_sha256': pin['catalog']['sha256'], 'origin': manifest['origin']}
 
 
+def prepare_ci(pin_path, assets, recipes_path, run=subprocess.run, fetcher=fetch):
+    """Admit CI's shared inputs; every existing assertion still executes."""
+    pin_path = Path(pin_path)
+    require(not pin_path.is_symlink(), 'reviewed CI reference pin is aliased')
+    if not pin_path.exists():
+        return {'schema': 1, 'kind': 'ci-reference-input-admission',
+                'mode': 'retained', 'assertions_executed': False, 'controls': ''}
+    pin = read_document(pin_path, 64 << 10)
+    fetcher(pin, assets, os.environ.get('GITHUB_TOKEN', ''))
+    run(['go', 'run', './acceptance/qualification', '-check-references', str(pin_path),
+         '-bundle-dir', str(assets)], check=True)
+    recipes = read_document(recipes_path)
+    controls = set()
+    for recipe in recipes['tests']:
+        for control in recipe.get('controls', []):
+            require(isinstance(control, str) and re.fullmatch('[a-z][a-z0-9-]*', control),
+                    'required replay control is not a safe identifier')
+            controls.add(control)
+    return {'schema': 1, 'kind': 'ci-reference-input-admission', 'mode': 'reviewed',
+            'assertions_executed': False, 'controls': ','.join(sorted(controls)),
+            'pin_sha256': hashlib.sha256(pin_path.read_bytes()).hexdigest(),
+            'catalog_sha256': pin['catalog']['sha256']}
+
+
 def artifact_inputs(artifact, major, mapping=None):
     require(major in (15, 26, 27), 'required native source version missing')
     selected = {name: spec for name, spec in (mapping or sources()).items()
@@ -130,7 +154,7 @@ def materialize(pin_path, assets, artifact, major, destination, scratch, proof,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('select', 'materialize'))
+    parser.add_argument('action', choices=('select', 'materialize', 'ci'))
     parser.add_argument('--pin', type=Path, default=Path('acceptance/qualification/references.json'))
     parser.add_argument('--assets', type=Path, required=True)
     parser.add_argument('--fresh', action='store_true')
@@ -139,12 +163,21 @@ def main():
     parser.add_argument('--destination', type=Path)
     parser.add_argument('--scratch', type=Path)
     parser.add_argument('--proof', type=Path)
+    parser.add_argument('--recipes', type=Path, default=Path('acceptance/qualification/replay.json'))
     args = parser.parse_args()
     if args.action == 'select':
         report = select(args.pin, args.assets, args.fresh)
         if os.environ.get('GITHUB_OUTPUT'):
             with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
                 output.write('reuse=' + str(report['reuse']).lower() + '\n')
+    elif args.action == 'ci':
+        require(not args.fresh and not any((args.artifact, args.major, args.destination, args.scratch, args.proof)),
+                'CI input admission uses the existing full replay scope')
+        report = prepare_ci(args.pin, args.assets, args.recipes)
+        if os.environ.get('GITHUB_OUTPUT'):
+            with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
+                output.write('reviewed=' + str(report['mode'] == 'reviewed').lower() + '\n')
+                output.write('controls=' + report['controls'] + '\n')
     else:
         require(args.artifact and args.major and args.destination and args.scratch and args.proof and not args.fresh,
                 'original artifact, source version, destination, scratch and admission proof required')

@@ -32,6 +32,20 @@ registry agreement; `-verify-corpus all` also checks every retained member and
 original manifest. It runs in the existing source-check job. The replay runner
 uses the same resolver and records case-level execution evidence.
 
+CI validates its reviewed Apple inputs once on Linux, then shares the original
+catalog, permanent provenance and input bundles with the existing portable and
+acceptance jobs. Each replay explicitly supplies `-reference-pin` and
+`-bundle-dir`; the Go resolver still checks its own selected input bytes. The
+required controls come from the reviewed replay recipes. Source checks, library
+race checks and cross-builds remain independent of input transport.
+
+Before a reviewed pin exists, those jobs use the original retained catalog with
+the same selectors, hosts, instrumentation and process deadlines. Once a pin
+exists, missing or corrupt reviewed assets fail admission. Input preparation
+emits no execution verdict, and the complete CI gate requires it alongside every
+existing test group. The capture dependency contract includes this transport
+wiring, so it must be established before publishing the first shared pin.
+
 The Go syntax audit discovers entrypoints, skip calls (including helpers and
 nested subtests), and bare returns in an entrypoint's own body. Seven existing
 continuation entrypoints may return or skip when their native inputs are absent.
