@@ -157,6 +157,24 @@ class CampaignComparisonTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not a continuation'):
             self.compare(original, candidate)
 
+    def test_journaled_and_nonjournaled_continuation_executors_cannot_collapse(self):
+        ordinary, journaled, candidate = index(), index(2), index(3)
+        for item, artifact in ((ordinary, 'qualification-hfs-edit-readback-0'),
+                               (journaled, 'qualification-hfs-edit-readback-1'),
+                               (candidate, 'qualification-hfs-edit-readback-0')):
+            item['cases'][0]['case']['continuation'] = True
+            item['cases'][0]['inputs'][0]['use'] = 'native-continuation'
+            path = artifact + '/qualification/replay/receipt.json'
+            item['evidence']['original_receipts'][0]['path'] = path
+        # Original receipt metadata is shared with invocation by this fixture.
+        report = compare_campaigns.compare_indexes([ordinary, journaled], [candidate])
+        self.assertFalse(report['scope_agreement'])
+        self.assertEqual(report['baseline_scopes'], 2)
+        self.assertEqual(report['baseline_repeated_scopes'], 0)
+        self.assertEqual(len(report['missing']), 1)
+        self.assertEqual(report['missing'][0]['continuation_executor'], 'qualification-hfs-edit-readback-1')
+        self.assertTrue(compare_campaigns.compare_indexes([ordinary, journaled], [candidate, journaled])['scope_agreement'])
+
     def test_missing_duplicate_case_and_unknown_output_cannot_be_ignored(self):
         for kind in ('count', 'invocation', 'case-copy', 'output', 'unknown-output'):
             with self.subTest(kind=kind), self.assertRaises(ValueError):
