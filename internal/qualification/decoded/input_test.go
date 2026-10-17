@@ -96,14 +96,10 @@ func TestDecodedReusePreservesSourceAndRejectsConsumerMutation(t *testing.T) {
 
 func TestDecodedRelativeEvidencePathsRemainSeparateFromAbsoluteScratch(t *testing.T) {
 	archive := controlArchive(t, []byte("native source with repository-relative path"))
-	working, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	archive.Path, err = filepath.Rel(working, archive.Path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The runner's checkout and temporary directory can be on different
+	// Windows drives. Make this relative-path control local to its source.
+	t.Chdir(filepath.Dir(archive.Path))
+	archive.Path = filepath.Base(archive.Path)
 	input, err := controlCache(t, 4096).Open(context.Background(), archive, t.TempDir())
 	if err != nil || !input.Cached || !filepath.IsAbs(input.Path) || input.Verify(context.Background()) != nil {
 		t.Fatal("relative original evidence could not use managed absolute scratch", err)

@@ -162,6 +162,15 @@ func ordinaryPath(name string, directory bool) (string, error) {
 }
 
 func separate(left, right string) error {
+	if !filepath.IsAbs(left) || !filepath.IsAbs(right) {
+		return errors.New("decoded path separation requires absolute resolved paths")
+	}
+	// ordinaryPath has already resolved both locations. Different Windows
+	// volumes cannot contain each other, and filepath.Rel intentionally fails
+	// across them (the hosted checkout and test scratch use D: and C:).
+	if !strings.EqualFold(filepath.VolumeName(left), filepath.VolumeName(right)) {
+		return nil
+	}
 	for _, pair := range [][2]string{{left, right}, {right, left}} {
 		relative, err := filepath.Rel(pair[0], pair[1])
 		if err != nil {
