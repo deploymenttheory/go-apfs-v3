@@ -152,9 +152,20 @@ distinct. Assembly preserves every original byte within each selected native
 source directory, including original collector sources and observations.
 
 The conservative capture identity excludes ordinary Go filesystem source
-changes, captured input bytes and release transport pins. Collector, harness,
-recipe, workflow and unclassified dependency changes invalidate the complete
-capture. An unknown helper or build asset cannot silently inherit old evidence.
+changes, captured input bytes and release transport pins. It binds native
+collectors and helpers, input admission/resolution/transport code, capture
+recipes and unclassified dependencies. Known readers of execution evidence
+have a separate execution contract and do not construct Apple source bytes.
+
+For classified workflows, the capture fingerprint projects workflow-level
+inputs/environment and the capture, reusable capture-caller and unknown job
+blocks. Known execution jobs can change their batching without invalidating
+independent inputs. Native capture invocations added to those jobs are included.
+Unknown workflows, syntax, aliases or helpers retain their full-file binding.
+The source audit still binds every complete workflow byte, and execution changes
+still require fresh assertions. These derived fingerprints do not rewrite
+original workflow files or captured evidence. Matched current-Go HFS experiments
+continue to execute freshly.
 
 The release transport client streams content-addressed objects smaller than
 2 GiB, pins numeric release/asset IDs, checks sizes and SHA-256 values, and

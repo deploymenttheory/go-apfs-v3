@@ -58,8 +58,21 @@ func captureContract(ctx context.Context, root string, recipes replayContract) (
 		if strings.HasSuffix(name, "_test.go") || strings.HasPrefix(name, "acceptance/native/test_") || strings.HasPrefix(name, "acceptance/qualification/test_") {
 			continue
 		}
+		if slices.Contains(captureIndependentExecutionFiles, name) {
+			continue
+		}
 		if strings.HasSuffix(name, ".go") && !strings.HasPrefix(name, "acceptance/") && !strings.HasPrefix(name, "internal/qualification/") {
 			continue
+		}
+		if strings.HasPrefix(name, ".github/workflows/") {
+			original, err := regularFile(root, name)
+			if err != nil {
+				return "", err
+			}
+			if projected, known := captureWorkflowProjection(name, original); known {
+				files = append(files, projected)
+				continue
+			}
 		}
 		file, err := digestFile(ctx, root, name)
 		if err != nil {
