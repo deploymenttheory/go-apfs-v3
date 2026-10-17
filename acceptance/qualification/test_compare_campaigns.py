@@ -259,6 +259,42 @@ class CompleteCampaignAdmissionTests(unittest.TestCase):
             execute.assert_not_called()
 
 
+class NonreceiptCheckComparisonTests(unittest.TestCase):
+    def check_definitions(self, root, text):
+        path = root / '.github/workflows/ci.yml'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        return compare_campaigns.nonreceipt_checks(root)
+
+    def test_original_library_race_source_and_cross_build_checks_cannot_be_narrowed(self):
+        original = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = self.check_definitions(root, original)
+            # Replay batching/dependencies are separately compared using actual
+            # execution inventories; these jobs still have to pass admission.
+            scheduled = original.replace('    needs: evidence\n', '    needs: references\n')
+            scheduled = scheduled.replace('go run ./acceptance/qualification -replay -- -v',
+                                          'go run ./acceptance/qualification -replay -- -v -parallel 1')
+            self.assertNotEqual(scheduled, original)
+            self.assertEqual(self.check_definitions(root, scheduled), expected)
+            for before, after in (
+                ('go test -race -count=1', 'go test -count=1'),
+                ('linux darwin windows', 'linux'),
+                ("CGO_ENABLED: '1'", "CGO_ENABLED: '0'"),
+                ('python3 -m unittest discover -s acceptance/native', 'python3 -m unittest test_one'),
+            ):
+                with self.subTest(change=before):
+                    changed = original.replace(before, after)
+                    self.assertNotEqual(changed, original)
+                    self.assertNotEqual(self.check_definitions(root, changed), expected)
+            for changed in (original.replace('  race_library:\n', '  removed_race:\n'),
+                            original.replace('  source_checks:\n', '  "source_checks":\n'),
+                            original + '\nenv:\n  GOFLAGS: -tags=other\n'):
+                with self.assertRaises(ValueError):
+                    self.check_definitions(root, changed)
+
+
 class ReviewedInputComparisonTests(unittest.TestCase):
     def sources(self):
         return [{'id': 'apfs-editing', 'source_major': 15, 'source_sha256': 'c' * 64,

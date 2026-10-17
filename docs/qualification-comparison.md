@@ -50,6 +50,15 @@ or replacing an execution with a skip fails comparison even if all registered
 acceptance cases remain. Package/test executions that actually repeat may be
 consolidated; their unique scopes remain required.
 
+Source checks, library race checks and cross-builds do not yet produce the
+acceptance receipts. Their original successful jobs remain mandatory, and the
+comparison also binds their original execution definitions: steps, test/package
+selectors, tools, environment, platform/architecture loops and deadlines.
+Whole-job dependency and condition lines may change because actual successful
+execution is separately required. Unknown YAML layouts require an explicit
+policy. Narrowing the library race command cannot be hidden behind unchanged
+acceptance case receipts.
+
 Deterministic plaintext images and AppleDouble outputs compare by their actual
 byte counts and SHA-256 values. Randomized ciphertext is admitted through the
 original checks, including the native workflow's individual ciphertext checks;

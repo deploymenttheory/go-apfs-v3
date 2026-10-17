@@ -232,6 +232,41 @@ def assertion_sources(root):
     return files
 
 
+def nonreceipt_checks(root):
+    """Keep uninstrumented source, library-race and cross-build checks intact.
+
+    The complete API admission requires these jobs to execute successfully.
+    Preserve their execution definitions as well: registered acceptance cases
+    alone cannot prove that a changed library-race selector kept every package.
+    """
+    path = Path(root) / '.github/workflows/ci.yml'
+    require(path.is_file() and not path.is_symlink() and path.stat().st_size <= 8 << 20,
+            'original CI execution definitions are missing or aliased')
+    text = path.read_text(encoding='utf-8')
+    require(text.count('\njobs:\n') == 1, 'unknown CI layout needs an explicit check-definition policy')
+    header, body = text.split('\njobs:\n')
+    headers = list(re.finditer(r'^  ([a-z][a-z_0-9]*):\n', body, re.MULTILINE))
+    require(headers and len(headers) == len(re.findall(r'^  [^\s#][^\n]*:', body, re.MULTILINE)) and
+            not re.search(r'(?:^|[ \t])[&*][A-Za-z_]', text) and
+            all(not line.strip() or line.startswith(('  ', '#')) for line in body.splitlines()),
+            'unknown CI job layout needs an explicit check-definition policy')
+    result = {'workflow_environment': hashlib.sha256(header.encode()).hexdigest()}
+    for position, match in enumerate(headers):
+        name = match[1]
+        if name not in ('source_checks', 'build', 'race_library'):
+            continue
+        require(name not in result, 'duplicated original CI check definition')
+        end = headers[position + 1].start() if position + 1 < len(headers) else len(body)
+        # Whole-job scheduling can change; successful original execution is
+        # still mandatory. Steps, selectors, matrices, environments, tools,
+        # runner labels and process deadlines remain byte-bound.
+        section = ''.join(line for line in body[match.start():end].splitlines(keepends=True)
+                          if not line.startswith(('    needs:', '    if:')))
+        result[name] = hashlib.sha256(section.encode()).hexdigest()
+    require(len(result) == 4, 'required original source/library-race/cross-build definition missing')
+    return result
+
+
 def checked_pin_sources(client, source_roots, directory, verifier, execute=subprocess.run):
     """Admit the exact permanent release once; Go computes source identities."""
     directory = Path(directory)
@@ -329,6 +364,9 @@ def compare_campaigns(client, baseline_root, candidate_root, baseline_runs, cand
     old_assertions, new_assertions = assertion_sources(baseline['root']), assertion_sources(candidate['root'])
     require(old_assertions == new_assertions,
             'filesystem assertions or native helper sources changed; scheduling equivalence is unproven')
+    old_checks, new_checks = nonreceipt_checks(baseline['root']), nonreceipt_checks(candidate['root'])
+    require(old_checks == new_checks,
+            'source/library-race/cross-build execution definitions changed; equivalence is unproven')
     workspace = Path(workspace).resolve()
     require(not workspace.exists() and not workspace.is_symlink() and
             all(not workspace.is_relative_to(Path(source['root'])) for source in (baseline, candidate)),
@@ -354,6 +392,7 @@ def compare_campaigns(client, baseline_root, candidate_root, baseline_runs, cand
                    'candidate': {'sources': candidate, 'runs': list(candidate_runs)},
                    'production_sha256': productions.pop(),
                    'assertion_sources': old_assertions,
+                   'nonreceipt_checks': old_checks,
                    'reviewed_sources': pinned_sources,
                    'inspector_sha256': hashlib.sha256(verifier.read_bytes()).hexdigest()})
     (workspace / 'comparison.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
