@@ -20,6 +20,7 @@ type executionIndex struct {
 	Evidence    executionEvidenceSummary     `json:"evidence"`
 	Invocations []executionIndexedInvocation `json:"invocations"`
 	Cases       []executionIndexedCase       `json:"cases"`
+	Tests       []executionIndexedTest       `json:"test_executions"`
 }
 
 type executionIndexedInput struct {
@@ -45,7 +46,7 @@ type executionIndexedCase struct {
 }
 
 func indexExecutionEvidence(ctx context.Context, root, directory string, summary executionEvidenceSummary) (executionIndex, error) {
-	index := executionIndex{Evidence: summary, Invocations: []executionIndexedInvocation{}, Cases: []executionIndexedCase{}}
+	index := executionIndex{Evidence: summary, Invocations: []executionIndexedInvocation{}, Cases: []executionIndexedCase{}, Tests: []executionIndexedTest{}}
 	data, err := regularFile(root, "acceptance/qualification/registry.json")
 	if err != nil {
 		return index, err
@@ -75,6 +76,11 @@ func indexExecutionEvidence(ctx context.Context, root, directory string, summary
 		metadata := replayEvidence{}
 		controls := map[string]bool{}
 		if record.Plan.Stage == "replay" {
+			tests, err := indexReplayTests(ctx, filepath.Dir(name), original.SHA256, record)
+			if err != nil {
+				return index, err
+			}
+			index.Tests = append(index.Tests, tests...)
 			for _, flag := range record.Plan.Environment.Flags {
 				if value, ok := strings.CutPrefix(flag, "required-controls="); ok {
 					controls, err = replay.RequiredControls(value)

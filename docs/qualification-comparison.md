@@ -42,6 +42,14 @@ native verifier environments remain distinct. A different source dataset is
 another obligation. Missing scopes fail agreement; additional scopes and the
 number of actually repeated scopes are reported separately.
 
+The same original event streams also supply ordinary Go unit-test and package
+verdicts, including subtests outside the registered acceptance cases. The index
+retains pass and skip separately with their original receipt and actual build
+environment. Dropping a unit test, omitting a package, changing instrumentation
+or replacing an execution with a skip fails comparison even if all registered
+acceptance cases remain. Package/test executions that actually repeat may be
+consolidated; their unique scopes remain required.
+
 Deterministic plaintext images and AppleDouble outputs compare by their actual
 byte counts and SHA-256 values. Randomized ciphertext is admitted through the
 original checks, including the native workflow's individual ciphertext checks;

@@ -21,6 +21,7 @@ var captureIndependentExecutionFiles = []string{
 	"acceptance/qualification/execution_changes.go",
 	"acceptance/qualification/execution_evidence.go",
 	"acceptance/qualification/execution_index.go",
+	"acceptance/qualification/execution_tests.go",
 	"acceptance/qualification/execution_reuse.py",
 	"acceptance/qualification/measure.py",
 	"acceptance/qualification/native_evidence.go",

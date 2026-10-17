@@ -99,6 +99,7 @@ def output_identity(item, invocation):
 
 def inventory(indexes):
     scopes, copies, plaintext, checked = {}, 0, 0, 0
+    tests, test_copies = {}, 0
     for index in indexes:
         proof = index['evidence']
         require(proof['schema'] == 1 and len(index['cases']) == proof['qualified_cases'] and
@@ -111,6 +112,25 @@ def inventory(indexes):
                     'case invocation is missing, duplicated or not admitted')
             invocations[sha] = invocation
         require(set(invocations) == expected, 'original invocation inventory differs from admission')
+        seen_tests, tested_invocations = set(), set()
+        for item in index['test_executions']:
+            sha = item['original_receipt_sha256']
+            require(sha in invocations and invocations[sha]['stage'] == 'replay',
+                    'Go test has no admitted original replay invocation')
+            require(item['package'] and item['status'] in ('pass', 'skip'),
+                    'original Go test/package verdict is missing')
+            identity = {'package': item['package'], 'test': item.get('test', ''),
+                        'status': item['status'],
+                        'environment': build_environment(invocations[sha]['environment'], 'replay')}
+            key = canonical(identity)
+            require((sha, key) not in seen_tests, 'one original Go test was indexed more than once')
+            seen_tests.add((sha, key))
+            tested_invocations.add(sha)
+            if key in tests:
+                test_copies += 1
+            tests[key] = identity
+        require(tested_invocations == {sha for sha, item in invocations.items() if item['stage'] == 'replay'},
+                'original Go invocation lost its package/test execution inventory')
         seen = set()
         for item in index['cases']:
             sha = item['original_receipt_sha256']
@@ -138,7 +158,8 @@ def inventory(indexes):
                 plaintext += len(value['deterministic_plaintext'])
                 checked += len(value['admitted_without_byte_comparison'])
     return {'scopes': scopes, 'repeated_scopes': copies,
-            'plaintext_outputs': plaintext, 'outputs_without_byte_comparison': checked}
+            'plaintext_outputs': plaintext, 'outputs_without_byte_comparison': checked,
+            'go_tests': tests, 'repeated_go_tests': test_copies}
 
 
 def compare_indexes(baseline, candidate):
@@ -153,13 +174,20 @@ def compare_indexes(baseline, candidate):
     added = sorted(set(new['scopes']) - set(old['scopes']))
     changed = sorted(key for key in set(old['scopes']) & set(new['scopes'])
                      if old['scopes'][key]['outputs'] != new['scopes'][key]['outputs'])
+    missing_tests = sorted(set(old['go_tests']) - set(new['go_tests']))
+    added_tests = sorted(set(new['go_tests']) - set(old['go_tests']))
     return {'schema': 1, 'kind': 'admitted-case-comparison',
-            'scope_agreement': not missing and not changed,
+            'scope_agreement': not missing and not changed and not missing_tests,
             'baseline_scopes': len(old['scopes']), 'candidate_scopes': len(new['scopes']),
             'baseline_repeated_scopes': old['repeated_scopes'],
             'candidate_repeated_scopes': new['repeated_scopes'],
             'plaintext_outputs': new['plaintext_outputs'],
             'outputs_without_byte_comparison': new['outputs_without_byte_comparison'],
+            'baseline_go_tests': len(old['go_tests']), 'candidate_go_tests': len(new['go_tests']),
+            'baseline_repeated_go_tests': old['repeated_go_tests'],
+            'candidate_repeated_go_tests': new['repeated_go_tests'],
+            'missing_go_tests': [old['go_tests'][key] for key in missing_tests],
+            'added_go_tests': [new['go_tests'][key] for key in added_tests],
             'missing': [old['scopes'][key]['scope'] for key in missing],
             'added': [new['scopes'][key]['scope'] for key in added],
             'changed': [{'scope': old['scopes'][key]['scope'],

@@ -28,7 +28,10 @@ def index(run=1, **changes):
             'inputs': [{'id': 'apfs-editing', 'source_sha256': 'c' * 64, 'use': 'native-capture'}],
             'outputs': [{'path': case['outputs'][0], 'bytes': 1024, 'sha256': 'd' * 64}]}
     result = {'evidence': {'schema': 1, 'qualified_cases': 1, 'original_receipts': [file]},
-              'invocations': [invocation], 'cases': [item]}
+              'invocations': [invocation], 'cases': [item],
+              'test_executions': [{'original_receipt_sha256': file['sha256'],
+                                   'package': 'github.com/deploymenttheory/go-apfs-v3/apfs',
+                                   'test': 'TestContainerRead/bounds', 'status': 'pass'}]}
     result.update(changes)
     return result
 
@@ -91,6 +94,38 @@ class CampaignComparisonTests(unittest.TestCase):
         original, candidate = index(), index(2)
         candidate['cases'][0]['inputs'][0]['use'] = 'retained'
         self.assertTrue(self.compare(original, candidate)['scope_agreement'])
+
+    def test_dropped_unit_test_changed_instrumentation_or_new_skip_cannot_hide_behind_acceptance_cases(self):
+        for kind in ('drop', 'skip', 'package', 'subtest', 'host', 'race'):
+            with self.subTest(kind=kind):
+                original, candidate = index(), index(2)
+                item = candidate['test_executions'][0]
+                if kind == 'drop':
+                    candidate['test_executions'].append(dict(item, test='TestOther'))
+                    candidate['test_executions'].remove(item)
+                elif kind == 'skip': item['status'] = 'skip'
+                elif kind == 'package': item['package'] += '/other'
+                elif kind == 'subtest': item['test'] += '/different'
+                elif kind == 'host': candidate['invocations'][0]['environment']['os'] = 'windows'
+                elif kind == 'race': candidate['invocations'][0]['environment']['race'] = True
+                report = self.compare(original, candidate)
+                self.assertFalse(report['scope_agreement'])
+                self.assertEqual(len(report['missing_go_tests']), 1)
+        original, candidate = index(), index(2)
+        candidate['test_executions'] = []
+        with self.assertRaisesRegex(ValueError, 'lost its package/test execution inventory'):
+            self.compare(original, candidate)
+        candidate = index(2)
+        candidate['test_executions'].append(copy.deepcopy(candidate['test_executions'][0]))
+        with self.assertRaisesRegex(ValueError, 'indexed more than once'):
+            self.compare(original, candidate)
+
+    def test_repeated_unit_executions_can_be_consolidated_with_original_test_scope_intact(self):
+        report = compare_campaigns.compare_indexes([index(), index(2)], [index(3)])
+        self.assertTrue(report['scope_agreement'])
+        self.assertEqual(report['baseline_go_tests'], 1)
+        self.assertEqual(report['baseline_repeated_go_tests'], 1)
+        self.assertEqual(report['candidate_repeated_go_tests'], 0)
 
     def test_randomized_ciphertext_is_counted_for_independent_checks_without_raw_byte_equality(self):
         original, candidate = index(), index(2)

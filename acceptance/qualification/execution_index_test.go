@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -149,5 +151,55 @@ func TestExecutionIndexDoesNotReadAChangedAdmittedReceipt(t *testing.T) {
 	_, err = indexExecutionEvidence(context.Background(), root, directory, executionEvidenceSummary{Schema: 1, Receipts: []receipt.File{file}})
 	if err == nil || !strings.Contains(err.Error(), "receipt changed") {
 		t.Fatal("changed original execution bytes entered comparison", err)
+	}
+}
+
+func TestExecutionIndexRetainsOrdinaryUnitTestsPackagesAndSkippedTests(t *testing.T) {
+	root, directory, origin := ciEvidenceControl(t, "./...")
+	proof, err := checkCIEvidence(context.Background(), root, directory, origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index, err := indexExecutionEvidence(context.Background(), root, directory, proof)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := map[string]string{}
+	for _, item := range index.Tests {
+		if item.Receipt != proof.Receipts[0].SHA256 {
+			t.Fatal("unit execution lost its original receipt identity")
+		}
+		actual[item.Package+"/"+item.Test] = item.Status
+	}
+	for name, status := range map[string]string{
+		"github.com/deploymenttheory/go-apfs-v3/":                                   "pass",
+		"github.com/deploymenttheory/go-apfs-v3/TestReference/unit-assertion":       "pass",
+		"github.com/deploymenttheory/go-apfs-v3/TestReference/platform-unavailable": "skip",
+		receipt.AcceptancePackage + "/TestReference/macos-15/apfs/UDRO":             "pass",
+		receipt.AcceptancePackage + "/TestReference/macos-15/apfs/UDZO":             "pass",
+	} {
+		if actual[name] != status {
+			t.Fatalf("original unit/package execution missing or relabelled: %s: %q", name, actual[name])
+		}
+	}
+	name := filepath.Join(directory, filepath.FromSlash(proof.Receipts[0].Path))
+	var record receipt.Receipt
+	if err = readEvidenceDocument(name, &record); err != nil {
+		t.Fatal(err)
+	}
+	events := filepath.Join(filepath.Dir(name), record.Events.Path)
+	original, err := os.ReadFile(events)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := strings.ReplaceAll(string(original), "unit-assertion", "unit-assertiox")
+	if changed == string(original) {
+		t.Fatal("control has no original ordinary unit-test events")
+	}
+	if err = os.WriteFile(events, []byte(changed), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = indexExecutionEvidence(context.Background(), root, directory, proof); err == nil {
+		t.Fatal("changed original unit-test events entered the comparison")
 	}
 }

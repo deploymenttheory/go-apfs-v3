@@ -15,7 +15,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/qualification/receipt"
 )
 
-func ciEvidenceControl(t *testing.T) (string, string, executionEvidenceOrigin) {
+func ciEvidenceControl(t *testing.T, packages ...string) (string, string, executionEvidenceOrigin) {
 	t.Helper()
 	root := replayControlModule(t, "valid")
 	version, err := commandText(context.Background(), root, "go", "env", "GOVERSION")
@@ -23,7 +23,20 @@ func ciEvidenceControl(t *testing.T) (string, string, executionEvidenceOrigin) {
 		t.Fatal(err)
 	}
 	writeControl(t, root, "go.mod", "module github.com/deploymenttheory/go-apfs-v3\n\ngo "+strings.TrimPrefix(version, "go")+"\n")
-	if _, err = commandText(context.Background(), root, "git", "add", "go.mod"); err != nil {
+	tracked := []string{"git", "add", "go.mod"}
+	if len(packages) > 0 {
+		writeControl(t, root, "library_test.go", `package control
+import "testing"
+func TestReference(t *testing.T) {
+ t.Run("unit-assertion", func(t *testing.T) { if Value != 1 { t.Fatal("library assertion failed") } })
+ t.Run("platform-unavailable", func(t *testing.T) { t.Skip("ordinary optional test") })
+}
+`)
+		tracked = append(tracked, "library_test.go")
+	} else {
+		packages = []string{"./acceptance"}
+	}
+	if _, err = commandText(context.Background(), root, tracked...); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = commandText(context.Background(), root, "git", "-c", "user.name=Qualification control", "-c", "user.email=control@example.invalid", "commit", "--allow-empty", "-m", "actual control toolchain"); err != nil {
@@ -42,7 +55,9 @@ func ciEvidenceControl(t *testing.T) (string, string, executionEvidenceOrigin) {
 	t.Setenv("GITHUB_JOB", "portable")
 	t.Setenv("GITHUB_SHA", revision)
 	var output bytes.Buffer
-	err = runReplay(context.Background(), replayOptions{root: root, registry: "acceptance/qualification/registry.json", catalog: "acceptance/qualification/corpus.json", directory: "artifacts/qualification", args: []string{"-timeout", "1m", "./acceptance", "-run", "^TestReference$"}}, &output)
+	args := append([]string{"-timeout", "1m"}, packages...)
+	args = append(args, "-run", "^TestReference$")
+	err = runReplay(context.Background(), replayOptions{root: root, registry: "acceptance/qualification/registry.json", catalog: "acceptance/qualification/corpus.json", directory: "artifacts/qualification", args: args}, &output)
 	if err != nil {
 		t.Fatalf("original CI control failed: %v\n%s", err, output.String())
 	}
