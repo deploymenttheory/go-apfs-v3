@@ -1,0 +1,682 @@
+{
+  "schema": 1,
+  "name": "permission-inheritance",
+  "purpose": "ACL inheritance, creator ownership, chmod/chown effects, set-ID truncation and Apple cp's ACL/-p/-X composition on every filesystem, as observed through getattrlist extended security: permission editing and copying must reproduce them.",
+  "profiles": [
+    "apfs",
+    "apfsx",
+    "hfsplus",
+    "hfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Permissions",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/acl-file",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/write-user",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/write-root",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/chown-same",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/chown-group",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/plain-copy-source",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/truncate-user",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/acl-file",
+              "$MOUNT/Fixture/acl-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/symlink",
+            "target": "acl-file"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,readsecurity",
+              "$MOUNT/Fixture/acl-file"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "6755",
+              "$MOUNT/Fixture/write-user"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "6755",
+              "$MOUNT/Fixture/write-root"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "6755",
+              "$MOUNT/Fixture/chown-same"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "6755",
+              "$MOUNT/Fixture/chown-group"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "6755",
+              "$MOUNT/Fixture/truncate-user"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/inherited"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,execute,file_inherit,directory_inherit",
+              "$MOUNT/Fixture/inherited"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/only"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,execute,file_inherit,directory_inherit,only_inherit",
+              "$MOUNT/Fixture/only"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/limited"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,execute,file_inherit,directory_inherit,limit_inherit",
+              "$MOUNT/Fixture/limited"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/files-only"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,file_inherit",
+              "$MOUNT/Fixture/files-only"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/directories-only"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,directory_inherit",
+              "$MOUNT/Fixture/directories-only"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/source-inherited"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,file_inherit,directory_inherit",
+              "$MOUNT/Fixture/source-inherited"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/source-inherited/data",
+            "content": "Original permission contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/other-owner"
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "60001:20",
+              "$MOUNT/Fixture/other-owner"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "0777",
+              "$MOUNT/Fixture/other-owner"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/setgid-parent"
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "60001:20",
+              "$MOUNT/Fixture/setgid-parent"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "2777",
+              "$MOUNT/Fixture/setgid-parent"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/plain-copy-source",
+            "times": {
+              "birth": 1640995200000000000,
+              "mtime": 1672531200000000000,
+              "atime": 1704067200000000000
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "steps": [
+        {
+          "host": {
+            "path": "root-append",
+            "pattern": "text",
+            "content": "root write\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/acl-alias",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/write-user",
+            "content": "user write\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/root-append",
+              "$MOUNT/Fixture/write-root"
+            ],
+            "expect": "0",
+            "sudo": true
+          },
+          "note": "root write clears set-ID bits per filesystem policy"
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT/Fixture/chown-same"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              ":20",
+              "$MOUNT/Fixture/chown-group"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/inherited/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/inherited/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/inherited/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/only/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/only/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/only/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/limited/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/limited/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/limited/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/files-only/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/files-only/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/files-only/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/directories-only/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/directories-only/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/directories-only/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/other-owner/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/other-owner/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/other-owner/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/setgid-parent/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/setgid-parent/data",
+            "content": "inherited data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/setgid-parent/child/grandchild",
+            "content": "inherited grandchild\n"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "copied",
+      "steps": [
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$MOUNT/Fixture/plain-copy-source",
+              "$MOUNT/Fixture/acl-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$MOUNT/Fixture/acl-file",
+              "$MOUNT/Fixture/inherited/copied"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "$MOUNT/Fixture/acl-file",
+              "$MOUNT/Fixture/inherited/preserved"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "-X",
+              "$MOUNT/Fixture/acl-file",
+              "$MOUNT/Fixture/inherited/preserved-no-xattrs"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "$MOUNT/Fixture/source-inherited/data",
+              "$MOUNT/Fixture/inherited/without-source-inheritance"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "$MOUNT/Fixture/source-inherited/data",
+              "$MOUNT/Fixture/without-inheritance"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$MOUNT/Fixture/write-root",
+              "$MOUNT/Fixture/ordinary-setid"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "$MOUNT/Fixture/write-root",
+              "$MOUNT/Fixture/inherited/preserved-setid"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$MOUNT/Fixture/plain-copy-source",
+              "$MOUNT/Fixture/write-user"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/truncate-user",
+            "bytes": 0
+          },
+          "note": "O_TRUNC without a write: APFS keeps set-ID bits, HFS clears them"
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,3907 @@
+{
+  "schema": 1,
+  "name": "apfs-mutation-sources",
+  "purpose": "Apple-formatted APFS volumes with fragmented forks, a three-alias chain, compression, independent forks, ACLs, set-ID bits, a directory symlink, a signed app and a versioned framework, followed by Apple's own file, fork and directory mutations: the sources and expectations for every existing-image edit on APFS.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": false
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Existing",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "source",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/small",
+            "content": "existing data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/empty",
+            "content": "existing data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/independent",
+            "content": "existing data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "content": "existing data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-resource",
+            "content": "existing data\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/independent/..namedfork/rsrc",
+            "content": "Independent fork\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/independent",
+            "name": "org.go-apfs.retained",
+            "content": "Opaque retained metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/inline-compressed",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/inline-compressed/..namedfork/rsrc",
+            "content": "Independent inline fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/inline-compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/inline-compressed",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/resource-compressed",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/resource-compressed/..namedfork/rsrc",
+            "payload": "rsrc-type-4.fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/resource-compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-4.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/resource-compressed",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Unicode-é",
+            "content": "Native name lookup\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/fragmented-data",
+              "$MOUNT/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/symlink",
+            "target": "fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/setid",
+            "content": "set-id bits\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/setid",
+            "mode": 3565
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/acl-dir"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "user:$USER allow read,write,execute,file_inherit,directory_inherit",
+              "$MOUNT/Fixture/acl-dir"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework/Versions"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework/Versions/A"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework/Versions/A/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Example.framework/Versions/A/Resources/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.framework</string><key>CFBundlePackageType</key><string>FMWK</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "framework.c",
+            "pattern": "text",
+            "content": "int example_value(void) { return 7; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-dynamiclib",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/framework.c",
+              "-o",
+              "$MOUNT/Fixture/Example.framework/Versions/A/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/Example.framework/Versions/Current",
+            "target": "A"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/Example.framework/Example",
+            "target": "Versions/Current/Example"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/Example.framework/Resources",
+            "target": "Versions/Current/Resources"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT/Fixture/Example.framework"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT/Fixture/Example.framework"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/alias",
+              "$MOUNT/Fixture/third"
+            ],
+            "expect": "0"
+          },
+          "note": "three-alias chain"
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/guards"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/dir-link",
+            "target": "guards"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/00",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/00"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/01",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/01"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/02",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/02"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/03",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/03"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/04",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/04"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/05",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/05"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/06",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/06"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/07",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/07"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/08",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/08"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/09",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/09"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/10",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/10"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/11",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/11"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/12",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/12"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/13",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/13"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/14",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/14"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/15",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/15"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/16",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/16"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/17",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/17"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/18",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/18"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/19",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/19"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/20",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/20"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/21",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/21"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/22",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/22"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/23",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/23"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/24",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/24"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/25",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/25"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/26",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/26"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/27",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/27"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/28",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/28"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/29",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/29"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/30",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/30"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/guards/31",
+            "pattern": "zeros",
+            "bytes": 131072
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/guards/31"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131072,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/fragmented-resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/00"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/01"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/02"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/03"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/04"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/05"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/06"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/07"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/08"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/09"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/10"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/11"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/12"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/13"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/14"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/15"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/16"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/17"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/18"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/19"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/20"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/21"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/22"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/23"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/24"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/25"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/26"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/27"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/28"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/29"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/30"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/guards/31"
+          }
+        },
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/empty",
+            "bytes": 0
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/fragmented-data",
+          "Fixture/fragmented-resource"
+        ],
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app",
+          "Fixture/Example.framework"
+        ]
+      }
+    },
+    {
+      "name": "peak",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/alias",
+            "pattern": "sequence",
+            "bytes": 20971520,
+            "label": "grow"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/small",
+            "pattern": "sequence",
+            "bytes": 7000,
+            "label": "small"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/inline-compressed",
+            "pattern": "sequence",
+            "bytes": 7000,
+            "label": "inline"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/resource-compressed",
+            "pattern": "sequence",
+            "bytes": 100000,
+            "label": "resource"
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/alias",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/small",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/inline-compressed",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/resource-compressed",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/small",
+            "mode": 493
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/fragmented-data",
+          "Fixture/fragmented-resource"
+        ],
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app",
+          "Fixture/Example.framework"
+        ]
+      }
+    },
+    {
+      "name": "final",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "pattern": "sequence",
+            "bytes": 513,
+            "label": "shrink"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 131073,
+            "label": "fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/empty",
+            "bytes": 0
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/independent",
+            "pattern": "sequence",
+            "bytes": 65537,
+            "label": "independent"
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/fragmented-data",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/fragmented-resource",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/empty",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/independent",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/fragmented-data",
+          "Fixture/fragmented-resource"
+        ],
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app",
+          "Fixture/Example.framework"
+        ]
+      }
+    },
+    {
+      "name": "catalog",
+      "from": "source",
+      "steps": [
+        {
+          "host": {
+            "path": "catalog-payload",
+            "pattern": "sequence",
+            "bytes": 8193,
+            "label": "catalog"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "-p",
+              "-m",
+              "0750",
+              "$MOUNT/Fixture/Catalog/A/B"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other",
+              "$MOUNT/Fixture/Catalog/obsolete"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/001-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/002-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/003-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/004-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/005-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/006-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/007-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/008-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/009-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/010-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/011-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/013-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/014-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/015-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/016-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/017-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/018-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/019-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/020-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/021-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/022-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/023-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/024-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/025-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/026-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/027-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/028-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/029-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/030-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/031-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/032-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/033-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/034-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/035-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/036-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/037-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/038-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/039-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/040-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/041-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/042-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/043-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/044-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/045-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/046-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/047-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/048-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/049-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/050-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/051-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/052-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/053-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/054-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/055-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/056-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/057-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/058-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/059-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/060-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/061-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/062-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/063-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/064-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/065-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/066-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/067-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/068-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/069-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/070-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/071-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/072-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/073-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/074-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/075-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/076-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/077-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/078-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/079-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/080-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/081-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/082-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/083-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/084-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/085-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/086-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/087-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/088-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/089-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/090-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/091-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/092-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/093-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/094-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/A/B/095-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/obsolete/child"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/café:resource"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/independent",
+              "$MOUNT/Fixture/Catalog/forked"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/Catalog/forked",
+              "$MOUNT/Fixture/Catalog/Forked"
+            ],
+            "expect": "0"
+          },
+          "note": "case-only rename"
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/Catalog/A/B",
+              "$MOUNT/Fixture/Catalog/other/Moved"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/001-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "$MOUNT/Fixture/small"
+            ],
+            "expect": "0"
+          },
+          "note": "rename over an existing file"
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/alias",
+              "$MOUNT/Fixture/Catalog/linked"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/fragmented-data"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "-r",
+              "$MOUNT/Fixture/Catalog/obsolete"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/symlink",
+              "$MOUNT/Fixture/Catalog"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/dir-link",
+              "$MOUNT/Fixture/Catalog"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "0751",
+              "$MOUNT/Fixture/Catalog/other"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/café:resource",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/small",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/other/Moved",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/other",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/A",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "catalog-final",
+      "steps": [
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/linked",
+              "$MOUNT/Fixture/inline-compressed",
+              "$MOUNT/Fixture/resource-compressed"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/002-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/004-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/006-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/008-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/010-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/014-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/016-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/018-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/020-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/022-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/024-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/026-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/028-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/030-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/032-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/034-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/036-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/038-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/040-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/042-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/044-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/046-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/048-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/050-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/052-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/054-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/056-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/058-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/060-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/062-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/064-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/066-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/068-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/070-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/072-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/074-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/076-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/078-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/080-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/082-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/084-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/086-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/088-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/090-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/092-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "$MOUNT/Fixture/Catalog/other/Moved/094-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "-r",
+              "$MOUNT/Fixture/Catalog/A"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT/Fixture/Catalog/reused"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/catalog-payload",
+              "$MOUNT/Fixture/Catalog/reused/contents"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/reused",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Catalog/reused/contents",
+            "times": {
+              "birth": 1749283750000000000,
+              "mtime": 1749283750000000000,
+              "atime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "-r",
+              "$MOUNT/Fixture/Catalog/symlink",
+              "$MOUNT/Fixture/Catalog/dir-link"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    }
+  ]
+}

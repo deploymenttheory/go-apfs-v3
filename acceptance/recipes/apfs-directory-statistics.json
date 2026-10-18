@@ -1,0 +1,1195 @@
+{
+  "schema": 1,
+  "name": "apfs-directory-statistics",
+  "purpose": "Directory statistics (apfs.util -M) maintained by Apple through 35 ordered operations on tracked and untracked trees, with every intermediate state retained: the editor must keep counts, sizes, origins and generations in step.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Primary",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "source",
+      "steps": [
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "apfs.util",
+            "args": [
+              "-M",
+              "$MOUNT/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          },
+          "note": "enable directory statistics while empty"
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/data",
+            "content": "Original linked contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Primary/Fixture/data",
+              "$MOUNT:Primary/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT:Primary/Fixture/symlink",
+            "target": "data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/data/..namedfork/rsrc",
+            "content": "Independent resource fork\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Primary/Fixture/data",
+            "name": "org.go-apfs.retained",
+            "content": "Opaque retained metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/mode",
+            "content": "mode file\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT:Primary/Fixture/mode",
+            "mode": 420
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT:Primary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT:Primary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/nested-origin"
+          }
+        },
+        {
+          "tool": {
+            "program": "apfs.util",
+            "args": [
+              "-M",
+              "$MOUNT/Fixture/nested-origin"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/nested-origin/child"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/nested-origin/child/data",
+            "content": "Nested statistics contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/data",
+              "$MOUNT/Fixture/nested-origin/cross-directory-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT/Untracked"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT/Untracked"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Untracked/untracked-branch"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Untracked/untracked-branch/data",
+            "pattern": "zeros",
+            "bytes": 8193
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-01-create",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/new",
+            "pattern": "sequence",
+            "bytes": 5000
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-02-fork-grow",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/new/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 7000
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-03-fork-shrink",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/new/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 3
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-04-fork-empty",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/new/..namedfork/rsrc",
+            "content": ""
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-05-utime",
+      "steps": [
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/new",
+            "times": {
+              "mtime": 1704067200000000000
+            }
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-06-empty-create",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/empty-2",
+            "content": ""
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-07-empty-unlink",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/empty"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-08-boundary-8193",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/boundary",
+            "pattern": "sequence",
+            "bytes": 8193
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-09-boundary-5000",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/boundary",
+            "pattern": "sequence",
+            "bytes": 5000
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-10-boundary-0",
+      "steps": [
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/boundary",
+            "bytes": 0
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-11-boundary-unlink",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/boundary"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-12-symlink",
+      "steps": [
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/new-symlink",
+            "target": "new"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-13-symlink-unlink",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/new-symlink"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-14-enter-branch",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Untracked/untracked-branch",
+            "target": "$MOUNT/Fixture/entered-branch"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-15-leave-branch",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/entered-branch",
+            "target": "$MOUNT/Untracked/untracked-branch"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-16-chmod",
+      "steps": [
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/new",
+            "mode": 384
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-17-xattr",
+      "steps": [
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/new",
+            "name": "org.go-apfs.statistics",
+            "content": "statistics attribute"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-18-link",
+      "steps": [
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/new",
+              "$MOUNT/Fixture/new-alias"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-19-link-nested",
+      "steps": [
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/new",
+              "$MOUNT/Fixture/nested-origin/new-alias"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-20-unlink-primary",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/new"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-21-move-out",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/new-alias",
+            "target": "$MOUNT/Untracked/moved"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-22-unlink-nested-alias",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/nested-origin/new-alias"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-23-subtree",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/subtree"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/subtree/data",
+            "pattern": "sequence",
+            "bytes": 8193
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-24-subtree-into-nested",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/subtree",
+            "target": "$MOUNT/Fixture/nested-origin/subtree"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-25-subtree-out",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/nested-origin/subtree",
+            "target": "$MOUNT/Untracked/subtree"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-26-subtree-back",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Untracked/subtree",
+            "target": "$MOUNT/Fixture/subtree"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-27-compressed",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/compressed",
+            "flags": 32
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-28-compressed-unlink",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/compressed"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-29-origin-out",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/nested-origin",
+            "target": "$MOUNT/Untracked/origin"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-30-origin-back",
+      "steps": [
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Untracked/origin",
+            "target": "$MOUNT/Fixture/nested-origin"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-31-unlink-child-data",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/nested-origin/child/data"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-32-rmdir-child",
+      "steps": [
+        {
+          "fs": {
+            "op": "rmdir",
+            "path": "$MOUNT/Fixture/nested-origin/child"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-33-unlink-cross-alias",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/nested-origin/cross-directory-alias"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after-34-rmdir-origin",
+      "steps": [
+        {
+          "fs": {
+            "op": "rmdir",
+            "path": "$MOUNT/Fixture/nested-origin"
+          }
+        }
+      ],
+      "observe": {
+        "statistics": [
+          "Fixture",
+          "Fixture/nested-origin",
+          "Fixture/nested-origin/child",
+          "Fixture/Example.app",
+          "Fixture/Example.app/Contents",
+          "Fixture/Example.app/Contents/MacOS",
+          "Fixture/Example.app/Contents/Resources"
+        ],
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

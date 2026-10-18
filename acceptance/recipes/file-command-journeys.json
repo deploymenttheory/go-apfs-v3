@@ -1,0 +1,719 @@
+{
+  "schema": 1,
+  "name": "file-command-journeys",
+  "purpose": "The ordinary command journey a packaging user runs on a mounted volume (cp, chmod grammar, mkdir, ln, chflags, xattr, forks, mv, touch, rm, chown) with its five rejections, observed before and after with noatime so access times are evidence: sessions and image editing must reproduce every effect.",
+  "profiles": [
+    "apfs",
+    "apfsx",
+    "hfsplus",
+    "hfsx",
+    "hfsplus-j",
+    "hfsx-j"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "64m",
+    "layout": "GPTSPUD",
+    "output": "UDZO",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Source.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Source.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/Empty"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Applications"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/obsolete"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/obsolete/nested"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/obsolete/nested/child",
+            "content": "remove this tree\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS/Example",
+            "content": "Native application executable bytes\u0000ÿ\n",
+            "repeat": 17
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS/Example",
+            "mode": 489
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/Source.app/Contents/MacOS/Example",
+              "$MOUNT/Fixture/Source.app/Contents/Resources/executable-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS/Example",
+            "name": "org.original",
+            "content": "preserved attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS/Example/..namedfork/rsrc",
+            "content": "Independent fork\u0000",
+            "repeat": 2051
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/café",
+            "content": "Unicode resource\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/._ordinary",
+            "content": "An ordinary dot-underscore file\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Current",
+            "target": "MacOS/Example"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/dangling",
+            "target": "missing"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/compressed",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/Empty",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/executable-alias",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/café",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/._ordinary",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources/dangling",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Resources",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/MacOS",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents/Current",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app/Contents",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Source.app",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/Applications",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/obsolete/nested/child",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/obsolete/nested",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/obsolete",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/compressed",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture",
+            "times": {
+              "birth": 981173106000000000,
+              "mtime": 981173106000000000,
+              "atime": 981173106000000000
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "steps": [
+        {
+          "host": {
+            "path": "payload",
+            "pattern": "text",
+            "content": "Host build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\nHost build output\u0000ÿ\n",
+            "mode": 420
+          }
+        },
+        {
+          "host": {
+            "path": "fork",
+            "pattern": "text",
+            "content": "short fork\u0000ÿ"
+          }
+        },
+        {
+          "host": {
+            "path": "empty",
+            "pattern": "text",
+            "content": ""
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-a",
+              "$MOUNT/Fixture/Source.app",
+              "$MOUNT/Fixture/Applications/"
+            ],
+            "expect": "0",
+            "label": "op-01"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "u+x,g=u-w,o=",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "label": "op-02"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "-R",
+              "u=rwX,go=rX",
+              "$MOUNT/Fixture/Applications/Source.app"
+            ],
+            "expect": "0",
+            "label": "op-03"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "-pm775",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New/deep"
+            ],
+            "expect": "0",
+            "label": "op-04"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-X",
+              "$STAGE/payload",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New/build.bin"
+            ],
+            "expect": "0",
+            "label": "op-05"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "0644",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New/build.bin"
+            ],
+            "expect": "0",
+            "label": "op-06"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New/build.bin",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "0",
+            "label": "op-07"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-X",
+              "$STAGE/fork",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "0",
+            "label": "op-08"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "-s",
+              "Applications/Source.app",
+              "$MOUNT/Fixture/app-link"
+            ],
+            "expect": "0",
+            "label": "op-09"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "u+x",
+              "$MOUNT/Fixture/app-link/Contents/New/build.bin"
+            ],
+            "expect": "0",
+            "label": "op-10"
+          }
+        },
+        {
+          "tool": {
+            "program": "chflags",
+            "args": [
+              "hidden",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New/build.bin"
+            ],
+            "expect": "0",
+            "label": "op-11"
+          }
+        },
+        {
+          "tool": {
+            "program": "xattr",
+            "args": [
+              "-w",
+              "org.command",
+              "command attribute",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "0",
+            "label": "op-12"
+          }
+        },
+        {
+          "tool": {
+            "program": "xattr",
+            "args": [
+              "-wx",
+              "org.binary",
+              "0001ff",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "0",
+            "label": "op-13"
+          }
+        },
+        {
+          "tool": {
+            "program": "xattr",
+            "args": [
+              "-d",
+              "org.original",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "label": "op-14"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/fork",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/MacOS/Example/..namedfork/rsrc"
+            ],
+            "expect": "0",
+            "label": "op-15"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$STAGE/empty",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/Resources/executable-alias/..namedfork/rsrc"
+            ],
+            "expect": "0",
+            "label": "op-16"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-p",
+              "$MOUNT/Fixture/compressed",
+              "$MOUNT/Fixture/plain-copy"
+            ],
+            "expect": "0",
+            "label": "op-17"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/Applications/Source.app/Contents/New",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/Moved"
+            ],
+            "expect": "0",
+            "label": "op-18"
+          }
+        },
+        {
+          "tool": {
+            "program": "touch",
+            "args": [
+              "-d",
+              "2009-08-07T06:05:04Z",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "0",
+            "label": "op-19"
+          }
+        },
+        {
+          "tool": {
+            "program": "touch",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/absent"
+            ],
+            "expect": "0",
+            "label": "op-20"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "-r",
+              "$MOUNT/Fixture/obsolete"
+            ],
+            "expect": "0",
+            "label": "op-21"
+          }
+        },
+        {
+          "tool": {
+            "program": "rm",
+            "args": [
+              "-f",
+              "$MOUNT/Fixture/absent"
+            ],
+            "expect": "0",
+            "label": "op-22"
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "-R",
+              "60001:60002",
+              "$MOUNT/Fixture/Applications/Source.app"
+            ],
+            "expect": "0",
+            "sudo": true,
+            "label": "op-23"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-n",
+              "$MOUNT/Fixture/plain-copy",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "1",
+            "label": "reject-01"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "$MOUNT/Fixture/build-alias",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "1",
+            "label": "reject-02"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/Applications",
+              "$MOUNT/Fixture/directory-hardlink"
+            ],
+            "expect": "1",
+            "label": "reject-03"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "invalid",
+              "$MOUNT/Fixture/build-alias"
+            ],
+            "expect": "1",
+            "label": "reject-04"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/Applications/Source.app",
+              "$MOUNT/Fixture/Applications/Source.app/Contents/cycle"
+            ],
+            "expect": "1",
+            "label": "reject-05"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

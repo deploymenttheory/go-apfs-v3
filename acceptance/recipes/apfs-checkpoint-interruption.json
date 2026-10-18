@@ -1,0 +1,2108 @@
+{
+  "schema": 1,
+  "name": "apfs-checkpoint-interruption",
+  "purpose": "APFS containers captured at four checkpoint windows (pending data, pending mapping, committed with stale block zero, wrapped descriptor ring) plus single-byte checksum damage to the newest mapping and object, with the transaction fsck_apfs selects for each: checkpoint inspection and recovery must select the same transaction.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Recovery",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "committed",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/retained",
+            "content": "retained\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/retained/..namedfork/rsrc",
+            "content": "retained fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/retained",
+            "name": "org.go-apfs.retained",
+            "content": "retained"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/retained",
+              "$MOUNT/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/link",
+            "target": "retained"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-0",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-1",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-2",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-3",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-4",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-5",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-6",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-7",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-8",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-9",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-10",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-11",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-12",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-13",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-14",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-15",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-16",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-17",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-18",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-19",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-20",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-21",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-22",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-23",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-24",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-25",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-26",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-27",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-28",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-29",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-30",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-31",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-32",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-33",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-34",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-35",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-36",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-37",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-38",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-39",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-40",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-41",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-42",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-43",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-44",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-45",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-46",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-47",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-48",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-49",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-50",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-51",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-52",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-53",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-54",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-55",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-56",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-57",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-58",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-59",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-60",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-61",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-62",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-63",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-64",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-65",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-66",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-67",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-68",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-69",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-70",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-71",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-72",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-73",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-74",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-75",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-76",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-77",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-78",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-79",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-80",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-81",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-82",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-83",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-84",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-85",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-86",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-87",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-88",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-89",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-90",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-91",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-92",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-93",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-94",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-95",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-96",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-97",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-98",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-99",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-100",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-101",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-102",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-103",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-104",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-105",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-106",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-107",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-108",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-109",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-110",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-111",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-112",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-113",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-114",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-115",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-116",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-117",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-118",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-119",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-120",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-121",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-122",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-123",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-124",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-125",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-126",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-127",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-128",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-129",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-130",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-131",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-132",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-133",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-134",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-135",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-136",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-137",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-138",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-139",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-140",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-141",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-142",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-143",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-144",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-145",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-146",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-147",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-148",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-149",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-150",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-151",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-152",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-153",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-154",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-155",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-156",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-157",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-158",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-159",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-160",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-161",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-162",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-163",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-164",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-165",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-166",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-167",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-168",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-169",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-170",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-171",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-172",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-173",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-174",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-175",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-176",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-177",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-178",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-179",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-180",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-181",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-182",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-183",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-184",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-185",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-186",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-187",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-188",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-189",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-190",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-191",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-192",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-193",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-194",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-195",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-196",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-197",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-198",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-199",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-200",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-201",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-202",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-203",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-204",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-205",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-206",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-207",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-208",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-209",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-210",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-211",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-212",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-213",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-214",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-215",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-216",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-217",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-218",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-219",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-220",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-221",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-222",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-223",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-224",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-225",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-226",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-227",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-228",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-229",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-230",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-231",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-232",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-233",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-234",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-235",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-236",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-237",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-238",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-239",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-240",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-241",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-242",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-243",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-244",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-245",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-246",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-247",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-248",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-249",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-250",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-251",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-252",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-253",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-254",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/entry-255",
+            "content": "Initial committed contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "sync",
+            "args": [],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "window-data",
+      "from": "committed",
+      "steps": [
+        {
+          "control": {
+            "action": "checkpoint-window",
+            "name": "window-data",
+            "params": {
+              "window": "data",
+              "churn": "chmod+xattr+fullfsync over Fixture/entry-*"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "window-mapping",
+      "from": "committed",
+      "steps": [
+        {
+          "control": {
+            "action": "checkpoint-window",
+            "name": "window-mapping",
+            "params": {
+              "window": "mapping",
+              "churn": "chmod+xattr+fullfsync over Fixture/entry-*"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "window-committed",
+      "from": "committed",
+      "steps": [
+        {
+          "control": {
+            "action": "checkpoint-window",
+            "name": "window-committed",
+            "params": {
+              "window": "committed",
+              "churn": "chmod+xattr+fullfsync over Fixture/entry-*"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "window-wrapped",
+      "from": "committed",
+      "steps": [
+        {
+          "control": {
+            "action": "checkpoint-window",
+            "name": "window-wrapped",
+            "params": {
+              "window": "wrapped",
+              "churn": "chmod+xattr+fullfsync over Fixture/entry-*"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "bad-mapping",
+      "from": "window-committed",
+      "steps": [
+        {
+          "control": {
+            "action": "damage",
+            "name": "bad-mapping",
+            "params": {
+              "kind": "bad-mapping"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "bad-object",
+      "from": "window-committed",
+      "steps": [
+        {
+          "control": {
+            "action": "damage",
+            "name": "bad-object",
+            "params": {
+              "kind": "bad-object"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "disabled-latest",
+      "from": "window-committed",
+      "steps": [
+        {
+          "control": {
+            "action": "damage",
+            "name": "disabled-latest",
+            "params": {
+              "kind": "disabled-latest"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

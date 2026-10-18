@@ -1,0 +1,1503 @@
+{
+  "schema": 1,
+  "name": "workspace-edits",
+  "purpose": "The before and after states of content replacement, ordered tree edits and metadata/attribute/fork edits performed natively on one volume, with every rejected operation's errno and the filename length boundaries: portable workspace and session edits must produce the same final trees.",
+  "profiles": [
+    "apfs",
+    "apfsx",
+    "hfsplus",
+    "hfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "64m",
+    "layout": "GPTSPUD",
+    "output": "UDZO",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/replace"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/meta"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "content": "Original ordinary file.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/ordinary/..namedfork/rsrc",
+            "content": "Independent ordinary fork.\u0000ÿ",
+            "repeat": 1025
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-text"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/replace/ordinary",
+              "$MOUNT/Fixture/replace/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/replace/links"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/replace/ordinary",
+              "$MOUNT/Fixture/replace/links/second"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "content": "Original CON\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/untouched",
+            "content": "Original untouched\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/inactive",
+            "content": "Original inactive\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/inactive",
+            "name": "com.apple.decmpfs",
+            "content": "inactive malformed bytes"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/inactive/..namedfork/rsrc",
+            "content": "Independent inactive fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/replace/link",
+            "target": "ordinary"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/type-04/..namedfork/rsrc",
+            "payload": "rsrc-type-4.fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-4.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "flags": 32
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/replace/type-04",
+              "$MOUNT/Fixture/replace/compressed-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/replacement-input",
+            "content": "Native compressed replacement reference.\n",
+            "repeat": 8192
+          }
+        },
+        {
+          "tool": {
+            "program": "ditto",
+            "args": [
+              "--hfsCompression",
+              "--noclone",
+              "$MOUNT/replacement-input",
+              "$MOUNT/Fixture/replace/native-ditto"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/replacement-input"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "name": "org.go-apfs.keep",
+            "content": "Preserved ordinary attribute.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/ordinary",
+            "flags": 32768
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "name": "org.go-apfs.keep",
+            "content": "Preserved ordinary attribute.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "flags": 32800
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "name": "org.go-apfs.keep",
+            "content": "Preserved ordinary attribute.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "flags": 32800
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/replace/native-ditto",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/native-ditto",
+            "name": "org.go-apfs.keep",
+            "content": "Preserved ordinary attribute.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/native-ditto",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/native-ditto",
+            "flags": 32800
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "name": "org.go-apfs.keep",
+            "content": "Preserved ordinary attribute.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "flags": 32768
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/move-dir"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/empty-dir"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/empty-target"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/remove-dir"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/ordinary",
+            "content": "Original ordinary\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/obsolete",
+            "content": "Original obsolete\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/destination",
+            "content": "Original destination\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/CaseName",
+            "content": "Original CaseName\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/untouched",
+            "content": "Original untouched\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/move-dir/child",
+            "content": "Original move-dir/child\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/ordinary",
+              "$MOUNT/Fixture/tree/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/destination",
+              "$MOUNT/Fixture/tree/destination-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/ordinary/..namedfork/rsrc",
+            "content": "Independent fork\u0000ÿ",
+            "repeat": 4097
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/tree/ordinary",
+            "name": "org.go-apfs.keep",
+            "content": "Ordinary opaque metadata"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/tree/directory-link",
+            "target": "Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/compressed",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/tree/compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/tree/compressed",
+            "flags": 32
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/compressed",
+              "$MOUNT/Fixture/tree/compressed-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/meta/directory"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "content": "Original ordinary\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "content": "Original untouched\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/empty-fork",
+            "content": "Original empty-fork\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/remove-fork",
+            "content": "Original remove-fork\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/finder-zero",
+            "content": "Original finder-zero\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/finder-remove",
+            "content": "Original finder-remove\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/flags",
+            "content": "Original flags\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/owner",
+            "content": "Original owner\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/CON",
+            "content": "Original CON\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta/owner",
+            "mode": 420
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/meta/ordinary",
+              "$MOUNT/Fixture/meta/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/meta/link",
+            "target": "ordinary"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/ordinary/..namedfork/rsrc",
+            "content": "Initial independent resource fork",
+            "repeat": 137
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/empty-fork/..namedfork/rsrc",
+            "content": "Initial independent resource fork",
+            "repeat": 137
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/remove-fork/..namedfork/rsrc",
+            "content": "Initial independent resource fork",
+            "repeat": 137
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-text"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/finder-zero",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-text"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "org.go-apfs.remove",
+            "content": "to be removed"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "org.go-apfs.keep",
+            "content": "Unrelated metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "org.go-apfs.keep",
+            "content": "Unrelated metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/compressed-resource",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/compressed-resource/..namedfork/rsrc",
+            "payload": "rsrc-type-4.fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/compressed-resource",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-4.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/meta/compressed-resource",
+            "flags": 32
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/meta/compressed-resource",
+              "$MOUNT/Fixture/meta/compressed-alias"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/alias",
+            "content": "Replaced through a hard-link alias.\u0000ÿ\n",
+            "repeat": 4097
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/replace/alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/empty",
+            "content": "An empty file now has data.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "pattern": "sequence",
+            "bytes": 131328
+          }
+        },
+        {
+          "fs": {
+            "op": "append",
+            "path": "$MOUNT/Fixture/replace/type-03",
+            "content": "inline replacement"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/type-04",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/native-ditto",
+            "content": "short replacement\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/inactive",
+            "content": "Inactive compression remains opaque.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/replace/CON",
+            "content": "Replaced using the original macOS name.\n"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "restructured",
+      "steps": [
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "-m",
+              "0751",
+              "$MOUNT/Fixture/tree/Contents/_CodeSignature"
+            ],
+            "expect": "0",
+            "label": "tree-01"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/Contents/_CodeSignature/CodeResources",
+            "content": "New application content\u0000ÿ\n",
+            "repeat": 37
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/tree/Contents/_CodeSignature/CodeResources"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/tree/Contents/_CodeSignature/CodeResources",
+            "mode": 416
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources/café",
+            "content": "New application content\u0000ÿ\n",
+            "repeat": 37
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources/café"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources/café",
+            "mode": 416
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/CON",
+            "content": "New application content\u0000ÿ\n",
+            "repeat": 37
+          }
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT/Fixture/tree/CON"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/tree/CON",
+            "mode": 416
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources/current",
+            "target": "café"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/ordinary",
+              "$MOUNT/Fixture/tree/Contents/Resources/shared"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/ordinary",
+              "$MOUNT/Fixture/tree/ordinary-new"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/tree/Contents/_CodeSignature/CodeResources",
+              "$MOUNT/Fixture/tree/Contents/Resources/seal-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/tree/alias"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/CaseName",
+              "$MOUNT/Fixture/tree/casename"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/move-dir",
+              "$MOUNT/Fixture/tree/Contents/Moved"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/ordinary",
+              "$MOUNT/Fixture/tree/destination"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/destination",
+              "$MOUNT/Fixture/tree/ordinary-new"
+            ],
+            "expect": "0"
+          },
+          "note": "same inode: native no-op"
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/empty-dir",
+              "$MOUNT/Fixture/tree/empty-target"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "rmdir",
+            "path": "$MOUNT/Fixture/tree/remove-dir"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/tree/obsolete"
+          }
+        },
+        {
+          "tool": {
+            "program": "mv",
+            "args": [
+              "$MOUNT/Fixture/tree/compressed",
+              "$MOUNT/Fixture/tree/Contents/Resources/compressed"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/compressed-alias",
+            "content": "New application content\u0000ÿ\n",
+            "repeat": 37
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/destination",
+            "content": "x",
+            "option": "create",
+            "expect": "EEXIST"
+          },
+          "note": "rejection: O_EXCL create over an existing file"
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/Contents/Resources/café",
+            "content": "x",
+            "option": "create",
+            "expect": "EEXIST"
+          }
+        },
+        {
+          "fs": {
+            "op": "rmdir",
+            "path": "$MOUNT/Fixture/tree/Contents",
+            "expect": "ENOTEMPTY"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/tree/Contents",
+            "target": "$MOUNT/Fixture/tree/Contents/Resources/cycle",
+            "expect": "EINVAL"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/tree/Contents",
+            "target": "$MOUNT/Fixture/tree/destination",
+            "expect": "ENOTDIR"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/tree/destination",
+            "target": "$MOUNT/Fixture/tree/Contents",
+            "expect": "EISDIR"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/tree/missing",
+            "target": "$MOUNT/Fixture/tree/elsewhere",
+            "expect": "ENOENT"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/tree/Contents",
+            "target": "$MOUNT/Fixture/tree/dir-hardlink",
+            "expect": "EPERM"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content": "probe",
+            "expect": "0"
+          },
+          "note": "name length probe; removed afterwards when created"
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/tree/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "expect": "record"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content": "probe",
+            "expect": "ENAMETOOLONG"
+          },
+          "note": "name length probe; removed afterwards when created"
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "content": "probe",
+            "expect": "0"
+          },
+          "note": "name length probe; removed afterwards when created"
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/tree/ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "expect": "record"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "content": "probe",
+            "expect": "record"
+          },
+          "note": "name length probe; removed afterwards when created"
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/tree/ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+            "expect": "record"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+            "content": "probe",
+            "expect": "ENAMETOOLONG"
+          },
+          "note": "name length probe; removed afterwards when created"
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+            "content": "probe",
+            "expect": "ENAMETOOLONG"
+          },
+          "note": "name length probe; removed afterwards when created"
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "metadata",
+      "steps": [
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta/directory",
+            "mode": 488
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta/link",
+            "mode": 457
+          },
+          "note": "lchmod on the symlink itself"
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "org.go-apfs.edit",
+            "pattern": "sequence",
+            "bytes": 65792,
+            "option": "create"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/alias",
+            "name": "org.go-apfs.edit",
+            "content": "short\u0000ÿ",
+            "option": "replace"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "org.go-apfs.empty",
+            "content": "",
+            "option": "create"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/directory",
+            "name": "org.go-apfs.directory",
+            "content": "directory attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/link",
+            "name": "org.go-apfs.link",
+            "content": "link attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "removexattr",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "name": "org.go-apfs.remove"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/ordinary/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 65792
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/alias/..namedfork/rsrc",
+            "content": "short\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/empty-fork/..namedfork/rsrc",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "removexattr",
+            "path": "$MOUNT/Fixture/meta/remove-fork",
+            "name": "com.apple.ResourceFork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/finder-zero",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-zero",
+            "option": "replace"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/finder-remove",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-invisible"
+          }
+        },
+        {
+          "fs": {
+            "op": "removexattr",
+            "path": "$MOUNT/Fixture/meta/finder-remove",
+            "name": "com.apple.FinderInfo"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/directory",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-invisible"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/link",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-invisible"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/meta/flags",
+            "flags": 32783
+          },
+          "note": "HIDDEN|NODUMP|IMMUTABLE|APPEND|OPAQUE"
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta",
+            "mode": 488
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/meta/ordinary",
+            "target": "$MOUNT/Fixture/meta/renamed"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/meta/alias",
+              "$MOUNT/Fixture/meta/new-alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/compressed-alias",
+            "content": "short\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/compressed-resource/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 65792
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "name": "org.go-apfs.compressed-inline",
+            "content": "beside compression"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "mode": 493
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/meta/compressed-inline",
+            "flags": 32800
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/CON",
+            "name": "org.go-apfs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content": "long name"
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "-h",
+              "60001:60002",
+              "$MOUNT/Fixture/meta/owner"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/meta/renamed",
+            "times": {
+              "birth": 1700000000123456789,
+              "mtime": 1700000001234567891,
+              "atime": 1700000002345678912
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "org.go-apfs.keep",
+            "content": "x",
+            "option": "create",
+            "expect": "EEXIST"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "org.go-apfs.absent",
+            "content": "x",
+            "option": "replace",
+            "expect": "ENOATTR"
+          }
+        },
+        {
+          "fs": {
+            "op": "removexattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "org.go-apfs.absent",
+            "expect": "ENOATTR"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "com.apple.FinderInfo",
+            "payload": "finderinfo-invalid",
+            "expect": "ERANGE"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/directory/..namedfork/rsrc",
+            "content": "x",
+            "expect": "EPERM"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/meta/link/..namedfork/rsrc",
+            "content": "x",
+            "expect": "ENOENT"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/meta/untouched",
+            "name": "org.go-apfs.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "content": "x",
+            "expect": "ENAMETOOLONG"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

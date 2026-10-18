@@ -1,0 +1,1340 @@
+{
+  "schema": 1,
+  "name": "snapshot-history",
+  "purpose": "Retained APFS snapshots as Apple's asr creates them, with changes between each state, a deleted snapshot, and a probe of the snapshot create/rename/revert API whose refusal or success is recorded (issue #74).",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true,
+    "entitlements": [
+      "com.apple.developer.vfs.snapshot"
+    ],
+    "helpers": [
+      "apfs-snapshot"
+    ],
+    "versionNotes": {
+      "fs_snapshot_list": "macOS 15 returns ENOENT while asr is running; the observer retries only ENOENT within its deadline and records the retry count.",
+      "snapshot-api": "The entitled helper may be killed at launch or refused with EPERM; both are recorded outcomes, not failures."
+    }
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "GPTSPUD",
+    "output": "UDZO",
+    "mountOptions": "owners",
+    "volumeName": "v3-snapshots"
+  },
+  "passwords": {
+    "image": "public-snapshot-image-password",
+    "wrong": "public-incorrect-password"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "discard": true,
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/example.txt",
+            "content": "Native Apple filesystem fixture.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/example.txt",
+            "mode": 489
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/example.txt",
+            "flags": 32768
+          },
+          "note": "UF_HIDDEN"
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/example.txt",
+            "name": "org.go-apfs.binary",
+            "content": "\u0000ÿvalue\u0000"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/example.txt",
+            "name": "org.go-apfs.empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/example.txt",
+            "name": "org.go-apfs.large",
+            "pattern": "sequence",
+            "bytes": 32768
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/example.txt/..namedfork/rsrc",
+            "pattern": "reverse",
+            "bytes": 32769
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/empty",
+            "content": ""
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/binary.bin",
+            "pattern": "sequence",
+            "bytes": 131073
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/café-λ-😀.txt",
+            "content": "Unicode names survive enumeration.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/link",
+            "target": "example.txt"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/dangling-link",
+            "target": "absent"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/sparse",
+            "content": "start"
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/sparse",
+            "offset": 2097159,
+            "content": "end"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/many"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-000",
+            "content": "record 0\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-001",
+            "content": "record 1\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-002",
+            "content": "record 2\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-003",
+            "content": "record 3\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-004",
+            "content": "record 4\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-005",
+            "content": "record 5\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-006",
+            "content": "record 6\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-007",
+            "content": "record 7\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-008",
+            "content": "record 8\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-009",
+            "content": "record 9\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-010",
+            "content": "record 10\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-011",
+            "content": "record 11\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-012",
+            "content": "record 12\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-013",
+            "content": "record 13\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-014",
+            "content": "record 14\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-015",
+            "content": "record 15\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-016",
+            "content": "record 16\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-017",
+            "content": "record 17\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-018",
+            "content": "record 18\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-019",
+            "content": "record 19\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-020",
+            "content": "record 20\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-021",
+            "content": "record 21\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-022",
+            "content": "record 22\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-023",
+            "content": "record 23\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-024",
+            "content": "record 24\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-025",
+            "content": "record 25\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-026",
+            "content": "record 26\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-027",
+            "content": "record 27\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-028",
+            "content": "record 28\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-029",
+            "content": "record 29\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-030",
+            "content": "record 30\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-031",
+            "content": "record 31\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-032",
+            "content": "record 32\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-033",
+            "content": "record 33\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-034",
+            "content": "record 34\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-035",
+            "content": "record 35\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-036",
+            "content": "record 36\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-037",
+            "content": "record 37\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-038",
+            "content": "record 38\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-039",
+            "content": "record 39\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-040",
+            "content": "record 40\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-041",
+            "content": "record 41\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-042",
+            "content": "record 42\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-043",
+            "content": "record 43\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-044",
+            "content": "record 44\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-045",
+            "content": "record 45\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-046",
+            "content": "record 46\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-047",
+            "content": "record 47\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-048",
+            "content": "record 48\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-049",
+            "content": "record 49\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-050",
+            "content": "record 50\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-051",
+            "content": "record 51\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-052",
+            "content": "record 52\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-053",
+            "content": "record 53\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-054",
+            "content": "record 54\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-055",
+            "content": "record 55\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-056",
+            "content": "record 56\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-057",
+            "content": "record 57\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-058",
+            "content": "record 58\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-059",
+            "content": "record 59\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-060",
+            "content": "record 60\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-061",
+            "content": "record 61\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-062",
+            "content": "record 62\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-063",
+            "content": "record 63\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-064",
+            "content": "record 64\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-065",
+            "content": "record 65\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-066",
+            "content": "record 66\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-067",
+            "content": "record 67\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-068",
+            "content": "record 68\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-069",
+            "content": "record 69\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-070",
+            "content": "record 70\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-071",
+            "content": "record 71\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-072",
+            "content": "record 72\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-073",
+            "content": "record 73\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-074",
+            "content": "record 74\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-075",
+            "content": "record 75\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-076",
+            "content": "record 76\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-077",
+            "content": "record 77\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-078",
+            "content": "record 78\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-079",
+            "content": "record 79\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-080",
+            "content": "record 80\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-081",
+            "content": "record 81\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-082",
+            "content": "record 82\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-083",
+            "content": "record 83\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-084",
+            "content": "record 84\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-085",
+            "content": "record 85\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-086",
+            "content": "record 86\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-087",
+            "content": "record 87\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-088",
+            "content": "record 88\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-089",
+            "content": "record 89\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-090",
+            "content": "record 90\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-091",
+            "content": "record 91\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-092",
+            "content": "record 92\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-093",
+            "content": "record 93\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-094",
+            "content": "record 94\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/many/entry-095",
+            "content": "record 95\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/example.txt",
+              "$MOUNT/Fixture/hard-link"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/binary.bin",
+            "target": "$MOUNT/Fixture/clone.bin"
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/clone.bin",
+            "offset": 4609,
+            "content": "Modified cloned extent."
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/plain-input",
+            "content": "Compressed contents retained in APFS snapshots.\n",
+            "repeat": 8192
+          }
+        },
+        {
+          "tool": {
+            "program": "ditto",
+            "args": [
+              "--hfsCompression",
+              "--noclone",
+              "$MOUNT/plain-input",
+              "$MOUNT/Fixture/compressed"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/plain-input"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/vanished",
+            "content": "before\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/rename-source",
+            "content": "before\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/generation.txt",
+            "content": "before\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/ReadMe",
+            "content": "before\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/asr-padding",
+            "pattern": "zeros",
+            "bytes": 16777216
+          },
+          "note": "gives the observer time to pin the snapshot; supplies no expectations"
+        },
+        {
+          "control": {
+            "action": "asr-snapshot",
+            "name": "before"
+          }
+        }
+      ],
+      "observe": {
+        "snapshots": true,
+        "lookups": [
+          {
+            "dir": "Fixture",
+            "query": "ReadMe",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "readme",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "vanished",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "rename-source",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "renamed",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "live-name",
+            "expect": "record"
+          }
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "discard": true,
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/hard-link",
+            "content": "contents middle\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/example.txt",
+            "mode": 480
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/example.txt",
+            "flags": 0
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/example.txt",
+            "name": "org.go-apfs.binary",
+            "content": "attribute middle"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/example.txt/..namedfork/rsrc",
+            "content": "resource middle",
+            "repeat": 4097
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/clone.bin",
+            "offset": 4609,
+            "content": "clone middle"
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/sparse",
+            "offset": 65537,
+            "content": "sparse middle"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/generation.txt",
+            "content": "middle\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/ReadMe",
+            "content": "middle filename lookup\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/vanished"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/rename-source",
+            "target": "$MOUNT/Fixture/renamed"
+          }
+        },
+        {
+          "control": {
+            "action": "asr-snapshot",
+            "name": "after"
+          }
+        }
+      ],
+      "observe": {
+        "snapshots": true,
+        "lookups": [
+          {
+            "dir": "Fixture",
+            "query": "ReadMe",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "readme",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "vanished",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "rename-source",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "renamed",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "live-name",
+            "expect": "record"
+          }
+        ]
+      }
+    },
+    {
+      "name": "live",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/hard-link",
+            "content": "contents live\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/example.txt",
+            "mode": 388
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/example.txt",
+            "flags": 32768
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/example.txt",
+            "name": "org.go-apfs.binary",
+            "content": "attribute live"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/example.txt/..namedfork/rsrc",
+            "content": "resource live",
+            "repeat": 4097
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/clone.bin",
+            "offset": 4609,
+            "content": "clone live"
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/sparse",
+            "offset": 65537,
+            "content": "sparse live"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/generation.txt",
+            "content": "live\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/ReadMe",
+            "content": "live filename lookup\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/renamed",
+            "target": "$MOUNT/Fixture/live-name"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/vanished",
+            "content": "new live inode\n"
+          }
+        },
+        {
+          "control": {
+            "action": "asr-snapshot",
+            "name": "deleted"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$MOUNT",
+              "-name",
+              "$SNAPSHOT:deleted",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "snapshots": true,
+        "lookups": [
+          {
+            "dir": "Fixture",
+            "query": "ReadMe",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "readme",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "vanished",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "rename-source",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "renamed",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "live-name",
+            "expect": "record"
+          }
+        ],
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "api-probe",
+      "from": "live",
+      "steps": [
+        {
+          "control": {
+            "action": "snapshot-api",
+            "params": {
+              "op": "create",
+              "name": "native-café"
+            }
+          }
+        },
+        {
+          "control": {
+            "action": "snapshot-api",
+            "params": {
+              "op": "rename",
+              "from": "native-café",
+              "to": "renamed-café"
+            }
+          }
+        },
+        {
+          "control": {
+            "action": "snapshot-api",
+            "params": {
+              "op": "revert",
+              "snapshot": "$SNAPSHOT:before"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "snapshots": true,
+        "lookups": [
+          {
+            "dir": "Fixture",
+            "query": "ReadMe",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "readme",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "vanished",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "rename-source",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "renamed",
+            "expect": "record"
+          },
+          {
+            "dir": "Fixture",
+            "query": "live-name",
+            "expect": "record"
+          }
+        ],
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    }
+  ],
+  "derive": [
+    {
+      "name": "aes256-dmg",
+      "from": "live",
+      "only": [
+        "apfs"
+      ],
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-256",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong"
+      ]
+    }
+  ]
+}
