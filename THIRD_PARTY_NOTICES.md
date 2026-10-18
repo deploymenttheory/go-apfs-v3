@@ -44,6 +44,10 @@ references replace C overlap buckets; malformed committed logs fail rather than
 using kernel salvage. Private recovered-graph validation, primary unmounted
 marking and completed-output publication are documented project adaptations.
 Reinitialization and live journal transactions are not ported.
+`acceptance/recipes/helpers/newfs_hfs/` retains Apple's unmodified `newfs_hfs`
+sources and HFS headers (APSL-2.0, revisions recorded in its `source.json`).
+The fixture capture tool compiles them with `DEBUG_BUILD` so Apple's own
+formatter, not Go, lays out the fragmented-metadata control volumes.
 
 `internal/names/hfs_tables.go` derives comparison/decomposition tables from
 Apple's `UCStringCompareData.h` and XNU `vfs_utfconvdata.h`, copyright 1997–2005

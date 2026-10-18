@@ -212,6 +212,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -386,6 +398,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Limited/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -483,13 +507,13 @@
         {
           "fs": {
             "op": "mkdir",
-            "path": "$MOUNT:Limited/pressure"
+            "path": "$MOUNT:Limited/Fixture/pressure"
           }
         },
         {
           "fs": {
             "op": "fill",
-            "path": "$MOUNT:Limited/pressure",
+            "path": "$MOUNT:Limited/Fixture/pressure",
             "bytes": 524288,
             "count": 32,
             "expect": "EDQUOT"
@@ -499,13 +523,13 @@
         {
           "fs": {
             "op": "mkdir",
-            "path": "$MOUNT:Empty/pressure"
+            "path": "$MOUNT:Empty/Fixture/pressure"
           }
         },
         {
           "fs": {
             "op": "fill",
-            "path": "$MOUNT:Empty/pressure",
+            "path": "$MOUNT:Empty/Fixture/pressure",
             "bytes": 524288,
             "count": 128,
             "expect": "ENOSPC"
@@ -514,7 +538,7 @@
         {
           "fs": {
             "op": "write",
-            "path": "$MOUNT:Reserved/reserved",
+            "path": "$MOUNT:Reserved/Fixture/reserved",
             "pattern": "sequence",
             "bytes": 16777216
           },
@@ -523,13 +547,13 @@
         {
           "fs": {
             "op": "fullfsync",
-            "path": "$MOUNT:Reserved/reserved"
+            "path": "$MOUNT:Reserved/Fixture/reserved"
           }
         },
         {
           "fs": {
             "op": "unlink",
-            "path": "$MOUNT:Reserved/reserved"
+            "path": "$MOUNT:Reserved/Fixture/reserved"
           }
         }
       ],

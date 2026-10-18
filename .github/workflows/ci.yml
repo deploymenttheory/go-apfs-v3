@@ -39,6 +39,10 @@ jobs:
         with:
           version: v2.14.0
       - run: go vet ./...
+      - name: Vet and build the darwin-only fixture capture tool
+        run: |
+          GOOS=darwin GOARCH=arm64 go vet -tags fixture ./acceptance/... ./cmd/apfs-fixture
+          GOOS=darwin GOARCH=arm64 go build -tags fixture -o /dev/null ./cmd/apfs-fixture
       - name: Build every supported operating system and architecture
         shell: bash
         run: |

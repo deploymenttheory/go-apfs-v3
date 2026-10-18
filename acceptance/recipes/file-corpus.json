@@ -1150,7 +1150,8 @@
             "path": "$MOUNT/allocation-guards",
             "bytes": 524288,
             "count": 256,
-            "expect": "ENOSPC"
+            "minFree": 1572864,
+            "expect": "record"
           },
           "only": [
             "hfsplus",
@@ -1158,7 +1159,7 @@
             "hfsplus-j",
             "hfsx-j"
           ],
-          "note": "512 KiB guards until the volume is nearly full; the tool stops when f_bavail*f_frsize < 1.5 MiB"
+          "note": "512 KiB guards until fewer than 1.5 MiB remain free"
         },
         {
           "fs": {
@@ -1191,6 +1192,19 @@
             "op": "append",
             "path": "$MOUNT/Fixture/fragmented-data",
             "content": "extent-tail"
+          },
+          "only": [
+            "hfsplus",
+            "hfsx",
+            "hfsplus-j",
+            "hfsx-j"
+          ]
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-resource",
+            "content": ""
           },
           "only": [
             "hfsplus",
@@ -1506,6 +1520,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -1582,6 +1608,12 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT/Fixture/Example.framework/Versions"
           }
         },
@@ -1601,7 +1633,7 @@
           "fs": {
             "op": "write",
             "path": "$MOUNT/Fixture/Example.framework/Versions/A/Resources/Info.plist",
-            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.framework</string><key>CFBundlePackageType</key><string>FMWK</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.framework</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>FMWK</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string></dict></plist>\n"
           }
         },
         {
@@ -1659,7 +1691,7 @@
               "--sign",
               "-",
               "--timestamp=none",
-              "$MOUNT/Fixture/Example.framework"
+              "$MOUNT/Fixture/Example.framework/Versions/A"
             ],
             "expect": "0"
           }

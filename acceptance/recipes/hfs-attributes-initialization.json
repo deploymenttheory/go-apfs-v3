@@ -7,7 +7,13 @@
     "hfsx-j"
   ],
   "requires": {
-    "sudo": true
+    "sudo": true,
+    "helpers": [
+      "newfs_hfs_debug"
+    ],
+    "versionNotes": {
+      "newfs": "-I a=0 exists only in Apple's open-source newfs_hfs built with DEBUG_BUILD."
+    }
   },
   "image": {
     "create": "raw-newfs",

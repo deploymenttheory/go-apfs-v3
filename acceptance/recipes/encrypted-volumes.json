@@ -237,6 +237,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -715,12 +727,6 @@
             ],
             "expect": "0",
             "sudo": true
-          }
-        },
-        {
-          "fs": {
-            "op": "mkdir",
-            "path": "$MOUNT:EncryptedPeer/Fixture"
           }
         },
         {
@@ -1700,6 +1706,36 @@
     {
       "name": "decrypted",
       "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:Peer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Peer",
+              "$VOLUME:Peer"
+            ],
+            "expect": "0"
+          }
+        },
         {
           "tool": {
             "program": "diskutil",

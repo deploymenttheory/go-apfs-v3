@@ -32,6 +32,7 @@ var guardedPackages = []struct {
 	tags    string
 }{
 	{pattern: "./schema"},
+	{pattern: "./fixture/...", tags: "fixture"},
 	{pattern: "./corpus"},
 	{pattern: "./native", tags: "native"},
 	{pattern: "../cmd/apfs-fixture", tags: "fixture"},

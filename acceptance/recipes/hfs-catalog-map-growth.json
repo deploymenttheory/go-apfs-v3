@@ -38,7 +38,8 @@
             "op": "fill",
             "path": "$MOUNT/Fixture",
             "bytes": 0,
-            "count": 1000
+            "count": 1000,
+            "label": "-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-"
           },
           "note": "files 00000..00999, names 246 characters long"
         }
@@ -58,7 +59,9 @@
             "op": "fill",
             "path": "$MOUNT/Fixture",
             "bytes": 0,
-            "count": 119000
+            "count": 119000,
+            "offset": 1000,
+            "label": "-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-"
           },
           "note": "files 01000..119999"
         }
