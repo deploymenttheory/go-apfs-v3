@@ -430,7 +430,7 @@ func compareEntry(t *testing.T, ctx context.Context, label string, r filesystem.
 			sum, n := hashReaderAt(value, value.Size())
 			_ = value.Close()
 			acl, _ := hex.DecodeString(e.ACL)
-			want := sha256.Sum256(acl)
+			want := sha256.Sum256(filesecDiskOrder(acl))
 			if e.ACL == "" {
 				t.Errorf("%s: product has a security attribute (%d bytes) but the kernel reported no ACL", where, n)
 			} else if sum != hex.EncodeToString(want[:]) || n != int64(len(acl)) {
@@ -484,4 +484,24 @@ func number(v any) float64 {
 		return float64(n)
 	}
 	return 0
+}
+
+// filesecDiskOrder converts a kauth_filesec as getattrlist returns it (host
+// byte order) to its on-disk big-endian form, which is what the product's
+// raw attribute read returns. GUIDs are byte arrays and stay as they are.
+func filesecDiskOrder(host []byte) []byte {
+	out := append([]byte(nil), host...)
+	swap := func(off int) {
+		if off+4 <= len(out) {
+			out[off], out[off+1], out[off+2], out[off+3] = out[off+3], out[off+2], out[off+1], out[off]
+		}
+	}
+	swap(0)  // fsec_magic
+	swap(36) // acl_entrycount
+	swap(40) // acl_flags
+	for off := 44; off+24 <= len(out); off += 24 {
+		swap(off + 16) // ace_flags
+		swap(off + 20) // ace_rights
+	}
+	return out
 }
