@@ -2,10 +2,8 @@
 
 Start with [architecture](docs/architecture.md) and
 [implementation status](docs/implementation.md). New operations need a stated
-preservation contract and an independent native acceptance case. The acceptance
-harness is being rebuilt under
-[#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98); until its
-documentation lands, that epic describes the fixture corpus and the gates.
+preservation contract and an independent native acceptance case. See
+[docs/acceptance.md](docs/acceptance.md) for the fixture corpus and the gates.
 
 ## Checks
 

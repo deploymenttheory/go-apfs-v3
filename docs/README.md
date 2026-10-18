@@ -4,7 +4,7 @@
 - [Implementation](implementation.md): agreed capabilities and current qualification status.
 - [Sessions](sessions.md): file commands, managed scratch and host metadata policy.
 - [Sources](sources.json): authoritative references and implementation provenance. Evidence paths under `acceptance/` refer to the retired harness in git history until the new corpus replaces them.
-- Acceptance testing is being rebuilt under [#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98); `docs/acceptance.md` will describe the fixture corpus, the portable gate and the native gate.
+- [Acceptance](acceptance.md): the fixture corpus, the portable tier, the native tier and how to add a recipe.
 
 Specification coverage, compilation, unit coverage, and native qualification are
 different things and must not be presented interchangeably.
