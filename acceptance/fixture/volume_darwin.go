@@ -422,6 +422,11 @@ func (l *snapshotLister) Close() error { return unix.Close(l.fd) }
 // List enumerates snapshots with getattrlistbulk and FSOPT_LIST_SNAPSHOT,
 // asking for names only.
 func (l *snapshotLister) List() ([]string, error) {
+	// getattrlistbulk is a directory cursor; rewind so every call
+	// enumerates from the start.
+	if _, err := unix.Seek(l.fd, 0, 0); err != nil {
+		return nil, unwrap(err)
+	}
 	attrs := unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_RETURNED_ATTRS | unix.ATTR_CMN_NAME}
 	buf := make([]byte, 64<<10)
 	var names []string

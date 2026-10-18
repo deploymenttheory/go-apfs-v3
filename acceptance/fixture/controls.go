@@ -109,9 +109,13 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		return "", fmt.Errorf("open %s for snapshot listing: %w", source.Mount, err)
 	}
 	defer func() { _ = lister.Close() }()
+	existing := map[string]bool{}
 	if names, err := lister.List(); err != nil {
 		return "", fmt.Errorf("snapshot listing on %s before asr: %w", source.Mount, err)
 	} else if len(names) > 0 {
+		for _, n := range names {
+			existing[n] = true
+		}
 		c.t.Commands = append(c.t.Commands, schema.Command{Label: "snapshots-before-asr", Argv: append([]string{"fs_snapshot_list", source.Mount}, names...), Expected: "0", Status: "0"})
 	}
 	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt", "--verbose")
@@ -146,7 +150,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 			listErrors++
 		}
 		for _, n := range names {
-			if strings.HasPrefix(n, "com.apple.asr.") {
+			if strings.HasPrefix(n, "com.apple.asr.") && !existing[n] {
 				snapshot = n
 			}
 		}
