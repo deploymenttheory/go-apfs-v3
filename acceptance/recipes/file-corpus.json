@@ -1633,7 +1633,7 @@
           "fs": {
             "op": "write",
             "path": "$MOUNT/Fixture/Example.framework/Versions/A/Resources/Info.plist",
-            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.framework</string><key>CFBundlePackageType</key><string>FMWK</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.framework</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>FMWK</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string></dict></plist>\n"
           }
         },
         {
@@ -1691,7 +1691,7 @@
               "--sign",
               "-",
               "--timestamp=none",
-              "$MOUNT/Fixture/Example.framework"
+              "$MOUNT/Fixture/Example.framework/Versions/A"
             ],
             "expect": "0"
           }
