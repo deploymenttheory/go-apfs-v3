@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "repository": "deploymenttheory/go-apfs-v3",
+  "release_id": 416476241,
+  "catalog": {
+    "id": 653595528,
+    "name": "catalog-sha256-3ccf079df65554f02380aff3ed28fc1b3c285562967425bf648ef761914fec91.json",
+    "bytes": 986325,
+    "sha256": "3ccf079df65554f02380aff3ed28fc1b3c285562967425bf648ef761914fec91"
+  }
+}
