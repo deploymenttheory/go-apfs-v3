@@ -46,6 +46,19 @@ func (c *Capture) asrSnapshot(ctx context.Context, name string) error {
 	if source.Mount == "" {
 		return errors.New("asr-snapshot: source volume is not mounted")
 	}
+	if !strings.HasPrefix(source.Mount, "/Volumes/") {
+		// asr accepts a source only at a volume's default mount point;
+		// a path elsewhere is treated as an image file.
+		if err := c.Disk.Unmount(ctx, source); err != nil {
+			return err
+		}
+		if err := c.Disk.Mount(ctx, source, "owners", "", false); err != nil {
+			return err
+		}
+		if err := c.refreshVars(ctx); err != nil {
+			return err
+		}
+	}
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
 		target := filepath.Join(c.Work, fmt.Sprintf("asr-target-%s-%d.dmg", sanitize(name), attempt))

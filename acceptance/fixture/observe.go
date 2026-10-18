@@ -288,6 +288,21 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		return err
 	}
 	obs.Views = append(obs.Views, *view)
+	// Signatures are verified while the volume is mounted: an encrypted
+	// volume locks again when unmounted.
+	for _, rel := range in.Spec.Codesign {
+		target := filepath.Join(mount, filepath.FromSlash(rel))
+		if _, err := in.Vol.Lstat(target); err != nil {
+			continue
+		}
+		cmd := Command{Label: "codesign:" + rel, Argv: []string{"codesign", "--verify", "--deep", "--strict", target}, Expected: "record"}
+		result := in.Disk.(*HostDisk).C.Run(ctx, cmd)
+		_ = in.T.Record(cmd, result)
+		obs.Checks.Codesign = append(obs.Checks.Codesign, schema.CodesignResult{Path: rel, Status: result.Status})
+		if result.Status != 0 {
+			return fmt.Errorf("codesign %s on %s: exit %d: %s", rel, vol.Name, result.Status, strings.TrimSpace(string(result.Stderr)))
+		}
+	}
 	if in.Spec.Snapshots && v.APFS != nil {
 		for _, s := range v.APFS.Snapshots {
 			pin := filepath.Join(in.Work, "snapshot", sanitize(vol.Name), sanitize(s.Name))
@@ -605,27 +620,6 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 		case "codesign":
 		default:
 			return fmt.Errorf("unknown check %q", check)
-		}
-	}
-	for _, rel := range in.Spec.Codesign {
-		for _, vol := range in.Att.Volumes {
-			mount := filepath.Join(in.Work, "observe", sanitize(vol.Name))
-			if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, false); err != nil {
-				return err
-			}
-			target := filepath.Join(mount, filepath.FromSlash(rel))
-			if _, err := in.Vol.Lstat(target); err != nil {
-				_ = in.Disk.Unmount(ctx, vol)
-				continue
-			}
-			cmd := Command{Label: "codesign:" + rel, Argv: []string{"codesign", "--verify", "--deep", "--strict", target}, Expected: "record"}
-			result := in.Disk.(*HostDisk).C.Run(ctx, cmd)
-			_ = in.T.Record(cmd, result)
-			_ = in.Disk.Unmount(ctx, vol)
-			obs.Checks.Codesign = append(obs.Checks.Codesign, schema.CodesignResult{Path: rel, Status: result.Status})
-			if result.Status != 0 {
-				return fmt.Errorf("codesign %s on %s: exit %d: %s", rel, vol.Name, result.Status, strings.TrimSpace(string(result.Stderr)))
-			}
 		}
 	}
 	return nil
