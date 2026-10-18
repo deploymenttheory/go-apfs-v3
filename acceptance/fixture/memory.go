@@ -603,6 +603,8 @@ func (v *MemoryVolume) ACL(p string) ([]byte, error) {
 	return n.xattrs["memory.acl"], nil
 }
 
+func (v *MemoryVolume) Snapshots(string) ([]string, error) { return nil, nil }
+
 // Dump lists every path for test assertions.
 func (v *MemoryVolume) Dump() string {
 	v.mu.Lock()

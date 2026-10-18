@@ -112,18 +112,37 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if err := asr.Start(); err != nil {
 		return "", err
 	}
-	snapshot := fmt.Sprintf("com.apple.asr.%d", asr.Process.Pid)
+	// asr creates a com.apple.asr.* snapshot on the source for the duration
+	// of the copy. Poll the snapshot list at one-millisecond intervals,
+	// pause asr as soon as the snapshot appears, pin it by mounting it,
+	// then let asr finish.
 	pin := filepath.Join(c.Work, "asr-pin", sanitize(name))
+	snapshot := ""
 	pinned := false
 	retries := 0
 	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := c.Disk.MountSnapshot(ctx, snapshot, source.Mount, pin); err == nil {
-			pinned = true
+	for time.Now().Before(deadline) && asr.ProcessState == nil {
+		names, err := c.Vol.Snapshots(source.Mount)
+		if err != nil && !errors.Is(err, syscall.ENOENT) {
+			break
+		}
+		for _, n := range names {
+			if strings.HasPrefix(n, "com.apple.asr.") {
+				snapshot = n
+			}
+		}
+		if snapshot != "" {
 			break
 		}
 		retries++
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(time.Millisecond)
+	}
+	if snapshot != "" {
+		_ = asr.Process.Signal(syscall.SIGSTOP)
+		if err := c.Disk.MountSnapshot(ctx, snapshot, source.Mount, pin); err == nil {
+			pinned = true
+		}
+		_ = asr.Process.Signal(syscall.SIGCONT)
 	}
 	waitErr := asr.Wait()
 	entry := schema.Command{Label: "asr-snapshot:" + name, Argv: asr.Args, Expected: "0", Status: "0", WallNS: time.Since(start).Nanoseconds(), StderrText: fmt.Sprintf("attempt %d, mount retries %d", attempt, retries)}
@@ -143,7 +162,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
 	}
 	if !pinned {
-		return "", fmt.Errorf("snapshot %s was never mounted before asr finished", snapshot)
+		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls)", snapshot, retries)
 	}
 	snaps, err := c.Disk.Snapshots(ctx, source.Dev)
 	if err != nil {

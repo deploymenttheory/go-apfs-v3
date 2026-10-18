@@ -43,6 +43,9 @@ type Volume interface {
 	Holes(path string) ([][2]int64, error)
 	// ACL returns the raw extended security blob, or nil when absent.
 	ACL(path string) ([]byte, error)
+	// Snapshots lists the names of the snapshots of the volume mounted at
+	// mount, as fs_snapshot_list reports them.
+	Snapshots(mount string) ([]string, error)
 }
 
 // Stat is lstat's view of one object.

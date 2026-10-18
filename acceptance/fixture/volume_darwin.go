@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -393,4 +394,51 @@ func unwrap(err error) error {
 		return e.Err
 	}
 	return err
+}
+
+// fsoptListSnapshot is FSOPT_LIST_SNAPSHOT from <sys/attr.h>, which x/sys
+// does not export; sysGetattrlistbulk is the getattrlistbulk trap number
+// that x/sys exports only as a deprecated constant.
+const (
+	fsoptListSnapshot  = 0x40
+	sysGetattrlistbulk = 461
+)
+
+// Snapshots enumerates a mounted volume's snapshots the way libc's
+// fs_snapshot_list does: getattrlistbulk on the mount directory with
+// FSOPT_LIST_SNAPSHOT, asking for names only.
+func (HostVolume) Snapshots(mount string) ([]string, error) {
+	fd, err := unix.Open(mount, unix.O_RDONLY|unix.O_DIRECTORY, 0)
+	if err != nil {
+		return nil, unwrap(err)
+	}
+	defer func() { _ = unix.Close(fd) }()
+	attrs := unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_RETURNED_ATTRS | unix.ATTR_CMN_NAME}
+	buf := make([]byte, 64<<10)
+	var names []string
+	for {
+		n, _, e := syscall.Syscall6(sysGetattrlistbulk, uintptr(fd), uintptr(unsafe.Pointer(&attrs)), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), uintptr(fsoptListSnapshot), 0)
+		if e != 0 {
+			return nil, e
+		}
+		if n == 0 {
+			return names, nil
+		}
+		offset := 0
+		for i := 0; i < int(n); i++ {
+			entry := buf[offset:]
+			length := int(binary.LittleEndian.Uint32(entry[0:4]))
+			returned := binary.LittleEndian.Uint32(entry[4:8])
+			if returned&unix.ATTR_CMN_NAME != 0 && length >= 32 {
+				refOffset := 24
+				off := int(int32(binary.LittleEndian.Uint32(entry[refOffset : refOffset+4])))
+				size := int(binary.LittleEndian.Uint32(entry[refOffset+4 : refOffset+8]))
+				start := refOffset + off
+				if size > 0 && start >= 0 && start+size <= length {
+					names = append(names, strings.TrimRight(string(entry[start:start+size]), "\x00"))
+				}
+			}
+			offset += length
+		}
+	}
 }

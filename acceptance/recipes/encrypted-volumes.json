@@ -731,12 +731,6 @@
         },
         {
           "fs": {
-            "op": "mkdir",
-            "path": "$MOUNT:EncryptedPeer/Fixture"
-          }
-        },
-        {
-          "fs": {
             "op": "write",
             "path": "$MOUNT:EncryptedPeer/Fixture/example.txt",
             "content": "Native Apple filesystem fixture.\n"
