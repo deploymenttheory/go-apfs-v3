@@ -64,6 +64,7 @@ func (c *Capture) Run(ctx context.Context) (err error) {
 	for i := range c.Recipe.Stages {
 		stage := &c.Recipe.Stages[i]
 		if err := c.runStage(ctx, stage); err != nil {
+			c.writeFailure(stage.Name, err)
 			return fmt.Errorf("%s/%s/%s: %w", c.Recipe.Name, c.Profile.ID, stage.Name, err)
 		}
 	}
@@ -78,6 +79,7 @@ func (c *Capture) Run(ctx context.Context) (err error) {
 			continue
 		}
 		if err := c.derive(ctx, d); err != nil {
+			c.writeFailure(d.Name, err)
 			return fmt.Errorf("%s/%s/%s: %w", c.Recipe.Name, c.Profile.ID, d.Name, err)
 		}
 	}
@@ -345,6 +347,28 @@ func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
 		c.retained[stage.Name] = retained
 	}
 	return nil
+}
+
+// writeFailure retains the case transcript and the error beside the
+// outputs so a failed capture can be diagnosed from the diagnostics
+// artifact without rerunning it.
+func (c *Capture) writeFailure(stage string, failure error) {
+	if c.t == nil {
+		return
+	}
+	report := struct {
+		Recipe   string           `json:"recipe"`
+		Profile  string           `json:"profile"`
+		Stage    string           `json:"stage"`
+		Error    string           `json:"error"`
+		Commands []schema.Command `json:"commands"`
+	}{c.Recipe.Name, c.Profile.ID, stage, failure.Error(), c.t.Commands}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(c.Out, 0o755)
+	_ = os.WriteFile(filepath.Join(c.Out, c.prefix()+"."+stage+".failure.json"), append(data, '\n'), 0o644)
 }
 
 func (c *Capture) detach(ctx context.Context) error {

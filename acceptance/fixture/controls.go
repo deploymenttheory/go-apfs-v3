@@ -91,7 +91,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if tmount == "" {
 		return "", errors.New("asr target did not mount")
 	}
-	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt")
+	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt", "--verbose")
 	var stderr strings.Builder
 	asr.Stderr = &stderr
 	asr.Stdout = &stderr
@@ -125,6 +125,8 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		}
 	}
 	if waitErr != nil {
+		_ = os.MkdirAll(c.Out, 0o755)
+		_ = os.WriteFile(filepath.Join(c.Out, c.prefix()+"."+sanitize(name)+".asr.log"), []byte(stderr.String()), 0o644)
 		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
 	}
 	if !pinned {
