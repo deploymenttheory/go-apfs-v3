@@ -52,6 +52,9 @@ type AttachOptions struct {
 	NoKernel bool
 	Password []byte
 	Shadow   string
+	// Mount lets hdiutil mount the volumes where it chooses instead of
+	// attaching with -nomount; asr wants its target mounted that way.
+	Mount bool
 }
 
 // Disk is the hdiutil/diskutil surface the interpreter and observer use.
@@ -139,7 +142,10 @@ func (d *HostDisk) CreateRaw(_ context.Context, path string, bytes int64) error 
 }
 
 func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) (*Attachment, error) {
-	argv := []string{"hdiutil", "attach", "-plist", "-nobrowse", "-noautoopen", "-nomount", "-owners", "on"}
+	argv := []string{"hdiutil", "attach", "-plist", "-nobrowse", "-noautoopen", "-owners", "on"}
+	if !opts.Mount {
+		argv = append(argv, "-nomount")
+	}
 	if opts.Raw {
 		argv = append(argv, "-imagekey", "diskimage-class=CRawDiskImage", "-noautofsck")
 	}
@@ -193,7 +199,26 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	if err := d.Refresh(ctx, a); err != nil {
 		return nil, err
 	}
+	if opts.Mount {
+		for _, e := range entities {
+			entity, _ := e.(map[string]any)
+			dev, _ := entity["dev-entry"].(string)
+			mount, _ := entity["mount-point"].(string)
+			if vol := a.volumeByDev(dev); vol != nil && mount != "" {
+				vol.Mount = mount
+			}
+		}
+	}
 	return a, nil
+}
+
+func (a *Attachment) volumeByDev(dev string) *AttachedVolume {
+	for _, v := range a.Volumes {
+		if v.Dev == dev {
+			return v
+		}
+	}
+	return nil
 }
 
 // Refresh re-reads the volume inventory: APFS containers through

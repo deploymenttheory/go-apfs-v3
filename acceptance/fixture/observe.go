@@ -122,6 +122,24 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 	}
 	v := schema.Volume{Index: index, Device: vol.Dev, Diskutil: info}
 	locked, _ := info["Locked"].(bool)
+	fileVault, _ := info["FileVault"].(bool)
+	if fileVault && !locked {
+		// macOS may reuse an earlier unlock when the image is re-attached.
+		// Lock explicitly so the credential checks and the recorded locked
+		// state are genuine.
+		cmd := Command{Label: "lock", Argv: []string{"diskutil", "apfs", "lockVolume", vol.Dev}, Expected: "0"}
+		if err := in.T.Record(cmd, in.Disk.(*HostDisk).C.Run(ctx, cmd)); err != nil {
+			return err
+		}
+		info, err = in.Disk.Info(ctx, vol.Dev)
+		if err != nil {
+			return err
+		}
+		locked, _ = info["Locked"].(bool)
+		if !locked {
+			return fmt.Errorf("volume %s did not lock", vol.Name)
+		}
+	}
 	ref := in.Spec.Unlock[vol.Name]
 	if ref == "" {
 		ref = in.Spec.Unlock["*"]

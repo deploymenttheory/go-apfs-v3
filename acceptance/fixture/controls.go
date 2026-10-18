@@ -69,16 +69,28 @@ func (c *Capture) asrSnapshot(ctx context.Context, name string) error {
 }
 
 func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedVolume, target string, attempt int) (string, error) {
-	att, err := c.Disk.Attach(ctx, target, AttachOptions{})
+	// The target is attached the way Apple's tools expect for asr: mounted
+	// by hdiutil at its own mount point.
+	att, err := c.Disk.Attach(ctx, target, AttachOptions{Mount: true})
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = c.Disk.Detach(ctx, att) }()
-	tmount := filepath.Join(c.Work, "asr-target-mount")
-	if err := c.Disk.Mount(ctx, att.Volumes[0], "owners", tmount, false); err != nil {
-		return "", err
+	defer func() {
+		// asr remounts its target and can leave APFS children mounted;
+		// unmount the whole disk before detaching.
+		cmd := Command{Label: "asr-target-unmount", Argv: []string{"diskutil", "unmountDisk", "force", att.Dev}, Expected: "record"}
+		_ = c.t.Record(cmd, c.C.Run(ctx, cmd))
+		_ = c.Disk.Detach(ctx, att)
+	}()
+	tmount := ""
+	for _, v := range att.Volumes {
+		if v.Mount != "" {
+			tmount = v.Mount
+		}
 	}
-	defer func() { _ = c.Disk.Unmount(ctx, att.Volumes[0]) }()
+	if tmount == "" {
+		return "", errors.New("asr target did not mount")
+	}
 	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt")
 	var stderr strings.Builder
 	asr.Stderr = &stderr
