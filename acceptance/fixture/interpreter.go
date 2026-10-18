@@ -179,6 +179,19 @@ func (c *Capture) format(ctx context.Context) error {
 			return err
 		}
 		c.att = att
+		if c.Profile.Family == "hfs" {
+			// hdiutil's HFS+ defaults vary; make the journal state the
+			// profile's, through diskutil, before anything is written.
+			verb := "disableJournal"
+			if c.Profile.Journaled {
+				verb = "enableJournal"
+			}
+			for _, vol := range att.Volumes {
+				if err := c.runTool(ctx, &schema.ToolStep{Program: "diskutil", Args: []string{verb, vol.Dev}, Expect: "0", Label: "journal-state"}); err != nil {
+					return err
+				}
+			}
+		}
 	case "raw-newfs":
 		c.scratch = filepath.Join(c.Work, c.prefix()+".scratch.raw")
 		bytes, err := parseSize(size)

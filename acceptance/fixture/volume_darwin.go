@@ -4,6 +4,7 @@ package fixture
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"os"
@@ -262,12 +263,11 @@ func (HostVolume) Pread(path string, offset int64, length int) ([]byte, error) {
 	return buf[:n], nil
 }
 
-// log2phys mirrors struct log2phys with F_LOG2PHYS_EXT semantics.
-type log2phys struct {
-	Flags       uint32
-	Contigbytes int64
-	Devoffset   int64
-}
+// log2phys is struct log2phys as <sys/fcntl.h> declares it under
+// #pragma pack(4): a 4-byte flags word followed by two unaligned 8-byte
+// fields, 20 bytes in all. A naturally aligned Go struct would be 24 bytes
+// and the kernel would fill the wrong offsets.
+const log2physSize = 20
 
 func (HostVolume) Extents(path, fork string) ([][3]int64, error) {
 	if fork == "rsrc" {
@@ -284,16 +284,21 @@ func (HostVolume) Extents(path, fork string) ([][3]int64, error) {
 	}
 	size := info.Size()
 	var runs [][3]int64
+	var arg [log2physSize]byte
 	for offset := int64(0); offset < size && len(runs) < 4096; {
-		arg := log2phys{Contigbytes: size - offset, Devoffset: offset}
-		if _, _, e := syscall.Syscall(syscall.SYS_FCNTL, f.Fd(), unix.F_LOG2PHYS_EXT, uintptr(unsafe.Pointer(&arg))); e != 0 {
+		binary.LittleEndian.PutUint32(arg[0:4], 0)
+		binary.LittleEndian.PutUint64(arg[4:12], uint64(size-offset))
+		binary.LittleEndian.PutUint64(arg[12:20], uint64(offset))
+		if _, _, e := syscall.Syscall(syscall.SYS_FCNTL, f.Fd(), unix.F_LOG2PHYS_EXT, uintptr(unsafe.Pointer(&arg[0]))); e != 0 {
 			return nil, e
 		}
-		if arg.Contigbytes <= 0 {
+		contig := int64(binary.LittleEndian.Uint64(arg[4:12]))
+		devoffset := int64(binary.LittleEndian.Uint64(arg[12:20]))
+		if contig <= 0 {
 			break
 		}
-		runs = append(runs, [3]int64{offset, arg.Devoffset, arg.Contigbytes})
-		offset += arg.Contigbytes
+		runs = append(runs, [3]int64{offset, devoffset, contig})
+		offset += contig
 	}
 	return runs, nil
 }

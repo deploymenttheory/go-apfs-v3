@@ -209,13 +209,32 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		}
 		v.APFS = a
 	} else {
-		h := &schema.HFSVolume{CaseSensitive: sensitive, Journaled: strings.Contains(strings.ToLower(fsName), "journaled")}
+		h := &schema.HFSVolume{CaseSensitive: sensitive}
+		// diskutil describes the mount, and a read-only mount of a journaled
+		// volume is reported without its journal; the volume header's
+		// attribute bit and journal info block are the volume's own facts.
+		head, err := in.Disk.ReadRange(ctx, vol.RDev, 1024, 512)
+		if err != nil {
+			return err
+		}
+		if len(head) == 512 && (string(head[0:2]) == "H+" || string(head[0:2]) == "HX") {
+			attributes := binary.BigEndian.Uint32(head[4:8])
+			h.Journaled = attributes&(1<<13) != 0
+			if h.Journaled {
+				blockSize := int64(binary.BigEndian.Uint32(head[40:44]))
+				infoBlock := int64(binary.BigEndian.Uint32(head[12:16]))
+				info, err := in.Disk.ReadRange(ctx, vol.RDev, infoBlock*blockSize, 512)
+				if err != nil {
+					return err
+				}
+				if len(info) == 512 {
+					h.JournalOffset = int64(binary.BigEndian.Uint64(info[36:44]))
+					h.JournalBytes = int64(binary.BigEndian.Uint64(info[44:52]))
+				}
+			}
+		}
 		if in.Spec.RawHeaders {
 			total := int64(number(info["TotalSize"]))
-			head, err := in.Disk.ReadRange(ctx, vol.RDev, 1024, 512)
-			if err != nil {
-				return err
-			}
 			h.VolumeHeader = hex.EncodeToString(head)
 			if total >= 2048 {
 				alt, err := in.Disk.ReadRange(ctx, vol.RDev, total-1024, 512)
@@ -224,16 +243,14 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 				}
 				h.AlternateHeader = hex.EncodeToString(alt)
 			}
-			h.JournalOffset = int64(number(info["JournalOffset"]))
-			h.JournalBytes = int64(number(info["JournalSize"]))
-			if h.JournalBytes > 0 && h.JournalBytes <= 64<<20 {
-				journal, err := in.Disk.ReadRange(ctx, vol.RDev, h.JournalOffset, int(h.JournalBytes))
-				if err != nil {
-					return err
-				}
-				sum := sha256.Sum256(journal)
-				h.JournalSHA256 = hex.EncodeToString(sum[:])
+		}
+		if h.JournalBytes > 0 && h.JournalBytes <= 64<<20 {
+			journal, err := in.Disk.ReadRange(ctx, vol.RDev, h.JournalOffset, int(h.JournalBytes))
+			if err != nil {
+				return err
 			}
+			sum := sha256.Sum256(journal)
+			h.JournalSHA256 = hex.EncodeToString(sum[:])
 		}
 		v.HFS = h
 	}
@@ -565,13 +582,15 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 			if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, true); err != nil {
 				return err
 			}
-			cmd := Command{Label: "codesign:" + rel, Argv: []string{"codesign", "--verify", "--deep", "--strict", filepath.Join(mount, filepath.FromSlash(rel))}, Expected: "record"}
+			target := filepath.Join(mount, filepath.FromSlash(rel))
+			if _, err := in.Vol.Lstat(target); err != nil {
+				_ = in.Disk.Unmount(ctx, vol)
+				continue
+			}
+			cmd := Command{Label: "codesign:" + rel, Argv: []string{"codesign", "--verify", "--deep", "--strict", target}, Expected: "record"}
 			result := in.Disk.(*HostDisk).C.Run(ctx, cmd)
 			_ = in.T.Record(cmd, result)
 			_ = in.Disk.Unmount(ctx, vol)
-			if _, err := in.Vol.Lstat(filepath.Join(mount, filepath.FromSlash(rel))); err != nil {
-				continue
-			}
 			obs.Checks.Codesign = append(obs.Checks.Codesign, schema.CodesignResult{Path: rel, Status: result.Status})
 			if result.Status != 0 {
 				return fmt.Errorf("codesign %s on %s: exit %d: %s", rel, vol.Name, result.Status, strings.TrimSpace(string(result.Stderr)))
