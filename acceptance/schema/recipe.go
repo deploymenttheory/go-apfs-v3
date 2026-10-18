@@ -168,13 +168,16 @@ type ToolStep struct {
 // thin (unlink every even-numbered file under Path, used to fragment free
 // space after fill).
 type FSStep struct {
-	Op      string `json:"op"`
-	Path    string `json:"path"`
-	Target  string `json:"target,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Offset  int64  `json:"offset,omitempty"`
-	Bytes   int64  `json:"bytes,omitempty"`
-	Count   int    `json:"count,omitempty"`
+	Op     string `json:"op"`
+	Path   string `json:"path"`
+	Target string `json:"target,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Offset int64  `json:"offset,omitempty"`
+	Bytes  int64  `json:"bytes,omitempty"`
+	Count  int    `json:"count,omitempty"`
+	// MinFree stops a fill once the volume reports fewer free bytes, so a
+	// recipe can leave room for the fragmented writes that follow.
+	MinFree int64  `json:"minFree,omitempty"`
 	Mode    uint32 `json:"mode,omitempty"`
 	Flags   uint32 `json:"flags,omitempty"`
 	Content string `json:"content,omitempty"`

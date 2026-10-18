@@ -43,6 +43,16 @@ type Image struct {
 	Encryption *ImageEncryption `json:"encryption,omitempty"`
 	// Imageinfo is `hdiutil imageinfo -plist` for the retained file.
 	Imageinfo map[string]any `json:"imageinfo,omitempty"`
+	// Sentinels are bytes written outside every filesystem (free partition
+	// space) that a sector-preserving repack must reproduce.
+	Sentinels []Sentinel `json:"sentinels,omitempty"`
+}
+
+// Sentinel is one recognisable range on the raw disk.
+type Sentinel struct {
+	Offset int64  `json:"offset"`
+	Bytes  int64  `json:"bytes"`
+	SHA256 string `json:"sha256"`
 }
 
 // ImageEncryption records credentials by reference, never by value.
@@ -63,6 +73,9 @@ type Volume struct {
 	APFS         *APFSVolume    `json:"apfs,omitempty"`
 	HFS          *HFSVolume     `json:"hfs,omitempty"`
 	FreeBytes    int64          `json:"freeBytes"`
+	// RawHeader retains the first 4096 bytes of the volume's device for
+	// APFS (the container superblock) when the recipe asks for raw headers.
+	RawHeader string `json:"rawHeader,omitempty"`
 }
 
 // APFSVolume holds container and volume facts from diskutil apfs.
@@ -90,12 +103,15 @@ type Snapshot struct {
 	ChangedNS int64  `json:"changedNs"`
 }
 
-// HFSVolume holds HFS+ facts that only the raw header exposes.
+// HFSVolume holds HFS+ facts read from the raw device: the observer
+// retains sectors, it does not interpret them. JournalOffset and
+// JournalBytes come from diskutil.
 type HFSVolume struct {
-	CaseSensitive    bool   `json:"caseSensitive"`
-	Journaled        bool   `json:"journaled"`
-	JournalInfoBlock uint32 `json:"journalInfoBlock,omitempty"`
-	JournalSHA256    string `json:"journalSHA256,omitempty"`
+	CaseSensitive bool   `json:"caseSensitive"`
+	Journaled     bool   `json:"journaled"`
+	JournalOffset int64  `json:"journalOffset,omitempty"`
+	JournalBytes  int64  `json:"journalBytes,omitempty"`
+	JournalSHA256 string `json:"journalSHA256,omitempty"`
 	// VolumeHeader and AlternateHeader are the 512-byte sectors, hex.
 	VolumeHeader    string `json:"volumeHeader,omitempty"`
 	AlternateHeader string `json:"alternateHeader,omitempty"`
@@ -109,6 +125,8 @@ type View struct {
 	Lookups  []Probe `json:"lookups,omitempty"`
 	// AppleDouble lists exported ._ files for entries with metadata.
 	AppleDouble []AppleDoubleExport `json:"appleDouble,omitempty"`
+	// Statistics is apfs.util -S output per directory the recipe listed.
+	Statistics map[string]string `json:"statistics,omitempty"`
 }
 
 // Entry is one filesystem object exactly as lstat, getxattr, readlink and
@@ -156,11 +174,14 @@ type Times struct {
 }
 
 // Xattr records an attribute's presence, size and digest; values are not
-// retained because some are large and some are compression storage.
+// retained because some are large and some are compression storage. Hidden
+// marks compression-owned attributes that listxattr omits without
+// XATTR_SHOWCOMPRESSION.
 type Xattr struct {
 	Name   string `json:"name"`
 	Bytes  int64  `json:"bytes"`
 	SHA256 string `json:"sha256"`
+	Hidden bool   `json:"hidden,omitempty"`
 }
 
 // Compression describes active decmpfs storage and what the kernel did when

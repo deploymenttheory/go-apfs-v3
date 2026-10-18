@@ -1150,7 +1150,8 @@
             "path": "$MOUNT/allocation-guards",
             "bytes": 524288,
             "count": 256,
-            "expect": "ENOSPC"
+            "minFree": 1572864,
+            "expect": "record"
           },
           "only": [
             "hfsplus",
@@ -1158,7 +1159,7 @@
             "hfsplus-j",
             "hfsx-j"
           ],
-          "note": "512 KiB guards until the volume is nearly full; the tool stops when f_bavail*f_frsize < 1.5 MiB"
+          "note": "512 KiB guards until fewer than 1.5 MiB remain free"
         },
         {
           "fs": {
