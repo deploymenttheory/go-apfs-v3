@@ -1,8 +1,0 @@
-goos: darwin
-goarch: arm64
-pkg: github.com/deploymenttheory/go-apfs-v3/internal/qualification/decoded
-cpu: Apple M4
-BenchmarkRetainedHFSCatalogSource/decode-each-time-10         	       3	 527902167 ns/op	1016.99 MB/s	  617352 B/op	     509 allocs/op
-BenchmarkRetainedHFSCatalogSource/reuse-decoded-10            	       3	 450872347 ns/op	1190.74 MB/s	  697952 B/op	     382 allocs/op
-PASS
-ok  	github.com/deploymenttheory/go-apfs-v3/internal/qualification/decoded	5.397s

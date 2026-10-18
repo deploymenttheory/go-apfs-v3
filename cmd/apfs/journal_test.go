@@ -20,6 +20,7 @@ import (
 // Exercise real retained Apple evidence through the public CLI dispatcher.
 // Native tooling is never invoked here, including on the developer's Mac.
 func TestJournalCommandsPreserveEvidenceAndRequireExplicitNewOutput(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	ctx := context.Background()
 	archive, err := os.Open("../../acceptance/testdata/hfs-recovery/macos-27/hfsplus-linear-interrupted.raw.gz")
 	if err != nil {

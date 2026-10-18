@@ -10,8 +10,6 @@
 go.mod text eol=lf
 go.sum text eol=lf
 
-# Native hashes bind exact original bytes, including scripts and plist output.
-acceptance/testdata/** -text
 
 # Review the pinned inputs and generator for these reproducible tables.
 internal/names/*_tables.go linguist-generated=true

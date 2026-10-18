@@ -17,6 +17,7 @@ import (
 )
 
 func TestInspectJSONHasNoDiagnosticNoise(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	var out, diagnostics bytes.Buffer
 	path := filepath.Join("..", "..", "acceptance", "testdata", "native", "macos-27", "apfs.dmg")
 	if err := run(context.Background(), []string{"inspect", "--json", path}, nil, &out, &diagnostics); err != nil {
@@ -32,6 +33,7 @@ func TestInspectJSONHasNoDiagnosticNoise(t *testing.T) {
 }
 
 func TestEncryptedCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	image := filepath.Join("..", "..", "acceptance", "testdata", "encryption", "macos-27", "apfs.dmg")
 	const password = "apfs-v3-public-fixture"
 	path := filepath.Join(t.TempDir(), "password")
@@ -67,6 +69,7 @@ func TestEncryptedCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) 
 }
 
 func TestEncryptedImageAndVolumeCredentialsAreIndependent(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	root := filepath.Join("..", "..", "acceptance", "testdata", "encrypted-dmg", "macos-27")
 	const imagePassword = "public-dmg-password"
 	var out, diagnostics bytes.Buffer
@@ -115,6 +118,7 @@ func TestEncryptedImageAndVolumeCredentialsAreIndependent(t *testing.T) {
 }
 
 func TestCatIsByteExactAndDoesNotFollowSymlinks(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	for _, name := range []string{"apfs", "hfsplus"} {
 		t.Run(name, func(t *testing.T) {
 			image := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", name+".dmg")
@@ -147,6 +151,7 @@ func TestUnimplementedCommandDoesNotSucceed(t *testing.T) {
 }
 
 func TestCancelledInspectionReturnsNoReport(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var out, diagnostics bytes.Buffer
@@ -160,6 +165,7 @@ func TestCancelledInspectionReturnsNoReport(t *testing.T) {
 }
 
 func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	image := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", "apfs.dmg")
 	var out, diagnostics bytes.Buffer
 	if err := run(context.Background(), []string{"snapshot", "list", "--json", image}, nil, &out, &diagnostics); err != nil {
@@ -195,6 +201,7 @@ func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
 }
 
 func TestExtractAndVerifyPreservationReport(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	image := filepath.Join("..", "..", "acceptance", "testdata", "preservation", "macos-27", "apfs.dmg")
 	destination := filepath.Join(t.TempDir(), "extracted")
 	var out, diagnostics bytes.Buffer
@@ -226,6 +233,7 @@ func TestExtractAndVerifyPreservationReport(t *testing.T) {
 }
 
 func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	ctx := context.Background()
 	parent := t.TempDir()
 	scratch := filepath.Join(parent, "scratch")

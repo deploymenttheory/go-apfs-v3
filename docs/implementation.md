@@ -668,7 +668,8 @@ contents remain unchanged on disk-full and interrupted-output failures. Bounded
 synthetic stress covers fourteen growth/removal cycles and every write boundary.
 
 Directory-stat maintenance and ordinary ACL/set-ID metadata effects have
-independent retained controls and passed the full [offline editing regression](offline-editing-regression.md).
+independent retained controls and passed the full offline editing regression
+(retired harness, git history; superseded by [#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98)).
 Snapshots, clones, encrypted mutation and physical power-loss qualification
 remain separate capabilities.
 
@@ -691,7 +692,7 @@ continuation expectations. Retained capture recipes and images remain immutable.
 Current profile and credential limits, physical power-loss qualification and
 broader transaction profiles remain explicit. Absent HFS attribute-file
 initialization now follows the pinned Apple implementation and has separate
-first-attribute controls qualified by the [offline editing regression](offline-editing-regression.md).
+first-attribute controls qualified by the retired offline editing regression.
 See [metadata contracts](image-metadata.md).
 
 ## Existing-image link creation increment

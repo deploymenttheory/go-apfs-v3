@@ -10,7 +10,7 @@ software-encrypted APFS volumes and AES-128/256 DMG images for reading. It also
 opens retained APFS snapshots, extracts portable workspaces, and replaces their
 file contents while preserving metadata. Ordered workspace edits create, move,
 remove and link entries, and edit metadata, extended attributes and resource forks. Fresh APFS/HFS+/HFSX DMGs can be built from sessions or directories. Existing APFS/HFS+ disk images can be repacked with every decoded sector preserved. Both builds and repacks can produce AES-128/256 encrypted DMGs; repacking can change an image password or explicitly remove image encryption. Existing-filesystem
-writes support ordinary file commands on clean HFS+/HFSX, including validated empty internal journals, and admitted plaintext APFS volumes, preserving original identities in a new output image. APFS editing selects an ordinary volume by UUID in a multi-volume container and maintains directory statistics. Ordered commands share one managed scratch copy and publish once. Explicit HFS+/HFSX journal recovery produces a validated new image from interrupted internal journals. Explicit APFS checkpoint recovery validates and publishes a new image from the newest complete admitted checkpoint. Broader mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. The [offline editing qualification checklist](docs/offline-editing-qualification.md) records completed qualification and supported limits. See [implementation status](docs/implementation.md)
+writes support ordinary file commands on clean HFS+/HFSX, including validated empty internal journals, and admitted plaintext APFS volumes, preserving original identities in a new output image. APFS editing selects an ordinary volume by UUID in a multi-volume container and maintains directory statistics. Ordered commands share one managed scratch copy and publish once. Explicit HFS+/HFSX journal recovery produces a validated new image from interrupted internal journals. Explicit APFS checkpoint recovery validates and publishes a new image from the newest complete admitted checkpoint. Broader mutation and mounting remain pending. Fresh APFS containers also support multiple volumes, shared reserves/quotas and System/Data groups. See [implementation status](docs/implementation.md)
 for the complete agreed scope and qualification gates. This is a clean API break
 from v2.
 
@@ -273,21 +273,12 @@ go vet ./...
 golangci-lint run
 ```
 
-Acceptance replays genuine retained macOS images against independent
-`diskutil` and native filesystem observations. The file-reading family compares
-105 objects in each of four filesystem variants, including contents, metadata,
-Unicode names, binary/empty/large attributes and resource forks. Each corpus
-records native source, observations, image hashes and the actual OS version/build.
-Images are hashed before and after portable reading.
-The file-semantics family adds native positive/negative filename lookups,
-three aliases of one file, and independently verified fragmented HFS+ forks.
-The file-compression family adds each admitted decmpfs type, native codec
-readback, mixed stored/compressed blocks, raw storage, random reads, inactive
-attributes and a malformed active-file control.
-
-[Acceptance instructions](acceptance/README.md) cover capture and cross-platform
-replay. Passing a macOS 27 fixture does not qualify macOS 15 or 26. Runtime
-qualification is distinct from cross-compilation.
+Acceptance testing compares Go against fixtures that Apple tools produced on
+macOS 15, 26 and 27, and verifies Go-produced images with Apple tools on each
+of those versions. The harness is being rebuilt from the ground up under
+[#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98); the retired harness and its evidence remain in git history.
+Passing on one macOS version does not qualify another. Runtime qualification
+is distinct from cross-compilation.
 
 ## Design
 

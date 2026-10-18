@@ -36,6 +36,7 @@ func (s *storageFaultSource) WriteAt([]byte, int64) (int, error) {
 }
 
 func nativeStorage(t *testing.T, name string) (*storageChecker, *storageFaultSource) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
 	image, err := diskimage.Open("../acceptance/testdata/apfs-lifecycle/macos-15/" + name + ".dmg")
 	if err != nil {
