@@ -219,7 +219,7 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	// synthesized APFS container reference means the device is a container
 	// or its physical store; a filesystem type means a mountable volume;
 	// neither means an unformatted or free region.
-	classify := func(id string) error {
+	classify := func(id string, bare bool) error {
 		info, err := d.Info(ctx, "/dev/"+id)
 		if err != nil {
 			return err
@@ -232,6 +232,12 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		}
 		if fsType, _ := info["FilesystemType"].(string); fsType != "" && fsType != "apfs" {
 			devs = append(devs, "/dev/"+id)
+			return nil
+		}
+		if bare {
+			// A bare disk that is not a container is the volume, formatted
+			// or not; diskutil reports no filesystem type until it mounts.
+			devs = append(devs, "/dev/"+id)
 		}
 		return nil
 	}
@@ -240,7 +246,7 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		id, _ := disk["DeviceIdentifier"].(string)
 		parts, _ := disk["Partitions"].([]any)
 		if len(parts) == 0 {
-			if err := classify(id); err != nil {
+			if err := classify(id, true); err != nil {
 				return err
 			}
 			continue
@@ -248,7 +254,7 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		for _, p := range parts {
 			part, _ := p.(map[string]any)
 			id, _ := part["DeviceIdentifier"].(string)
-			if err := classify(id); err != nil {
+			if err := classify(id, false); err != nil {
 				return err
 			}
 		}

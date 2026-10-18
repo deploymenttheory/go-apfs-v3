@@ -4,7 +4,7 @@
   "purpose": "Catalog and attributes B-trees formatted with tiny clumps grow into overflow extents, collapse when every record is deleted, and reuse freed nodes: the editor must follow Apple's allocation, split, collapse and reuse rules.",
   "profiles": [
     "hfsplus",
-    "hfsx-j"
+    "hfsx"
   ],
   "requires": {
     "sudo": true,
@@ -22,7 +22,7 @@
     "output": "raw",
     "newfs": {
       "hfsplus": "-U $UID -G $GID -n c=4096,a=4096 -I c=8,a=8,e=256 -c c=8,a=8,e=256 -E c=8,a=8 -a c=2000,a=2008,e=2016 -v Fixture $RDEV",
-      "hfsx-j": "-s -J -U $UID -G $GID -n c=4096,a=4096 -I c=8,a=8,e=256 -c c=8,a=8,e=256 -E c=8,a=8 -a c=2000,a=2008,e=2016 -v Fixture $RDEV"
+      "hfsx": "-s -U $UID -G $GID -n c=4096,a=4096 -I c=8,a=8,e=256 -c c=8,a=8,e=256 -E c=8,a=8 -a c=2000,a=2008,e=2016 -v Fixture $RDEV"
     },
     "mountOptions": "owners,noatime"
   },

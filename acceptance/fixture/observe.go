@@ -150,8 +150,10 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 			return err
 		}
 	}
+	// The image is attached read-only, so the mount is read-only without
+	// the readOnly verb, which diskutil refuses for a just-unlocked volume.
 	mount := filepath.Join(in.Work, "observe", sanitize(vol.Name))
-	if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, true); err != nil {
+	if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, false); err != nil {
 		return err
 	}
 	defer func() { _ = in.Disk.Unmount(ctx, vol) }()
@@ -579,7 +581,7 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 	for _, rel := range in.Spec.Codesign {
 		for _, vol := range in.Att.Volumes {
 			mount := filepath.Join(in.Work, "observe", sanitize(vol.Name))
-			if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, true); err != nil {
+			if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, false); err != nil {
 				return err
 			}
 			target := filepath.Join(mount, filepath.FromSlash(rel))

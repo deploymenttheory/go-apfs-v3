@@ -46,6 +46,28 @@ type Commander interface {
 // DefaultTimeout bounds every command that does not declare its own.
 const DefaultTimeout = 120 * time.Second
 
+// programPaths resolves Apple programs that are not on PATH, especially
+// under sudo's restricted search path.
+var programPaths = map[string]string{
+	"apfs.util":  "/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util",
+	"fsck_apfs":  "/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs",
+	"mount_apfs": "/System/Library/Filesystems/apfs.fs/Contents/Resources/mount_apfs",
+	"newfs_hfs":  "/sbin/newfs_hfs",
+	"newfs_apfs": "/sbin/newfs_apfs",
+	"fsck_hfs":   "/sbin/fsck_hfs",
+	"mount_hfs":  "/sbin/mount_hfs",
+	"umount":     "/sbin/umount",
+	"asr":        "/usr/sbin/asr",
+}
+
+// ResolveProgram returns the absolute path for a known Apple program.
+func ResolveProgram(name string) string {
+	if path, ok := programPaths[name]; ok {
+		return path
+	}
+	return name
+}
+
 // Exec runs programs on the host.
 type Exec struct{}
 
@@ -58,7 +80,8 @@ func (Exec) Run(ctx context.Context, cmd Command) Result {
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	argv := cmd.Argv
+	argv := append([]string(nil), cmd.Argv...)
+	argv[0] = ResolveProgram(argv[0])
 	if cmd.Sudo {
 		argv = append([]string{"sudo", "-n", "--preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,APFS_NATIVE_DISPOSABLE_VM"}, argv...)
 	}

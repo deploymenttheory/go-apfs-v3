@@ -82,6 +82,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt")
 	var stderr strings.Builder
 	asr.Stderr = &stderr
+	asr.Stdout = &stderr
 	start := time.Now()
 	if err := asr.Start(); err != nil {
 		return "", err
