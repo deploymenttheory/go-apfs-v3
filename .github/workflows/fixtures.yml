@@ -4,7 +4,11 @@ name: Fixture corpus capture
 # tool. Dispatch only: fixtures do not depend on Go, so they are captured
 # when a recipe changes or a macOS version is added, never per pull request.
 # With dry_run the bundles are uploaded as workflow artifacts and nothing
-# is published; #103 adds release publication and the lock-bump pull request.
+# is published. Otherwise the publish job creates a release holding the
+# three bundles, verifies the uploaded assets by digest, writes
+# acceptance/fixtures.lock.json with the lock subcommand and opens a pull
+# request that changes only the lock. Nothing replaces the pinned corpus
+# without review.
 #
 # Before the workflow exists on the default branch it can only run from a
 # pull request: adding the label capture:<recipe> (or capture:all) to a PR
@@ -89,3 +93,68 @@ jobs:
           path: ${{ runner.temp }}/fixtures/
           include-hidden-files: true
           if-no-files-found: ignore
+
+  publish:
+    name: Publish the release and open the lock pull request
+    needs: capture
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Download every producer's bundle
+        uses: actions/download-artifact@v7
+        with:
+          pattern: fixtures-macos-*
+          path: ${{ runner.temp }}/bundles
+          merge-multiple: true
+      - name: Build the lock tool
+        run: go build -o "$RUNNER_TEMP/apfs-fixture" ./cmd/apfs-fixture
+      - name: Create the release and upload the bundles
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="fixtures/$(date -u +%Y.%m.%d)-${{ github.run_id }}"
+          gh release create "$tag" --prerelease --title "Fixture corpus $tag" \
+            --notes "Apple fixture corpus captured by run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} from recipes at ${{ github.sha }}. Pinned only through a reviewed fixtures.lock.json update." \
+            "$RUNNER_TEMP"/bundles/fixtures-macos-*.tar.gz
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Verify the uploaded assets by digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/verify"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/verify" --pattern 'fixtures-macos-*.tar.gz'
+          cd "$RUNNER_TEMP/bundles" && shasum -a 256 fixtures-macos-*.tar.gz > "$RUNNER_TEMP/expected.sha256"
+          cd "$RUNNER_TEMP/verify" && shasum -a 256 -c "$RUNNER_TEMP/expected.sha256"
+      - name: Write the lock file
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          "$RUNNER_TEMP/apfs-fixture" lock --recipes acceptance/recipes --release "$TAG" \
+            --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --bundles "$RUNNER_TEMP/bundles" --out acceptance/fixtures.lock.json
+          git diff --stat
+      - name: Open the lock pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          branch="fixtures/lock-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add acceptance/fixtures.lock.json
+          git commit -m "chore(fixtures): pin corpus $TAG"
+          git push -u origin "$branch"
+          gh pr create --title "chore(fixtures): pin corpus $TAG" --base "${{ github.ref_name }}" --head "$branch" \
+            --body "Pins the fixture corpus captured by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (release $TAG). Review the capture summaries and merge to adopt it; nothing changes until this merges."
