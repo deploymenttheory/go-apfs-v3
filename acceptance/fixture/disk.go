@@ -78,11 +78,20 @@ type Disk interface {
 	ReadRange(ctx context.Context, rdev string, offset int64, length int) ([]byte, error)
 }
 
+// TranscriptUser is a Disk that records the programs it runs into the
+// case transcript the interpreter hands it.
+type TranscriptUser interface {
+	SetTranscript(*Transcript)
+}
+
 // HostDisk drives the real tools.
 type HostDisk struct {
 	C Commander
 	T *Transcript
 }
+
+// SetTranscript records subsequent programs into t.
+func (d *HostDisk) SetTranscript(t *Transcript) { d.T = t }
 
 func (d *HostDisk) run(ctx context.Context, label string, sudo bool, stdin []byte, argv ...string) ([]byte, error) {
 	cmd := Command{Label: label, Argv: argv, Sudo: sudo, Stdin: stdin, Expected: "0"}

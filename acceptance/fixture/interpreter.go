@@ -269,8 +269,8 @@ func (c *Capture) autoMount(ctx context.Context) error {
 // every program, including the ones the observer runs, is recorded there.
 func (c *Capture) newTranscript() {
 	c.t = &Transcript{}
-	if hd, ok := c.Disk.(*HostDisk); ok {
-		hd.T = c.t
+	if d, ok := c.Disk.(TranscriptUser); ok {
+		d.SetTranscript(c.t)
 	}
 }
 

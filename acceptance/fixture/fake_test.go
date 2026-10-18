@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 // fakeImage is what a fake image file holds: the serialised volume tree.
@@ -52,6 +54,7 @@ func (f *fakeCommander) Run(_ context.Context, cmd Command) Result {
 // fakeDisk simulates attachments over a MemoryVolume: the "image" is a
 // file on the host, the volume is the memory tree rooted at the mount dir.
 type fakeDisk struct {
+	t        *Transcript
 	vol      *MemoryVolume
 	attached map[string]*Attachment
 	calls    []string
@@ -179,12 +182,22 @@ func (d *fakeDisk) MountSnapshot(context.Context, string, string, string) error 
 func (d *fakeDisk) UnmountPath(context.Context, string) error                   { return nil }
 func (d *fakeDisk) Verify(_ context.Context, image string, _ []byte) error {
 	d.note("verify %s", filepath.Base(image))
+	d.record("verify", "hdiutil", "verify", image)
 	return nil
 }
 func (d *fakeDisk) Fsck(_ context.Context, fs, rdev string) (string, error) {
 	d.note("fsck %s %s", fs, rdev)
+	d.record("fsck", "fsck_"+fs, "-n", rdev)
 	return "Checking the checkpoint with transaction ID 42\n", nil
 }
 func (d *fakeDisk) ReadRange(context.Context, string, int64, int) ([]byte, error) {
 	return make([]byte, 512), nil
+}
+
+func (d *fakeDisk) SetTranscript(t *Transcript) { d.t = t }
+
+func (d *fakeDisk) record(label string, argv ...string) {
+	if d.t != nil {
+		d.t.Commands = append(d.t.Commands, schema.Command{Label: label, Argv: argv, Expected: "0", Status: "0"})
+	}
 }
