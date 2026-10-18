@@ -273,12 +273,13 @@ go vet ./...
 golangci-lint run
 ```
 
-Acceptance testing compares Go against fixtures that Apple tools produced on
-macOS 15, 26 and 27, and verifies Go-produced images with Apple tools on each
-of those versions. The harness is being rebuilt from the ground up under
-[#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98); the retired harness and its evidence remain in git history.
-Passing on one macOS version does not qualify another. Runtime qualification
-is distinct from cross-compilation.
+Acceptance testing compares the product with fixtures that Apple tools
+produced on macOS 15, 26 and 27, and verifies images the product produced
+with Apple tools on each of those versions. Every pull request runs the
+portable tier on Linux, Windows and macOS and the native tier on all three
+macOS versions. See [docs/acceptance.md](docs/acceptance.md). Passing on one
+macOS version does not qualify another. Runtime qualification is distinct
+from cross-compilation.
 
 ## Design
 
