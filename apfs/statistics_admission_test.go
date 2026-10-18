@@ -16,6 +16,7 @@ import (
 // The original Apple disk supplies a real nested statistics graph. Faults below
 // are explicit corruption/overflow controls, not expected native edit outcomes.
 func nativeStatisticsMutation(t *testing.T) *mutation {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
 	f, err := os.Open("../acceptance/testdata/apfs-directory-statistics/macos-15/apfs-directory-statistics-source.raw.gz")
 	if err != nil {

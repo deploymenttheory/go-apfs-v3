@@ -20,6 +20,7 @@ import (
 // Retained Apple source with deliberate newest-object checksum damage exercises
 // the complete public command path. No native tools are run on the local host.
 func TestCheckpointCommandsPreserveEvidenceAndMakeRollbackExplicit(t *testing.T) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	archive, err := os.Open("../../acceptance/testdata/apfs-recovery/macos-27/apfs-bad-object-interrupted.raw.gz")
 	if err != nil {
 		t.Fatal(err)

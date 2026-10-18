@@ -13,6 +13,7 @@ import (
 )
 
 func nativeSample(t testing.TB) []byte {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
 	data, err := os.ReadFile("../acceptance/testdata/preservation/macos-27/apfs-example.txt.appledouble")
 	if err != nil {

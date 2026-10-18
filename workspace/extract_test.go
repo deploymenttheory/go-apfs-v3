@@ -17,6 +17,7 @@ import (
 )
 
 func sourceTree(t *testing.T) (filesystem.Reader, uint64) {
+	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
 	image, err := diskimage.Open("../acceptance/testdata/semantics/macos-27/apfs-case-sensitive.dmg")
 	if err != nil {

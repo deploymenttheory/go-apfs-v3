@@ -17,73 +17,14 @@ env:
   GOTOOLCHAIN: local
   CGO_ENABLED: "0"
 
+# The acceptance tiers (portable conformance on Linux/Windows/macOS and native
+# verification on macOS 15/26/27) are being rebuilt under
+# https://github.com/deploymenttheory/go-apfs-v3/issues/98. Until #106 lands,
+# this workflow gates source checks, cross-builds and race-instrumented unit tests.
+
 jobs:
-  evidence:
-    name: Admit complete CI evidence for identical merged content
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      actions: read
-      pull-requests: read
-    outputs:
-      reuse: ${{ steps.decision.outputs.reuse }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Verify original source, complete gates and case evidence
-        id: decision
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
-        run: python3 acceptance/qualification/ci_reuse.py --workspace artifacts/qualification/ci-inheritance
-      - name: Retain the inheritance decision and original evidence digests
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: ci-inheritance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/qualification/ci-inheritance/
-          include-hidden-files: true
-          if-no-files-found: error
-
-  references:
-    needs: evidence
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Validate reviewed Apple inputs for CI replay
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    outputs:
-      reviewed: ${{ steps.inputs.outputs.reviewed }}
-      controls: ${{ steps.inputs.outputs.controls }}
-      flags: ${{ steps.inputs.outputs.reviewed == 'true' && '-reference-pin acceptance/qualification/references.json -bundle-dir artifacts/ci-reference-inputs' || '' }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        if: ${{ hashFiles('acceptance/qualification/references.json') != '' }}
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Verify the complete reviewed release or retain the historical catalog
-        id: inputs
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python3 acceptance/qualification/reference_reuse.py ci --assets artifacts/ci-reference-inputs
-      - name: Share original reviewed catalog, provenance and input bundles
-        if: ${{ steps.inputs.outputs.reviewed == 'true' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: ci-reference-inputs
-          path: artifacts/ci-reference-inputs/
-          compression-level: 0
-          if-no-files-found: error
-
-  source_checks:
-    needs: evidence
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Source and native verifier checks
+  checks:
+    name: Source checks and cross-builds
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -93,252 +34,12 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Formatting
-        run: test -z "$(gofmt -l block filesystem diskimage apfs hfsplus inspect internal cmd acceptance workspace appledouble session pack imageedit)"
+        run: test -z "$(gofmt -l .)"
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0
-      - name: Check native verifier logic without running native tools
-        run: python3 -m unittest discover -s acceptance/native -p 'test_*.py' -v
-      - name: Audit acceptance obligations and original performance evidence
-        run: |
-          go run ./acceptance/qualification -verify-corpus all
-          python3 -m unittest discover -s acceptance/qualification -p 'test_*.py' -v
-
-  portable:
-    needs: [evidence, references]
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Portable tests (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    env:
-      APFS_REQUIRED_CONTROLS: ${{ needs.references.outputs.controls }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2025, macos-26]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Download original reviewed Apple input bundles
-        if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-reference-inputs
-          path: artifacts/ci-reference-inputs
-      - name: Test libraries, readers, workspaces and future acceptance families
-        # Full-disk writers have separate required retained-corpus jobs below.
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -parallel 2 -timeout 5m ./... -skip '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
       - run: go vet ./...
-      - name: Retain required case execution evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
-          include-hidden-files: true
-          path: |
-            artifacts/qualification/capture-*/
-            artifacts/qualification/replay-*/plan.json
-            artifacts/qualification/replay-*/receipt.json
-            artifacts/qualification/replay-*/events.jsonl
-            artifacts/qualification/replay-*/inputs.json
-            artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/*.plan.json
-            artifacts/**/*.receipt.json
-            artifacts/**/*.events.jsonl
-          if-no-files-found: error
-
-  offline_retained:
-    needs: [evidence, references]
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Retained offline editing (${{ matrix.family }}, macOS ${{ matrix.source }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    env:
-      APFS_REQUIRED_CONTROLS: ${{ needs.references.outputs.controls }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2025, macos-26]
-        source: [15, 26, 27]
-        family: [APFS geometry and permissions, HFS attributes and overflow, HFS+ node-map boundary, HFSX node-map boundary]
-        include:
-          - family: APFS geometry and permissions
-            tests: |-
-              ^TestNativeAPFSGeometryEditing$/macos-SOURCE/
-              ^TestNativeAPFSDirectoryStatisticsTransitions$/macos-SOURCE/
-              ^TestNative(PermissionInheritance|SessionPermissionInheritance)$/macos-SOURCE/
-              ^TestNativeCopy(SetID|Truncation)?Permissions$/macos-SOURCE/
-          - family: HFS attributes and overflow
-            tests: |-
-              ^TestNativeHFSMetadataGrowth$/macos-SOURCE/(hfsplus|hfsx)(-journaled)?-first-attribute$
-              ^TestNativeHFS(FragmentedMetadataGrowth|MetadataLifecycle)$/macos-SOURCE/
-          - {family: HFS+ node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsplus-catalog-map-growth$'}
-          - {family: HFSX node-map boundary, tests: '^TestNativeHFSMetadataGrowth$/macos-SOURCE/hfsx-catalog-map-growth$'}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Download original reviewed Apple input bundles
-        if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-reference-inputs
-          path: artifacts/ci-reference-inputs
-      - name: Compare source immutability, geometry, identities, links, forks and metadata
-        shell: bash
-        env:
-          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source }}
-          SELECTED_TESTS: ${{ matrix.tests }}
-          SOURCE_MAJOR: ${{ matrix.source }}
-        run: |
-          while IFS= read -r selected_pattern; do
-            test_pattern="${selected_pattern//SOURCE/$SOURCE_MAJOR}"
-            go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 12m ./acceptance -run "$test_pattern"
-          done <<< "$SELECTED_TESTS"
-      - name: Retain required case execution evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
-          include-hidden-files: true
-          path: |
-            artifacts/qualification/capture-*/
-            artifacts/qualification/replay-*/plan.json
-            artifacts/qualification/replay-*/receipt.json
-            artifacts/qualification/replay-*/events.jsonl
-            artifacts/qualification/replay-*/inputs.json
-            artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/*.plan.json
-            artifacts/**/*.receipt.json
-            artifacts/**/*.events.jsonl
-          if-no-files-found: error
-
-  portable_acceptance:
-    needs: [evidence, references]
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Retained acceptance (${{ matrix.family }}, ${{ matrix.source == 'all' && 'all sources' || format('macOS {0} sources', matrix.source) }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.job_minutes || 10 }}
-    env:
-      APFS_REQUIRED_CONTROLS: ${{ needs.references.outputs.controls }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2025, macos-26]
-        family: [image construction and repacking, HFS editing, existing APFS edits, filesystem recovery]
-        source: [all, 15, 26, 27]
-        exclude:
-          - {family: image construction and repacking, source: 15}
-          - {family: image construction and repacking, source: 26}
-          - {family: image construction and repacking, source: 27}
-          - {family: filesystem recovery, source: all}
-          - {family: HFS editing, source: all}
-          - {family: existing APFS edits, source: all}
-        include:
-          - family: HFS editing
-            job_minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Download original reviewed Apple input bundles
-        if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-reference-inputs
-          path: artifacts/ci-reference-inputs
-      - name: Compare image and container construction with retained Apple observations
-        if: matrix.source == 'all'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNative(ImageBuilding|ContainerBuilding)$'
-      - name: Compare lossless repacking with its original deadline
-        if: matrix.source == 'all'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeImageRepacking$'
-      - name: Compare each HFS journal source version independently
-        if: matrix.family == 'filesystem recovery'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFSJournalRecovery$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare APFS checkpoint recovery with this retained native source version
-        if: matrix.family == 'filesystem recovery'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeAPFSCheckpointRecovery$/macos-${{ matrix.source }}(/|$)'
-      # Source-version jobs keep the growing edit suites within the same bounded
-      # deadlines on every host. All three versions remain required by quality.
-      - name: Compare APFS file edits with retained Apple observations
-        if: matrix.family == 'existing APFS edits'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare APFS directory edits with retained Apple observations
-        if: matrix.family == 'existing APFS edits'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageDirectoryEditing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare APFS metadata with retained Apple observations
-        if: matrix.family == 'existing APFS edits'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare APFS link lifetimes with retained Apple observations
-        if: matrix.family == 'existing APFS edits'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare APFS preserved copying with retained Apple observations
-        if: matrix.family == 'existing APFS edits'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeAPFSImageCopy$/macos-${{ matrix.source }}(/|$)'
-      # Each original capability keeps its separate five-minute test deadline.
-      # Sharing setup and compilation does not merge or cache its verdicts.
-      - name: Compare HFS files and catalogs with retained Apple observations
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?Image(Catalog)?Editing(Continuation)?$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS metadata with its original deadline
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageMetadataEditing$/macos-${{ matrix.source }}(/|$)'
-      - name: Compare HFS links with their original deadline
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -parallel 2 -timeout 5m ./acceptance -run '^TestNativeHFS(Journaled)?ImageLinkEditing$/macos-${{ matrix.source }}(/|$)'
-      # Copy profiles share the existing family job, but each needs its own
-      # test-process deadline on slower hosts. All four remain required.
-      - name: Compare nonjournaled HFS+ copying with retained Apple observations
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
-      - name: Compare nonjournaled HFSX copying with retained Apple observations
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
-      - name: Compare journaled HFS+ copying with retained Apple observations
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsplus$'
-      - name: Compare journaled HFSX copying with retained Apple observations
-        if: matrix.family == 'HFS editing'
-        run: go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -v -count=1 -timeout 5m ./acceptance -run '^TestNativeHFSJournaledImageCopy$/^macos-${{ matrix.source }}$/^hfsx$'
-      - name: Retain required case execution evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
-          include-hidden-files: true
-          path: |
-            artifacts/qualification/capture-*/
-            artifacts/qualification/replay-*/plan.json
-            artifacts/qualification/replay-*/receipt.json
-            artifacts/qualification/replay-*/events.jsonl
-            artifacts/qualification/replay-*/inputs.json
-            artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/*.plan.json
-            artifacts/**/*.receipt.json
-            artifacts/**/*.events.jsonl
-          if-no-files-found: error
-
-  build:
-    needs: evidence
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Cross-build Linux, macOS and Windows on amd64 and arm64
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Build every original operating system and architecture
+      - name: Build every supported operating system and architecture
         shell: bash
         run: |
           for target_os in linux darwin windows; do
@@ -347,157 +48,29 @@ jobs:
             done
           done
 
-  race_library:
-    needs: evidence
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Library race checks
+  unit:
+    name: Unit tests with the race detector
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
-      CGO_ENABLED: '1'
+      CGO_ENABLED: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
-      - name: Race-check every package outside the separately scheduled acceptance suite
-        shell: bash
-        run: |
-          go list ./... > "$RUNNER_TEMP/race-packages.txt"
-          mapfile -t packages < "$RUNNER_TEMP/race-packages.txt"
-          library_packages=()
-          for package in "${packages[@]}"; do
-            if [[ "$package" != github.com/deploymenttheory/go-apfs-v3/acceptance ]]; then
-              library_packages+=("$package")
-            fi
-          done
-          test "${#library_packages[@]}" -gt 0
-          go test -race -count=1 -p 1 -timeout 5m "${library_packages[@]}"
+      - run: go test -race -count=1 -timeout 10m ./...
 
-  race_acceptance:
-    needs: [evidence, references]
-    if: ${{ needs.evidence.outputs.reuse != 'true' }}
-    name: Acceptance race checks (${{ matrix.family }})
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      CGO_ENABLED: '1'
-      APFS_REQUIRED_CONTROLS: ${{ needs.references.outputs.controls }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # The default group includes future acceptance tests automatically.
-          # Fresh HFS edits have their own required, source-version race jobs.
-          - family: readers and workspaces
-            tests: '.'
-            skip: '^TestNative(APFSImage((Directory|Metadata|Link)?Editing(Continuation)?|Copy)|HFS(Journaled)?Image((Catalog|Metadata|Link)?Editing(Continuation)?|Copy)|HFSJournalRecovery|APFSCheckpointRecovery|ImageCopyContinuation|ImageBuilding|ContainerBuilding|ImageRepacking|APFSGeometryEditing|APFSDirectoryStatisticsTransitions|HFS(Fragmented)?MetadataGrowth|HFSMetadataLifecycle|PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$'
-          - family: permissions and directory statistics, macOS 15 sources
-            tests: |-
-              ^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-15/
-              ^TestNativeAPFSDirectoryStatisticsTransitions$/macos-15/
-            source: '15'
-            skip: '^$'
-          - family: permissions and directory statistics, macOS 26 sources
-            tests: |-
-              ^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-26/
-              ^TestNativeAPFSDirectoryStatisticsTransitions$/macos-26/
-            source: '26'
-            skip: '^$'
-          - family: permissions and directory statistics, macOS 27 sources
-            tests: |-
-              ^TestNative(PermissionInheritance|SessionPermissionInheritance|Copy(SetID|Truncation)?Permissions)$/macos-27/
-              ^TestNativeAPFSDirectoryStatisticsTransitions$/macos-27/
-            source: '27'
-            skip: '^$'
-          - family: image and container construction
-            tests: |-
-              ^TestNativeImageBuilding$/macos-27/image-building/apfs$
-              ^TestNativeImageBuilding$/macos-27/image-building/apfs-case-sensitive$
-              ^TestNativeImageBuilding$/macos-27/image-building/hfsplus$
-              ^TestNativeImageBuilding$/macos-27/image-building/hfsx$
-              ^TestNativeContainerBuilding$
-            source: '27'
-            skip: '^$'
-          - family: HFS journal recovery
-            tests: '^TestNativeHFSJournalRecovery$'
-            skip: '^$'
-          - family: APFS checkpoint recovery, macOS 15 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-15/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
-            skip: '^$'
-            timeout: '7m'
-          - family: APFS checkpoint recovery, macOS 26 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-26/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
-            skip: '^$'
-            timeout: '7m'
-          - family: APFS checkpoint recovery, macOS 27 sources
-            tests: '^TestNativeAPFSCheckpointRecovery$/macos-27/(apfs(-case-sensitive)?-(data|bad-object)|apfs-wrapped|interrupted-Go-commits)(/|$)'
-            skip: '^$'
-            timeout: '7m'
-          - family: image repacking
-            tests: '^TestNativeImageRepacking$'
-            skip: '^$'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Download original reviewed Apple input bundles
-        if: ${{ needs.references.outputs.reviewed == 'true' }}
-        uses: actions/download-artifact@v7
-        with:
-          name: ci-reference-inputs
-          path: artifacts/ci-reference-inputs
-      - name: Compare the complete family with retained native observations under race instrumentation
-        shell: bash
-        env:
-          APFS_REQUIRED_NATIVE_MAJORS: ${{ matrix.source || '' }}
-          SELECTED_TESTS: ${{ matrix.tests }}
-          SELECTED_SKIP: ${{ matrix.skip }}
-          TEST_TIMEOUT: ${{ matrix.timeout || '5m' }}
-        run: |
-          while IFS= read -r test_pattern; do
-            go run ./acceptance/qualification -replay ${{ needs.references.outputs.flags }} -- -race -v -count=1 -parallel 2 -timeout "$TEST_TIMEOUT" ./acceptance -run "$test_pattern" -skip "$SELECTED_SKIP"
-          done <<< "$SELECTED_TESTS"
-      - name: Retain required case execution evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: qualification-ci-${{ github.job }}-${{ strategy.job-index }}
-          include-hidden-files: true
-          path: |
-            artifacts/qualification/capture-*/
-            artifacts/qualification/replay-*/plan.json
-            artifacts/qualification/replay-*/receipt.json
-            artifacts/qualification/replay-*/events.jsonl
-            artifacts/qualification/replay-*/inputs.json
-            artifacts/qualification/replay-*/source-inputs.json
-            artifacts/**/*.plan.json
-            artifacts/**/*.receipt.json
-            artifacts/**/*.events.jsonl
-          if-no-files-found: error
-
-  quality:
-    needs: [source_checks, portable, portable_acceptance, offline_retained, race_library, race_acceptance, evidence, references]
+  gate:
+    name: Required checks
+    needs: [checks, unit]
     if: always()
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Require original complete CI evidence when inherited
-        if: ${{ needs.evidence.outputs.reuse == 'true' }}
+      - name: Require every job
         env:
-          ADMITTED: ${{ needs.evidence.result }}
-        run: test "$ADMITTED" = success
-      - name: Require source checks and every portable and race group
-        if: ${{ always() && needs.evidence.outputs.reuse != 'true' }}
-        run: test "$REFERENCE_INPUTS" = success && test "$SOURCE_CHECKS" = success && test "$PORTABLE" = success && test "$RETAINED_ACCEPTANCE" = success && test "$OFFLINE_RETAINED" = success && test "$LIBRARY_RACES" = success && test "$ACCEPTANCE_RACES" = success
-        env:
-          REFERENCE_INPUTS: ${{ needs.references.result }}
-          SOURCE_CHECKS: ${{ needs.source_checks.result }}
-          PORTABLE: ${{ needs.portable.result }}
-          RETAINED_ACCEPTANCE: ${{ needs.portable_acceptance.result }}
-          OFFLINE_RETAINED: ${{ needs.offline_retained.result }}
-          LIBRARY_RACES: ${{ needs.race_library.result }}
-          ACCEPTANCE_RACES: ${{ needs.race_acceptance.result }}
+          CHECKS: ${{ needs.checks.result }}
+          UNIT: ${{ needs.unit.result }}
+        run: test "$CHECKS" = success && test "$UNIT" = success

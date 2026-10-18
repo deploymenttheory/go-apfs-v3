@@ -71,7 +71,7 @@ from external mutation for the call. Native authorization,
 compression encoding, filesystem-image writes and crash-durable transactions
 retain their separate implementation gates.
 
-Native qualification is described in [the acceptance guide](../acceptance/README.md#ordered-tree-edits).
+Native qualification is being rebuilt under [#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98).
 
 ## Metadata, attributes and resource forks
 

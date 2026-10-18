@@ -101,8 +101,8 @@ other data writes and ordinary chown clear them. APFS truncation to empty conten
 without a subsequent write retains set-ID bits. Ordinary cp restores the mode
 captured after truncation, while `-p` applies source metadata. Numeric chmod preserves ACL bytes.
 These effects model offline metadata, without authorizing a host process or
-mapping stored GUIDs to host accounts. The [offline editing regression](offline-editing-regression.md)
-records successful native qualification of this profile.
+mapping stored GUIDs to host accounts. The retired offline editing regression (git history, superseded by
+[#98](https://github.com/deploymenttheory/go-apfs-v3/issues/98)) recorded successful native qualification of this profile.
 Existing `mkdir -p` paths are a no-op and keep their metadata.
 
 `mv` preserves the inode, forks and attributes. An existing directory receives
@@ -179,7 +179,7 @@ The exact capture sources and native command/tool/OS evidence accompany them.
 Native captures retain siblings when the link count reaches one and qualify
 primary-name/parent repair. The same required APFS pipeline refreshes both file
 and directory controls; each native version checks all host output triples and
-continued Go/native directory edits. See [acceptance purpose and coverage](../acceptance/README.md).
+continued Go/native directory edits.
 
 Record layouts and primary-link selection follow the
 [Apple File System Reference](https://developer.apple.com/support/apple-file-system/Apple-File-System-Reference.pdf).

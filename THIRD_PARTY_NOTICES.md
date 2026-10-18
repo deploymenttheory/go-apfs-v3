@@ -43,11 +43,7 @@ circular-read and sequence-qualified tail behavior under APSL-2.0. Bounded secto
 references replace C overlap buckets; malformed committed logs fail rather than
 using kernel salvage. Private recovered-graph validation, primary unmounted
 marking and completed-output publication are documented project adaptations.
-`acceptance/native/hfs_capture.c` adapts the checksum for observing actual native
-write boundaries and retains the Apple notice. Frozen capture recipes retain
-their original native hashes; the Apple-derived checksum in retained capture
-recipes is also subject to APSL-2.0. Reinitialization and live journal transactions
-are not ported.
+Reinitialization and live journal transactions are not ported.
 
 `internal/names/hfs_tables.go` derives comparison/decomposition tables from
 Apple's `UCStringCompareData.h` and XNU `vfs_utfconvdata.h`, copyright 1997–2005
@@ -83,8 +79,7 @@ APFS encryption parsing and storage cryptography are original Go code using Go's
 standard AES, HMAC and SHA-256. Apple specifications, pinned format documentation
 and existing implementations were studied as recorded in the source inventory;
 no apfs-fuse GPL code or CommonCrypto implementation was copied or translated.
-The native acceptance collector calls installed Apple CommonCrypto APIs to
-produce independent reference vectors; production Go has no native dependency.
+Production Go has no native dependency.
 
 Encrypted DMG reading is an original Go interpretation using standard AES,
 3DES, HMAC and SHA-1 for Apple's existing format. Format facts were studied from
