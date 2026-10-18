@@ -1,5 +1,3 @@
-//go:build fixture
-
 // Command apfs-fixture captures the Apple fixture corpus: it executes recipes
 // with Apple tools and system calls on macOS and records what the kernel
 // reports. It never imports the product packages.
@@ -7,17 +5,25 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
+	"regexp"
+	"strconv"
 	"syscall"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
+
+// captureCommand is installed by capture_darwin.go when built with
+// -tags fixture on macOS; elsewhere it explains the requirement.
+var captureCommand = func(context.Context, []string) error {
+	return fmt.Errorf("capture requires macOS and a build with -tags fixture")
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -29,9 +35,11 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "capture":
-		err = capture(ctx, os.Args[2:])
+		err = captureCommand(ctx, os.Args[2:])
 	case "digest":
 		err = digest(os.Args[2:])
+	case "lock":
+		err = lock(os.Args[2:])
 	default:
 		usage()
 		os.Exit(2)
@@ -45,7 +53,10 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   apfs-fixture capture --recipes DIR --expect-major N --output DIR --bundle-dir DIR [--profile ID] [RECIPE ...]
-  apfs-fixture digest --recipes DIR`)
+  apfs-fixture digest --recipes DIR
+  apfs-fixture lock --recipes DIR --release TAG --run URL --bundles DIR [--out acceptance/fixtures.lock.json]
+
+capture needs a build with -tags fixture on macOS; digest and lock run anywhere.`)
 }
 
 func digest(args []string) error {
@@ -62,129 +73,84 @@ func digest(args []string) error {
 	return nil
 }
 
-func capture(ctx context.Context, args []string) error {
-	fs := flag.NewFlagSet("capture", flag.ContinueOnError)
-	recipesDir := fs.String("recipes", "acceptance/recipes", "recipe directory")
-	major := fs.Int("expect-major", 0, "macOS major version this host must be")
-	output := fs.String("output", "", "directory receiving images and observations")
-	bundleDir := fs.String("bundle-dir", "", "directory receiving the bundle")
-	profile := fs.String("profile", "", "capture only this profile")
+var bundleName = regexp.MustCompile(`^fixtures-macos-(\d+)-[0-9a-f]{16}\.tar\.gz$`)
+
+// lock writes fixtures.lock.json from the bundles a capture produced. Each
+// bundle is extracted to read its manifest so the lock records the exact
+// producer build and refuses a bundle captured from other recipes.
+func lock(args []string) error {
+	fs := flag.NewFlagSet("lock", flag.ContinueOnError)
+	recipes := fs.String("recipes", "acceptance/recipes", "recipe directory")
+	release := fs.String("release", "", "release tag the bundles are published under")
+	run := fs.String("run", "", "capture run URL")
+	bundles := fs.String("bundles", "", "directory holding fixtures-macos-<major>-<digest>.tar.gz")
+	out := fs.String("out", filepath.Join("acceptance", "fixtures.lock.json"), "lock file to write")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *major == 0 || *output == "" || *bundleDir == "" {
-		return fmt.Errorf("--expect-major, --output and --bundle-dir are required")
+	if *release == "" || *bundles == "" {
+		return fmt.Errorf("--release and --bundles are required")
 	}
-	if err := fixture.RequireDisposableHost(); err != nil {
-		return err
-	}
-	recipes, err := schema.LoadRecipes(*recipesDir)
+	digest, err := schema.TreeDigest(*recipes)
 	if err != nil {
 		return err
 	}
-	selected := map[string]bool{}
-	for _, name := range fs.Args() {
-		selected[name] = true
-	}
-	if len(selected) == 0 {
-		for _, r := range recipes {
-			if !needsInterruption(r) {
-				selected[r.Name] = true
-			}
-		}
-	}
-	recipesDigest, err := schema.TreeDigest(*recipesDir)
+	entries, err := os.ReadDir(*bundles)
 	if err != nil {
 		return err
 	}
-	self, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	selfDigest, err := schema.FileDigest(self)
-	if err != nil {
-		return err
-	}
-	commander := fixture.Exec{}
-	producer, err := fixture.IdentifyProducer(ctx, commander, *major, selfDigest)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(*output, 0o755); err != nil {
-		return err
-	}
-	work, err := os.MkdirTemp("", "apfs-fixture-")
-	if err != nil {
-		return err
-	}
-	var helperNames []string
-	for _, r := range recipes {
-		if selected[r.Name] {
-			helperNames = append(helperNames, r.Requires.Helpers...)
-		}
-	}
-	helpers, err := fixture.BuildHelpers(ctx, commander, filepath.Join(*recipesDir, "helpers"), filepath.Join(work, "helpers"), helperNames)
-	if err != nil {
-		return err
-	}
-	var failures []string
-	for i := range recipes {
-		r := &recipes[i]
-		if !selected[r.Name] {
+	l := schema.Lock{Schema: schema.LockSchema, Release: *release, RecipesSHA256: digest, Bundles: map[string]schema.Bundle{}}
+	for _, entry := range entries {
+		m := bundleName.FindStringSubmatch(entry.Name())
+		if m == nil {
 			continue
 		}
-		for _, id := range r.Profiles {
-			if *profile != "" && id != *profile {
-				continue
-			}
-			p, err := schema.LookupProfile(id)
-			if err != nil {
-				return err
-			}
-			caseWork := filepath.Join(work, r.Name, id)
-			c := &fixture.Capture{Recipe: r, Profile: p, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander,
-				Work: caseWork, Out: filepath.Join(*output, r.Name), Payloads: filepath.Join(*recipesDir, "payloads"), Helpers: helpers, Producer: producer}
-			fmt.Fprintf(os.Stderr, "== %s %s\n", r.Name, id)
-			if err := c.Run(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "FAIL %s %s: %v\n", r.Name, id, err)
-				failures = append(failures, fmt.Sprintf("%s/%s: %v", r.Name, id, err))
-				continue
-			}
-			_ = os.RemoveAll(caseWork)
+		major, _ := strconv.Atoi(m[1])
+		path := filepath.Join(*bundles, entry.Name())
+		sum, err := schema.FileDigest(path)
+		if err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		tmp, err := os.MkdirTemp("", "lock-")
+		if err != nil {
+			return err
+		}
+		if err := fixture.ExtractBundle(path, tmp, 4<<30); err != nil {
+			return err
+		}
+		data, err := os.ReadFile(filepath.Join(tmp, "manifest.json"))
+		if err != nil {
+			return err
+		}
+		_ = os.RemoveAll(tmp)
+		var manifest schema.Manifest
+		if err := schema.DecodeStrict(data, &manifest); err != nil {
+			return fmt.Errorf("%s: %w", entry.Name(), err)
+		}
+		if manifest.Producer.Major != major {
+			return fmt.Errorf("%s was produced on macOS %d", entry.Name(), manifest.Producer.Major)
+		}
+		if manifest.Recipes != digest {
+			return fmt.Errorf("%s was captured from recipes %s; the tree is %s", entry.Name(), manifest.Recipes, digest)
+		}
+		key := "macos-" + strconv.Itoa(major)
+		if _, dup := l.Bundles[key]; dup {
+			return fmt.Errorf("two bundles for %s", key)
+		}
+		l.Bundles[key] = schema.Bundle{Asset: entry.Name(), SHA256: sum, Bytes: info.Size(), Build: manifest.Producer.Build, CaptureRun: *run}
+	}
+	for _, major := range schema.Producers {
+		if _, ok := l.Bundles["macos-"+strconv.Itoa(major)]; !ok {
+			return fmt.Errorf("no bundle for macos-%d; every producer is required", major)
 		}
 	}
-	if len(failures) > 0 {
-		sort.Strings(failures)
-		for _, f := range failures {
-			fmt.Fprintln(os.Stderr, f)
-		}
-		return fmt.Errorf("%d case(s) failed; no bundle written", len(failures))
-	}
-	manifest, err := fixture.WriteManifest(*output, producer, recipesDigest)
+	data, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(*bundleDir, 0o755); err != nil {
-		return err
-	}
-	path, sum, size, err := fixture.WriteBundle(*output, *major, *bundleDir)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("bundle %s sha256=%s bytes=%d cases=%d\n", path, sum, size, len(manifest.Cases))
-	return nil
-}
-
-func needsInterruption(r schema.Recipe) bool {
-	for _, s := range r.Stages {
-		for _, step := range s.Steps {
-			if step.Control != nil {
-				switch step.Control.Action {
-				case "journal-window", "replay-journal", "checkpoint-window", "damage":
-					return true
-				}
-			}
-		}
-	}
-	return false
+	return os.WriteFile(*out, append(data, '\n'), 0o644)
 }
