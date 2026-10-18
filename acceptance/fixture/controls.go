@@ -27,7 +27,7 @@ func (c *Capture) runControl(ctx context.Context, ctl *schema.ControlStep) error
 	case "settle-encryption":
 		return c.settleEncryption(ctx, ctl.Name, ctl.Params["fileVault"] == "true")
 	case "free-space-sentinel":
-		return c.freeSpaceSentinel(ctl.Name)
+		return c.freeSpaceSentinel(ctx, ctl.Name)
 	case "snapshot-api":
 		return c.snapshotAPI(ctx, ctl.Params)
 	case "journal-window", "replay-journal", "checkpoint-window", "damage", "pause-helper", "resume-helper", "retain-device":
@@ -112,7 +112,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		}
 	}
 	if waitErr != nil {
-		return "", fmt.Errorf("asr restore failed: %w", waitErr)
+		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(stderr.String()))
 	}
 	if !pinned {
 		return "", fmt.Errorf("snapshot %s was never mounted before asr finished", snapshot)
@@ -158,9 +158,22 @@ func (c *Capture) settleEncryption(ctx context.Context, volume string, fileVault
 // partition of the detached raw scratch image. The scratch must be a flat
 // UDRW image with an Apple Partition Map, which hdiutil create -layout SPUD
 // produces.
-func (c *Capture) freeSpaceSentinel(name string) error {
+func (c *Capture) freeSpaceSentinel(ctx context.Context, name string) error {
 	if c.att != nil {
-		return errors.New("free-space-sentinel needs the image detached; place it after the stage's last step")
+		// The sentinel is written to the backing file, so the image is
+		// detached for the write and re-attached afterwards.
+		if err := c.detach(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			att, err := c.Disk.Attach(ctx, c.scratch, AttachOptions{Raw: c.Recipe.Image.Create == "raw-newfs"})
+			if err != nil {
+				return
+			}
+			c.att = att
+			_ = c.refreshVars(ctx)
+			_ = c.autoMount(ctx)
+		}()
 	}
 	f, err := os.OpenFile(c.scratch, os.O_RDWR, 0)
 	if err != nil {

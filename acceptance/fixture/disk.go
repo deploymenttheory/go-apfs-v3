@@ -215,17 +215,22 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	a.Container = ""
 	var devs []string
 	disks, _ := listing["AllDisksAndPartitions"].([]any)
-	classify := func(id, content string) error {
-		switch {
-		case content == "Apple_APFS":
-			info, err := d.Info(ctx, "/dev/"+id)
-			if err != nil {
-				return err
-			}
-			if ref, _ := info["APFSContainerReference"].(string); ref != "" {
+	// Every candidate device is classified through diskutil info: a
+	// synthesized APFS container reference means the device is a container
+	// or its physical store; a filesystem type means a mountable volume;
+	// neither means an unformatted or free region.
+	classify := func(id string) error {
+		info, err := d.Info(ctx, "/dev/"+id)
+		if err != nil {
+			return err
+		}
+		if ref, _ := info["APFSContainerReference"].(string); ref != "" {
+			if content, _ := info["Content"].(string); content == "Apple_APFS" || strings.HasPrefix(ref, "disk") && a.Container == "" {
 				a.Container = ref
 			}
-		case strings.HasPrefix(content, "Apple_HFS"):
+			return nil
+		}
+		if fsType, _ := info["FilesystemType"].(string); fsType != "" && fsType != "apfs" {
 			devs = append(devs, "/dev/"+id)
 		}
 		return nil
@@ -235,28 +240,15 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		id, _ := disk["DeviceIdentifier"].(string)
 		parts, _ := disk["Partitions"].([]any)
 		if len(parts) == 0 {
-			// A bare disk is itself the container or the volume.
-			content, _ := disk["Content"].(string)
-			if content == "" {
-				info, err := d.Info(ctx, "/dev/"+id)
-				if err != nil {
-					return err
-				}
-				content, _ = info["Content"].(string)
-				if fsType, _ := info["FilesystemType"].(string); content == "" && fsType != "" {
-					content = "Apple_HFS"
-				}
-			}
-			if err := classify(id, content); err != nil {
+			if err := classify(id); err != nil {
 				return err
 			}
 			continue
 		}
 		for _, p := range parts {
 			part, _ := p.(map[string]any)
-			content, _ := part["Content"].(string)
 			id, _ := part["DeviceIdentifier"].(string)
-			if err := classify(id, content); err != nil {
+			if err := classify(id); err != nil {
 				return err
 			}
 		}
@@ -304,9 +296,8 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		}
 		a.Volumes = append(a.Volumes, v)
 	}
-	if len(a.Volumes) == 0 {
-		return fmt.Errorf("attach %s: no filesystem volumes", a.Image)
-	}
+	// No volume is legitimate right after attaching an unformatted raw
+	// disk; callers that need one check for it.
 	return nil
 }
 

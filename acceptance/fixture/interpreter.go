@@ -230,6 +230,9 @@ func (c *Capture) format(ctx context.Context) error {
 	if err := c.refreshVars(ctx); err != nil {
 		return err
 	}
+	if len(c.att.Volumes) == 0 {
+		return fmt.Errorf("%s: no filesystem volume after formatting", c.scratch)
+	}
 	return c.autoMount(ctx)
 }
 
