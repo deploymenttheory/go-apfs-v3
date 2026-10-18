@@ -1,4 +1,4 @@
-name: Fixture corpus capture
+name: Obtain acceptance test fixtures
 
 # Captures the Apple fixture corpus on macOS 15, 26 and 27 with the recipe
 # tool. Dispatch only: fixtures do not depend on Go, so they are captured
