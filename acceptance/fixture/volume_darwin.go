@@ -404,20 +404,29 @@ const (
 	sysGetattrlistbulk = 461
 )
 
-// Snapshots enumerates a mounted volume's snapshots the way libc's
-// fs_snapshot_list does: getattrlistbulk on the mount directory with
-// FSOPT_LIST_SNAPSHOT, asking for names only.
-func (HostVolume) Snapshots(mount string) ([]string, error) {
+// snapshotLister holds the volume root open, as libc's fs_snapshot_list
+// callers do, so listing keeps working while asr remounts the volume.
+type snapshotLister struct{ fd int }
+
+// SnapshotLister opens the mounted volume's root directory.
+func (HostVolume) SnapshotLister(mount string) (SnapshotLister, error) {
 	fd, err := unix.Open(mount, unix.O_RDONLY|unix.O_DIRECTORY, 0)
 	if err != nil {
 		return nil, unwrap(err)
 	}
-	defer func() { _ = unix.Close(fd) }()
+	return &snapshotLister{fd: fd}, nil
+}
+
+func (l *snapshotLister) Close() error { return unix.Close(l.fd) }
+
+// List enumerates snapshots with getattrlistbulk and FSOPT_LIST_SNAPSHOT,
+// asking for names only.
+func (l *snapshotLister) List() ([]string, error) {
 	attrs := unix.Attrlist{Bitmapcount: unix.ATTR_BIT_MAP_COUNT, Commonattr: unix.ATTR_CMN_RETURNED_ATTRS | unix.ATTR_CMN_NAME}
 	buf := make([]byte, 64<<10)
 	var names []string
 	for {
-		n, _, e := syscall.Syscall6(sysGetattrlistbulk, uintptr(fd), uintptr(unsafe.Pointer(&attrs)), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), uintptr(fsoptListSnapshot), 0)
+		n, _, e := syscall.Syscall6(sysGetattrlistbulk, uintptr(l.fd), uintptr(unsafe.Pointer(&attrs)), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), uintptr(fsoptListSnapshot), 0)
 		if e != 0 {
 			return nil, e
 		}

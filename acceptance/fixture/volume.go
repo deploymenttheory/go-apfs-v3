@@ -43,9 +43,16 @@ type Volume interface {
 	Holes(path string) ([][2]int64, error)
 	// ACL returns the raw extended security blob, or nil when absent.
 	ACL(path string) ([]byte, error)
-	// Snapshots lists the names of the snapshots of the volume mounted at
-	// mount, as fs_snapshot_list reports them.
-	Snapshots(mount string) ([]string, error)
+	// SnapshotLister opens the mounted volume's root once and lists its
+	// snapshots on demand, as fs_snapshot_list reports them. A persistent
+	// descriptor keeps listing while asr remounts the volume.
+	SnapshotLister(mount string) (SnapshotLister, error)
+}
+
+// SnapshotLister lists a volume's snapshots through one open descriptor.
+type SnapshotLister interface {
+	List() ([]string, error)
+	Close() error
 }
 
 // Stat is lstat's view of one object.

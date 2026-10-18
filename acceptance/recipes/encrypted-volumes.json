@@ -1726,6 +1726,20 @@
           "tool": {
             "program": "diskutil",
             "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Peer",
+              "$VOLUME:Peer"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
               "apfs",
               "decryptVolume",
               "$VOLUME:Peer",

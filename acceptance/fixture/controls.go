@@ -104,7 +104,12 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if tmount == "" {
 		return "", errors.New("asr target did not mount")
 	}
-	if names, err := c.Vol.Snapshots(source.Mount); err != nil {
+	lister, err := c.Vol.SnapshotLister(source.Mount)
+	if err != nil {
+		return "", fmt.Errorf("open %s for snapshot listing: %w", source.Mount, err)
+	}
+	defer func() { _ = lister.Close() }()
+	if names, err := lister.List(); err != nil {
 		return "", fmt.Errorf("snapshot listing on %s before asr: %w", source.Mount, err)
 	} else if len(names) > 0 {
 		c.t.Commands = append(c.t.Commands, schema.Command{Label: "snapshots-before-asr", Argv: append([]string{"fs_snapshot_list", source.Mount}, names...), Expected: "0", Status: "0"})
@@ -126,12 +131,15 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	pinned := false
 	retries := 0
 	var listErr error
+	listErrors := 0
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		names, err := c.Vol.Snapshots(source.Mount)
-		if err != nil && !errors.Is(err, syscall.ENOENT) {
+		names, err := lister.List()
+		if err != nil {
+			// asr changes the inventory while it runs; errors are counted
+			// and polling continues until asr exits.
 			listErr = err
-			break
+			listErrors++
 		}
 		for _, n := range names {
 			if strings.HasPrefix(n, "com.apple.asr.") {
@@ -177,7 +185,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
 	}
 	if !pinned {
-		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls, list error %v)", snapshot, retries, listErr)
+		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls, %d list errors, last %v)", snapshot, retries, listErrors, listErr)
 	}
 	snaps, err := c.Disk.Snapshots(ctx, source.Dev)
 	if err != nil {

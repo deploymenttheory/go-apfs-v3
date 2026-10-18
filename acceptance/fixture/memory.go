@@ -603,7 +603,12 @@ func (v *MemoryVolume) ACL(p string) ([]byte, error) {
 	return n.xattrs["memory.acl"], nil
 }
 
-func (v *MemoryVolume) Snapshots(string) ([]string, error) { return nil, nil }
+func (v *MemoryVolume) SnapshotLister(string) (SnapshotLister, error) { return noSnapshots{}, nil }
+
+type noSnapshots struct{}
+
+func (noSnapshots) List() ([]string, error) { return nil, nil }
+func (noSnapshots) Close() error            { return nil }
 
 // Dump lists every path for test assertions.
 func (v *MemoryVolume) Dump() string {
