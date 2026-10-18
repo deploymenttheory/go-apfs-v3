@@ -9,13 +9,16 @@ const OutputsSchema = 1
 // must decrypt to the same device bytes, and every output is then checked
 // with Apple tools against the expectation it names.
 type Outputs struct {
-	Schema  int      `json:"schema"`
-	Host    string   `json:"host"` // linux, windows, darwin
-	Arch    string   `json:"arch"`
-	Go      string   `json:"go"`
-	Commit  string   `json:"commit,omitempty"`
-	Lock    string   `json:"lockSHA256"` // digest of fixtures.lock.json used
-	Outputs []Output `json:"outputs"`
+	Schema int    `json:"schema"`
+	Host   string `json:"host"` // linux, windows, darwin
+	Arch   string `json:"arch"`
+	Go     string `json:"go"`
+	Commit string `json:"commit,omitempty"`
+	Lock   string `json:"lockSHA256"` // digest of fixtures.lock.json used
+	// Passwords maps the references outputs use to their public values, so
+	// the verifier never needs the recipes.
+	Passwords map[string]string `json:"passwords,omitempty"`
+	Outputs   []Output          `json:"outputs"`
 }
 
 // Output is one produced image and the expectation it must satisfy.
@@ -56,6 +59,13 @@ type Expectation struct {
 	// View names the stage whose observation holds the expected entries;
 	// empty means the source case's own observation.
 	View string `json:"view,omitempty"`
+	// Subtree is the observed path the output's root corresponds to, for
+	// images built from part of a fixture (for example "Fixture").
+	Subtree string `json:"subtree,omitempty"`
+	// IgnoreTimes lists timestamp names (birth, modify, change, access)
+	// that are not expected to match, for example change times that an
+	// editor assigns from its own clock.
+	IgnoreTimes []string `json:"ignoreTimes,omitempty"`
 	// Volume selects the observed volume by name for multi-volume images.
 	Volume string `json:"volume,omitempty"`
 	// DiskSHA256 requires the attached raw device to hash to this value

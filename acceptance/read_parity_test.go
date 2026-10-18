@@ -256,9 +256,21 @@ func compareSnapshots(t *testing.T, ctx context.Context, name string, v *apfs.Vo
 	}
 }
 
+// compareOptions relax a comparison for images the product produced
+// rather than read: a build of a subtree has no "Fixture/" prefix, and an
+// editor assigns change times from its own clock.
+type compareOptions struct {
+	subtree     string
+	ignoreTimes map[string]bool
+}
+
 // compareView walks the product's tree and the observed entries and
 // requires the same set of paths and the same facts for each.
 func compareView(t *testing.T, ctx context.Context, label string, r filesystem.Reader, view schema.View) {
+	compareViewWith(t, ctx, label, r, view, compareOptions{})
+}
+
+func compareViewWith(t *testing.T, ctx context.Context, label string, r filesystem.Reader, view schema.View, opts compareOptions) {
 	objects := map[string]uint64{}
 	var walk func(dir uint64, rel string) error
 	walk = func(dir uint64, rel string) error {
@@ -285,8 +297,19 @@ func compareView(t *testing.T, ctx context.Context, label string, r filesystem.R
 		t.Errorf("%s: %v", label, err)
 		return
 	}
+	entries := view.Entries
+	if opts.subtree != "" {
+		entries = nil
+		prefix := opts.subtree + "/"
+		for _, e := range view.Entries {
+			if strings.HasPrefix(e.Path, prefix) {
+				e.Path = strings.TrimPrefix(e.Path, prefix)
+				entries = append(entries, e)
+			}
+		}
+	}
 	observed := map[string]bool{}
-	for _, e := range view.Entries {
+	for _, e := range entries {
 		observed[e.Path] = true
 		if _, ok := objects[e.Path]; !ok {
 			t.Errorf("%s: native entry %q is missing from the product's enumeration", label, e.Path)
@@ -297,12 +320,15 @@ func compareView(t *testing.T, ctx context.Context, label string, r filesystem.R
 			t.Errorf("%s: product enumerates %q which the kernel did not report", label, p)
 		}
 	}
-	for _, e := range view.Entries {
+	for _, e := range entries {
 		id, ok := objects[e.Path]
 		if !ok {
 			continue
 		}
-		compareEntry(t, ctx, label, r, id, e)
+		compareEntryWith(t, ctx, label, r, id, e, opts)
+	}
+	if opts.subtree != "" {
+		return
 	}
 	for _, probe := range view.Lookups {
 		query, err := hex.DecodeString(probe.Query)
@@ -324,14 +350,14 @@ func compareView(t *testing.T, ctx context.Context, label string, r filesystem.R
 	}
 }
 
-func compareEntry(t *testing.T, ctx context.Context, label string, r filesystem.Reader, id uint64, e schema.Entry) {
+func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesystem.Reader, id uint64, e schema.Entry, opts compareOptions) {
 	where := label + ":" + e.Path
 	node, err := r.Stat(ctx, id)
 	if err != nil {
 		t.Errorf("%s: stat: %v", where, err)
 		return
 	}
-	if node.Identity.Object != e.ID {
+	if node.Identity.Object != e.ID && opts.subtree == "" {
 		t.Errorf("%s: object %d, native %d", where, node.Identity.Object, e.ID)
 	}
 	kind := "other"
@@ -362,6 +388,9 @@ func compareEntry(t *testing.T, ctx context.Context, label string, r filesystem.
 		"access": {node.Metadata.AccessTime.Value.UnixNano(), e.Times.Access},
 	}
 	for name, pair := range times {
+		if opts.ignoreTimes[name] {
+			continue
+		}
 		if pair[0] != pair[1] {
 			t.Errorf("%s: %s time %d, native %d", where, name, pair[0], pair[1])
 		}

@@ -43,7 +43,19 @@ func loadCorpus(t *testing.T) ([]corpus.Case, *corpus.Corpus) {
 // TestReadParity, which covers every recipe. A recipe present in the corpus
 // without any consumer fails: a fixture nobody checks proves nothing.
 var consumers = map[string][]string{
-	"file-corpus": {"TestReadParity"},
+	"file-corpus":            {"TestReadParity", "TestBuildFromFixtures", "TestRepackPreservesEverySector"},
+	"compressed-files":       {"TestReadParity", "TestBuildFromFixtures", "TestRepackPreservesEverySector"},
+	"encrypted-volumes":      {"TestReadParity", "TestRepackPreservesEverySector"},
+	"encrypted-images":       {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
+	"snapshot-history":       {"TestReadParity", "TestRepackPreservesEverySector"},
+	"container-volumes":      {"TestReadParity", "TestRepackPreservesEverySector"},
+	"volume-groups":          {"TestReadParity", "TestRepackPreservesEverySector"},
+	"partitioned-disks":      {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
+	"hfs-mutation-sources":   {"TestReadParity", "TestExistingImageEditsMatchAppleStates"},
+	"apfs-mutation-sources":  {"TestReadParity", "TestExistingImageEditsMatchAppleStates"},
+	"file-command-journeys":  {"TestReadParity"},
+	"workspace-edits":        {"TestReadParity"},
+	"permission-inheritance": {"TestReadParity"},
 }
 
 func TestEveryCorpusCaseHasAConsumer(t *testing.T) {
