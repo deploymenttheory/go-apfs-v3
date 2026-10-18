@@ -16,11 +16,15 @@ concurrency:
 env:
   GOTOOLCHAIN: local
   CGO_ENABLED: "0"
+  APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
 
-# The acceptance tiers (portable conformance on Linux/Windows/macOS and native
-# verification on macOS 15/26/27) are being rebuilt under
-# https://github.com/deploymenttheory/go-apfs-v3/issues/98. Until #106 lands,
-# this workflow gates source checks, cross-builds and race-instrumented unit tests.
+# Three tiers. checks and unit gate the source. portable reads every Apple
+# fixture from macOS 15, 26 and 27 with the product on Linux and Windows and
+# produces images from them; portable-slow replays the minutes-long catalog
+# growth stages beside it. native runs the same on each macOS version and
+# then verifies every host's images with Apple tools, including native
+# continuation writes and a further product edit. The fixture corpus is
+# pinned by acceptance/fixtures.lock.json and cached by its digest.
 
 jobs:
   checks:
@@ -39,9 +43,10 @@ jobs:
         with:
           version: v2.14.0
       - run: go vet ./...
-      - name: Vet and build the darwin-only fixture capture tool
+      - name: Vet and build the darwin-only capture tool and native verifier
         run: |
           GOOS=darwin GOARCH=arm64 go vet -tags fixture ./acceptance/... ./cmd/apfs-fixture
+          GOOS=darwin GOARCH=arm64 go vet -tags 'native fixture' ./acceptance/native
           GOOS=darwin GOARCH=arm64 go build -tags fixture -o /dev/null ./cmd/apfs-fixture
       - name: Build every supported operating system and architecture
         shell: bash
@@ -70,9 +75,124 @@ jobs:
           mapfile -t packages < <(go list ./... | grep -v /acceptance)
           go test -race -count=1 -timeout 10m "${packages[@]}"
 
+  portable:
+    name: Portable conformance (${{ matrix.host }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {host: linux, runner: ubuntu-24.04}
+          - {host: windows, runner: windows-2025}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore the pinned fixture corpus
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ github.workspace }}/.fixtures
+          key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
+      - name: Read every fixture and produce images from them
+        shell: bash
+        env:
+          APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
+        run: go test -count=1 -timeout 25m ./acceptance/...
+      - name: Upload this host's images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: outputs-${{ matrix.host }}
+          path: ${{ runner.temp }}/outputs/
+          if-no-files-found: error
+
+  portable-slow:
+    name: Slow portable conformance (${{ matrix.host }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {host: linux, runner: ubuntu-24.04}
+          - {host: windows, runner: windows-2025}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore the pinned fixture corpus
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ github.workspace }}/.fixtures
+          key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
+      - name: Replay the catalog growth stages with the image editor
+        shell: bash
+        env:
+          APFS_OUTPUT_DIR: ${{ runner.temp }}/slow-outputs
+        run: go test -count=1 -timeout 55m -tags slow -run 'TestGoEditsReproduceAppleStageStates/.*/hfs-catalog-map-growth' ./acceptance
+      - name: Upload this host's images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: slow-outputs-${{ matrix.host }}
+          path: ${{ runner.temp }}/slow-outputs/
+          if-no-files-found: error
+
+  native:
+    name: Apple verification on macOS ${{ matrix.major }}
+    needs: portable
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {major: 15, runner: macos-15}
+          - {major: 26, runner: macos-26}
+          - {major: 27, runner: xcode-27}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Restore the pinned fixture corpus
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ github.workspace }}/.fixtures
+          key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
+      - name: Read every fixture and produce images on macOS
+        env:
+          APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
+        run: go test -count=1 -timeout 25m ./acceptance/...
+      - name: Download the Linux and Windows images
+        uses: actions/download-artifact@v7
+        with:
+          pattern: outputs-*
+          path: ${{ runner.temp }}/host-outputs
+      - name: Build the product binary the continuation edits with
+        run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
+      - name: Verify every host's images with Apple tools
+        env:
+          APFS_EXPECT_MAJOR: ${{ matrix.major }}
+          APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
+          APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
+          APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
+        run: go test -count=1 -timeout 50m -tags native ./acceptance/native
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-diagnostics-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/outputs/
+          if-no-files-found: ignore
+
   gate:
     name: Required checks
-    needs: [checks, unit]
+    needs: [checks, unit, portable, portable-slow, native]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -81,4 +201,7 @@ jobs:
         env:
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
-        run: test "$CHECKS" = success && test "$UNIT" = success
+          PORTABLE: ${{ needs.portable.result }}
+          SLOW: ${{ needs.portable-slow.result }}
+          NATIVE: ${{ needs.native.result }}
+        run: test "$CHECKS" = success && test "$UNIT" = success && test "$PORTABLE" = success && test "$SLOW" = success && test "$NATIVE" = success
