@@ -57,7 +57,7 @@ func (c *Capture) Run(ctx context.Context) (err error) {
 			c.att = nil
 		}
 	}()
-	c.t = &Transcript{}
+	c.newTranscript()
 	if err := c.format(ctx); err != nil {
 		return fmt.Errorf("%s/%s: format: %w", c.Recipe.Name, c.Profile.ID, err)
 	}
@@ -132,6 +132,9 @@ func (c *Capture) refreshVars(ctx context.Context) error {
 		v.Set("CONTAINER", c.att.Container)
 	}
 	for i, vol := range c.att.Volumes {
+		if err := os.MkdirAll(c.mountDir(vol.Name), 0o755); err != nil {
+			return err
+		}
 		v.SetKeyed("VOLUME", vol.Name, vol.Dev)
 		v.SetKeyed("MOUNTDIR", vol.Name, c.mountDir(vol.Name))
 		if vol.Mount != "" {
@@ -262,8 +265,17 @@ func (c *Capture) autoMount(ctx context.Context) error {
 	return c.refreshVars(ctx)
 }
 
-func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
+// newTranscript starts a case transcript and points the disk layer at it so
+// every program, including the ones the observer runs, is recorded there.
+func (c *Capture) newTranscript() {
 	c.t = &Transcript{}
+	if hd, ok := c.Disk.(*HostDisk); ok {
+		hd.T = c.t
+	}
+}
+
+func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
+	c.newTranscript()
 	if stage.From != "" {
 		if c.att != nil {
 			if err := c.detach(ctx); err != nil {
@@ -551,7 +563,11 @@ func (c *Capture) runTool(ctx context.Context, t *schema.ToolStep) error {
 		if !ok {
 			return fmt.Errorf("unknown password reference %q", ref)
 		}
-		stdin = append(append(stdin, password...), '\n')
+		terminator := byte('\n')
+		if t.Program == "hdiutil" {
+			terminator = 0 // hdiutil reads NUL-terminated passwords
+		}
+		stdin = append(append(stdin, password...), terminator)
 	}
 	if t.StdinBytes != "" {
 		data, err := c.vars.Payload(t.StdinBytes)
@@ -559,10 +575,6 @@ func (c *Capture) runTool(ctx context.Context, t *schema.ToolStep) error {
 			return err
 		}
 		stdin = data
-	}
-	if program == "hdiutil" && len(stdin) > 0 {
-		// hdiutil reads NUL-terminated passwords.
-		stdin = append(stdin[:len(stdin)-1], 0)
 	}
 	cmd := Command{Label: t.Label, Argv: append([]string{program}, args...), Stdin: stdin, Sudo: t.Sudo, Expected: t.Expect}
 	if t.TimeoutSeconds > 0 {
@@ -719,7 +731,7 @@ func (c *Capture) bytesFor(f *schema.FSStep) ([]byte, error) {
 }
 
 func (c *Capture) derive(ctx context.Context, d *schema.Derivation) error {
-	c.t = &Transcript{}
+	c.newTranscript()
 	source, ok := c.retained[d.From]
 	if !ok {
 		return fmt.Errorf("stage %s has no retained image", d.From)

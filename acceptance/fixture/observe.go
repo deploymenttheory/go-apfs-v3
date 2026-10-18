@@ -541,14 +541,13 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 	for _, check := range in.Spec.Checks {
 		switch check {
 		case "verify":
-			if in.Format == "raw" {
-				continue
+			if in.Format == "raw" || in.Format == "UDRW" {
+				continue // no checksum to verify in a writable or raw image
 			}
 			if err := in.Disk.Verify(ctx, in.Image, in.Password); err != nil {
 				return err
 			}
-			last := in.T.Commands[len(in.T.Commands)-1]
-			obs.Checks.Verify = &schema.CommandResult{Argv: last.Argv, Status: 0, StdoutSHA256: last.StdoutSHA256, StderrSHA256: last.StderrSHA256}
+			obs.Checks.Verify = lastCommandResult(in.T, "verify")
 		case "fsck":
 			for _, vol := range in.Att.Volumes {
 				if vol.FS == "apfs" && obs.Volumes[0].APFS != nil && obs.Volumes[0].APFS.Encrypted {
@@ -562,8 +561,9 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 				if err != nil {
 					return err
 				}
-				last := in.T.Commands[len(in.T.Commands)-1]
-				obs.Checks.Fsck = append(obs.Checks.Fsck, schema.CommandResult{Argv: last.Argv, Status: 0, StdoutSHA256: last.StdoutSHA256, StderrSHA256: last.StderrSHA256})
+				if result := lastCommandResult(in.T, "fsck"); result != nil {
+					obs.Checks.Fsck = append(obs.Checks.Fsck, *result)
+				}
 				if xid := SelectedXID(out); xid != 0 {
 					obs.Checks.SelectedXID = xid
 				}
@@ -624,4 +624,19 @@ func sanitize(name string) string {
 		return "volume"
 	}
 	return b.String()
+}
+
+// lastCommandResult finds the most recent transcript entry with a label.
+func lastCommandResult(t *Transcript, label string) *schema.CommandResult {
+	for i := len(t.Commands) - 1; i >= 0; i-- {
+		c := t.Commands[i]
+		if c.Label == label {
+			status := 0
+			if c.Status != "0" {
+				status = 1
+			}
+			return &schema.CommandResult{Argv: c.Argv, Status: status, StdoutSHA256: c.StdoutSHA256, StderrSHA256: c.StderrSHA256}
+		}
+	}
+	return nil
 }

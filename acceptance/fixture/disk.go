@@ -206,31 +206,49 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	a.Container = ""
 	var devs []string
 	disks, _ := listing["AllDisksAndPartitions"].([]any)
+	classify := func(id, content string) error {
+		switch {
+		case content == "Apple_APFS":
+			info, err := d.Info(ctx, "/dev/"+id)
+			if err != nil {
+				return err
+			}
+			if ref, _ := info["APFSContainerReference"].(string); ref != "" {
+				a.Container = ref
+			}
+		case strings.HasPrefix(content, "Apple_HFS"):
+			devs = append(devs, "/dev/"+id)
+		}
+		return nil
+	}
 	for _, dsk := range disks {
 		disk, _ := dsk.(map[string]any)
+		id, _ := disk["DeviceIdentifier"].(string)
 		parts, _ := disk["Partitions"].([]any)
-		for _, p := range parts {
-			part, _ := p.(map[string]any)
-			content, _ := part["Content"].(string)
-			id, _ := part["DeviceIdentifier"].(string)
-			if content == "Apple_APFS" {
-				// The container is a synthesized disk; find it through info.
+		if len(parts) == 0 {
+			// A bare disk is itself the container or the volume.
+			content, _ := disk["Content"].(string)
+			if content == "" {
 				info, err := d.Info(ctx, "/dev/"+id)
 				if err != nil {
 					return err
 				}
-				if ref, _ := info["APFSContainerReference"].(string); ref != "" {
-					a.Container = ref
+				content, _ = info["Content"].(string)
+				if fsType, _ := info["FilesystemType"].(string); content == "" && fsType != "" {
+					content = "Apple_HFS"
 				}
-				continue
 			}
-			if strings.HasPrefix(content, "Apple_HFS") || content == "Apple_HFSX" {
-				devs = append(devs, "/dev/"+id)
+			if err := classify(id, content); err != nil {
+				return err
 			}
+			continue
 		}
-		if _, ok := disk["Content"]; ok && len(parts) == 0 {
-			if id, _ := disk["DeviceIdentifier"].(string); id != "" {
-				devs = append(devs, "/dev/"+id)
+		for _, p := range parts {
+			part, _ := p.(map[string]any)
+			content, _ := part["Content"].(string)
+			id, _ := part["DeviceIdentifier"].(string)
+			if err := classify(id, content); err != nil {
+				return err
 			}
 		}
 	}
