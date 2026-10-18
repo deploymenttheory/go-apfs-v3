@@ -27,8 +27,11 @@ on:
 permissions:
   contents: read
 
+# Label-triggered dry runs get their own group per label so queued requests
+# for different recipes are not cancelled by one another; full dispatches
+# share one group.
 concurrency:
-  group: fixtures-capture
+  group: fixtures-${{ github.event_name == 'pull_request' && github.event.label.name || 'dispatch' }}
   cancel-in-progress: false
 
 env:
