@@ -1471,8 +1471,9 @@
             "op": "write",
             "path": "$MOUNT/Fixture/meta/directory/..namedfork/rsrc",
             "content": "x",
-            "expect": "EPERM"
-          }
+            "expect": "record"
+          },
+          "note": "EPERM on macOS 26 and 27, ENOENT on 15; recorded in known-drift.json"
         },
         {
           "fs": {

@@ -113,7 +113,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		}
 	}
 	if waitErr != nil {
-		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
 	}
 	if !pinned {
 		return "", fmt.Errorf("snapshot %s was never mounted before asr finished", snapshot)

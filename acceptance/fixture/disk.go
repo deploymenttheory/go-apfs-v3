@@ -325,10 +325,9 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 	return err
 }
 
+// Mount mounts a volume at dir, or where diskutil chooses when dir is
+// empty; v.Mount is set to the actual mount point either way.
 func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir string, readOnly bool) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
 	argv := []string{"diskutil", "mount"}
 	if readOnly {
 		argv = append(argv, "readOnly")
@@ -336,11 +335,24 @@ func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir st
 	if options != "" {
 		argv = append(argv, "-mountOptions", options)
 	}
-	argv = append(argv, "-mountPoint", dir, v.Dev)
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		argv = append(argv, "-mountPoint", dir)
+	}
+	argv = append(argv, v.Dev)
 	if _, err := d.run(ctx, "mount", false, nil, argv...); err != nil {
 		return err
 	}
-	v.Mount = dir
+	info, err := d.Info(ctx, v.Dev)
+	if err != nil {
+		return err
+	}
+	v.Mount, _ = info["MountPoint"].(string)
+	if v.Mount == "" {
+		v.Mount = dir
+	}
 	return nil
 }
 

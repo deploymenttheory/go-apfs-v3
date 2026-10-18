@@ -152,10 +152,17 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 	}
 	// The image is attached read-only, so the mount is read-only without
 	// the readOnly verb, which diskutil refuses for a just-unlocked volume.
+	// An unlocked volume is mounted where diskutil chooses with owners
+	// only, the sequence Apple's own tools accept.
 	mount := filepath.Join(in.Work, "observe", sanitize(vol.Name))
-	if err := in.Disk.Mount(ctx, vol, "owners,noatime", mount, false); err != nil {
+	options := "owners,noatime"
+	if locked {
+		mount, options = "", "owners"
+	}
+	if err := in.Disk.Mount(ctx, vol, options, mount, false); err != nil {
 		return err
 	}
+	mount = vol.Mount
 	defer func() { _ = in.Disk.Unmount(ctx, vol) }()
 	info, err = in.Disk.Info(ctx, vol.Dev)
 	if err != nil {
@@ -353,13 +360,17 @@ func observeView(ctx context.Context, in ObserveInput, volume int, snapshot, mou
 		view.Lookups = append(view.Lookups, probe)
 	}
 	for _, dir := range in.Spec.Statistics {
+		if view.Statistics == nil {
+			view.Statistics = map[string]string{}
+		}
+		if _, err := in.Vol.Lstat(filepath.Join(mount, filepath.FromSlash(dir))); err != nil {
+			view.Statistics[dir] = "absent"
+			continue
+		}
 		cmd := Command{Label: "statistics:" + dir, Argv: []string{"apfs.util", "-S", filepath.Join(mount, filepath.FromSlash(dir))}, Expected: "0"}
 		result := in.Disk.(*HostDisk).C.Run(ctx, cmd)
 		if err := in.T.Record(cmd, result); err != nil {
 			return nil, err
-		}
-		if view.Statistics == nil {
-			view.Statistics = map[string]string{}
 		}
 		view.Statistics[dir] = string(result.Stdout)
 	}
