@@ -909,8 +909,8 @@
           "fs": {
             "op": "write",
             "path": "$MOUNT/asr-padding",
-            "pattern": "zeros",
-            "bytes": 16777216
+            "pattern": "sequence",
+            "bytes": 67108864
           },
           "note": "gives the observer time to pin the snapshot; supplies no expectations"
         },

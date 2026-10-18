@@ -104,6 +104,11 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if tmount == "" {
 		return "", errors.New("asr target did not mount")
 	}
+	if names, err := c.Vol.Snapshots(source.Mount); err != nil {
+		return "", fmt.Errorf("snapshot listing on %s before asr: %w", source.Mount, err)
+	} else if len(names) > 0 {
+		c.t.Commands = append(c.t.Commands, schema.Command{Label: "snapshots-before-asr", Argv: append([]string{"fs_snapshot_list", source.Mount}, names...), Expected: "0", Status: "0"})
+	}
 	asr := exec.CommandContext(ctx, "/usr/sbin/asr", "restore", "--source", source.Mount, "--target", tmount, "--erase", "--noprompt", "--verbose")
 	var stderr strings.Builder
 	asr.Stderr = &stderr
@@ -120,10 +125,12 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	snapshot := ""
 	pinned := false
 	retries := 0
+	var listErr error
 	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) && asr.ProcessState == nil {
+	for time.Now().Before(deadline) {
 		names, err := c.Vol.Snapshots(source.Mount)
 		if err != nil && !errors.Is(err, syscall.ENOENT) {
+			listErr = err
 			break
 		}
 		for _, n := range names {
@@ -135,7 +142,15 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 			break
 		}
 		retries++
-		time.Sleep(time.Millisecond)
+		if retries%64 == 0 {
+			// asr has finished when it exits; stop polling then.
+			if asr.ProcessState != nil {
+				break
+			}
+			if exited := processExited(asr.Process.Pid); exited {
+				break
+			}
+		}
 	}
 	if snapshot != "" {
 		_ = asr.Process.Signal(syscall.SIGSTOP)
@@ -162,7 +177,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
 	}
 	if !pinned {
-		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls)", snapshot, retries)
+		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls, list error %v)", snapshot, retries, listErr)
 	}
 	snaps, err := c.Disk.Snapshots(ctx, source.Dev)
 	if err != nil {
@@ -351,4 +366,12 @@ func BuildHelpers(ctx context.Context, c Commander, helpersDir, out string, name
 		built[name] = bin
 	}
 	return built, nil
+}
+
+// processExited reports whether a child has terminated, without reaping
+// it, so the caller can still Wait for its status.
+func processExited(pid int) bool {
+	var status syscall.WaitStatus
+	wpid, err := syscall.Wait4(pid, &status, syscall.WNOHANG|syscall.WNOWAIT, nil)
+	return err == nil && wpid == pid
 }

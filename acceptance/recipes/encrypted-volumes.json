@@ -1711,6 +1711,22 @@
             "program": "diskutil",
             "args": [
               "apfs",
+              "unlockVolume",
+              "$VOLUME:Peer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
               "decryptVolume",
               "$VOLUME:Peer",
               "-user",
