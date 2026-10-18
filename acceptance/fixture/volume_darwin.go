@@ -63,9 +63,12 @@ func (HostVolume) Truncate(path string, size int64) error { return unwrap(os.Tru
 func (HostVolume) Mkdir(path string, mode uint32) error {
 	return unwrap(os.Mkdir(path, os.FileMode(mode)))
 }
-func (HostVolume) Symlink(target, path string) error    { return unwrap(os.Symlink(target, path)) }
-func (HostVolume) Link(oldPath, newPath string) error   { return unwrap(os.Link(oldPath, newPath)) }
-func (HostVolume) Rename(oldPath, newPath string) error { return unwrap(os.Rename(oldPath, newPath)) }
+func (HostVolume) Symlink(target, path string) error  { return unwrap(os.Symlink(target, path)) }
+func (HostVolume) Link(oldPath, newPath string) error { return unwrap(os.Link(oldPath, newPath)) }
+
+// Rename calls rename(2) directly: os.Rename reports EEXIST where the
+// kernel reports EISDIR or ENOTDIR, and those errnos are observations.
+func (HostVolume) Rename(oldPath, newPath string) error { return unwrap(unix.Rename(oldPath, newPath)) }
 func (HostVolume) Remove(path string) error             { return unwrap(unix.Unlink(path)) }
 func (HostVolume) Rmdir(path string) error              { return unwrap(unix.Rmdir(path)) }
 
