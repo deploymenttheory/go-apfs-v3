@@ -6,6 +6,7 @@
 package corpus
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -301,7 +302,50 @@ func (c *Corpus) Cases() ([]Case, error) {
 	return cases, nil
 }
 
-// Image returns the absolute path of the case's retained image file.
+// Image returns the absolute path of the case's retained image. A
+// gzip-compressed raw image is expanded once beside the bundle, keyed by
+// its recorded digest, so callers always receive a file the product can
+// open directly.
 func (k Case) Image() string {
-	return filepath.Join(k.Dir, k.Observation.Image.File)
+	path := filepath.Join(k.Dir, k.Observation.Image.File)
+	if !strings.HasSuffix(path, ".raw.gz") {
+		return path
+	}
+	expanded := filepath.Join(k.Dir, ".expanded", strings.TrimSuffix(k.Observation.Image.File, ".gz"))
+	if _, err := os.Stat(expanded); err == nil {
+		return expanded
+	}
+	if err := expandGzip(path, expanded); err != nil {
+		return path + ": " + err.Error()
+	}
+	return expanded
+}
+
+func expandGzip(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+	gz, err := gzip.NewReader(in)
+	if err != nil {
+		return err
+	}
+	tmp := dst + ".partial"
+	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, gz); err != nil {
+		_ = out.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, dst)
 }
