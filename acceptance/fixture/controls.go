@@ -122,6 +122,10 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if err := asr.Start(); err != nil {
 		return "", err
 	}
+	// Wait in the background so the poll can notice asr exiting without
+	// reaping it twice.
+	exited := make(chan error, 1)
+	go func() { exited <- asr.Wait() }()
 	// asr creates a com.apple.asr.* snapshot on the source for the duration
 	// of the copy. Poll the snapshot list at one-millisecond intervals,
 	// pause asr as soon as the snapshot appears, pin it by mounting it,
@@ -150,14 +154,15 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 			break
 		}
 		retries++
-		if retries%64 == 0 {
-			// asr has finished when it exits; stop polling then.
-			if asr.ProcessState != nil {
-				break
-			}
-			if exited := processExited(asr.Process.Pid); exited {
-				break
-			}
+		select {
+		case err := <-exited:
+			exited <- err
+			retries = -retries
+		default:
+		}
+		if retries < 0 {
+			retries = -retries
+			break
 		}
 	}
 	if snapshot != "" {
@@ -167,7 +172,7 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		}
 		_ = asr.Process.Signal(syscall.SIGCONT)
 	}
-	waitErr := asr.Wait()
+	waitErr := <-exited
 	entry := schema.Command{Label: "asr-snapshot:" + name, Argv: asr.Args, Expected: "0", Status: "0", WallNS: time.Since(start).Nanoseconds(), StderrText: fmt.Sprintf("attempt %d, mount retries %d", attempt, retries)}
 	if waitErr != nil {
 		entry.Status = "1"
@@ -374,12 +379,4 @@ func BuildHelpers(ctx context.Context, c Commander, helpersDir, out string, name
 		built[name] = bin
 	}
 	return built, nil
-}
-
-// processExited reports whether a child has terminated, without reaping
-// it, so the caller can still Wait for its status.
-func processExited(pid int) bool {
-	var status syscall.WaitStatus
-	wpid, err := syscall.Wait4(pid, &status, syscall.WNOHANG|syscall.WNOWAIT, nil)
-	return err == nil && wpid == pid
 }
