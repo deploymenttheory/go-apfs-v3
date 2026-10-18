@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "entries": [
+    {
+      "recipe": "compressed-files",
+      "path": "Fixture/type-15",
+      "field": "compression.kernelRead",
+      "producers": {"macos-15": "EIO", "macos-26": "EIO", "macos-27": "ok"},
+      "reason": "LZ4 decmpfs types 15 and 16 have no filesystem registration before macOS 27; the public codec still decodes the stored bytes."
+    },
+    {
+      "recipe": "compressed-files",
+      "path": "Fixture/type-16",
+      "field": "compression.kernelRead",
+      "producers": {"macos-15": "EIO", "macos-26": "EIO", "macos-27": "ok"},
+      "reason": "Same registration gap as type 15."
+    },
+    {
+      "recipe": "encrypted-images",
+      "field": "image.encryption.keyWrap",
+      "producers": {"macos-15": "3DES", "macos-26": "AES", "macos-27": "AES"},
+      "reason": "macOS 15 hdiutil wraps encrcdsa v2 password keys with 3DES; later versions use AES. Both must unlock on every verifier."
+    },
+    {
+      "recipe": "encrypted-volumes",
+      "path": "Fixture/data",
+      "field": "commands[cp -c cross-volume].status",
+      "producers": {"macos-15": "1 EXDEV", "macos-26": "0", "macos-27": "0"},
+      "reason": "cp -c between two volumes of one container is refused with EXDEV on macOS 15 and succeeds on 26 and 27."
+    }
+  ]
+}

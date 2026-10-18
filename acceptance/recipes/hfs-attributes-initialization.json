@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "name": "hfs-attributes-initialization",
+  "purpose": "An HFS+ volume formatted without an attributes file (journaled variants create one at mount) receives its first extended attribute: the editor must initialize the attributes B-tree exactly as Apple does.",
+  "profiles": [
+    "hfsplus",
+    "hfsx-j"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "raw-newfs",
+    "size": "96m",
+    "layout": "NONE",
+    "output": "raw",
+    "newfs": {
+      "hfsplus": "-U $UID -G $GID -I a=0 -v Fixture $RDEV",
+      "hfsx-j": "-s -J -U $UID -G $GID -I a=0 -v Fixture $RDEV"
+    },
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [],
+      "observe": {
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/data",
+            "content": "First ordinary contents\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/data",
+            "name": "org.go-apfs.first",
+            "content": "First native attribute\u0000ÿ"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT/Fixture/data",
+              "$MOUNT/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

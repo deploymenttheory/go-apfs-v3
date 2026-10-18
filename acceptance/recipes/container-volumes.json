@@ -1,0 +1,547 @@
+{
+  "schema": 1,
+  "name": "container-volumes",
+  "purpose": "One APFS container with a reserved volume, a quota-limited case-sensitive volume and an empty volume, under allocation pressure to EDQUOT and ENOSPC: inspection of roles, reserves and quotas, multi-volume construction and selected-volume editing.",
+  "profiles": [
+    "apfs"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "1536m",
+    "layout": "NONE",
+    "output": "UDZO",
+    "volumeName": "Primary"
+  },
+  "stages": [
+    {
+      "name": "final",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteVolume",
+              "$VOLUME:Primary"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "Reserved",
+              "-reserve",
+              "1577058304",
+              "-nomount"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFSX",
+              "Limited",
+              "-quota",
+              "8388608",
+              "-nomount"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "Empty",
+              "-nomount"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Reserved",
+              "$VOLUME:Reserved"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Limited",
+              "$VOLUME:Limited"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Empty",
+              "$VOLUME:Empty"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Reserved/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Reserved/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/same.txt",
+            "content": "Reserved\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Reserved/Fixture/same.txt",
+              "$MOUNT:Reserved/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT:Reserved/Fixture/link",
+            "target": "same.txt"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/Name",
+            "content": "upper"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Reserved/Fixture/same.txt",
+            "name": "org.go-apfs.volume",
+            "content": "Reserved"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/same.txt/..namedfork/rsrc",
+            "content": "independent resource fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/compressed",
+            "pattern": "sequence",
+            "label": "Native compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.",
+            "bytes": 500
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Reserved/Fixture/compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3-500.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT:Reserved/Fixture/compressed",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT:Reserved/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT:Reserved/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT:Reserved/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Limited/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Limited/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/same.txt",
+            "content": "Limited\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Limited/Fixture/same.txt",
+              "$MOUNT:Limited/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT:Limited/Fixture/link",
+            "target": "same.txt"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/Name",
+            "content": "upper"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/name",
+            "content": "lower"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Limited/Fixture/same.txt",
+            "name": "org.go-apfs.volume",
+            "content": "Limited"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/same.txt/..namedfork/rsrc",
+            "content": "independent resource fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/compressed",
+            "pattern": "sequence",
+            "label": "Native compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.\nNative compressed filesystem evidence.",
+            "bytes": 500
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Limited/Fixture/compressed",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-3-500.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT:Limited/Fixture/compressed",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT:Limited/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT:Limited/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT:Limited/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Empty/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Empty/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/pressure"
+          }
+        },
+        {
+          "fs": {
+            "op": "fill",
+            "path": "$MOUNT:Limited/pressure",
+            "bytes": 524288,
+            "count": 32,
+            "expect": "EDQUOT"
+          },
+          "note": "quota pressure; EDQUOT or ENOSPC is the observation"
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Empty/pressure"
+          }
+        },
+        {
+          "fs": {
+            "op": "fill",
+            "path": "$MOUNT:Empty/pressure",
+            "bytes": 524288,
+            "count": 128,
+            "expect": "ENOSPC"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Reserved/reserved",
+            "pattern": "sequence",
+            "bytes": 16777216
+          },
+          "note": "the reserve keeps this writable under container pressure"
+        },
+        {
+          "fs": {
+            "op": "fullfsync",
+            "path": "$MOUNT:Reserved/reserved"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT:Reserved/reserved"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    }
+  ]
+}

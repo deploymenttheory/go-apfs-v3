@@ -1,0 +1,455 @@
+{
+  "schema": 1,
+  "name": "apfs-container-geometry",
+  "purpose": "A 1.5 GiB container whose space manager spans several chunk-info blocks, with a second volume carrying a reserve and a quota: the editor must select a volume by UUID, leave the peer untouched and keep allocation accounting right at this geometry.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "1536m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Primary"
+  },
+  "stages": [
+    {
+      "name": "source",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "$FS",
+              "Secondary",
+              "-reserve",
+              "33554432",
+              "-quota",
+              "67108864",
+              "-nomount"
+            ],
+            "expect": "0"
+          },
+          "note": "$FS is APFS or APFSX by profile"
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Primary",
+              "$VOLUME:Primary"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Secondary",
+              "$VOLUME:Secondary"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Primary/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Primary/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/data",
+            "content": "Original linked contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Primary/Fixture/data",
+              "$MOUNT:Primary/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT:Primary/Fixture/symlink",
+            "target": "data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/data/..namedfork/rsrc",
+            "content": "Independent resource fork\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Primary/Fixture/data",
+            "name": "org.go-apfs.retained",
+            "content": "Opaque retained metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/mode",
+            "content": "mode file\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT:Primary/Fixture/mode",
+            "mode": 420
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT:Primary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT:Primary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Secondary/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Secondary/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/data",
+            "content": "Original linked contents\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Secondary/Fixture/data",
+              "$MOUNT:Secondary/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT:Secondary/Fixture/symlink",
+            "target": "data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/data/..namedfork/rsrc",
+            "content": "Independent resource fork\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Secondary/Fixture/data",
+            "name": "org.go-apfs.retained",
+            "content": "Opaque retained metadata\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/mode",
+            "content": "mode file\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT:Secondary/Fixture/mode",
+            "mode": 420
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/Example.app/Contents/MacOS"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/Example.app/Contents/Resources"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/Example.app/Contents/Resources/message.txt",
+            "content": "Signed resource preserved by image construction.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/Example.app/Contents/Info.plist",
+            "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>CFBundleIdentifier</key><string>org.go-apfs.acceptance</string><key>CFBundleExecutable</key><string>Example</string><key>CFBundleName</key><string>Example</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string></dict></plist>\n"
+          }
+        },
+        {
+          "host": {
+            "path": "example.c",
+            "pattern": "text",
+            "content": "int main(void) { return 0; }\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "xcrun",
+            "args": [
+              "clang",
+              "-arch",
+              "arm64",
+              "-arch",
+              "x86_64",
+              "-mmacosx-version-min=11.0",
+              "$STAGE/example.c",
+              "-o",
+              "$MOUNT:Secondary/Fixture/Example.app/Contents/MacOS/Example"
+            ],
+            "expect": "0",
+            "timeoutSeconds": 300
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--force",
+              "--sign",
+              "-",
+              "--timestamp=none",
+              "$MOUNT:Secondary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "codesign",
+            "args": [
+              "--verify",
+              "--deep",
+              "--strict",
+              "$MOUNT:Secondary/Fixture/Example.app"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    },
+    {
+      "name": "edited",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Secondary/Fixture/alias",
+            "pattern": "sequence",
+            "bytes": 65537
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT:Secondary/Fixture/alias",
+            "times": {
+              "mtime": 1749283750000000000
+            }
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT:Secondary/Fixture/mode",
+            "mode": 493
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT:Secondary/Fixture/mode",
+            "name": "org.go-apfs.created",
+            "content": "created"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/created"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/created/nested"
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT:Secondary/Fixture/mode",
+            "target": "$MOUNT:Secondary/Fixture/renamed"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:Secondary/Fixture/data",
+              "$MOUNT:Secondary/Fixture/another-alias"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "fsck"
+        ],
+        "codesign": [
+          "Fixture/Example.app"
+        ]
+      }
+    }
+  ]
+}

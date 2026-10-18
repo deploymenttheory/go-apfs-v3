@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "name": "hfs-catalog-map-growth",
+  "purpose": "An HFS+ catalog whose header-node allocation map is exactly full at 30720 nodes grows past it when 120,000 files exist: the editor must extend the node map exactly as Apple does. This is the slow bucket.",
+  "profiles": [
+    "hfsplus",
+    "hfsx-j"
+  ],
+  "requires": {
+    "sudo": true,
+    "versionNotes": {
+      "names": "fill names files <index:05>-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name-long-name- so each catalog record is near its maximum size."
+    }
+  },
+  "image": {
+    "create": "raw-newfs",
+    "size": "512m",
+    "layout": "NONE",
+    "output": "raw",
+    "newfs": {
+      "hfsplus": "-U $UID -G $GID -n c=4096 -I c=30720 -c c=4096 -v Fixture $RDEV",
+      "hfsx-j": "-s -J -U $UID -G $GID -n c=4096 -I c=30720 -c c=4096 -v Fixture $RDEV"
+    },
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "fill",
+            "path": "$MOUNT/Fixture",
+            "bytes": 0,
+            "count": 1000
+          },
+          "note": "files 00000..00999, names 246 characters long"
+        }
+      ],
+      "observe": {
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "steps": [
+        {
+          "fs": {
+            "op": "fill",
+            "path": "$MOUNT/Fixture",
+            "bytes": 0,
+            "count": 119000
+          },
+          "note": "files 01000..119999"
+        }
+      ],
+      "observe": {
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}
