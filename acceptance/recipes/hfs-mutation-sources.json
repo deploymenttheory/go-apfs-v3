@@ -193,6 +193,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -264,6 +276,12 @@
               "$MOUNT/Fixture/Example.app"
             ],
             "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework"
           }
         },
         {

@@ -1203,6 +1203,19 @@
         {
           "fs": {
             "op": "write",
+            "path": "$MOUNT/Fixture/fragmented-resource",
+            "content": ""
+          },
+          "only": [
+            "hfsplus",
+            "hfsx",
+            "hfsplus-j",
+            "hfsx-j"
+          ]
+        },
+        {
+          "fs": {
+            "op": "write",
             "path": "$MOUNT/Fixture/fragmented-resource/..namedfork/rsrc",
             "pattern": "sequence",
             "bytes": 10485760
@@ -1507,6 +1520,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -1578,6 +1603,12 @@
               "$MOUNT/Fixture/Example.app"
             ],
             "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/Example.framework"
           }
         },
         {

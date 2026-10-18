@@ -144,6 +144,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -289,6 +301,18 @@
             "op": "chmod",
             "path": "$MOUNT:Secondary/Fixture/mode",
             "mode": 420
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Secondary/Fixture/Example.app/Contents"
           }
         },
         {

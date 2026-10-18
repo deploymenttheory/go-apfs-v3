@@ -186,6 +186,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Data/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Data/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Data/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -348,6 +360,18 @@
             "op": "chflags",
             "path": "$MOUNT:System/Fixture/compressed",
             "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:System/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:System/Fixture/Example.app/Contents"
           }
         },
         {

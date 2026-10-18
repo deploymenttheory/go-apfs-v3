@@ -237,6 +237,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Primary/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Primary/Fixture/Example.app/Contents/MacOS"
           }
         },

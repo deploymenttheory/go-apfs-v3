@@ -212,6 +212,18 @@
         {
           "fs": {
             "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Reserved/Fixture/Example.app/Contents"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
             "path": "$MOUNT:Reserved/Fixture/Example.app/Contents/MacOS"
           }
         },
@@ -381,6 +393,18 @@
             "op": "chflags",
             "path": "$MOUNT:Limited/Fixture/compressed",
             "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT:Limited/Fixture/Example.app/Contents"
           }
         },
         {
