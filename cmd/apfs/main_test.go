@@ -16,42 +16,92 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/workspace"
 )
 
+const fixtureText = "Built filesystem fixture.\n"
+
+// builtImage stages Fixture/example.txt and the symlink Fixture/link through
+// the session commands and packs them with the product. Apple-made images and
+// their verdicts belong to the acceptance tier; this exercises CLI plumbing.
+func builtImage(t *testing.T, format string) string {
+	t.Helper()
+	root := t.TempDir()
+	scratch := filepath.Join(root, "scratch")
+	host := filepath.Join(root, "example.txt")
+	if err := os.WriteFile(host, []byte(fixtureText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	image := filepath.Join(root, format+".dmg")
+	for _, args := range [][]string{
+		{"session", "create", "--scratch-dir", scratch, "--filesystem", format, "--time", "2026-10-10T00:00:00Z", "stage"},
+		{"mkdir", "--scratch-dir", scratch, "--session", "stage", "/Fixture"},
+		{"cp", "--scratch-dir", scratch, "--session", "stage", "--from-host", host, "/Fixture/example.txt"},
+		{"ln", "--scratch-dir", scratch, "--session", "stage", "-s", "example.txt", "/Fixture/link"},
+		{"pack", "--scratch-dir", scratch, "--session", "stage", "--time", "2026-10-10T00:00:00Z", image},
+	} {
+		var out, diagnostics bytes.Buffer
+		if err := run(context.Background(), args, nil, &out, &diagnostics); err != nil {
+			t.Fatalf("%v: %v (%s)", args, err, diagnostics.String())
+		}
+	}
+	return image
+}
+
 func TestInspectJSONHasNoDiagnosticNoise(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	var out, diagnostics bytes.Buffer
-	path := filepath.Join("..", "..", "acceptance", "testdata", "native", "macos-27", "apfs.dmg")
-	if err := run(context.Background(), []string{"inspect", "--json", path}, nil, &out, &diagnostics); err != nil {
+	if err := run(context.Background(), []string{"inspect", "--json", builtImage(t, "apfs")}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
 	}
 	var r inspect.Report
 	if err := json.Unmarshal(out.Bytes(), &r); err != nil {
 		t.Fatal(err)
 	}
-	if r.Schema != 1 || diagnostics.Len() != 0 {
+	if r.Schema != 1 || diagnostics.Len() != 0 || len(r.Partitions) == 0 || r.Partitions[0].APFS == nil {
 		t.Fatal("unexpected report schema or diagnostics", out.String(), diagnostics.String())
 	}
 }
 
-func TestEncryptedCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	image := filepath.Join("..", "..", "acceptance", "testdata", "encryption", "macos-27", "apfs.dmg")
-	const password = "apfs-v3-public-fixture"
+// Image passwords are exact bytes from a file or stdin. APFS volume encryption
+// needs Apple-made volumes and is qualified by the acceptance tier; the
+// unencrypted built volume here must refuse a volume credential explicitly.
+func TestEncryptedImageCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) {
+	const password = "public-dmg-password"
+	plain := builtImage(t, "apfs")
+	image := filepath.Join(t.TempDir(), "encrypted.dmg")
 	path := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(path, []byte(password), 0600); err != nil {
 		t.Fatal(err)
 	}
+	var out, diagnostics bytes.Buffer
+	if err := run(context.Background(), []string{"pack", "--encryption", "AES-128", "--output-password-file", path, plain, image}, nil, &out, &diagnostics); err != nil {
+		t.Fatal(err, diagnostics.String())
+	}
+	if strings.Contains(out.String()+diagnostics.String(), password) {
+		t.Fatal("pack disclosed the password")
+	}
 	for _, source := range []string{path, "-"} {
-		var out, diagnostics bytes.Buffer
-		if err := run(context.Background(), []string{"cat", "--password-file", source, image, "Fixture/example.txt"}, strings.NewReader(password), &out, &diagnostics); err != nil {
+		out.Reset()
+		diagnostics.Reset()
+		if err := run(context.Background(), []string{"cat", "--image-password-file", source, image, "Fixture/example.txt"}, strings.NewReader(password), &out, &diagnostics); err != nil {
 			t.Fatal(err)
 		}
-		if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
+		if out.String() != fixtureText || diagnostics.Len() != 0 {
 			t.Fatal("encrypted cat changed data or emitted diagnostics")
 		}
 	}
+	out.Reset()
+	if err := run(context.Background(), []string{"inspect", "--json", "--image-password-file", "-", image}, strings.NewReader(password), &out, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	var report inspect.Report
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.Encryption == nil || report.Encryption.KeyBits != 128 || diagnostics.Len() != 0 {
+		t.Fatal("missing image encryption report")
+	}
 	for _, secret := range []string{password + "\n", "wrong-private-input", ""} {
-		var out, diagnostics bytes.Buffer
-		err := run(context.Background(), []string{"cat", "--password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(secret), &out, &diagnostics)
+		out.Reset()
+		diagnostics.Reset()
+		err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(secret), &out, &diagnostics)
 		if !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 || diagnostics.Len() != 0 {
 			t.Fatal("invalid credential handling", err)
 		}
@@ -62,71 +112,27 @@ func TestEncryptedCatUsesExactPasswordBytesWithoutDiagnosticLeaks(t *testing.T) 
 	if _, err := readPassword("-", strings.NewReader(strings.Repeat("x", 4097))); !errors.Is(err, filesystem.ErrLimit) {
 		t.Fatal("password input limit", err)
 	}
-	var out, diagnostics bytes.Buffer
-	if err := run(context.Background(), []string{"cat", image, "Fixture/example.txt"}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 {
-		t.Fatal("missing credential unlocked volume", err)
-	}
-}
-
-func TestEncryptedImageAndVolumeCredentialsAreIndependent(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	root := filepath.Join("..", "..", "acceptance", "testdata", "encrypted-dmg", "macos-27")
-	const imagePassword = "public-dmg-password"
-	var out, diagnostics bytes.Buffer
-	image := filepath.Join(root, "hfsplus-aes128.dmg")
-	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
-		t.Fatal(err)
-	}
-	if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
-		t.Fatal("encrypted image cat output")
-	}
 	out.Reset()
-	if err := run(context.Background(), []string{"inspect", "--json", "--image-password-file", "-", image}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
-		t.Fatal(err)
+	if err := run(context.Background(), []string{"cat", image, "Fixture/example.txt"}, nil, &out, &diagnostics); err == nil || out.Len() != 0 {
+		t.Fatal("missing credential opened encrypted image", err)
 	}
-	var report inspect.Report
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
-		t.Fatal(err)
-	}
-	if report.Encryption == nil || report.Encryption.KeyBits != 128 {
-		t.Fatal("missing image encryption report")
-	}
-	image = filepath.Join(root, "apfs-nested-aes256.dmg")
-	out.Reset()
-	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 {
-		t.Fatal("image password unlocked APFS", err)
-	}
-	volumeFile := filepath.Join(t.TempDir(), "volume-password")
-	if err := os.WriteFile(volumeFile, []byte("apfs-v3-public-fixture"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", volumeFile, image, "Fixture/example.txt"}, strings.NewReader(imagePassword), &out, &diagnostics); err != nil {
-		t.Fatal(err)
-	}
-	if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
-		t.Fatal("nested encrypted cat output")
-	}
-	out.Reset()
-	secret := "incorrect-private-image-password"
-	err := run(context.Background(), []string{"cat", "--image-password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(secret), &out, &diagnostics)
-	if !errors.Is(err, filesystem.ErrAuthentication) || out.Len() != 0 || diagnostics.Len() != 0 || strings.Contains(err.Error(), secret) {
-		t.Fatal("bad image credential handling", err)
-	}
-	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(""), &out, &diagnostics); err == nil || !strings.Contains(err.Error(), "both consume stdin") {
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", "-", image, "Fixture/example.txt"}, strings.NewReader(password), &out, &diagnostics); err == nil || !strings.Contains(err.Error(), "both consume stdin") {
 		t.Fatal("ambiguous credential input", err)
+	}
+	if err := run(context.Background(), []string{"cat", "--image-password-file", "-", "--password-file", path, image, "Fixture/example.txt"}, strings.NewReader(password), &out, &diagnostics); err == nil || !strings.Contains(err.Error(), "encrypted APFS volume") || out.Len() != 0 {
+		t.Fatal("volume credential accepted for a plaintext volume", err)
 	}
 }
 
 func TestCatIsByteExactAndDoesNotFollowSymlinks(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	for _, name := range []string{"apfs", "hfsplus"} {
 		t.Run(name, func(t *testing.T) {
-			image := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", name+".dmg")
+			image := builtImage(t, name)
 			var out, diagnostics bytes.Buffer
 			if err := run(context.Background(), []string{"cat", image, "Fixture/example.txt"}, nil, &out, &diagnostics); err != nil {
 				t.Fatal(err)
 			}
-			if out.String() != "Native Apple filesystem fixture.\n" || diagnostics.Len() != 0 {
+			if out.String() != fixtureText || diagnostics.Len() != 0 {
 				t.Fatal("file stream was altered", out.String(), diagnostics.String())
 			}
 			out.Reset()
@@ -151,11 +157,10 @@ func TestUnimplementedCommandDoesNotSucceed(t *testing.T) {
 }
 
 func TestCancelledInspectionReturnsNoReport(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
+	path := builtImage(t, "hfsplus")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var out, diagnostics bytes.Buffer
-	path := filepath.Join("..", "..", "acceptance", "testdata", "native", "macos-27", "hfsplus.dmg")
 	if err := run(ctx, []string{"inspect", path}, nil, &out, &diagnostics); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
@@ -164,9 +169,10 @@ func TestCancelledInspectionReturnsNoReport(t *testing.T) {
 	}
 }
 
+// A built volume has an empty inventory. Populated snapshot history belongs to
+// the acceptance tier; selection of absent history must never expose live files.
 func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	image := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", "apfs.dmg")
+	image := builtImage(t, "apfs")
 	var out, diagnostics bytes.Buffer
 	if err := run(context.Background(), []string{"snapshot", "list", "--json", image}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
@@ -194,15 +200,17 @@ func TestSnapshotSelectionNeverFallsBackToLiveFiles(t *testing.T) {
 		}
 	}
 	out.Reset()
-	hfs := filepath.Join("..", "..", "acceptance", "testdata", "files", "macos-27", "hfsplus.dmg")
+	hfs := builtImage(t, "hfsplus")
 	if err := run(context.Background(), []string{"snapshot", "list", hfs}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrUnsupported) || out.Len() != 0 {
 		t.Fatal("HFS snapshot inventory", err)
+	}
+	if err := run(context.Background(), []string{"cat", "--snapshot-name", "absent", hfs, "Fixture/example.txt"}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrUnsupported) || out.Len() != 0 {
+		t.Fatal("HFS snapshot selection", err)
 	}
 }
 
 func TestExtractAndVerifyPreservationReport(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	image := filepath.Join("..", "..", "acceptance", "testdata", "preservation", "macos-27", "apfs.dmg")
+	image := builtImage(t, "apfs")
 	destination := filepath.Join(t.TempDir(), "extracted")
 	var out, diagnostics bytes.Buffer
 	if err := run(context.Background(), []string{"extract", "--json", image, "Fixture/example.txt", destination}, nil, &out, &diagnostics); err != nil {
@@ -233,11 +241,9 @@ func TestExtractAndVerifyPreservationReport(t *testing.T) {
 }
 
 func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	ctx := context.Background()
 	parent := t.TempDir()
 	scratch := filepath.Join(parent, "scratch")
-	image := filepath.Join("..", "..", "acceptance", "testdata", "replacement", "macos-27", "apfs.dmg")
 	payload := []byte("CLI supplied content\x00\xff")
 	contents := filepath.Join(parent, "contents")
 	if err := os.WriteFile(contents, payload, 0600); err != nil {
@@ -252,6 +258,21 @@ func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
 		}
 		return out.Bytes()
 	}
+	// Stage an image whose Fixture subtree carries three names for one file,
+	// an attribute to remove and an entry to delete, then pack it.
+	image := filepath.Join(parent, "staged.dmg")
+	original := filepath.Join(parent, "original")
+	if err := os.WriteFile(original, []byte("original shared contents\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	invoke("session", "create", "--filesystem", "apfs", "--time", "2026-10-09T00:00:00Z", "stage")
+	invoke("mkdir", "--session", "stage", "-p", "/Fixture/links")
+	invoke("cp", "--session", "stage", "--from-host", original, "/Fixture/ordinary")
+	invoke("ln", "--session", "stage", "/Fixture/ordinary", "/Fixture/alias")
+	invoke("ln", "--session", "stage", "/Fixture/ordinary", "/Fixture/links/second")
+	invoke("xattr", "--session", "stage", "-w", "--value-file", original, "org.go-apfs.keep", "/Fixture/alias")
+	invoke("touch", "--session", "stage", "/Fixture/empty")
+	invoke("pack", "--session", "stage", "--time", "2026-10-09T00:00:00Z", image)
 	invoke("session", "open", "--image", image, "--path", "Fixture", "--time", "2026-10-10T00:00:00Z", "build")
 	invoke("mkdir", "--session", "build", "-p", "/_CodeSignature")
 	invoke("cp", "--session", "build", "--from-host", contents, "/_CodeSignature/CodeResources")
@@ -285,6 +306,9 @@ func TestSessionFileCommandsPreserveAliasesAndExport(t *testing.T) {
 	node, err := w.Stat(ctx, created)
 	if err != nil || node.Metadata.Mode.Value != 0100700 {
 		t.Fatal(node, err)
+	}
+	if _, err := filesystem.Lookup(ctx, w, "empty"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("removed entry exported", err)
 	}
 	if got := invoke("xattr", "--session", "build", "-p", "org.test", "/seal-alias"); !bytes.Equal(got, payload) {
 		t.Fatal("attribute bytes", got)

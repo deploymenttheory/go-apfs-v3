@@ -1,0 +1,2747 @@
+{
+ "source": {
+  "description": "libc setmode/getmode results captured natively by the retired acceptance harness: each expression and umask was parsed with setmode(3) and applied to input with getmode(3). Invalid expressions record valid=false and no output.",
+  "system": "macOS",
+  "version": "27.0.1",
+  "build": "26A434",
+  "architecture": "arm64",
+  "collector": "acceptance/native/file_commands.py",
+  "collectorSHA256": "a7511168b1146cbdf94ab8d737f31bcf4af850bc951486dec63c5e198fa1f8c5",
+  "evidence": "acceptance/testdata/file-commands/macos-27/apfs-files.json",
+  "evidenceSHA256": "d4dd1e404d8630b840362574750a2f00c586f8288cea1320091e9b737197a9b5",
+  "commit": "2bd3e7a",
+  "projection": "fileCommands.modeVectors copied without change; this wrapper object only records provenance"
+ },
+ "vectors": [
+  {
+   "expression": "755",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "755",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "0000",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16384
+  },
+  {
+   "expression": "0000",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 40960
+  },
+  {
+   "expression": "u+x",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33252
+  },
+  {
+   "expression": "u+x",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+x",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+x",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+x",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "go-w",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "go-w",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "go-w",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "go-w",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "go-w",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "a+X",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a+X",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a+X",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a+X",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a+X",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "a-X",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a-X",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a-X",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a-X",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a-X",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "g=u-w",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "g=u-w",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "g=u-w",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41455
+  },
+  {
+   "expression": "o=g",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o=g",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "o=g",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o=g",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o=g",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33206
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33279
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16895
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33279
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16448
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41024
+  },
+  {
+   "expression": "a+t",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33700
+  },
+  {
+   "expression": "a+t",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33769
+  },
+  {
+   "expression": "a+t",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 17389
+  },
+  {
+   "expression": "a+t",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35821
+  },
+  {
+   "expression": "a+t",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41983
+  },
+  {
+   "expression": "u+t",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u+t",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+t",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+t",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+t",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "o+t",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o+t",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "o+t",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o+t",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o+t",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 36260
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 36329
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 19949
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 36333
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 44543
+  },
+  {
+   "expression": "u=gr",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=gr",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33065
+  },
+  {
+   "expression": "u=gr",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16685
+  },
+  {
+   "expression": "u=gr",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 33069
+  },
+  {
+   "expression": "u=gr",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41279
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41343
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 32873
+  },
+  {
+   "expression": "u=ugo",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u=ugo",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u=ugo",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=u",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33206
+  },
+  {
+   "expression": "=u",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33279
+  },
+  {
+   "expression": "=u",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16895
+  },
+  {
+   "expression": "=u",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35327
+  },
+  {
+   "expression": "=u",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "-w",
+   "input": 33188,
+   "umask": 0,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "-w",
+   "input": 33257,
+   "umask": 0,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "-w",
+   "input": 16877,
+   "umask": 0,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "-w",
+   "input": 35309,
+   "umask": 0,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "-w",
+   "input": 41471,
+   "umask": 0,
+   "valid": true,
+   "output": 41325
+  },
+  {
+   "expression": "",
+   "input": 33188,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 33257,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 16877,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 35309,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 41471,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33188,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33257,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 16877,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 35309,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 41471,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33188,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33257,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 16877,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 35309,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 41471,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33188,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33257,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 16877,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 35309,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 41471,
+   "umask": 0,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "755",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "755",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "0000",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16384
+  },
+  {
+   "expression": "0000",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 40960
+  },
+  {
+   "expression": "u+x",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33252
+  },
+  {
+   "expression": "u+x",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+x",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+x",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+x",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "go-w",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "go-w",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "go-w",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "go-w",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "go-w",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "a+X",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a+X",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a+X",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a+X",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a+X",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "a-X",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a-X",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a-X",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a-X",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a-X",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "g=u-w",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "g=u-w",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "g=u-w",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41455
+  },
+  {
+   "expression": "o=g",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o=g",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "o=g",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o=g",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o=g",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16448
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41024
+  },
+  {
+   "expression": "a+t",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33700
+  },
+  {
+   "expression": "a+t",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33769
+  },
+  {
+   "expression": "a+t",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 17389
+  },
+  {
+   "expression": "a+t",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35821
+  },
+  {
+   "expression": "a+t",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41983
+  },
+  {
+   "expression": "u+t",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u+t",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+t",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+t",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+t",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "o+t",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o+t",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "o+t",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o+t",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o+t",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 36260
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 36329
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 19949
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 36333
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 44543
+  },
+  {
+   "expression": "u=gr",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=gr",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33065
+  },
+  {
+   "expression": "u=gr",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16685
+  },
+  {
+   "expression": "u=gr",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 33069
+  },
+  {
+   "expression": "u=gr",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41279
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41343
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 32873
+  },
+  {
+   "expression": "u=ugo",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u=ugo",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u=ugo",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=u",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "=u",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "=u",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "=u",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "=u",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "-w",
+   "input": 33188,
+   "umask": 18,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "-w",
+   "input": 33257,
+   "umask": 18,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "-w",
+   "input": 16877,
+   "umask": 18,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "-w",
+   "input": 35309,
+   "umask": 18,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "-w",
+   "input": 41471,
+   "umask": 18,
+   "valid": true,
+   "output": 41343
+  },
+  {
+   "expression": "",
+   "input": 33188,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 33257,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 16877,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 35309,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 41471,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33188,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33257,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 16877,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 35309,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 41471,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33188,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33257,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 16877,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 35309,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 41471,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33188,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33257,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 16877,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 35309,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 41471,
+   "umask": 18,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "755",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "755",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "755",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "0000",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16384
+  },
+  {
+   "expression": "0000",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 32768
+  },
+  {
+   "expression": "0000",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 40960
+  },
+  {
+   "expression": "u+x",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33252
+  },
+  {
+   "expression": "u+x",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+x",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+x",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+x",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "go-w",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "go-w",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "go-w",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "go-w",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "go-w",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=rx",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwx,go=u-w",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "a+X",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a+X",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a+X",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a+X",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a+X",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "a-X",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "a-X",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "a-X",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "a-X",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "a-X",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "u=rwX,go=rX",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41453
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "g=u-w",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "g=u-w",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "g=u-w",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "g=u-w",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41455
+  },
+  {
+   "expression": "o=g",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o=g",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33261
+  },
+  {
+   "expression": "o=g",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o=g",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o=g",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33152
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33216
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16832
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33216
+  },
+  {
+   "expression": "=rw,+X",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41408
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16448
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 32832
+  },
+  {
+   "expression": "a=,u+x",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41024
+  },
+  {
+   "expression": "a+t",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33700
+  },
+  {
+   "expression": "a+t",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33769
+  },
+  {
+   "expression": "a+t",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 17389
+  },
+  {
+   "expression": "a+t",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35821
+  },
+  {
+   "expression": "a+t",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41983
+  },
+  {
+   "expression": "u+t",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "u+t",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "u+t",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "u+t",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "u+t",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "o+t",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "o+t",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "o+t",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "o+t",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "o+t",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 36260
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 36329
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 19949
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 36333
+  },
+  {
+   "expression": "u+s,g+s",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 44543
+  },
+  {
+   "expression": "u=gr",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=gr",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33065
+  },
+  {
+   "expression": "u=gr",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16685
+  },
+  {
+   "expression": "u=gr",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 33069
+  },
+  {
+   "expression": "u=gr",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41279
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u+gX-w",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41343
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "u=ugo",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 32873
+  },
+  {
+   "expression": "u=ugo",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "u=ugo",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "u=ugo",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "=u",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33188
+  },
+  {
+   "expression": "=u",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33257
+  },
+  {
+   "expression": "=u",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16877
+  },
+  {
+   "expression": "=u",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35309
+  },
+  {
+   "expression": "=u",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41471
+  },
+  {
+   "expression": "-w",
+   "input": 33188,
+   "umask": 63,
+   "valid": true,
+   "output": 33060
+  },
+  {
+   "expression": "-w",
+   "input": 33257,
+   "umask": 63,
+   "valid": true,
+   "output": 33129
+  },
+  {
+   "expression": "-w",
+   "input": 16877,
+   "umask": 63,
+   "valid": true,
+   "output": 16749
+  },
+  {
+   "expression": "-w",
+   "input": 35309,
+   "umask": 63,
+   "valid": true,
+   "output": 35181
+  },
+  {
+   "expression": "-w",
+   "input": 41471,
+   "umask": 63,
+   "valid": true,
+   "output": 41343
+  },
+  {
+   "expression": "",
+   "input": 33188,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 33257,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 16877,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 35309,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "",
+   "input": 41471,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33188,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 33257,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 16877,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 35309,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "999",
+   "input": 41471,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33188,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 33257,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 16877,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 35309,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "u+z",
+   "input": 41471,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33188,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 33257,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 16877,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 35309,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  },
+  {
+   "expression": "a+,",
+   "input": 41471,
+   "umask": 63,
+   "valid": false,
+   "output": 0
+  }
+ ]
+}

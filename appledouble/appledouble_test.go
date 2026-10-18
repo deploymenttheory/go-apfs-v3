@@ -12,12 +12,16 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
+// nativeSample is Apple copyfile output retained with its provenance in
+// testdata/README.md. It is structurally valid input, not a verdict oracle.
 func nativeSample(t testing.TB) []byte {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
-	data, err := os.ReadFile("../acceptance/testdata/preservation/macos-27/apfs-example.txt.appledouble")
+	data, err := os.ReadFile("testdata/apfs-example.txt.appledouble")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(data) != 65878 {
+		t.Fatal("retained AppleDouble sample changed", len(data))
 	}
 	return data
 }

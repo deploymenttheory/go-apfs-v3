@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,17 +10,131 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
+	"github.com/deploymenttheory/go-apfs-v3/pack"
 )
 
+// stagedTree is a minimal in-memory source for pack. It stages the entries the
+// tests look up: a hard-linked file, a name needing host mapping and a symlink.
+type stagedTree struct {
+	nodes    map[uint64]filesystem.Node
+	children map[uint64][]filesystem.DirEntry
+	data     map[uint64][]byte
+	attrs    map[uint64]map[string][]byte
+	targets  map[uint64]string
+}
+
+type stagedValue struct{ *bytes.Reader }
+
+func (stagedValue) Close() error { return nil }
+
+func newStagedTree() *stagedTree {
+	when := time.Date(2026, 10, 10, 1, 2, 3, 0, time.UTC)
+	tree := &stagedTree{nodes: map[uint64]filesystem.Node{}, children: map[uint64][]filesystem.DirEntry{}, data: map[uint64][]byte{}, attrs: map[uint64]map[string][]byte{}, targets: map[uint64]string{}}
+	add := func(id uint64, mode uint32, size int) {
+		tree.nodes[id] = filesystem.Node{Identity: filesystem.Identity{Object: id}, Size: uint64(size), Links: filesystem.Observed(uint32(1)), Compression: filesystem.Observation[filesystem.Compression]{State: filesystem.Absent}, Metadata: filesystem.Metadata{
+			Mode: filesystem.Observed(mode), UID: filesystem.Observed(uint32(501)), GID: filesystem.Observed(uint32(20)), BSDFlags: filesystem.Observed(uint32(0)),
+			BirthTime: filesystem.Observed(when), ModifyTime: filesystem.Observed(when), ChangeTime: filesystem.Observed(when), AccessTime: filesystem.Observed(when),
+		}}
+	}
+	add(1, 0040755, 0)
+	add(2, 0040755, 0)
+	tree.data[3] = []byte("staged payload shared by two names\n")
+	add(3, 0100644, len(tree.data[3]))
+	tree.nodes[3] = func(n filesystem.Node) filesystem.Node { n.Links = filesystem.Observed(uint32(2)); return n }(tree.nodes[3])
+	tree.attrs[3] = map[string][]byte{"org.go-apfs.link": []byte("attribute carried by both names"), filesystem.ResourceFork: bytes.Repeat([]byte("fork"), 300)}
+	tree.data[4] = []byte("reserved host name\n")
+	add(4, 0100644, len(tree.data[4]))
+	add(5, 0120755, 0)
+	tree.targets[5] = "alias"
+	tree.children[1] = []filesystem.DirEntry{{Name: "Fixture", Object: 2}}
+	tree.children[2] = []filesystem.DirEntry{{Name: "alias", Object: 3}, {Name: "second", Object: 3}, {Name: "CON", Object: 4}, {Name: "link", Object: 5}}
+	return tree
+}
+
+func (tree *stagedTree) Root() uint64 { return 1 }
+func (tree *stagedTree) NameRules() filesystem.NameRules {
+	return filesystem.NameRules{Format: "APFS", CaseSensitive: true, NormalizationInsensitive: true}
+}
+func (tree *stagedTree) Stat(_ context.Context, id uint64) (filesystem.Node, error) {
+	n, ok := tree.nodes[id]
+	if !ok {
+		return filesystem.Node{}, fs.ErrNotExist
+	}
+	return n, nil
+}
+func (tree *stagedTree) ReadDir(_ context.Context, id uint64, yield func(filesystem.DirEntry) error) error {
+	for _, e := range tree.children[id] {
+		if err := yield(e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (tree *stagedTree) Lookup(_ context.Context, id uint64, name string) (filesystem.DirEntry, error) {
+	for _, e := range tree.children[id] {
+		if e.Name == name {
+			return e, nil
+		}
+	}
+	return filesystem.DirEntry{}, fs.ErrNotExist
+}
+func (tree *stagedTree) OpenData(_ context.Context, id uint64) (filesystem.Value, error) {
+	b, ok := tree.data[id]
+	if !ok {
+		return nil, fs.ErrInvalid
+	}
+	return stagedValue{bytes.NewReader(b)}, nil
+}
+func (tree *stagedTree) OpenRawData(ctx context.Context, id uint64) (filesystem.Value, error) {
+	return tree.OpenData(ctx, id)
+}
+func (tree *stagedTree) ListAttributes(_ context.Context, id uint64, yield func(string) error) error {
+	names := make([]string, 0, len(tree.attrs[id]))
+	for name := range tree.attrs[id] {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if err := yield(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (tree *stagedTree) OpenAttribute(_ context.Context, id uint64, name string) (filesystem.Value, error) {
+	b, ok := tree.attrs[id][name]
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+	return stagedValue{bytes.NewReader(b)}, nil
+}
+func (tree *stagedTree) Readlink(_ context.Context, id uint64) (string, error) {
+	target, ok := tree.targets[id]
+	if !ok {
+		return "", fs.ErrInvalid
+	}
+	return target, nil
+}
+
+// sourceTree packs the staged tree into a case-sensitive APFS image with the
+// product and reads it back, so workspace ownership and conflict controls run
+// against a real filesystem reader. Native contents belong to acceptance.
 func sourceTree(t *testing.T) (filesystem.Reader, uint64) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
 	t.Helper()
-	image, err := diskimage.Open("../acceptance/testdata/semantics/macos-27/apfs-case-sensitive.dmg")
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "staged.dmg")
+	when := time.Date(2026, 10, 10, 1, 2, 3, 0, time.UTC)
+	if _, err := pack.Create(ctx, path, newStagedTree(), pack.Options{Format: "UDRO", Volume: pack.VolumeOptions{Name: "Staged", CaseSensitive: true, Time: when, Capacity: 8 << 20}}); err != nil {
+		t.Fatal(err)
+	}
+	image, err := diskimage.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,21 +143,21 @@ func sourceTree(t *testing.T) (filesystem.Reader, uint64) {
 			t.Error(err)
 		}
 	})
-	report, err := inspect.Image(context.Background(), image)
+	report, err := inspect.Image(ctx, image)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range report.Partitions {
 		if p.APFS != nil {
 			r := &p.APFS.Volumes[0]
-			id, err := filesystem.Lookup(context.Background(), r, "Fixture")
+			id, err := filesystem.Lookup(ctx, r, "Fixture")
 			if err != nil {
 				t.Fatal(err)
 			}
 			return r, id
 		}
 	}
-	t.Fatal("missing native filesystem")
+	t.Fatal("missing built filesystem")
 	return nil, 0
 }
 

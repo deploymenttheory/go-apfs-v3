@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"os"
 	"sync"
 	"testing"
 
@@ -96,26 +95,29 @@ func TestEncryptedImageRecordOverlapAndAggregateWork(t *testing.T) {
 	}
 }
 
+// The product's own envelope carries an 8 MiB patterned disk. Native image and
+// password verdicts belong to the acceptance tier; this isolates the decrypted
+// source's offset, EOF, concurrency and truncation contract.
 func TestEncryptedImageConcurrentUnalignedReadsAndTruncation(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	b, err := os.ReadFile("../acceptance/testdata/encrypted-dmg/macos-27/hfsplus-raw-aes256.dmg")
-	if err != nil {
-		t.Fatal(err)
+	want := make([]byte, 8<<20)
+	for i := range want {
+		want[i] = byte(i*31 + i>>9)
 	}
+	b := encryptedBytes(t, 256, want)
 	e, records, err := readEnvelope(bytes.NewReader(b))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.unlock(context.Background(), []byte("public-dmg-password"), records); err != nil {
+	if err := e.unlock(context.Background(), []byte("exact-password\n"), records); err != nil {
 		t.Fatal(err)
 	}
 	defer e.Close()
-	// Native file/metadata hashes independently qualify decrypted bytes. Here
-	// compare arbitrary ReaderAt ranges against a whole aligned read, including
-	// the last byte, to isolate the source's offset and EOF contract.
-	want := make([]byte, e.Size())
-	if _, err := e.ReadAt(want, 0); err != nil {
-		t.Fatal(err)
+	if e.Size() != int64(len(want)) {
+		t.Fatal("decrypted size", e.Size())
+	}
+	whole := make([]byte, e.Size())
+	if _, err := e.ReadAt(whole, 0); err != nil || !bytes.Equal(whole, want) {
+		t.Fatal("aligned whole read", err)
 	}
 	var wg sync.WaitGroup
 	for _, off := range []int64{0, 1, 15, 16, 511, 512, 513, 4095, e.Size() - 513, e.Size() - 1, e.Size()} {
