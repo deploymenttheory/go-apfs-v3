@@ -44,6 +44,16 @@ var unreplayableStages = map[string]string{
 	"apfs-directory-statistics/after-27-compressed": "native compression is created through com.apple.decmpfs and UF_COMPRESSED, which the editor refuses by design",
 }
 
+// knownProductLimits names, by recipe, the error a tracked product limit
+// gives the native continuation's product edit on the final replayed
+// state. Remove an entry when its issue is fixed: the native verifier then
+// requires the edit to succeed.
+var knownProductLimits = map[string]string{
+	// https://github.com/deploymenttheory/go-apfs-v3/issues/132: cp models
+	// the whole volume and refuses above 100,000 objects.
+	"hfs-catalog-map-growth": "resource limit exceeded",
+}
+
 // largeReplaySourceBytes is the source disk size above which a replay runs
 // alone: the editor streams the whole disk into scratch, twice per output.
 // Sparse expansion keeps the 512 MiB catalog-growth replays cheap enough
@@ -139,9 +149,16 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 				current, final = out, out
 			}
 			checkReplayedImage(t, ctx, final, source, k, recipes[k.Recipe], touched)
-			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last, NewIdentities: true}})
+			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last, NewIdentities: true, ContinuationRefusal: refusalIf(last, knownProductLimits[k.Recipe])}})
 		})
 	}
+}
+
+func refusalIf(last bool, refusal string) string {
+	if !last {
+		return ""
+	}
+	return refusal
 }
 
 func stageKey(producer int, recipe, profile, stage string) string {

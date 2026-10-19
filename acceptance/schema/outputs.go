@@ -87,4 +87,9 @@ type Expectation struct {
 	// the source's view: an editor's allocator, not the kernel's, numbers
 	// what it creates.
 	NewIdentities bool `json:"newIdentities,omitempty"`
+	// ContinuationRefusal is the error a tracked product limit makes the
+	// continuation's product edit fail with. The native writes and their
+	// fsck still run; the edit must fail with exactly this text, and an
+	// edit that succeeds fails the check until the expectation is removed.
+	ContinuationRefusal string `json:"continuationRefusal,omitempty"`
 }

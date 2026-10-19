@@ -4,6 +4,7 @@ package native
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -195,10 +196,15 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 	}
 	if p.Output.Expect.Continuation && len(diffs) == 0 {
 		k := v.Cases[CaseKey(p.Output.Source)]
-		if _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); err != nil {
+		var limit KnownLimit
+		switch _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); {
+		case errors.As(err, &limit):
+			t.Logf("native writes passed fsck; %v", limit)
+			verdict += ", native continuation ok, product edit refused by a tracked limit"
+		case err != nil:
 			t.Error(err)
 			verdict = "continuation failed"
-		} else {
+		default:
 			verdict += ", continuation ok"
 		}
 	}
