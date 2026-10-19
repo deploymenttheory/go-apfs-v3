@@ -110,7 +110,10 @@ workspace. Ordered tree editing is described below; general external import rema
 
 Traversal defaults are 100,000 objects, 200,000 entries, depth 128, 4,096 attributes
 per object, 64 MiB of manifest and 1 TiB per value and total streamed values.
-Callers may lower the configurable limits. Logical/raw/attribute reads count
+Callers may lower the configurable limits. Workspaces and sessions model their
+whole tree, so these bounds apply to the tree. `cp` into an existing image reads
+only the directories and objects it touches, so they bound the copied paths and
+a single directory listing, not the volume. Logical/raw/attribute reads count
 against the transfer budget even when storage deduplicates them. Data copies use
 64 KiB buffers. A report separates retained metadata from host materialization.
 

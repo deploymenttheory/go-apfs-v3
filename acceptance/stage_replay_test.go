@@ -48,11 +48,7 @@ var unreplayableStages = map[string]string{
 // gives the native continuation's product edit on the final replayed
 // state. Remove an entry when its issue is fixed: the native verifier then
 // requires the edit to succeed.
-var knownProductLimits = map[string]string{
-	// https://github.com/deploymenttheory/go-apfs-v3/issues/132: cp models
-	// the whole volume and refuses above 100,000 objects.
-	"hfs-catalog-map-growth": "resource limit exceeded",
-}
+var knownProductLimits = map[string]string{}
 
 // largeReplaySourceBytes is the source disk size above which a replay runs
 // alone: the editor streams the whole disk into scratch, twice per output.
