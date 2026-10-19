@@ -2,7 +2,9 @@ package native
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,6 +58,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 		return nil, err
 	}
 	volume := att.Volumes[0]
+	multiVolume := len(att.Volumes) > 1
 	if out.Expect.SystemMember != "" {
 		if vol := att.Volume(out.Expect.SystemMember); vol != nil {
 			volume = vol
@@ -95,7 +98,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	// The product edits the natively modified volume into a new image.
 	edited := filepath.Join(work, "edited.dmg")
 	argv := []string{v.Product, "edit", "--image", raw, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
-	if out.Expect.SystemMember != "" {
+	if out.Expect.SystemMember != "" || multiVolume {
 		argv = append(argv, "--volume", volume.UUID)
 	}
 	argv = append(argv, "--", "mkdir", "/native-continuation/go", "--next", "cp", "--from-host", filepath.Join(work, "go-payload"), "/native-continuation/go/payload", "--next", "rm", "/native-continuation/entry-00001", "--next", "ln", "/native-continuation/go/payload", "/native-continuation/go/alias")
@@ -136,7 +139,17 @@ type schemaCase struct{ recipe schema.Recipe }
 // attributes, a resource fork and native compression.
 func (v *Verifier) nativeWrites(ctx context.Context, mount string) error {
 	root := filepath.Join(mount, "native-continuation")
-	if err := v.Vol.Mkdir(root, 0o755); err != nil {
+	if err := v.Vol.Mkdir(root, 0o755); errors.Is(err, fs.ErrPermission) {
+		// A volume root owned by another user (as Apple's own fixtures
+		// are) takes the continuation directory the way recipes create
+		// theirs: as root, then handed to the runner's user.
+		for _, argv := range [][]string{{"mkdir", root}, {"chown", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), root}} {
+			cmd := fixture.Command{Argv: argv, Sudo: true, Expected: "0"}
+			if err := (&fixture.Transcript{}).Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+				return err
+			}
+		}
+	} else if err != nil {
 		return err
 	}
 	stage := filepath.Join(v.Work, "stage-"+filepath.Base(mount))

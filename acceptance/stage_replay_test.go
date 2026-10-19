@@ -139,7 +139,7 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 				current, final = out, out
 			}
 			checkReplayedImage(t, ctx, final, source, k, recipes[k.Recipe], touched)
-			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last}})
+			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last, NewIdentities: true}})
 		})
 	}
 }

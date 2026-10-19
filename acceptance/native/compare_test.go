@@ -83,3 +83,44 @@ func TestPairRequiresEveryHostAndEqualPlaintext(t *testing.T) {
 		t.Fatalf("lock mismatch accepted: %v", err)
 	}
 }
+
+func TestComparisonUnderAStoragePolicyIgnoresOnlyCompressionOwnedStorage(t *testing.T) {
+	source := schema.Entry{Path: "f", Kind: "file", Flags: 0x20, Size: 9, SHA256: "aa", Compression: &schema.Compression{Type: 7, Storage: "attribute", KernelRead: "ok"},
+		Xattrs: []schema.Xattr{{Name: "com.apple.decmpfs", Bytes: 30, SHA256: "decmpfs-source"}, {Name: "org.example", Bytes: 1, SHA256: "kept"}}}
+	none := schema.Entry{Path: "f", Kind: "file", Size: 9, SHA256: "aa", Xattrs: []schema.Xattr{{Name: "org.example", Bytes: 1, SHA256: "kept"}}}
+	if d := compareEntry(none, source, CompareOptions{FileCompression: "none"}); len(d) != 0 {
+		t.Fatalf("a decompressed build differs only in compression-owned storage, got %v", d)
+	}
+	stillCompressed := none
+	stillCompressed.Compression = &schema.Compression{Type: 7, KernelRead: "ok"}
+	if d := compareEntry(stillCompressed, source, CompareOptions{FileCompression: "none"}); len(d) != 1 || d[0].Field != "compression" {
+		t.Fatalf("compression left under the none policy must be reported, got %v", d)
+	}
+	lost := none
+	lost.Xattrs = nil
+	if d := compareEntry(lost, source, CompareOptions{FileCompression: "none"}); len(d) != 1 || d[0].Field != "xattr.org.example" {
+		t.Fatalf("an ordinary attribute lost by a policy build must be reported, got %v", d)
+	}
+}
+
+func TestComparisonUsesTheKernelReadOutcomeWhenTheKernelCannotHash(t *testing.T) {
+	readable := schema.Entry{Path: "lz4", Kind: "file", Size: 9, SHA256: "aa", Compression: &schema.Compression{Type: 15, KernelRead: "ok"}}
+	refused := schema.Entry{Path: "lz4", Kind: "file", Size: 9, Compression: &schema.Compression{Type: 15, KernelRead: "EIO"}}
+	d := compareEntry(refused, readable, CompareOptions{})
+	if len(d) != 1 || d[0].Field != "compression.kernelRead" || d[0].Got != "EIO" {
+		t.Fatalf("a refused read is one kernelRead difference, not a digest difference, got %v", d)
+	}
+}
+
+func TestComparisonChecksIdentityOnlyForEntriesThatExistedBeforeAnEdit(t *testing.T) {
+	want := []schema.Entry{entry("old", 10), entry("new", 11)}
+	got := []schema.Entry{entry("old", 10), entry("new", 12)}
+	existing := map[string]bool{"old": true}
+	if d := CompareViews(schema.View{Entries: got}, schema.View{Entries: want}, CompareOptions{Existing: existing}); len(d) != 0 {
+		t.Fatalf("a created entry may take the allocator's identity, got %v", d)
+	}
+	got[0].ID = 13
+	if d := CompareViews(schema.View{Entries: got}, schema.View{Entries: want}, CompareOptions{Existing: existing}); len(d) != 1 || d[0].Path != "old" {
+		t.Fatalf("an existing entry must keep its identity, got %v", d)
+	}
+}

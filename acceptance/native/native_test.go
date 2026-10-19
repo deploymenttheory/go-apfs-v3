@@ -132,40 +132,77 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		t.Fatalf("no outputs derived from macOS %d fixtures", v.Major)
 	}
 	rows := &summary{}
+	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
 	t.Run("outputs", func(t *testing.T) {
-		for _, p := range pairs {
-			p := p
-			t.Run(p.Name, func(t *testing.T) {
+		for _, key := range order {
+			group := lineages[key]
+			t.Run(key, func(t *testing.T) {
 				t.Parallel()
 				v := v.ForSubtest()
-				ctx := context.Background()
-				diffs, err := v.VerifyOutput(ctx, p)
-				if err != nil {
-					rows.add("| %s | %d | error: %v |", p.Name, len(p.ByHost), err)
-					t.Fatal(err)
+				for _, p := range group {
+					p := p
+					t.Run(p.Name, func(t *testing.T) {
+						verifyOne(t, v, p, rows)
+					})
 				}
-				for _, d := range diffs {
-					t.Error(d)
-				}
-				verdict := "ok"
-				if len(diffs) > 0 {
-					verdict = fmt.Sprintf("%d differences", len(diffs))
-				}
-				if p.Output.Expect.Continuation && len(diffs) == 0 {
-					k := v.Cases[CaseKey(p.Output.Source)]
-					if _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); err != nil {
-						t.Error(err)
-						verdict = "continuation failed"
-					} else {
-						verdict += ", continuation ok"
-					}
-				}
-				rows.add("| %s | %d | %s |", p.Name, len(p.ByHost), verdict)
 			})
 		}
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, fmt.Sprintf("Outputs verified on macOS %d (%d)", v.Major, len(pairs)), append([]string{"| output | hosts | verdict |", "| --- | --- | --- |"}, rows.rows...))
+}
+
+// outputLineage groups outputs that carry the same filesystem identities:
+// everything derived from one fixture's recipe and profile, and every
+// fresh build (which assigns its identities from fixed inputs). Images
+// sharing a container or volume UUID are never attached at the same time.
+func outputLineage(o schema.Output) string {
+	if o.Operation == "build" || (o.Operation == "encrypt" && o.Expect.Subtree != "") {
+		return "builds"
+	}
+	return fmt.Sprintf("macos-%d/%s/%s", o.Source.Producer, o.Source.Recipe, o.Source.Profile)
+}
+
+// groupByLineage keeps each group's members in their original order.
+func groupByLineage[T any](items []T, key func(T) string) (map[string][]T, []string) {
+	groups := map[string][]T{}
+	var order []string
+	for _, item := range items {
+		k := key(item)
+		if _, ok := groups[k]; !ok {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], item)
+	}
+	sort.Strings(order)
+	return groups, order
+}
+
+// verifyOne judges one paired output and records its verdict.
+func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
+	ctx := context.Background()
+	diffs, err := v.VerifyOutput(ctx, p)
+	if err != nil {
+		rows.add("| %s | %d | error: %v |", p.Name, len(p.ByHost), err)
+		t.Fatal(err)
+	}
+	for _, d := range diffs {
+		t.Error(d)
+	}
+	verdict := "ok"
+	if len(diffs) > 0 {
+		verdict = fmt.Sprintf("%d differences", len(diffs))
+	}
+	if p.Output.Expect.Continuation && len(diffs) == 0 {
+		k := v.Cases[CaseKey(p.Output.Source)]
+		if _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); err != nil {
+			t.Error(err)
+			verdict = "continuation failed"
+		} else {
+			verdict += ", continuation ok"
+		}
+	}
+	rows.add("| %s | %d | %s |", p.Name, len(p.ByHost), verdict)
 }
 
 // TestFixturesFromOtherVersionsReadIdentically mounts every fixture that
@@ -178,27 +215,38 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := &summary{}
+	var others []corpus.Case
+	for _, k := range cases {
+		if k.Producer != v.Major && len(k.Observation.Views) > 0 {
+			others = append(others, k)
+		}
+	}
+	lineages, order := groupByLineage(others, func(k corpus.Case) string {
+		return fmt.Sprintf("macos-%d/%s/%s", k.Producer, k.Recipe, k.Profile)
+	})
 	t.Run("fixtures", func(t *testing.T) {
-		for _, k := range cases {
-			k := k
-			if k.Producer == v.Major || len(k.Observation.Views) == 0 {
-				continue
-			}
-			t.Run(fmt.Sprintf("macos-%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {
+		for _, key := range order {
+			group := lineages[key]
+			t.Run(key, func(t *testing.T) {
 				t.Parallel()
 				v := v.ForSubtest()
-				known, unknown, err := v.CrossVersionDrift(context.Background(), k)
-				if err != nil {
-					t.Fatal(err)
+				for _, k := range group {
+					k := k
+					t.Run(k.Stage, func(t *testing.T) {
+						known, unknown, err := v.CrossVersionDrift(context.Background(), k)
+						if err != nil {
+							t.Fatal(err)
+						}
+						for _, d := range unknown {
+							t.Errorf("unexplained difference from macOS %d: %s", k.Producer, d)
+						}
+						var knownText []string
+						for _, d := range known {
+							knownText = append(knownText, d.Path+" "+d.Field)
+						}
+						rows.add("| %s/%s/%s | macOS %d | %s | %d |", k.Recipe, k.Profile, k.Stage, k.Producer, strings.Join(knownText, "<br>"), len(unknown))
+					})
 				}
-				for _, d := range unknown {
-					t.Errorf("unexplained difference from macOS %d: %s", k.Producer, d)
-				}
-				var knownText []string
-				for _, d := range known {
-					knownText = append(knownText, d.Path+" "+d.Field)
-				}
-				rows.add("| %s/%s/%s | macOS %d | %s | %d |", k.Recipe, k.Profile, k.Stage, k.Producer, strings.Join(knownText, "<br>"), len(unknown))
 			})
 		}
 	})
