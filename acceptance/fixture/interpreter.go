@@ -339,13 +339,7 @@ func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
 	if err := c.observe(ctx, stage.Name, stage.Observe, retained, c.output(), nil, c.prefix()+"."+stage.Name); err != nil {
 		return err
 	}
-	if stage.Discard {
-		if err := os.Remove(retained); err != nil {
-			return err
-		}
-	} else {
-		c.retained[stage.Name] = retained
-	}
+	c.retained[stage.Name] = retained
 	return nil
 }
 
@@ -387,12 +381,6 @@ func (c *Capture) detach(ctx context.Context) error {
 // retain converts the detached scratch into the stage's retained image.
 func (c *Capture) retain(ctx context.Context, stage *schema.Stage) (string, error) {
 	dir := c.Out
-	if stage.Discard {
-		dir = filepath.Join(c.Work, "discard")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", err
-		}
-	}
 	format := c.output()
 	if format == "raw" {
 		out := filepath.Join(dir, c.prefix()+"."+stage.Name+".raw.gz")

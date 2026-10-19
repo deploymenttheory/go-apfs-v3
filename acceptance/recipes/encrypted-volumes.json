@@ -34,7 +34,6 @@
   "stages": [
     {
       "name": "clone-shared",
-      "discard": true,
       "steps": [
         {
           "tool": {
@@ -416,7 +415,6 @@
     },
     {
       "name": "clone-diverged",
-      "discard": true,
       "steps": [
         {
           "tool": {

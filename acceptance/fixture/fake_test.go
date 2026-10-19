@@ -35,13 +35,18 @@ func writeFakeImage(path string, img fakeImage) error {
 // fakeCommander answers every program with a canned result and records
 // what was asked.
 type fakeCommander struct {
-	calls   [][]string
-	results map[string]Result // keyed by program name; default success
-	fail    map[string]bool
+	calls    [][]string
+	results  map[string]Result   // keyed by program name; default success
+	sequence map[string][]Result // consumed in order before results
+	fail     map[string]bool
 }
 
 func (f *fakeCommander) Run(_ context.Context, cmd Command) Result {
 	f.calls = append(f.calls, cmd.Argv)
+	if queue := f.sequence[cmd.Argv[0]]; len(queue) > 0 {
+		f.sequence[cmd.Argv[0]] = queue[1:]
+		return queue[0]
+	}
 	if r, ok := f.results[cmd.Argv[0]]; ok {
 		return r
 	}
@@ -171,6 +176,10 @@ func (d *fakeDisk) Info(_ context.Context, dev string) (map[string]any, error) {
 
 func (d *fakeDisk) List(context.Context, string) (map[string]any, error) {
 	return map[string]any{"AllDisksAndPartitions": []any{}}, nil
+}
+
+func (d *fakeDisk) APFSList(context.Context) (map[string]any, error) {
+	return map[string]any{"Containers": []any{map[string]any{"Volumes": []any{map[string]any{"APFSVolumeUUID": "uuid-1", "CapacityReserve": float64(33554432), "CapacityQuota": float64(67108864)}}}}}, nil
 }
 
 func (d *fakeDisk) Imageinfo(context.Context, string, []byte) (map[string]any, error) {
