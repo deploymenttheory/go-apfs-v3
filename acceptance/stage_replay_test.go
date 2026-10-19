@@ -46,7 +46,9 @@ var unreplayableStages = map[string]string{
 
 // largeReplaySourceBytes is the source disk size above which a replay runs
 // alone: the editor streams the whole disk into scratch, twice per output.
-const largeReplaySourceBytes = 256 << 20
+// Sparse expansion keeps the 512 MiB catalog-growth replays cheap enough
+// to run in parallel; the 1.5 GiB container geometry still runs alone.
+const largeReplaySourceBytes = 1 << 30
 
 // TestGoEditsReproduceAppleStageStates translates each recipe stage's steps
 // into editor changes, applies them to Apple's image of the preceding
