@@ -75,6 +75,113 @@ type Tree struct {
 	count    int
 	supplied int64
 	limits   Limits
+	// lazy trees load objects and directory listings on first use, so a
+	// command touching a few paths does not model the whole volume; the
+	// limits then bound what is touched. removed tombstones unlinked base
+	// objects so they are not reloaded.
+	lazy    bool
+	removed map[uint64]bool
+}
+
+// virtualObjects is the first identity a lazy tree gives a created object.
+// Base identities stay below it (HFS catalog IDs are 32-bit and APFS object
+// IDs 60-bit), so created objects never collide with unloaded ones.
+const virtualObjects = 1 << 62
+
+// NewLazy borrows a reader without traversing it. Objects and directory
+// listings are read when first used, and the limits bound only what the
+// edit touches. Link counts come from each object's recorded count rather
+// than from a census of the volume's entries.
+func NewLazy(ctx context.Context, base filesystem.Reader, limits Limits) (*Tree, error) {
+	limits, err := limits.Normalize()
+	if err != nil {
+		return nil, err
+	}
+	key, err := NameKey(base.NameRules())
+	if err != nil {
+		return nil, err
+	}
+	r := &Tree{Reader: base, key: key, nodes: map[uint64]*editedObject{}, entries: map[uint64]map[string]filesystem.DirEntry{}, parents: map[uint64]uint64{}, replaced: map[uint64]bool{}, limits: limits, lazy: true, removed: map[uint64]bool{}, next: virtualObjects}
+	root, err := r.node(ctx, base.Root())
+	if err != nil {
+		return nil, err
+	}
+	if root.node.Metadata.Mode.Value&0170000 != 0040000 {
+		return nil, filesystem.ErrCorrupt
+	}
+	return r, nil
+}
+
+// node returns an object, reading it from the base on first use in a lazy
+// tree.
+func (r *Tree) node(ctx context.Context, id uint64) (*editedObject, error) {
+	if o, ok := r.nodes[id]; ok {
+		return o, nil
+	}
+	if !r.lazy || r.removed[id] || id >= virtualObjects {
+		return nil, fs.ErrNotExist
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if len(r.nodes) >= r.limits.Objects {
+		return nil, filesystem.ErrLimit
+	}
+	n, err := r.Reader.Stat(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if n.Identity.Object != id {
+		return nil, filesystem.ErrCorrupt
+	}
+	refs := 1
+	if n.Metadata.Mode.Value&0170000 == 0100000 && n.Links.State == filesystem.Present {
+		if n.Links.Value == 0 {
+			return nil, filesystem.ErrCorrupt
+		}
+		refs = int(n.Links.Value)
+	}
+	o := &editedObject{node: copyNode(n), refs: refs}
+	r.nodes[id] = o
+	return o, nil
+}
+
+// dir returns a directory's entries, reading the listing from the base on
+// first use in a lazy tree. ok is false for an object that is not a
+// directory.
+func (r *Tree) dir(ctx context.Context, id uint64) (map[string]filesystem.DirEntry, bool, error) {
+	if entries, ok := r.entries[id]; ok {
+		return entries, true, nil
+	}
+	if !r.lazy {
+		return nil, false, nil
+	}
+	o, err := r.node(ctx, id)
+	if err != nil {
+		return nil, false, err
+	}
+	if o.node.Metadata.Mode.Value&0170000 != 0040000 {
+		return nil, false, nil
+	}
+	if o.fresh {
+		return nil, false, filesystem.ErrCorrupt // created directories always carry a listing
+	}
+	entries := map[string]filesystem.DirEntry{}
+	if err := r.Reader.ReadDir(ctx, id, func(e filesystem.DirEntry) error {
+		if !validComponent(e.Name) || entries[r.key(e.Name)].Object != 0 {
+			return filesystem.ErrCorrupt
+		}
+		if r.count >= r.limits.Entries {
+			return filesystem.ErrLimit
+		}
+		r.count++
+		entries[r.key(e.Name)] = e
+		return nil
+	}); err != nil {
+		return nil, false, err
+	}
+	r.entries[id] = entries
+	return entries, true, nil
 }
 
 // New borrows a reader and builds its bounded directory graph. The caller owns
@@ -152,11 +259,7 @@ func (r *Tree) getNode(ctx context.Context, id uint64) (*editedObject, error) {
 	if _, err := r.Reader.Stat(ctx, r.Root()); err != nil {
 		return nil, err
 	}
-	o, ok := r.nodes[id]
-	if !ok {
-		return nil, fs.ErrNotExist
-	}
-	return o, nil
+	return r.node(ctx, id)
 }
 func (r *Tree) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
 	o, err := r.getNode(ctx, id)
@@ -172,7 +275,10 @@ func (r *Tree) ReadDir(ctx context.Context, id uint64, yield func(filesystem.Dir
 	if _, err := r.getNode(ctx, id); err != nil {
 		return err
 	}
-	entries, ok := r.entries[id]
+	entries, ok, err := r.dir(ctx, id)
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return fs.ErrInvalid
 	}
@@ -193,7 +299,10 @@ func (r *Tree) Lookup(ctx context.Context, id uint64, name string) (filesystem.D
 	if _, err := r.getNode(ctx, id); err != nil {
 		return filesystem.DirEntry{}, err
 	}
-	entries, ok := r.entries[id]
+	entries, ok, err := r.dir(ctx, id)
+	if err != nil {
+		return filesystem.DirEntry{}, err
+	}
 	if !ok {
 		return filesystem.DirEntry{}, fs.ErrInvalid
 	}
@@ -302,12 +411,23 @@ func (r *Tree) parent(ctx context.Context, p string) (uint64, string, error) {
 		if err != nil {
 			return 0, "", err
 		}
+		if r.lazy {
+			// Ancestry is recorded as paths are walked, which is all the
+			// rename cycle check consults.
+			if _, isDir, err := r.dir(ctx, e.Object); err != nil {
+				return 0, "", err
+			} else if isDir {
+				r.parents[e.Object] = id
+			}
+		}
 		id = e.Object
 	}
 	if _, err := r.getNode(ctx, id); err != nil {
 		return 0, "", err
 	}
-	if _, ok := r.entries[id]; !ok {
+	if _, ok, err := r.dir(ctx, id); err != nil {
+		return 0, "", err
+	} else if !ok {
 		return 0, "", fs.ErrInvalid
 	}
 	name := parts[len(parts)-1]
@@ -343,6 +463,11 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 	}
 	key := r.key(name)
 	entry, exists := r.entries[parent][key]
+	if exists {
+		if _, err := r.node(ctx, entry.Object); err != nil {
+			return err
+		}
+	}
 	switch c.Op {
 	case CreateFile, CreateDirectory, CreateSymlink:
 		if exists {
@@ -357,7 +482,7 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 		if !exists {
 			return fs.ErrNotExist
 		}
-		return r.unlink(parent, key)
+		return r.unlink(ctx, parent, key)
 	case ReplaceFileData:
 		if !exists {
 			return fs.ErrNotExist
@@ -393,6 +518,11 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 		}
 		toKey := r.key(stored)
 		target, occupied := r.entries[to][toKey]
+		if occupied {
+			if _, err := r.node(ctx, target.Object); err != nil {
+				return err
+			}
+		}
 		o := r.nodes[entry.Object]
 		if c.Op == CreateHardLink {
 			if occupied {
@@ -431,7 +561,7 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 			if oldDir != newDir {
 				return fs.ErrInvalid
 			}
-			if err := r.unlink(to, toKey); err != nil {
+			if err := r.unlink(ctx, to, toKey); err != nil {
 				return err
 			}
 		}
@@ -581,11 +711,18 @@ func (r *Tree) linkCount(o *editedObject, delta int) error {
 	n.LinksModified = true
 	return nil
 }
-func (r *Tree) unlink(parent uint64, key string) error {
+func (r *Tree) unlink(ctx context.Context, parent uint64, key string) error {
 	e := r.entries[parent][key]
-	o := r.nodes[e.Object]
+	o, err := r.node(ctx, e.Object)
+	if err != nil {
+		return err
+	}
 	if o.node.Metadata.Mode.Value&0170000 == 0040000 {
-		if len(r.entries[e.Object]) != 0 {
+		children, _, err := r.dir(ctx, e.Object)
+		if err != nil {
+			return err
+		}
+		if len(children) != 0 {
 			return fmt.Errorf("directory is not empty: %w", filesystem.ErrConflict)
 		}
 		delete(r.entries, e.Object)
@@ -596,6 +733,9 @@ func (r *Tree) unlink(parent uint64, key string) error {
 	o.refs--
 	if o.refs == 0 {
 		delete(r.nodes, e.Object)
+		if r.lazy {
+			r.removed[e.Object] = true
+		}
 	}
 	delete(r.entries[parent], key)
 	r.count--

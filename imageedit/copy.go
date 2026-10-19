@@ -86,10 +86,11 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 		reader = volume
 	}
 	limits := edit.DefaultLimits()
-	// Payload admission follows the validated partition geometry. Traversal
-	// and record counts retain independent bounds; payloads stream to disk.
+	// Payload admission follows the validated partition geometry. The tree
+	// reads only what the copy touches, so object and entry bounds apply to
+	// the copied paths, not the volume; payloads stream to disk.
 	limits.ValueBytes, limits.TotalBytes = view.Size(), view.Size()
-	tree, e := edit.New(ctx, reader, limits)
+	tree, e := edit.NewLazy(ctx, reader, limits)
 	if e != nil {
 		return result, e
 	}
