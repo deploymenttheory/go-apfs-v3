@@ -2,7 +2,10 @@ package native
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,10 +139,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		return v.verifyContainer(ctx, out, image, password, digests)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
-	if k.Observation.Volumes[0].APFS != nil && k.Observation.Volumes[0].APFS.Encrypted {
-		spec.Unlock = map[string]string{"*": k.Observation.Volumes[0].APFS.Password}
-		spec.Rejected = map[string][]string{"*": k.Observation.Volumes[0].APFS.Rejected}
-	}
+	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	obs, err := v.observeImage(ctx, out.Name, image, out.Format, password, spec, recipe)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,10 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		for _, name := range out.Expect.IgnoreTimes {
 			ignore[name] = true
 		}
-		opts := CompareOptions{Subtree: out.Expect.Subtree, IgnoreTimes: ignore, IgnoreIdentity: out.Operation == "build" || out.Operation == "encrypt"}
+		opts := CompareOptions{Subtree: out.Expect.Subtree, IgnoreTimes: ignore, IgnoreIdentity: out.Operation == "build" || out.Operation == "encrypt", FileCompression: out.Expect.FileCompression}
+		if out.Expect.NewIdentities {
+			opts.Existing = v.existingPaths(out.Source, want.Volume)
+		}
 		if opts.IgnoreIdentity {
 			for _, name := range []string{"birth", "modify", "change", "access"} {
 				opts.IgnoreTimes[name] = true
@@ -210,10 +213,71 @@ func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image
 	var diffs []Difference
 	for _, d := range digests {
 		if d != out.Expect.DiskSHA256 {
-			diffs = append(diffs, Difference{Field: "image.diskSHA256", Got: d, Want: out.Expect.DiskSHA256})
+			diffs = append(diffs, Difference{Field: "image.diskSHA256", Got: d + v.locateDifference(ctx, out, image, password), Want: out.Expect.DiskSHA256})
 		}
 	}
 	return diffs, nil
+}
+
+// locateDifference attaches the output and its source fixture one after
+// the other and reports where their devices first differ, so a container
+// mismatch can be diagnosed from the job log.
+func (v *Verifier) locateDifference(ctx context.Context, out schema.Output, image string, password []byte) string {
+	k, ok := v.Cases[CaseKey(out.Source)]
+	if !ok {
+		return " (source case missing)"
+	}
+	var sourcePassword []byte
+	if enc := k.Observation.Image.Encryption; enc != nil {
+		sourcePassword = []byte(v.Recipes[k.Recipe].Passwords[enc.Password])
+	}
+	got, err := v.blockDigests(ctx, image, password)
+	if err != nil {
+		return " (output blocks: " + err.Error() + ")"
+	}
+	want, err := v.blockDigests(ctx, k.Image(), sourcePassword)
+	if err != nil {
+		return " (source blocks: " + err.Error() + ")"
+	}
+	first, count := -1, 0
+	for i := 0; i < len(got) || i < len(want); i++ {
+		if i >= len(got) || i >= len(want) || got[i] != want[i] {
+			if first < 0 {
+				first = i
+			}
+			count++
+		}
+	}
+	return fmt.Sprintf(" (device %d bytes, source %d bytes; %d of %d MiB blocks differ, first at offset %d)", len(got)<<20, len(want)<<20, count, max(len(got), len(want)), int64(first)<<20)
+}
+
+// blockDigests attaches an image read-only and hashes its device in 1 MiB
+// blocks.
+func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) ([][32]byte, error) {
+	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: strings.HasSuffix(image, ".raw"), Password: password})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = v.Disk.Detach(ctx, att) }()
+	f, err := os.Open(att.RDev)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	var blocks [][32]byte
+	buf := make([]byte, 1<<20)
+	for {
+		n, err := io.ReadFull(f, buf)
+		if n > 0 {
+			blocks = append(blocks, sha256.Sum256(buf[:n]))
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				return blocks, nil
+			}
+			return blocks, err
+		}
+	}
 }
 
 // CrossVersionDrift mounts a fixture captured on another macOS version,
@@ -226,9 +290,7 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 		password = []byte(recipe.Passwords[enc.Password])
 	}
 	spec := schema.ObserveSpec{}
-	if a := k.Observation.Volumes[0].APFS; a != nil && a.Encrypted {
-		spec.Unlock = map[string]string{"*": a.Password}
-	}
+	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	image := k.Image()
 	obs, err := v.observeImage(ctx, fmt.Sprintf("drift-%d-%s-%s-%s", k.Producer, k.Recipe, k.Profile, k.Stage), image, k.Observation.Image.Format, password, spec, recipe)
 	if err != nil {
@@ -247,27 +309,46 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 					unknown = append(unknown, d)
 				}
 			}
-			gk, wk := kernelReads(got), kernelReads(want)
-			for path, w := range wk {
-				if g, ok := gk[path]; ok && g != w {
-					d := Difference{Path: path, Field: "compression.kernelRead", Got: g, Want: w}
-					if KnownDrift(v.Drift, k.Recipe, k.Profile, d, [2]int{v.Major, k.Producer}) {
-						known = append(known, d)
-					} else {
-						unknown = append(unknown, d)
-					}
-				}
-			}
 		}
 	}
 	return known, unknown, nil
 }
 
-func kernelReads(view schema.View) map[string]string {
-	out := map[string]string{}
-	for _, e := range view.Entries {
-		if e.Compression != nil {
-			out[e.Path] = e.Compression.KernelRead
+// volumeCredentials names each locked volume's own password and rejected
+// passwords, as the observation recorded them; volumes of one container
+// carry different credentials.
+func volumeCredentials(obs *schema.Observation) (map[string]string, map[string][]string) {
+	unlock := map[string]string{}
+	rejected := map[string][]string{}
+	for _, vol := range obs.Volumes {
+		if vol.APFS == nil || vol.APFS.Password == "" {
+			continue
+		}
+		name, _ := vol.Diskutil["VolumeName"].(string)
+		unlock[name] = vol.APFS.Password
+		if len(vol.APFS.Rejected) > 0 {
+			rejected[name] = vol.APFS.Rejected
+		}
+	}
+	if len(unlock) == 0 {
+		return nil, nil
+	}
+	return unlock, rejected
+}
+
+// existingPaths lists the entries of a source case's live view of one
+// volume, the identities an edit must preserve.
+func (v *Verifier) existingPaths(source schema.CaseRef, volume int) map[string]bool {
+	out := map[string]bool{}
+	k, ok := v.Cases[CaseKey(source)]
+	if !ok {
+		return out
+	}
+	for _, view := range k.Observation.Views {
+		if view.Volume == volume && view.Snapshot == "" {
+			for _, e := range view.Entries {
+				out[e.Path] = true
+			}
 		}
 	}
 	return out

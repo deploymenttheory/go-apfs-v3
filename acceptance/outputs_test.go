@@ -203,7 +203,9 @@ func TestBuildFromFixtures(t *testing.T) {
 			for _, format := range []string{"UDRO", "UDZO"} {
 				for _, policy := range policies {
 					options := pack.Options{Format: format, FileCompression: policy, Volume: pack.VolumeOptions{Name: "Example", Time: fixedClock, CaseSensitive: reader.NameRules().CaseSensitive}}
-					if reader.NameRules().CaseSensitive {
+					if reader.NameRules().CaseSensitive || continuesNatively(format, policy) {
+						// Room for the native continuation's writes; an
+						// automatically sized image is full by design.
 						options.Volume.Capacity = 160 << 20
 					}
 					name := outputName(k, "build."+policy+"."+format+".dmg")
@@ -212,7 +214,7 @@ func TestBuildFromFixtures(t *testing.T) {
 						return err
 					})
 					checkBuiltImage(t, ctx, path, k, "Fixture", policy)
-					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "build", Format: format, Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k), Continuation: continuesNatively(format, policy)}})
+					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "build", Format: format, Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k), Continuation: continuesNatively(format, policy), FileCompression: explicitPolicy(policy)}})
 				}
 			}
 			if k.Recipe == "file-corpus" && (k.Profile == "apfs" || k.Profile == "hfsplus") {
@@ -248,6 +250,15 @@ func TestBuildFromFixtures(t *testing.T) {
 // nothing more.
 func continuesNatively(format, policy string) bool {
 	return format == "UDZO" && policy != "none"
+}
+
+// explicitPolicy names a build's storage policy for the native verifier;
+// preserve keeps the source's storage and needs no relaxation.
+func explicitPolicy(policy string) string {
+	if policy == "preserve" {
+		return ""
+	}
+	return policy
 }
 
 // preservedTypeOutsideAdmitted reports whether a refusal names a decmpfs

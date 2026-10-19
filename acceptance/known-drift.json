@@ -16,6 +16,13 @@
       "reason": "Same registration gap as type 15."
     },
     {
+      "recipe": "compressed-files",
+      "path": "Fixture/stored-15",
+      "field": "compression.kernelRead",
+      "producers": {"macos-15": "EIO", "macos-26": "EIO", "macos-27": "ok"},
+      "reason": "Same registration gap as type 15: a file whose LZ4 blocks are all stored is still refused before macOS 27."
+    },
+    {
       "recipe": "encrypted-images",
       "field": "image.encryption.keyWrap",
       "producers": {"macos-15": "3DES", "macos-26": "AES", "macos-27": "AES"},

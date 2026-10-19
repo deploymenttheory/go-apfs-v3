@@ -17,6 +17,24 @@ type CompareOptions struct {
 	// IgnoreIdentity accepts different object IDs and link counts, for a
 	// fresh build that allocated its own.
 	IgnoreIdentity bool
+	// Existing, when set, limits identity comparison to these paths: the
+	// entries that existed before an edit created the rest.
+	Existing map[string]bool
+	// FileCompression is a build's explicit storage policy (zlib or none).
+	FileCompression string
+}
+
+// compressionOwned names the attributes a storage policy may add or
+// remove; an independent resource fork is still compared.
+var compressionOwned = map[string]bool{"com.apple.decmpfs": true, "com.apple.ResourceFork": true}
+
+// kernelRead is the kernel's read outcome for an entry; an entry without
+// active compression reads like any file.
+func kernelRead(e schema.Entry) string {
+	if e.Compression == nil || e.Compression.KernelRead == "" {
+		return "ok"
+	}
+	return e.Compression.KernelRead
 }
 
 // Difference is one mismatch between an observed and an expected view.
@@ -88,16 +106,23 @@ func compareEntry(got, want schema.Entry, opts CompareOptions) []Difference {
 			diffs = append(diffs, Difference{Path: want.Path, Field: field, Got: gs, Want: ws})
 		}
 	}
+	policy := opts.FileCompression
 	add("kind", got.Kind, want.Kind)
 	add("nameBytes", got.NameBytes, want.NameBytes)
 	if !opts.IgnoreIdentity {
-		add("id", got.ID, want.ID)
+		if opts.Existing == nil || opts.Existing[want.Path] {
+			add("id", got.ID, want.ID)
+		}
 		add("links", got.Links, want.Links)
 	}
 	add("mode", fmt.Sprintf("%o", got.Mode), fmt.Sprintf("%o", want.Mode))
 	add("uid", got.UID, want.UID)
 	add("gid", got.GID, want.GID)
-	add("flags", got.Flags, want.Flags)
+	flagMask := ^uint32(0)
+	if policy != "" {
+		flagMask &^= 0x20 // UF_COMPRESSED follows the policy
+	}
+	add("flags", got.Flags&flagMask, want.Flags&flagMask)
 	add("size", got.Size, want.Size)
 	for name, pair := range map[string][2]int64{"birth": {got.Times.Birth, want.Times.Birth}, "modify": {got.Times.Modify, want.Times.Modify}, "change": {got.Times.Change, want.Times.Change}, "access": {got.Times.Access, want.Times.Access}} {
 		if opts.IgnoreTimes[name] {
@@ -105,20 +130,37 @@ func compareEntry(got, want schema.Entry, opts CompareOptions) []Difference {
 		}
 		add("time."+name, pair[0], pair[1])
 	}
-	add("sha256", got.SHA256, want.SHA256)
+	// A kernel that cannot read an object cannot hash it, so the read
+	// outcome is compared instead of the digest. A policy that re-encoded
+	// an object the source kernel could not read may make it readable.
+	gr, wr := kernelRead(got), kernelRead(want)
+	if gr != wr && (policy == "" || gr != "ok") {
+		add("compression.kernelRead", gr, wr)
+	}
+	if gr == "ok" && wr == "ok" {
+		add("sha256", got.SHA256, want.SHA256)
+	}
 	add("target", got.Target, want.Target)
+	policyOwned := func(name string) bool {
+		return policy != "" && compressionOwned[name] && (got.Compression != nil || want.Compression != nil)
+	}
 	gx := map[string]schema.Xattr{}
 	for _, x := range got.Xattrs {
-		gx[x.Name] = x
+		if !policyOwned(x.Name) {
+			gx[x.Name] = x
+		}
 	}
 	for _, x := range want.Xattrs {
+		if policyOwned(x.Name) {
+			continue
+		}
 		g, ok := gx[x.Name]
 		if !ok {
-			diffs = append(diffs, Difference{Path: want.Path, Field: "xattr." + x.Name, Got: "absent", Want: fmt.Sprintf("%d bytes %s", x.Bytes, x.SHA256[:12])})
+			diffs = append(diffs, Difference{Path: want.Path, Field: "xattr." + x.Name, Got: "absent", Want: fmt.Sprintf("%d bytes %s", x.Bytes, short(x.SHA256))})
 			continue
 		}
 		if g.SHA256 != x.SHA256 || g.Bytes != x.Bytes {
-			diffs = append(diffs, Difference{Path: want.Path, Field: "xattr." + x.Name, Got: fmt.Sprintf("%d bytes %s", g.Bytes, g.SHA256[:12]), Want: fmt.Sprintf("%d bytes %s", x.Bytes, x.SHA256[:12])})
+			diffs = append(diffs, Difference{Path: want.Path, Field: "xattr." + x.Name, Got: fmt.Sprintf("%d bytes %s", g.Bytes, short(g.SHA256)), Want: fmt.Sprintf("%d bytes %s", x.Bytes, short(x.SHA256))})
 		}
 		delete(gx, x.Name)
 	}
@@ -126,6 +168,12 @@ func compareEntry(got, want schema.Entry, opts CompareOptions) []Difference {
 		diffs = append(diffs, Difference{Path: want.Path, Field: "xattr." + name, Got: "present", Want: "absent"})
 	}
 	switch {
+	case policy == "none" && got.Compression != nil:
+		add("compression", got.Compression.Type, "none under the none policy")
+	case policy == "zlib" && got.Compression != nil && got.Compression.Type != 3 && got.Compression.Type != 4:
+		add("compression", got.Compression.Type, "3 or 4 under the zlib policy")
+	case policy != "":
+		// A file the policy skipped is ordinary storage.
 	case got.Compression == nil && want.Compression != nil:
 		add("compression", "none", want.Compression.Type)
 	case got.Compression != nil && want.Compression == nil:
@@ -152,4 +200,12 @@ func KnownDrift(allow *schema.KnownDrift, recipe, profile string, d Difference, 
 		}
 	}
 	return false
+}
+
+// short abbreviates a digest for a difference message.
+func short(digest string) string {
+	if len(digest) > 12 {
+		return digest[:12]
+	}
+	return digest
 }

@@ -79,4 +79,12 @@ type Expectation struct {
 	// SystemMember names the volume the continuation must run on for
 	// System/Data groups.
 	SystemMember string `json:"systemMember,omitempty"`
+	// FileCompression is the explicit storage policy of a build (zlib or
+	// none): only compression-owned storage and UF_COMPRESSED may differ
+	// from the source, and the outcome must be the policy's.
+	FileCompression string `json:"fileCompression,omitempty"`
+	// NewIdentities accepts any object identity for entries absent from
+	// the source's view: an editor's allocator, not the kernel's, numbers
+	// what it creates.
+	NewIdentities bool `json:"newIdentities,omitempty"`
 }
