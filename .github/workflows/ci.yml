@@ -19,12 +19,15 @@ env:
   APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
 
 # Three tiers. checks and unit gate the source. portable reads every Apple
-# fixture from macOS 15, 26 and 27 with the product on Linux and Windows and
-# produces images from them; portable-slow replays the minutes-long catalog
-# growth stages beside it. native runs the same on each macOS version and
-# then verifies every host's images with Apple tools, including native
-# continuation writes and a further product edit. The fixture corpus is
-# pinned by acceptance/fixtures.lock.json and cached by its digest.
+# fixture from macOS 15, 26 and 27 with the product on Linux, Windows and
+# macOS and produces images from them; portable-slow replays the
+# minutes-long catalog growth stages beside it. native runs on each macOS
+# version: it judges, with Apple tools, the images every host derived from
+# that version's fixtures (container checks for sector-preserving repacks;
+# check, mount, readback and a representative native continuation for
+# images Go wrote) and reads the other two versions' fixtures for
+# cross-version parity. The fixture corpus is pinned by
+# acceptance/fixtures.lock.json and cached by its digest.
 
 jobs:
   checks:
@@ -85,6 +88,7 @@ jobs:
         include:
           - {host: linux, runner: ubuntu-24.04}
           - {host: windows, runner: windows-2025}
+          - {host: darwin, runner: macos-15}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -101,11 +105,32 @@ jobs:
         env:
           APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
         run: go test -count=1 -timeout 25m ./acceptance/...
-      - name: Upload this host's images
+      # One artifact per producer: the native job for macOS N verifies only
+      # the outputs derived from macOS N's fixtures. Every artifact carries
+      # the whole manifest so cross-host pairing sees every name.
+      - name: Upload the images derived from macOS 15 fixtures
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: outputs-${{ matrix.host }}
-          path: ${{ runner.temp }}/outputs/
+          name: outputs-${{ matrix.host }}-macos-15
+          path: |
+            ${{ runner.temp }}/outputs/outputs.json
+            ${{ runner.temp }}/outputs/macos-15.*
+          if-no-files-found: error
+      - name: Upload the images derived from macOS 26 fixtures
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: outputs-${{ matrix.host }}-macos-26
+          path: |
+            ${{ runner.temp }}/outputs/outputs.json
+            ${{ runner.temp }}/outputs/macos-26.*
+          if-no-files-found: error
+      - name: Upload the images derived from macOS 27 fixtures
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: outputs-${{ matrix.host }}-macos-27
+          path: |
+            ${{ runner.temp }}/outputs/outputs.json
+            ${{ runner.temp }}/outputs/macos-27.*
           if-no-files-found: error
 
   portable-slow:
@@ -143,7 +168,7 @@ jobs:
 
   native:
     name: Apple verification on macOS ${{ matrix.major }}
-    needs: portable
+    needs: [portable, portable-slow]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
@@ -164,30 +189,31 @@ jobs:
         with:
           path: ${{ github.workspace }}/.fixtures
           key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
-      - name: Read every fixture and produce images on macOS
-        env:
-          APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
-        run: go test -count=1 -timeout 25m ./acceptance/...
-      - name: Download the Linux and Windows images
+      - name: Download every host's images derived from this version's fixtures
         uses: actions/download-artifact@v7
         with:
-          pattern: outputs-*
+          pattern: outputs-*-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs
+      - name: Download the slow bucket's images
+        uses: actions/download-artifact@v7
+        with:
+          pattern: slow-outputs-*
           path: ${{ runner.temp }}/host-outputs
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
-      - name: Verify every host's images with Apple tools
+      - name: Verify the images and the other versions' fixtures with Apple tools
         env:
           APFS_EXPECT_MAJOR: ${{ matrix.major }}
-          APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
-        run: go test -count=1 -timeout 50m -tags native ./acceptance/native
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        run: go test -count=1 -v -parallel 3 -timeout 50m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/outputs/
+          path: ${{ runner.temp }}/native-work/
           if-no-files-found: ignore
 
   gate:

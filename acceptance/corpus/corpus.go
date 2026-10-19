@@ -330,13 +330,15 @@ func (k Case) Image() string {
 	if _, err := os.Stat(expanded); err == nil {
 		return expanded
 	}
-	if err := expandGzip(path, expanded); err != nil {
+	if err := ExpandGzip(path, expanded); err != nil {
 		return path + ": " + err.Error()
 	}
 	return expanded
 }
 
-func expandGzip(src, dst string) error {
+// ExpandGzip expands a gzip-compressed raw image to dst sparsely: zero runs
+// are not written, so the file costs only its data blocks.
+func ExpandGzip(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}

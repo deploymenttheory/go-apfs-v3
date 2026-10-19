@@ -17,8 +17,10 @@ type HostOutputs struct {
 
 // LoadOutputs reads every host's outputs.json. Every host must have
 // produced the same set of output names: a host that silently produced
-// less proves nothing.
-func LoadOutputs(dirs map[string]string) (map[string]HostOutputs, error) {
+// less proves nothing. A non-zero producer keeps only the outputs derived
+// from that macOS version's fixtures; the job verifying that producer
+// downloads only those images.
+func LoadOutputs(dirs map[string]string, producer int) (map[string]HostOutputs, error) {
 	hosts := map[string]HostOutputs{}
 	for host, dir := range dirs {
 		data, err := os.ReadFile(filepath.Join(dir, "outputs.json"))
@@ -34,6 +36,15 @@ func LoadOutputs(dirs map[string]string) (map[string]HostOutputs, error) {
 		}
 		if m.Host != host {
 			return nil, fmt.Errorf("%s: outputs.json was produced on %s", host, m.Host)
+		}
+		if producer != 0 {
+			var kept []schema.Output
+			for _, o := range m.Outputs {
+				if o.Source.Producer == producer {
+					kept = append(kept, o)
+				}
+			}
+			m.Outputs = kept
 		}
 		for _, o := range m.Outputs {
 			info, err := os.Stat(filepath.Join(dir, o.File))
@@ -60,6 +71,9 @@ type Paired struct {
 	Dirs    map[string]string
 	Locks   map[string]string
 	Primary string // the host whose copy is attached when all copies are identical
+	// Passwords are the public output passwords from the primary host's
+	// manifest.
+	Passwords map[string]string
 }
 
 // Pair groups outputs by name across hosts and requires every host to have
@@ -120,6 +134,7 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)
 		}
 		p.Primary = hostNames[0]
+		p.Passwords = hosts[p.Primary].Manifest.Passwords
 		out = append(out, *p)
 	}
 	return out, nil

@@ -18,7 +18,6 @@ type Verifier struct {
 	Major    int
 	Corpus   *corpus.Corpus
 	Cases    map[string]corpus.Case // producer/recipe/profile/stage
-	Hosts    map[string]HostOutputs
 	Recipes  map[string]schema.Recipe
 	Drift    *schema.KnownDrift
 	Product  string // path to the product command-line binary
@@ -27,6 +26,14 @@ type Verifier struct {
 	Vol      fixture.Volume
 	C        fixture.Commander
 	Producer schema.Producer
+}
+
+// ForSubtest returns a copy of the verifier with its own disk transcript,
+// so subtests can run in parallel without sharing recorder state.
+func (v *Verifier) ForSubtest() *Verifier {
+	c := *v
+	c.Disk = &fixture.HostDisk{C: v.C, T: &fixture.Transcript{}}
+	return &c
 }
 
 // CaseKey names a corpus case the way outputs refer to it.
@@ -92,14 +99,14 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	}
 	recipe := v.Recipes[k.Recipe]
 	var password []byte
+	var digests []string
 	if out.Encrypted {
-		pw, ok := v.Hosts[p.Primary].Manifest.Passwords[out.Password]
+		pw, ok := p.Passwords[out.Password]
 		if !ok {
 			return nil, fmt.Errorf("output %s: password %q unknown", out.Name, out.Password)
 		}
 		password = []byte(pw)
 		// Every host's ciphertext must decrypt to the same device bytes.
-		var digests []string
 		for host, o := range p.ByHost {
 			att, err := v.Disk.Attach(ctx, filepath.Join(p.Dirs[host], o.File), fixture.AttachOptions{ReadOnly: true, Password: password})
 			if err != nil {
@@ -125,6 +132,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		}
 	}
 	image := filepath.Join(p.Dirs[p.Primary], p.ByHost[p.Primary].File)
+	if out.Expect.DiskSHA256 != "" && out.Operation != "edit" {
+		return v.verifyContainer(ctx, out, image, password, digests)
+	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
 	if k.Observation.Volumes[0].APFS != nil && k.Observation.Volumes[0].APFS.Encrypted {
 		spec.Unlock = map[string]string{"*": k.Observation.Volumes[0].APFS.Password}
@@ -165,6 +175,43 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			}
 		}
 		diffs = append(diffs, CompareViews(view, want, opts)...)
+	}
+	return diffs, nil
+}
+
+// verifyContainer judges a sector-preserving output: its sectors equal
+// Apple's own image, which the producing Mac mounted and checked, so what
+// Apple must still accept is the container. hdiutil verifies the UDIF
+// checksums and the attached device must hash to the source disk; an
+// encrypted output's copies were already decrypted on every host.
+func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image string, password []byte, encrypted []string) ([]Difference, error) {
+	if err := v.Disk.Verify(ctx, image, password); err != nil {
+		return nil, fmt.Errorf("output %s: %w", out.Name, err)
+	}
+	digests := encrypted
+	if len(digests) == 0 {
+		att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true})
+		if err != nil {
+			return nil, fmt.Errorf("output %s: %w", out.Name, err)
+		}
+		info, err := v.Disk.Info(ctx, att.Dev)
+		if err == nil {
+			var d string
+			d, err = v.Disk.DeviceDigest(ctx, att.RDev, int64(number(info["TotalSize"])), "")
+			digests = append(digests, d)
+		}
+		if derr := v.Disk.Detach(ctx, att); err == nil {
+			err = derr
+		}
+		if err != nil {
+			return nil, fmt.Errorf("output %s: %w", out.Name, err)
+		}
+	}
+	var diffs []Difference
+	for _, d := range digests {
+		if d != out.Expect.DiskSHA256 {
+			diffs = append(diffs, Difference{Field: "image.diskSHA256", Got: d, Want: out.Expect.DiskSHA256})
+		}
 	}
 	return diffs, nil
 }
