@@ -1,4 +1,4 @@
-//go:build fixture && darwin
+//go:build darwin && (fixture || native)
 
 package fixture
 

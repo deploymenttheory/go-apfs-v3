@@ -46,7 +46,7 @@ jobs:
       - name: Vet and build the darwin-only capture tool and native verifier
         run: |
           GOOS=darwin GOARCH=arm64 go vet -tags fixture ./acceptance/... ./cmd/apfs-fixture
-          GOOS=darwin GOARCH=arm64 go vet -tags 'native fixture' ./acceptance/native
+          GOOS=darwin GOARCH=arm64 go vet -tags native ./acceptance/native
           GOOS=darwin GOARCH=arm64 go build -tags fixture -o /dev/null ./cmd/apfs-fixture
       - name: Build every supported operating system and architecture
         shell: bash
