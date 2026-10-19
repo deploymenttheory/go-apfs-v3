@@ -1,72 +1,107 @@
 package apfs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
-	"path/filepath"
 	"testing"
 
-	"github.com/deploymenttheory/go-apfs-v3/diskimage"
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
-// These existing native images qualify empty inventories and missing selection,
-// not populated snapshots or historical content. Those need the capture gate.
-func TestNativeEmptySnapshotInventory(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	for _, name := range []string{"apfs", "apfs-case-sensitive"} {
-		t.Run(name, func(t *testing.T) {
-			img, err := diskimage.Open(filepath.Join("..", "acceptance", "testdata", "files", "macos-27", name+".dmg"))
-			if err != nil {
-				t.Fatal(err)
+type damagedSource struct {
+	block.Source
+	offset int64
+}
+
+func (s damagedSource) ReadAt(p []byte, off int64) (int, error) {
+	n, err := s.Source.ReadAt(p, off)
+	if s.offset >= off && s.offset-off < int64(n) {
+		p[s.offset-off] ^= 1
+	}
+	return n, err
+}
+
+// A fresh Go-built volume qualifies empty inventories and missing selection.
+// Populated snapshots and historical content belong to the acceptance tier.
+func TestBuiltEmptySnapshotInventory(t *testing.T) {
+	data := builtContainer(t, stageFixture(t))
+	c := openBuilt(t, data)
+	v := &c.Volumes[0]
+	if err := v.ListSnapshots(context.Background(), func(Snapshot) error {
+		t.Fatal("unexpected snapshot in fresh built image")
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, xid := range []XID{0, 1, c.XID, XID(^uint64(0))} {
+		if r, err := v.OpenSnapshot(context.Background(), xid); r != nil || !errors.Is(err, fs.ErrNotExist) {
+			t.Fatal("missing snapshot became live reader", err)
+		}
+	}
+	if r, err := v.OpenSnapshotName(context.Background(), "missing"); r != nil || !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := v.ListSnapshots(ctx, func(Snapshot) error { return nil }); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	v.Snapshots = maxSnapshots + 1
+	if err := v.ListSnapshots(context.Background(), func(Snapshot) error { return nil }); !errors.Is(err, filesystem.ErrLimit) {
+		t.Fatal(err)
+	}
+}
+
+// Damaged snapshot metadata on a built volume must refuse explicitly. The live
+// view stays readable as a control; a historical open never returns it.
+func TestDamagedSnapshotMetadataDoesNotFallBackToLive(t *testing.T) {
+	data := builtContainer(t, stageFixture(t))
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name string
+		edit func(v *Volume)
+		want error
+	}{
+		{"count without inventory tree", func(v *Volume) { v.Snapshots = 1 }, filesystem.ErrCorrupt},
+		{"inventory tree pointing at the root tree", func(v *Volume) { v.Snapshots, v.snapMeta, v.snapMetaType = 1, v.root, 0x40000002 }, filesystem.ErrCorrupt},
+		{"unsupported inventory tree type", func(v *Volume) { v.Snapshots, v.snapMeta, v.snapMetaType = 1, v.root, 0x40000003 }, filesystem.ErrUnsupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := openBuilt(t, data)
+			v := &c.Volumes[0]
+			tc.edit(v)
+			if err := v.ListSnapshots(ctx, func(Snapshot) error { return nil }); !errors.Is(err, tc.want) {
+				t.Fatal("damaged inventory listed", err)
 			}
-			defer img.Close()
-			var v *Volume
-			for _, p := range img.Partitions {
-				if p.Type != "7C3457EF-0000-11AA-AA11-00306543ECAC" {
-					continue
+			for _, xid := range []XID{1, c.XID} {
+				if r, err := v.OpenSnapshot(ctx, xid); r != nil || !errors.Is(err, tc.want) {
+					t.Fatal("damaged inventory returned a reader", r, err)
 				}
-				source, err := img.Partition(p.Index)
-				if err != nil {
-					t.Fatal(err)
-				}
-				c, err := Open(source)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if len(c.Volumes) != 1 {
-					t.Fatal("expected one native volume")
-				}
-				v = &c.Volumes[0]
 			}
-			if v == nil {
-				t.Fatal("missing native APFS")
+			if r, err := v.OpenSnapshotName(ctx, "any"); r != nil || !errors.Is(err, tc.want) {
+				t.Fatal("damaged inventory returned a reader by name", r, err)
 			}
-			if err := v.ListSnapshots(context.Background(), func(Snapshot) error {
-				t.Fatal("unexpected snapshot in existing empty native image")
-				return nil
-			}); err != nil {
-				t.Fatal(err)
-			}
-			for _, xid := range []XID{0, 1, XID(^uint64(0))} {
-				if r, err := v.OpenSnapshot(context.Background(), xid); r != nil || !errors.Is(err, fs.ErrNotExist) {
-					t.Fatal("missing snapshot became live reader", err)
-				}
-			}
-			if r, err := v.OpenSnapshotName(context.Background(), "missing"); r != nil || !errors.Is(err, fs.ErrNotExist) {
-				t.Fatal(err)
-			}
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
-			if err := v.ListSnapshots(ctx, func(Snapshot) error { return nil }); !errors.Is(err, context.Canceled) {
-				t.Fatal(err)
-			}
-			v.Snapshots = maxSnapshots + 1
-			if err := v.ListSnapshots(context.Background(), func(Snapshot) error { return nil }); !errors.Is(err, filesystem.ErrLimit) {
-				t.Fatal(err)
+			if _, err := v.Stat(ctx, v.Root()); err != nil {
+				t.Fatal("control live view must remain readable", err)
 			}
 		})
+	}
+	// Damaged live metadata is also never bridged by a snapshot path.
+	c := openBuilt(t, data)
+	v := &c.Volumes[0]
+	mapping, err := c.resolve(v.omap, v.root, c.XID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.source = damagedSource{bytes.NewReader(data), int64(mapping.address)*int64(c.BlockSize) + 100}
+	if _, err := v.Stat(ctx, v.Root()); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatal("damaged root tree admitted", err)
+	}
+	if r, err := v.OpenSnapshot(ctx, c.XID); r != nil || !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("damaged live root reached through snapshot selection", r, err)
 	}
 }
 
@@ -115,65 +150,4 @@ func FuzzSnapshotRecord(f *testing.F) {
 			_, _ = readSnapshotRecord(record{key, value})
 		}
 	})
-}
-
-// Corrupt native metadata in a borrowed overlay. The retained evidence stays
-// unchanged, and a failed historical open must not return a live reader.
-func TestDamagedSnapshotDoesNotFallBackToLive(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	image, err := diskimage.Open("../acceptance/testdata/snapshots/macos-27/apfs.dmg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer image.Close()
-	var c *Container
-	for _, p := range image.Partitions {
-		if p.Type != diskimage.APFSType {
-			continue
-		}
-		source, err := image.Partition(p.Index)
-		if err != nil {
-			t.Fatal(err)
-		}
-		c, err = Open(source)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if c == nil || len(c.Volumes) != 1 {
-		t.Fatal("native APFS volume missing")
-	}
-	v, ctx := &c.Volumes[0], context.Background()
-	records, err := v.snapshots(ctx)
-	if err != nil || len(records) != 2 {
-		t.Fatal("native snapshot inventory", err)
-	}
-	view, err := v.snapshotVolume(records[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	root, err := c.resolve(view.omap, view.root, view.xid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	original := c.source
-	for _, tc := range []struct {
-		name    string
-		address PhysicalAddress
-	}{
-		{"inventory", PhysicalAddress(v.snapMeta)},
-		{"historical-superblock", records[0].superblock},
-		{"historical-root", root.address},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			c.source = damagedSource{original, int64(tc.address)*int64(c.BlockSize) + 100}
-			defer func() { c.source = original }()
-			if r, err := v.OpenSnapshot(ctx, records[0].XID); r != nil || !errors.Is(err, filesystem.ErrCorrupt) {
-				t.Fatal("corrupt snapshot returned a reader", err)
-			}
-			if _, err := v.Stat(ctx, v.Root()); err != nil {
-				t.Fatal("control live view must remain readable", err)
-			}
-		})
-	}
 }

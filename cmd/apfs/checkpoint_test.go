@@ -2,12 +2,11 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,90 +16,78 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 )
 
-// Retained Apple source with deliberate newest-object checksum damage exercises
-// the complete public command path. No native tools are run on the local host.
-func TestCheckpointCommandsPreserveEvidenceAndMakeRollbackExplicit(t *testing.T) {
-	t.Skip("legacy Apple fixture corpus removed; rehomed under https://github.com/deploymenttheory/go-apfs-v3/issues/107")
-	archive, err := os.Open("../../acceptance/testdata/apfs-recovery/macos-27/apfs-bad-object-interrupted.raw.gz")
+func fileDigest(t *testing.T, path string) [32]byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer archive.Close()
-	z, err := gzip.NewReader(archive)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer z.Close()
-	source := filepath.Join(t.TempDir(), "Interrupted.raw")
-	file, err := os.Create(source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n, err := io.Copy(file, io.LimitReader(z, (128<<20)+1)); err != nil || n != 128<<20 {
-		file.Close()
-		t.Fatal("bounded native evidence", n, err)
-	}
-	if err = file.Close(); err != nil {
-		t.Fatal(err)
-	}
-	digest := func() []byte {
-		t.Helper()
-		file, err := os.Open(source)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer file.Close()
-		hash := sha256.New()
-		if _, err = io.Copy(hash, file); err != nil {
-			t.Fatal(err)
-		}
-		return hash.Sum(nil)
-	}
-	before := digest()
+	return sha256.Sum256(data)
+}
+
+// A Go-built container has one complete checkpoint. Interrupted Apple
+// checkpoint windows belong to the acceptance tier; this exercises the public
+// command path, its refusals and source evidence preservation.
+func TestCheckpointCommandsPreserveEvidenceAndRequireExplicitNewOutput(t *testing.T) {
+	source := builtImage(t, "apfs")
+	before := fileDigest(t, source)
 	ctx := context.Background()
 	var out, diagnostics bytes.Buffer
-	if err = run(ctx, []string{"cat", source, "/Fixture/retained"}, nil, &out, &diagnostics); !errors.Is(err, filesystem.ErrCorrupt) {
-		t.Fatal("ordinary reader silently rolled back", err)
-	}
-	out.Reset()
-	if err = run(ctx, []string{"checkpoint", "inspect", "--json", "--image", source}, nil, &out, &diagnostics); err != nil {
+	if err := run(ctx, []string{"checkpoint", "inspect", "--json", "--image", source}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
 	}
 	var inspected struct {
 		Schema     int
 		Checkpoint apfs.CheckpointReport
 	}
-	if err = json.Unmarshal(out.Bytes(), &inspected); err != nil || inspected.Schema != 1 || inspected.Checkpoint.Candidates[0].State != "invalid" || inspected.Checkpoint.SelectedTransaction >= inspected.Checkpoint.Candidates[0].Transaction {
+	if err := json.Unmarshal(out.Bytes(), &inspected); err != nil || inspected.Schema != 1 || inspected.Checkpoint.SelectedAddress == 0 || len(inspected.Checkpoint.Candidates) == 0 || diagnostics.Len() != 0 {
 		t.Fatal(inspected, err)
+	}
+	for _, candidate := range inspected.Checkpoint.Candidates {
+		if candidate.State != "valid" || candidate.Transaction > inspected.Checkpoint.SelectedTransaction {
+			t.Fatal("built checkpoint reported as damaged", candidate)
+		}
 	}
 	output := filepath.Join(t.TempDir(), "Recovered.dmg")
 	out.Reset()
-	if err = run(ctx, []string{"checkpoint", "recover", "--json", "--image", source, "--output", output}, nil, &out, &diagnostics); err != nil {
+	if err := run(ctx, []string{"checkpoint", "recover", "--json", "--format", "UDRO", "--image", source, "--output", output}, nil, &out, &diagnostics); err != nil {
 		t.Fatal(err)
 	}
 	var recovered struct {
 		Schema int
 		imageedit.Report
 	}
-	if err = json.Unmarshal(out.Bytes(), &recovered); err != nil || recovered.Schema != 1 || recovered.Checkpoint == nil || !recovered.Checkpoint.FilesystemValidated || recovered.Transaction != uint64(inspected.Checkpoint.SelectedTransaction) {
+	if err := json.Unmarshal(out.Bytes(), &recovered); err != nil || recovered.Schema != 1 || recovered.Checkpoint == nil || !recovered.Checkpoint.FilesystemValidated || recovered.Transaction != uint64(inspected.Checkpoint.SelectedTransaction) || len(recovered.Checkpoint.DiscardedDescriptors) != 0 {
 		t.Fatal(recovered, err)
 	}
 	out.Reset()
-	if err = run(ctx, []string{"cat", output, "/Fixture/retained"}, nil, &out, &diagnostics); err != nil || out.String() != "Checkpoint recovery preserves identity.\n" {
+	if err := run(ctx, []string{"cat", output, "/Fixture/example.txt"}, nil, &out, &diagnostics); err != nil || out.String() != fixtureText {
 		t.Fatal("recovered file contents", out.String(), err)
 	}
-	for _, args := range [][]string{
-		{"checkpoint"}, {"checkpoint", "repair"}, {"checkpoint", "recover", "--image", source},
-		{"checkpoint", "inspect", "--image", source, "--output", output},
-		{"checkpoint", "recover", "--image", source, "--output", output},
-		{"checkpoint", "recover", "--image", source, "--output", source},
+	hfs := builtImage(t, "hfsplus")
+	refused := filepath.Join(t.TempDir(), "refused.dmg")
+	for _, tc := range []struct {
+		args []string
+		want error
+	}{
+		{[]string{"checkpoint"}, nil}, {[]string{"checkpoint", "repair"}, nil},
+		{[]string{"checkpoint", "recover", "--image", source}, fs.ErrInvalid},
+		{[]string{"checkpoint", "inspect", "--image", source, "--output", output}, nil},
+		{[]string{"checkpoint", "recover", "--image", source, "--output", output}, fs.ErrExist},
+		{[]string{"checkpoint", "recover", "--image", source, "--output", source}, fs.ErrExist},
+		{[]string{"checkpoint", "recover", "--image", hfs, "--output", refused}, filesystem.ErrUnsupported},
+		{[]string{"checkpoint", "inspect", "--image", hfs}, filesystem.ErrCorrupt},
 	} {
 		out.Reset()
-		if err = run(ctx, args, nil, &out, &diagnostics); err == nil {
-			t.Fatal("invalid recovery command accepted", args)
+		err := run(ctx, tc.args, nil, &out, &diagnostics)
+		if err == nil || (tc.want != nil && !errors.Is(err, tc.want)) || out.Len() != 0 {
+			t.Fatal("invalid recovery command accepted", tc.args, err)
 		}
 	}
-	if !bytes.Equal(digest(), before) {
+	if _, err := os.Lstat(refused); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("refused recovery published output", err)
+	}
+	if fileDigest(t, source) != before {
 		t.Fatal("CLI modified original evidence")
 	}
 }
