@@ -170,11 +170,11 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		}
 	}
 	if snapshot != "" {
-		_ = asr.Process.Signal(syscall.SIGSTOP)
+		_ = pauseProcess(asr.Process)
 		if err := c.Disk.MountSnapshot(ctx, snapshot, source.Mount, pin); err == nil {
 			pinned = true
 		}
-		_ = asr.Process.Signal(syscall.SIGCONT)
+		_ = resumeProcess(asr.Process)
 	}
 	waitErr := <-exited
 	entry := schema.Command{Label: "asr-snapshot:" + name, Argv: asr.Args, Expected: "0", Status: "0", WallNS: time.Since(start).Nanoseconds(), StderrText: fmt.Sprintf("attempt %d, mount retries %d", attempt, retries)}

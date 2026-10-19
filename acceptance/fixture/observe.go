@@ -203,8 +203,17 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		if roles, _ := info["APFSVolumeRoles"].([]any); len(roles) > 0 {
 			a.Role, _ = roles[0].(string)
 		}
-		a.ReserveBytes = int64(number(info["CapacityReserve"]))
-		a.QuotaBytes = int64(number(info["CapacityQuota"]))
+		// diskutil info omits reserve and quota; the apfs listing has them.
+		listing, err := in.Disk.APFSList(ctx)
+		if err != nil {
+			return err
+		}
+		entry, ok := apfsVolumeListing(listing, a.VolumeUUID)
+		if !ok {
+			return fmt.Errorf("volume %s (%s) is not in diskutil apfs list", vol.Name, a.VolumeUUID)
+		}
+		a.ReserveBytes = int64(number(entry["CapacityReserve"]))
+		a.QuotaBytes = int64(number(entry["CapacityQuota"]))
 		a.Encrypted, _ = info["FileVault"].(bool)
 		if locked || a.Encrypted {
 			a.Password = ref
@@ -664,4 +673,20 @@ func lastCommandResult(t *Transcript, label string) *schema.CommandResult {
 		}
 	}
 	return nil
+}
+
+// apfsVolumeListing finds a volume by UUID in diskutil apfs list output.
+func apfsVolumeListing(listing map[string]any, uuid string) (map[string]any, bool) {
+	containers, _ := listing["Containers"].([]any)
+	for _, c := range containers {
+		container, _ := c.(map[string]any)
+		volumes, _ := container["Volumes"].([]any)
+		for _, v := range volumes {
+			volume, _ := v.(map[string]any)
+			if id, _ := volume["APFSVolumeUUID"].(string); strings.EqualFold(id, uuid) {
+				return volume, true
+			}
+		}
+	}
+	return nil, false
 }

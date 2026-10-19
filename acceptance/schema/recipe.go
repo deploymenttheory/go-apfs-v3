@@ -86,11 +86,7 @@ type Stage struct {
 	// From names the stage whose retained image this stage starts from;
 	// the default is the previous stage. The first stage starts from the
 	// freshly formatted volume.
-	From string `json:"from,omitempty"`
-	// Discard keeps the observation but does not retain this stage's
-	// image, for intermediate states whose history is retained elsewhere
-	// (for example inside snapshots).
-	Discard bool        `json:"discard,omitempty"`
+	From    string      `json:"from,omitempty"`
 	Steps   []Step      `json:"steps"`
 	Observe ObserveSpec `json:"observe"`
 }

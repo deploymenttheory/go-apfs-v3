@@ -34,7 +34,6 @@
   "stages": [
     {
       "name": "before",
-      "discard": true,
       "steps": [
         {
           "fs": {
@@ -959,7 +958,6 @@
     },
     {
       "name": "after",
-      "discard": true,
       "steps": [
         {
           "fs": {

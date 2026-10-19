@@ -97,6 +97,9 @@ func TestCaptureRunsStagesFromBaselinesAndRecordsObservations(t *testing.T) {
 	if guards == 0 {
 		t.Error("fill wrote nothing")
 	}
+	if a := before.Volumes[0].APFS; a == nil || a.ReserveBytes != 33554432 || a.QuotaBytes != 67108864 {
+		t.Errorf("reserve and quota not taken from diskutil apfs list: %+v", before.Volumes[0].APFS)
+	}
 	if before.Checks.SelectedXID != 42 || before.Checks.Verify == nil || len(before.Checks.Fsck) != 1 {
 		t.Errorf("checks not recorded: %+v", before.Checks)
 	}

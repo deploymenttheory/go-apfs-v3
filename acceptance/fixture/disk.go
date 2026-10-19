@@ -72,6 +72,9 @@ type Disk interface {
 	DeviceDigest(ctx context.Context, rdev string, bytes int64, out string) (string, error)
 	Info(ctx context.Context, dev string) (map[string]any, error)
 	List(ctx context.Context, dev string) (map[string]any, error)
+	// APFSList is diskutil apfs list -plist for every container, the only
+	// listing that carries per-volume reserve and quota sizes.
+	APFSList(ctx context.Context) (map[string]any, error)
 	Imageinfo(ctx context.Context, image string, password []byte) (map[string]any, error)
 	Snapshots(ctx context.Context, dev string) ([]map[string]any, error)
 	MountSnapshot(ctx context.Context, name, mount, pin string) error
@@ -125,7 +128,15 @@ func (d *HostDisk) CreateImage(ctx context.Context, path, size, layout, fs, fsar
 		argv = append(argv, "-fsargs", fsargs)
 	}
 	argv = append(argv, "-volname", volname, "-type", "UDIF", path)
-	_, err := d.run(ctx, "create-image", false, nil, argv...)
+	// hdiutil can report the disk-image framework busy for a moment after
+	// the previous image detached; every attempt stays in the transcript.
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if _, err = d.run(ctx, "create-image", false, nil, argv...); err == nil || !strings.Contains(err.Error(), "Resource busy") {
+			return err
+		}
+		time.Sleep(time.Second)
+	}
 	return err
 }
 
@@ -449,6 +460,14 @@ func (d *HostDisk) Info(ctx context.Context, dev string) (map[string]any, error)
 
 func (d *HostDisk) List(ctx context.Context, dev string) (map[string]any, error) {
 	out, err := d.run(ctx, "list", false, nil, "diskutil", "list", "-plist", dev)
+	if err != nil {
+		return nil, err
+	}
+	return d.plist(ctx, out)
+}
+
+func (d *HostDisk) APFSList(ctx context.Context) (map[string]any, error) {
+	out, err := d.run(ctx, "apfs-list", false, nil, "diskutil", "apfs", "list", "-plist")
 	if err != nil {
 		return nil, err
 	}

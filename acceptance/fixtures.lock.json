@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "release": "fixtures/2026.10.18-39162018377",
-  "recipesSHA256": "687d32f3b233055be779f5cb95757a5d71d9e0fe1fbd3324c0afbf8582ee6db2",
+  "recipesSHA256": "48f8dd3d7c36945ef4eb958633df8b7ddea8c2f22ef3f95cc1fce51cd40e6fb3",
   "bundles": {
     "macos-15": {
       "asset": "fixtures-macos-15-682183f8200ea073.tar.gz",
