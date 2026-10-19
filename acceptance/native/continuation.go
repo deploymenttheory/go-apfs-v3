@@ -106,7 +106,17 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	if outb, err := cmd.CombinedOutput(); err != nil {
+	outb, err := cmd.CombinedOutput()
+	if refusal := out.Expect.ContinuationRefusal; refusal != "" {
+		if err == nil {
+			return nil, fmt.Errorf("continuation %s: the product edit succeeded although %q was expected; the limit is lifted, so remove the expected refusal", out.Name, refusal)
+		}
+		if !strings.Contains(string(outb), refusal) {
+			return nil, fmt.Errorf("continuation %s: product edit failed differently from the tracked limit %q: %v\n%s", out.Name, refusal, err, outb)
+		}
+		return nil, KnownLimit{Refusal: refusal}
+	}
+	if err != nil {
 		return nil, fmt.Errorf("continuation %s: product edit: %v\n%s", out.Name, err, outb)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
@@ -130,6 +140,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	}
 	return obs, nil
 }
+
+// KnownLimit reports that the continuation's native writes passed and the
+// product edit failed exactly as a tracked product limit predicts.
+type KnownLimit struct{ Refusal string }
+
+func (k KnownLimit) Error() string { return "product edit refused by a tracked limit: " + k.Refusal }
 
 // schemaCase carries the recipe an output's source came from.
 type schemaCase struct{ recipe schema.Recipe }
