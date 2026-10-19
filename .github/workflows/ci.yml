@@ -168,7 +168,10 @@ jobs:
 
   native:
     name: Apple verification on macOS ${{ matrix.major }}
-    needs: [portable, portable-slow]
+    needs: portable
+    permissions:
+      contents: read
+      actions: read # list this run's artifacts while the slow bucket finishes
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
@@ -194,11 +197,6 @@ jobs:
         with:
           pattern: outputs-*-macos-${{ matrix.major }}
           path: ${{ runner.temp }}/host-outputs
-      - name: Download the slow bucket's images
-        uses: actions/download-artifact@v7
-        with:
-          pattern: slow-outputs-*
-          path: ${{ runner.temp }}/host-outputs
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
       - name: Verify the images and the other versions' fixtures with Apple tools
@@ -207,7 +205,36 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 3 -timeout 50m -tags native ./acceptance/native
+          APFS_NATIVE_GROUPS: main
+        run: go test -count=1 -v -parallel 6 -timeout 45m -tags native ./acceptance/native
+      # The slow bucket runs beside the native job; its images are collected
+      # once the main outputs are verified, so the job never waits for it.
+      - name: Wait for the slow bucket's images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in $(seq 1 60); do
+            names=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '[.artifacts[].name] | join(" ")')
+            case " $names " in
+              *" slow-outputs-linux "*" slow-outputs-windows "*|*" slow-outputs-windows "*" slow-outputs-linux "*) exit 0 ;;
+            esac
+            sleep 30
+          done
+          echo "::error::the slow bucket's images did not appear within 30 minutes"
+          exit 1
+      - name: Download the slow bucket's images
+        uses: actions/download-artifact@v7
+        with:
+          pattern: slow-outputs-*
+          path: ${{ runner.temp }}/host-outputs
+      - name: Verify the slow bucket's images with Apple tools
+        env:
+          APFS_EXPECT_MAJOR: ${{ matrix.major }}
+          APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
+          APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+          APFS_NATIVE_GROUPS: slow
+        run: go test -count=1 -v -parallel 6 -timeout 20m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

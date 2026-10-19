@@ -14,7 +14,13 @@ with Apple tools, on macOS 15, 26 and 27. Three tiers do this:
 One pull request starts eleven jobs, four of them macOS: source checks,
 race-checked unit tests, portable conformance on Linux, Windows and macOS,
 the slow bucket on Linux and Windows, native truth on macOS 15, 26 and 27,
-and `gate`, the required check.
+and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
+before anything merges to `main`.
+
+The native jobs start when the portable jobs finish. They verify every
+host's outputs and the other versions' fixtures first, then collect the
+slow bucket's outputs, which run beside them, and verify those last, so no
+job waits on the slow bucket.
 
 ## The matrix
 
@@ -80,7 +86,10 @@ gh workflow run fixtures.yml -f dry_run=false
    and to `consumers` in `acceptance/corpus_test.go` with the tests that
    assert on it.
 4. Capture with the `capture:<recipe>` label on the pull request, then run
-   the full capture, review the lock pull request and merge it.
+   the full capture, review the lock pull request and merge it. The
+   publish job opens that pull request with the Actions token, which starts
+   no workflows, so it dispatches CI on the lock branch itself; `gate`
+   reports on the lock commit from that run.
 5. Record any legitimate difference between macOS versions in
    `acceptance/known-drift.json` with its reason.
 
@@ -114,8 +123,8 @@ disposable VM: a development Mac once panicked under these tests
   historical views, and every recorded lookup outcome.
 - `TestBuildFromFixtures` builds every fixture's `Fixture` subtree into
   UDRO and UDZO images, with every compression policy where the fixture
-  exercises compression, and encrypted builds; repeats must be byte
-  identical and the build must read back as the subtree.
+  exercises compression, and encrypted builds; the build must read back
+  as the subtree.
 - `TestRepackPreservesEverySector` repacks every retained image into both
   encodings; the decoded disk must hash to the digest the kernel reported
   for the attached device. Encrypted sources are decrypted and rewrapped.
@@ -141,7 +150,11 @@ disposable VM: a development Mac once panicked under these tests
   without a test that asserts on it.
 
 Outputs are written to `APFS_OUTPUT_DIR` with `outputs.json` describing
-each one's expectation; CI uploads them as `outputs-<host>`.
+each one's expectation; CI uploads them per producer as
+`outputs-<host>-macos-<major>`. Locally every output is produced twice and
+the copies must be byte-identical (encrypted copies must differ). CI
+produces each output once: the native tier requires every host's copy to
+be byte-identical, which covers the repeat and catches more.
 
 ## Native truth
 

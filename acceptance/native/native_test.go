@@ -32,42 +32,11 @@ import (
 // version's fixtures are kept.
 func newVerifier(t *testing.T) (*Verifier, []map[string]HostOutputs) {
 	t.Helper()
-	if err := fixture.RequireDisposableHost(); err != nil {
-		t.Fatal(err)
+	sharedOnce.Do(func() { shared, sharedErr = buildVerifier() })
+	if sharedErr != nil {
+		t.Fatal(sharedErr)
 	}
-	major, _ := strconv.Atoi(os.Getenv("APFS_EXPECT_MAJOR"))
-	if major == 0 {
-		t.Fatal("APFS_EXPECT_MAJOR is required")
-	}
-	commander := fixture.Exec{}
-	producer, err := fixture.IdentifyProducer(context.Background(), commander, major, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := corpus.Resolve(context.Background(), corpus.Options{Root: filepath.Join("..", "..")})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases, err := c.Cases()
-	if err != nil {
-		t.Fatal(err)
-	}
-	byKey := map[string]corpus.Case{}
-	for _, k := range cases {
-		byKey[CaseKey(schema.CaseRef{Producer: k.Producer, Recipe: k.Recipe, Profile: k.Profile, Stage: k.Stage})] = k
-	}
-	recipes, err := schema.LoadRecipes(filepath.Join("..", "recipes"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	byName := map[string]schema.Recipe{}
-	for _, r := range recipes {
-		byName[r.Name] = r
-	}
-	drift, err := schema.ReadKnownDrift(filepath.Join("..", "known-drift.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	major := shared.Major
 	root := os.Getenv("APFS_HOST_OUTPUTS")
 	if root == "" {
 		t.Fatal("APFS_HOST_OUTPUTS is required")
@@ -80,26 +49,88 @@ func newVerifier(t *testing.T) (*Verifier, []map[string]HostOutputs) {
 	for _, host := range []string{"linux", "windows"} {
 		slow[host] = filepath.Join(root, "slow-outputs-"+host)
 	}
+	// APFS_NATIVE_GROUPS selects which outputs this invocation verifies:
+	// "main" (every host's outputs), "slow" (the slow bucket's, which the
+	// job collects after the main outputs so it need not wait for them) or
+	// both when unset.
+	selected := map[string]map[string]string{"main": main, "slow": slow}
+	order := []string{"main", "slow"}
+	if only := os.Getenv("APFS_NATIVE_GROUPS"); only != "" {
+		if _, ok := selected[only]; !ok {
+			t.Fatalf("APFS_NATIVE_GROUPS=%q, want main or slow", only)
+		}
+		order = []string{only}
+	}
 	var groups []map[string]HostOutputs
-	for _, dirs := range []map[string]string{main, slow} {
-		hosts, err := LoadOutputs(dirs, major)
+	for _, name := range order {
+		hosts, err := LoadOutputs(selected[name], major)
 		if err != nil {
 			t.Fatal(err)
 		}
 		groups = append(groups, hosts)
 	}
+	return shared.ForSubtest(), groups
+}
+
+// The corpus, recipes and producer identity are resolved once per test
+// binary: both tests run in parallel, and resolving the corpus twice at
+// once could extract a bundle into the cache concurrently.
+var (
+	sharedOnce sync.Once
+	shared     *Verifier
+	sharedErr  error
+)
+
+func buildVerifier() (*Verifier, error) {
+	if err := fixture.RequireDisposableHost(); err != nil {
+		return nil, err
+	}
+	major, _ := strconv.Atoi(os.Getenv("APFS_EXPECT_MAJOR"))
+	if major == 0 {
+		return nil, fmt.Errorf("APFS_EXPECT_MAJOR is required")
+	}
+	commander := fixture.Exec{}
+	producer, err := fixture.IdentifyProducer(context.Background(), commander, major, "")
+	if err != nil {
+		return nil, err
+	}
+	c, err := corpus.Resolve(context.Background(), corpus.Options{Root: filepath.Join("..", "..")})
+	if err != nil {
+		return nil, err
+	}
+	cases, err := c.Cases()
+	if err != nil {
+		return nil, err
+	}
+	byKey := map[string]corpus.Case{}
+	for _, k := range cases {
+		byKey[CaseKey(schema.CaseRef{Producer: k.Producer, Recipe: k.Recipe, Profile: k.Profile, Stage: k.Stage})] = k
+	}
+	recipes, err := schema.LoadRecipes(filepath.Join("..", "recipes"))
+	if err != nil {
+		return nil, err
+	}
+	byName := map[string]schema.Recipe{}
+	for _, r := range recipes {
+		byName[r.Name] = r
+	}
+	drift, err := schema.ReadKnownDrift(filepath.Join("..", "known-drift.json"))
+	if err != nil {
+		return nil, err
+	}
 	product := os.Getenv("APFS_PRODUCT_CLI")
 	if _, err := os.Stat(product); err != nil {
-		t.Fatalf("APFS_PRODUCT_CLI: %v", err)
+		return nil, fmt.Errorf("APFS_PRODUCT_CLI: %w", err)
 	}
 	work := os.Getenv("APFS_NATIVE_WORK")
 	if work == "" {
-		work = t.TempDir()
+		if work, err = os.MkdirTemp("", "apfs-native-"); err != nil {
+			return nil, err
+		}
 	} else if err := os.MkdirAll(work, 0o755); err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	v := &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer}
-	return v, groups
+	return &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer}, nil
 }
 
 // summary collects job-summary rows from parallel subtests.
@@ -120,6 +151,7 @@ func (s *summary) add(format string, args ...any) {
 // of a sector-preserving output, or the full check, mount and readback of
 // one Go wrote, and the continuation where the output asks for it.
 func TestOutputsWithAppleTools(t *testing.T) {
+	t.Parallel()
 	v, groups := newVerifier(t)
 	var pairs []Paired
 	for _, hosts := range groups {
@@ -215,6 +247,10 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 // another macOS version produced and compares this kernel's view with the
 // recorded one. Differences must be in known-drift.json.
 func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
+	t.Parallel()
+	if os.Getenv("APFS_NATIVE_GROUPS") == "slow" {
+		t.Skip("cross-version parity runs with the main outputs")
+	}
 	v, _ := newVerifier(t)
 	cases, err := v.Corpus.Cases()
 	if err != nil {

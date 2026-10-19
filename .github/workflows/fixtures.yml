@@ -103,6 +103,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -158,3 +159,6 @@ jobs:
           git push -u origin "$branch"
           gh pr create --title "chore(fixtures): pin corpus $TAG" --base "${{ github.ref_name }}" --head "$branch" \
             --body "Pins the fixture corpus captured by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (release $TAG). Review the capture summaries and merge to adopt it; nothing changes until this merges."
+          # Pull requests opened with the Actions token start no workflows,
+          # but a dispatch does, and its gate check counts on the head commit.
+          gh workflow run ci.yml --ref "$branch"
