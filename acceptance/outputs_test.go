@@ -135,7 +135,10 @@ func openSingleVolume(t *testing.T, ctx context.Context, k corpus.Case, recipe s
 }
 
 // produceTwice runs a producer into two files and requires identical bytes
-// when deterministic; it returns the first file's path.
+// when deterministic; it returns the first file's path. In CI the repeat
+// is skipped: the native tier requires every output to be byte-identical
+// on Linux, Windows and macOS (and every encrypted output to differ),
+// which covers what a same-process repeat checks and more.
 func produceTwice(t *testing.T, name string, deterministic bool, produce func(path string) error) string {
 	t.Helper()
 	dir := outputDir(t)
@@ -145,6 +148,9 @@ func produceTwice(t *testing.T, name string, deterministic bool, produce func(pa
 	_ = os.Remove(second)
 	if err := produce(first); err != nil {
 		t.Fatalf("%s: %v", name, err)
+	}
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		return first
 	}
 	if err := produce(second); err != nil {
 		t.Fatalf("%s (repeat): %v", name, err)
