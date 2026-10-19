@@ -187,7 +187,18 @@ func TestBuildFromFixtures(t *testing.T) {
 			source := buildRoot{reader, root}
 			policies := []string{"preserve"}
 			if k.Recipe == "compressed-files" {
-				policies = []string{"preserve", "zlib", "none"}
+				// The tree carries decmpfs types 9 to 16 for the readers.
+				// Preserving them is refused explicitly (docs/packing.md
+				// admits types 1, 3, 4, 7 and 8); the other policies
+				// re-encode or decode every file.
+				policies = []string{"zlib", "none"}
+				options := pack.Options{Format: "UDRO", FileCompression: "preserve", Volume: pack.VolumeOptions{Name: "Example", Time: fixedClock, CaseSensitive: reader.NameRules().CaseSensitive}}
+				refused := filepath.Join(outputDir(t), outputName(k, "build.preserve.refused.dmg"))
+				_, err := pack.Create(ctx, refused, source, options)
+				_ = os.Remove(refused)
+				if !errors.Is(err, filesystem.ErrUnsupported) || !preservedTypeOutsideAdmitted(err) {
+					t.Errorf("preserving decmpfs types outside 1, 3, 4, 7 and 8 must be refused explicitly, got %v", err)
+				}
 			}
 			for _, format := range []string{"UDRO", "UDZO"} {
 				for _, policy := range policies {
@@ -228,6 +239,28 @@ func TestBuildFromFixtures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// preservedTypeOutsideAdmitted reports whether a refusal names a decmpfs
+// type the builders do not preserve.
+func preservedTypeOutsideAdmitted(err error) bool {
+	if err == nil {
+		return false
+	}
+	text := err.Error()
+	at := strings.Index(text, "compression type ")
+	if at < 0 {
+		return false
+	}
+	var kind int
+	if _, scanErr := fmt.Sscanf(text[at:], "compression type %d", &kind); scanErr != nil {
+		return false
+	}
+	switch kind {
+	case 1, 3, 4, 7, 8:
+		return false
+	}
+	return true
 }
 
 func builtBundles(k corpus.Case) []string {

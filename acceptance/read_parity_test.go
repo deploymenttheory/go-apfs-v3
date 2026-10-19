@@ -105,6 +105,9 @@ func compareCase(t *testing.T, k corpus.Case, recipe schema.Recipe) {
 				label += "@" + view.Snapshot
 			}
 			compareView(t, ctx, label, r, view)
+			if len(view.Statistics) > 0 {
+				compareStatistics(t, ctx, label, r, view.Statistics, nil)
+			}
 		}
 	}
 }
@@ -262,6 +265,11 @@ func compareSnapshots(t *testing.T, ctx context.Context, name string, v *apfs.Vo
 type compareOptions struct {
 	subtree     string
 	ignoreTimes map[string]bool
+	// ignoreTimesFor, when set, replaces ignoreTimes per observed path.
+	ignoreTimesFor func(path string) map[string]bool
+	// ignoreIDFor, when set, exempts a path's object identity: entries an
+	// editor created follow the allocator's policy, not the kernel's.
+	ignoreIDFor func(path string) bool
 }
 
 // compareView walks the product's tree and the observed entries and
@@ -357,7 +365,7 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 		t.Errorf("%s: stat: %v", where, err)
 		return
 	}
-	if node.Identity.Object != e.ID && opts.subtree == "" {
+	if node.Identity.Object != e.ID && opts.subtree == "" && (opts.ignoreIDFor == nil || !opts.ignoreIDFor(e.Path)) {
 		t.Errorf("%s: object %d, native %d", where, node.Identity.Object, e.ID)
 	}
 	kind := "other"
@@ -387,8 +395,12 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 		"change": {node.Metadata.ChangeTime.Value.UnixNano(), e.Times.Change},
 		"access": {node.Metadata.AccessTime.Value.UnixNano(), e.Times.Access},
 	}
+	ignore := opts.ignoreTimes
+	if opts.ignoreTimesFor != nil {
+		ignore = opts.ignoreTimesFor(e.Path)
+	}
 	for name, pair := range times {
-		if opts.ignoreTimes[name] {
+		if ignore[name] {
 			continue
 		}
 		if pair[0] != pair[1] {

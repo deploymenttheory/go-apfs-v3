@@ -56,6 +56,12 @@ var consumers = map[string][]string{
 	"file-command-journeys":  {"TestReadParity"},
 	"workspace-edits":        {"TestReadParity"},
 	"permission-inheritance": {"TestReadParity"},
+	// Stage sequences the image editor replays from Apple's prior state.
+	"apfs-container-geometry":       {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
+	"apfs-directory-statistics":     {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
+	"hfs-attributes-initialization": {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
+	"hfs-catalog-map-growth":        {"TestReadParity", "TestGoEditsReproduceAppleStageStates (slow build tag)"},
+	"hfs-fragmented-metadata":       {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
 }
 
 func TestEveryCorpusCaseHasAConsumer(t *testing.T) {
