@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -26,6 +27,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
 	}
+	// Every continuation holds a writable copy of a whole device; keeping
+	// them would exhaust the runner's disk.
+	defer func() { _ = os.RemoveAll(work) }()
 	raw := filepath.Join(work, "writable.raw")
 	// A raw copy, not a shadow: HFS shadow writes left a stale alternate
 	// header in the retired harness.
@@ -43,9 +47,10 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if err != nil {
 		return nil, err
 	}
-	if err := gunzip(raw+".gz", raw); err != nil {
+	if err := corpus.ExpandGzip(raw+".gz", raw); err != nil {
 		return nil, err
 	}
+	_ = os.Remove(raw + ".gz")
 	att, err = v.Disk.Attach(ctx, raw, fixture.AttachOptions{Raw: true})
 	if err != nil {
 		return nil, err

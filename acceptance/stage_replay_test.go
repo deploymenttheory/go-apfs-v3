@@ -80,6 +80,9 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 			continue // the first stage starts from a freshly formatted volume
 		}
 		stage := recipe.Stages[index]
+		// The native tier continues writing to the final state of each
+		// sequence, which carries every structure the earlier stages built.
+		last := index == len(recipe.Stages)-1
 		from := stage.From
 		if from == "" {
 			from = recipe.Stages[index-1].Name
@@ -136,7 +139,7 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 				current, final = out, out
 			}
 			checkReplayedImage(t, ctx, final, source, k, recipes[k.Recipe], touched)
-			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: true}})
+			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last}})
 		})
 	}
 }

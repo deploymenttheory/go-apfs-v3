@@ -212,7 +212,7 @@ func TestBuildFromFixtures(t *testing.T) {
 						return err
 					})
 					checkBuiltImage(t, ctx, path, k, "Fixture", policy)
-					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "build", Format: format, Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k), Continuation: true}})
+					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "build", Format: format, Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k), Continuation: continuesNatively(format, policy)}})
 				}
 			}
 			if k.Recipe == "file-corpus" && (k.Profile == "apfs" || k.Profile == "hfsplus") {
@@ -239,6 +239,15 @@ func TestBuildFromFixtures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// continuesNatively selects the builds the native tier continues writing
+// to: one compressed-image build per profile and storage policy that keeps
+// compression. The continuation proves macOS can keep writing to Go's
+// structures; repeating it for every encoding of the same tree proves
+// nothing more.
+func continuesNatively(format, policy string) bool {
+	return format == "UDZO" && policy != "none"
 }
 
 // preservedTypeOutsideAdmitted reports whether a refusal names a decmpfs
@@ -484,7 +493,7 @@ func TestExistingImageEditsMatchAppleStates(t *testing.T) {
 					return err
 				})
 				checkEditedImage(t, ctx, path, want)
-				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "edit", Format: "UDZO", Source: caseRef(k), Expect: schema.Expectation{View: phase, IgnoreTimes: []string{"change", "access"}, Codesign: []string{"Fixture/Example.app", "Fixture/Example.framework"}, Continuation: true}})
+				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "edit", Format: "UDZO", Source: caseRef(k), Expect: schema.Expectation{View: phase, IgnoreTimes: []string{"change", "access"}, Codesign: []string{"Fixture/Example.app", "Fixture/Example.framework"}, Continuation: phase == "final"}})
 				current = path
 			}
 		})
