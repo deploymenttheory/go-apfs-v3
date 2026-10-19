@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -45,14 +46,14 @@ type memNode struct {
 // NewMemoryVolume returns a volume with the mount point root present.
 func NewMemoryVolume(root string) *MemoryVolume {
 	v := &MemoryVolume{nodes: map[string]*memNode{}, nextIno: 16, now: time.Now().UnixNano()}
-	v.nodes[path.Clean(root)] = &memNode{ino: 2, kind: "dir", mode: 0o755, links: 1, xattrs: map[string][]byte{}, birth: v.now, modify: v.now, change: v.now, access: v.now}
+	v.nodes[memPath(root)] = &memNode{ino: 2, kind: "dir", mode: 0o755, links: 1, xattrs: map[string][]byte{}, birth: v.now, modify: v.now, change: v.now, access: v.now}
 	return v
 }
 
 func (v *MemoryVolume) tick() int64 { v.now += 1000; return v.now }
 
 func (v *MemoryVolume) get(p string) (*memNode, error) {
-	n, ok := v.nodes[path.Clean(p)]
+	n, ok := v.nodes[memPath(p)]
 	if !ok {
 		return nil, syscall.ENOENT
 	}
@@ -60,7 +61,7 @@ func (v *MemoryVolume) get(p string) (*memNode, error) {
 }
 
 func (v *MemoryVolume) parent(p string) (*memNode, error) {
-	n, err := v.get(path.Dir(path.Clean(p)))
+	n, err := v.get(path.Dir(memPath(p)))
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +143,7 @@ func (v *MemoryVolume) WriteFile(p string, data []byte, exclusive bool) error {
 	}
 	n := v.newNode("file", 0o644)
 	n.data = append([]byte(nil), data...)
-	v.nodes[path.Clean(p)] = n
+	v.nodes[memPath(p)] = n
 	return nil
 }
 
@@ -201,7 +202,7 @@ func (v *MemoryVolume) Mkdir(p string, mode uint32) error {
 	if _, err := v.parent(p); err != nil {
 		return err
 	}
-	v.nodes[path.Clean(p)] = v.newNode("dir", mode)
+	v.nodes[memPath(p)] = v.newNode("dir", mode)
 	return nil
 }
 
@@ -216,7 +217,7 @@ func (v *MemoryVolume) Symlink(target, p string) error {
 	}
 	n := v.newNode("symlink", 0o755)
 	n.target = target
-	v.nodes[path.Clean(p)] = n
+	v.nodes[memPath(p)] = n
 	return nil
 }
 
@@ -238,14 +239,14 @@ func (v *MemoryVolume) Link(oldPath, newPath string) error {
 	}
 	n.links++
 	n.change = v.tick()
-	v.nodes[path.Clean(newPath)] = n
+	v.nodes[memPath(newPath)] = n
 	return nil
 }
 
 func (v *MemoryVolume) Rename(oldPath, newPath string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	oldPath, newPath = path.Clean(oldPath), path.Clean(newPath)
+	oldPath, newPath = memPath(oldPath), memPath(newPath)
 	n, err := v.get(oldPath)
 	if err != nil {
 		return err
@@ -312,7 +313,7 @@ func (v *MemoryVolume) Remove(p string) error {
 	if n.kind == "dir" {
 		return syscall.EPERM
 	}
-	v.dropLink(path.Clean(p))
+	v.dropLink(memPath(p))
 	return nil
 }
 
@@ -326,10 +327,10 @@ func (v *MemoryVolume) Rmdir(p string) error {
 	if n.kind != "dir" {
 		return syscall.ENOTDIR
 	}
-	if v.hasChildren(path.Clean(p)) {
+	if v.hasChildren(memPath(p)) {
 		return syscall.ENOTEMPTY
 	}
-	delete(v.nodes, path.Clean(p))
+	delete(v.nodes, memPath(p))
 	return nil
 }
 
@@ -436,7 +437,7 @@ func (v *MemoryVolume) Clone(src, dst string) error {
 	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	c := v.nodes[path.Clean(dst)]
+	c := v.nodes[memPath(dst)]
 	for k, val := range n.xattrs {
 		c.xattrs[k] = append([]byte(nil), val...)
 	}
@@ -477,7 +478,7 @@ func (v *MemoryVolume) Readdir(p string) ([]string, error) {
 	if n.kind != "dir" {
 		return nil, syscall.ENOTDIR
 	}
-	prefix := path.Clean(p) + "/"
+	prefix := memPath(p) + "/"
 	var names []string
 	for q := range v.nodes {
 		if strings.HasPrefix(q, prefix) && !strings.Contains(strings.TrimPrefix(q, prefix), "/") {
@@ -632,7 +633,7 @@ func (v *MemoryVolume) Dump() string {
 func (v *MemoryVolume) MkdirAll(p string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	clean := path.Clean(p)
+	clean := memPath(p)
 	parts := strings.Split(strings.TrimPrefix(clean, "/"), "/")
 	cur := "/"
 	for _, part := range parts {
@@ -667,7 +668,7 @@ type snapshotNode struct {
 func (v *MemoryVolume) Snapshot(root string) []snapshotNode {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	root = path.Clean(root)
+	root = memPath(root)
 	var out []snapshotNode
 	for p, n := range v.nodes {
 		if p == root || !strings.HasPrefix(p, root+"/") {
@@ -683,7 +684,7 @@ func (v *MemoryVolume) Snapshot(root string) []snapshotNode {
 func (v *MemoryVolume) Restore(root string, nodes []snapshotNode) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	root = path.Clean(root)
+	root = memPath(root)
 	for p := range v.nodes {
 		if strings.HasPrefix(p, root+"/") {
 			delete(v.nodes, p)
@@ -705,4 +706,15 @@ func (v *MemoryVolume) Restore(root string, nodes []snapshotNode) {
 			v.nextIno = s.Ino + 1
 		}
 	}
+}
+
+// memPath normalizes a path for the memory tree. Test fakes on Windows hand
+// the tree host scratch paths with backslashes; the real volume is only
+// ever addressed with slashes.
+func memPath(p string) string {
+	s := filepath.ToSlash(p)
+	if vol := filepath.VolumeName(p); vol != "" && !strings.HasPrefix(s, "/") {
+		s = "/" + s // a drive-rooted path keys below the tree's root like any other
+	}
+	return path.Clean(s)
 }

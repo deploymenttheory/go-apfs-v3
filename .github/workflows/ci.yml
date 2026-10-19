@@ -64,7 +64,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race -count=1 -timeout 10m ./...
+      - name: Race-check every package outside the acceptance tiers
+        shell: bash
+        run: |
+          mapfile -t packages < <(go list ./... | grep -v /acceptance)
+          go test -race -count=1 -timeout 10m "${packages[@]}"
 
   gate:
     name: Required checks

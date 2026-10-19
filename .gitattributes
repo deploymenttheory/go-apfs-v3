@@ -13,3 +13,7 @@ go.sum text eol=lf
 
 # Review the pinned inputs and generator for these reproducible tables.
 internal/names/*_tables.go linguist-generated=true
+
+# Recipe inputs are hashed as a tree and fed to Apple tools byte-exact; no
+# line-ending conversion on any host.
+acceptance/recipes/** -text

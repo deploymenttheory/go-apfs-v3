@@ -6,6 +6,8 @@
 package corpus
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -35,6 +37,8 @@ type Producer struct {
 type Corpus struct {
 	Lock      *schema.Lock
 	Producers []Producer
+	// ExpandDir holds expanded raw images, outside the bundle cache.
+	ExpandDir string
 }
 
 // Options control resolution. Zero values mean: lock at
@@ -46,6 +50,11 @@ type Options struct {
 	CacheDir   string
 	Repository string // owner/name for release downloads
 	Client     *http.Client
+	// ExpandDir receives expanded raw images (APFS_FIXTURE_EXPAND); the
+	// default is under the system temporary directory, so a CI cache of
+	// the bundles never carries them. Expansion is sparse: zero runs are
+	// not written, so an expanded image costs only its data blocks.
+	ExpandDir string
 	// LocalDir points tests at a local capture output (APFS_FIXTURE_DIR);
 	// it must contain macos-<major>/manifest.json directories.
 	LocalDir string
@@ -69,6 +78,12 @@ func Resolve(ctx context.Context, opts Options) (*Corpus, error) {
 		}
 		opts.CacheDir = filepath.Join(base, "go-apfs-v3", "fixtures")
 	}
+	if opts.ExpandDir == "" {
+		opts.ExpandDir = os.Getenv("APFS_FIXTURE_EXPAND")
+	}
+	if opts.ExpandDir == "" {
+		opts.ExpandDir = filepath.Join(os.TempDir(), "go-apfs-v3-fixtures")
+	}
 	if opts.LockPath == "" {
 		opts.LockPath = filepath.Join(opts.Root, "acceptance", "fixtures.lock.json")
 	}
@@ -82,7 +97,7 @@ func Resolve(ctx context.Context, opts Options) (*Corpus, error) {
 	if err != nil {
 		return nil, err
 	}
-	c := &Corpus{Lock: lock}
+	c := &Corpus{Lock: lock, ExpandDir: opts.ExpandDir}
 	if opts.LocalDir != "" {
 		return c, c.loadLocal(opts.LocalDir)
 	}
@@ -262,6 +277,7 @@ type Case struct {
 	Dir         string
 	Observation *schema.Observation
 	Files       map[string]string // bundle-relative path -> absolute path
+	expandDir   string
 }
 
 // Cases decodes every observation across producers, sorted by producer,
@@ -282,7 +298,7 @@ func (c *Corpus) Cases() ([]Case, error) {
 			for _, f := range cf.Files {
 				files[f.Path] = filepath.Join(p.Dir, filepath.FromSlash(f.Path))
 			}
-			cases = append(cases, Case{Producer: p.Major, Recipe: cf.Recipe, Profile: cf.Profile, Stage: cf.Stage, Dir: filepath.Join(p.Dir, filepath.Dir(filepath.FromSlash(cf.Observation))), Observation: &obs, Files: files})
+			cases = append(cases, Case{Producer: p.Major, Recipe: cf.Recipe, Profile: cf.Profile, Stage: cf.Stage, Dir: filepath.Join(p.Dir, filepath.Dir(filepath.FromSlash(cf.Observation))), Observation: &obs, Files: files, expandDir: c.ExpandDir})
 		}
 	}
 	sort.Slice(cases, func(i, j int) bool {
@@ -301,7 +317,90 @@ func (c *Corpus) Cases() ([]Case, error) {
 	return cases, nil
 }
 
-// Image returns the absolute path of the case's retained image file.
+// Image returns the absolute path of the case's retained image. A
+// gzip-compressed raw image is expanded once, sparsely, under the corpus
+// expansion directory, so callers always receive a file the product can
+// open directly.
 func (k Case) Image() string {
-	return filepath.Join(k.Dir, k.Observation.Image.File)
+	path := filepath.Join(k.Dir, k.Observation.Image.File)
+	if !strings.HasSuffix(path, ".raw.gz") {
+		return path
+	}
+	expanded := filepath.Join(k.expandDir, "macos-"+strconv.Itoa(k.Producer), k.Recipe, strings.TrimSuffix(k.Observation.Image.File, ".gz"))
+	if _, err := os.Stat(expanded); err == nil {
+		return expanded
+	}
+	if err := expandGzip(path, expanded); err != nil {
+		return path + ": " + err.Error()
+	}
+	return expanded
+}
+
+func expandGzip(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+	gz, err := gzip.NewReader(in)
+	if err != nil {
+		return err
+	}
+	tmp := dst + ".partial"
+	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	if err := markSparse(out); err != nil {
+		_ = out.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	size, err := copySparse(out, gz)
+	if err == nil {
+		err = out.Truncate(size)
+	}
+	if err != nil {
+		_ = out.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, dst)
+}
+
+// sparseBlock is the granularity at which zero runs are left unwritten.
+const sparseBlock = 64 << 10
+
+// copySparse writes r to out, skipping zero blocks so the file's allocated
+// size is its data, and returns the logical size written.
+func copySparse(out *os.File, r io.Reader) (int64, error) {
+	buf := make([]byte, sparseBlock*16)
+	var zero [sparseBlock]byte
+	var offset int64
+	for {
+		n, err := io.ReadFull(r, buf)
+		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+			return offset, err
+		}
+		data := buf[:n]
+		for len(data) > 0 {
+			chunk := data[:min(sparseBlock, len(data))]
+			if len(chunk) < sparseBlock || !bytes.Equal(chunk, zero[:]) {
+				if _, werr := out.WriteAt(chunk, offset); werr != nil {
+					return offset, werr
+				}
+			}
+			offset += int64(len(chunk))
+			data = data[len(chunk):]
+		}
+		if n < len(buf) {
+			return offset, nil
+		}
+	}
 }

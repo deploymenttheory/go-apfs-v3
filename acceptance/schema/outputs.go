@@ -1,0 +1,82 @@
+package schema
+
+// OutputsSchema is the current outputs.json schema version.
+const OutputsSchema = 1
+
+// Outputs indexes every image the portable conformance suite produced on
+// one host. The native verifier reads this file from each host's artifact:
+// plaintext outputs must be byte-identical across hosts, encrypted outputs
+// must decrypt to the same device bytes, and every output is then checked
+// with Apple tools against the expectation it names.
+type Outputs struct {
+	Schema int    `json:"schema"`
+	Host   string `json:"host"` // linux, windows, darwin
+	Arch   string `json:"arch"`
+	Go     string `json:"go"`
+	Commit string `json:"commit,omitempty"`
+	Lock   string `json:"lockSHA256"` // digest of fixtures.lock.json used
+	// Passwords maps the references outputs use to their public values, so
+	// the verifier never needs the recipes.
+	Passwords map[string]string `json:"passwords,omitempty"`
+	Outputs   []Output          `json:"outputs"`
+}
+
+// Output is one produced image and the expectation it must satisfy.
+type Output struct {
+	// Name is unique within the suite and identical on every host, so the
+	// verifier can pair outputs across hosts.
+	Name string `json:"name"`
+	File string `json:"file"`
+	// Operation is build, compress, container, encrypt, decrypt, repack,
+	// edit, copy, recover-checkpoint, recover-journal or session.
+	Operation string `json:"operation"`
+	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw
+	Bytes     int64  `json:"bytes"`
+	SHA256    string `json:"sha256"`
+	// Encrypted outputs carry fresh random material, so their digests
+	// legitimately differ between hosts; Password names the recipe
+	// password that unlocks them.
+	Encrypted bool   `json:"encrypted,omitempty"`
+	Password  string `json:"password,omitempty"`
+	// Source identifies the fixture case the output was produced from.
+	Source CaseRef `json:"source"`
+	// Expect identifies the observation view the mounted output must match
+	// (the source's own view, or a later stage's view after an edit) and
+	// whether the device bytes must equal the source disk (repack).
+	Expect Expectation `json:"expect"`
+}
+
+// CaseRef names a corpus case.
+type CaseRef struct {
+	Producer int    `json:"producer"`
+	Recipe   string `json:"recipe"`
+	Profile  string `json:"profile"`
+	Stage    string `json:"stage"`
+}
+
+// Expectation tells the native verifier what to compare the output with.
+type Expectation struct {
+	// View names the stage whose observation holds the expected entries;
+	// empty means the source case's own observation.
+	View string `json:"view,omitempty"`
+	// Subtree is the observed path the output's root corresponds to, for
+	// images built from part of a fixture (for example "Fixture").
+	Subtree string `json:"subtree,omitempty"`
+	// IgnoreTimes lists timestamp names (birth, modify, change, access)
+	// that are not expected to match, for example change times that an
+	// editor assigns from its own clock.
+	IgnoreTimes []string `json:"ignoreTimes,omitempty"`
+	// Volume selects the observed volume by name for multi-volume images.
+	Volume string `json:"volume,omitempty"`
+	// DiskSHA256 requires the attached raw device to hash to this value
+	// (sector-preserving repacks).
+	DiskSHA256 string `json:"diskSHA256,omitempty"`
+	// Codesign lists bundle paths that must verify after mounting.
+	Codesign []string `json:"codesign,omitempty"`
+	// Continuation asks the verifier to run the native write sequence and
+	// a further product edit on a writable copy.
+	Continuation bool `json:"continuation,omitempty"`
+	// SystemMember names the volume the continuation must run on for
+	// System/Data groups.
+	SystemMember string `json:"systemMember,omitempty"`
+}
