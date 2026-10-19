@@ -270,7 +270,20 @@ type compareOptions struct {
 	// ignoreIDFor, when set, exempts a path's object identity: entries an
 	// editor created follow the allocator's policy, not the kernel's.
 	ignoreIDFor func(path string) bool
+	// compression names the explicit file-compression policy a build used
+	// ("zlib" or "none"); empty compares compression exactly. Under a
+	// policy only compression-owned storage and UF_COMPRESSED may differ
+	// from the source (docs/packing.md).
+	compression string
 }
+
+// compressionOwned names the attributes a compression policy may add or
+// remove; an independent resource fork is still compared.
+var compressionOwned = map[string]bool{"com.apple.decmpfs": true, "com.apple.ResourceFork": true}
+
+// emptySHA256 is the digest of zero bytes: what the kernel returns when it
+// refuses to decode a malformed active compression record.
+const emptySHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 // compareView walks the product's tree and the observed entries and
 // requires the same set of paths and the same facts for each.
@@ -386,7 +399,11 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 	if node.Metadata.UID.Value != e.UID || node.Metadata.GID.Value != e.GID {
 		t.Errorf("%s: owner %d:%d, native %d:%d", where, node.Metadata.UID.Value, node.Metadata.GID.Value, e.UID, e.GID)
 	}
-	if node.Metadata.BSDFlags.Value != e.Flags {
+	flagMask := uint32(0xffffffff)
+	if opts.compression != "" {
+		flagMask &^= 0x20 // UF_COMPRESSED follows the policy
+	}
+	if node.Metadata.BSDFlags.Value&flagMask != e.Flags&flagMask {
 		t.Errorf("%s: flags %#x, native %#x", where, node.Metadata.BSDFlags.Value, e.Flags)
 	}
 	times := map[string][2]int64{
@@ -416,6 +433,13 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 		}
 	}
 	switch {
+	case opts.compression == "none" && node.Compression.State == filesystem.Present:
+		t.Errorf("%s: compression type %d remains under the none policy", where, node.Compression.Value.Type)
+	case opts.compression == "zlib" && node.Compression.State == filesystem.Present && node.Compression.Value.Type != 3 && node.Compression.Value.Type != 4:
+		t.Errorf("%s: compression type %d under the zlib policy, expected 3 or 4", where, node.Compression.Value.Type)
+	case opts.compression != "":
+		// A file the policy skipped is ordinary storage; the reason is in
+		// the build report, and the logical bytes are compared below.
 	case e.Compression != nil && node.Compression.State != filesystem.Present:
 		t.Errorf("%s: native compression type %d, product reports none", where, e.Compression.Type)
 	case e.Compression != nil && node.Compression.Value.Type != e.Compression.Type:
@@ -426,10 +450,15 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 	switch kind {
 	case "file":
 		sum, n, err := hashValue(ctx, r, id)
+		kernelReadNothing := e.Compression != nil && e.SHA256 == emptySHA256 && e.Size > 0
 		switch {
 		case e.SHA256 != "" && err != nil:
 			t.Errorf("%s: read: %v", where, err)
-		case e.SHA256 != "" && (sum != e.SHA256 || n != e.Size):
+		case e.SHA256 != "" && kernelReadNothing && (sum != e.SHA256 || n != 0):
+			// The kernel returned no bytes for a malformed active record
+			// whose header still states a size; the product must do the same.
+			t.Errorf("%s: data %s (%d bytes), native read nothing of %d stated bytes", where, sum, n, e.Size)
+		case e.SHA256 != "" && !kernelReadNothing && (sum != e.SHA256 || n != e.Size):
 			t.Errorf("%s: data %s (%d bytes), native %s (%d bytes)", where, sum, n, e.SHA256, e.Size)
 		case e.SHA256 == "" && err == nil && e.Compression != nil:
 			// The kernel could not read this object (recorded in known
@@ -447,6 +476,9 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 	listed := map[string]bool{}
 	_ = r.ListAttributes(ctx, id, func(name string) error { listed[name] = true; return nil })
 	for _, x := range e.Xattrs {
+		if opts.compression != "" && compressionOwned[x.Name] && e.Compression != nil {
+			continue // storage the policy re-encoded or removed
+		}
 		if !listed[x.Name] {
 			t.Errorf("%s: native attribute %q not listed by the product", where, x.Name)
 			continue
@@ -486,6 +518,9 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 	for name := range listed {
 		if observedNames[name] || filesystemOwnedAttributes[name] {
 			continue
+		}
+		if opts.compression != "" && compressionOwned[name] && node.Compression.State == filesystem.Present {
+			continue // storage the policy created
 		}
 		value, err := r.OpenAttribute(ctx, id, name)
 		if err == nil {

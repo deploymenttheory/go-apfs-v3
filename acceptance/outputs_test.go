@@ -211,7 +211,7 @@ func TestBuildFromFixtures(t *testing.T) {
 						_, err := pack.Create(ctx, p, source, options)
 						return err
 					})
-					checkBuiltImage(t, ctx, path, k, "Fixture")
+					checkBuiltImage(t, ctx, path, k, "Fixture", policy)
 					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "build", Format: format, Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k), Continuation: true}})
 				}
 			}
@@ -273,7 +273,7 @@ func builtBundles(k corpus.Case) []string {
 // checkBuiltImage reads a build back with the product and requires the
 // subtree it was built from, with identities and times excepted: a fresh
 // build assigns its own object IDs and the fixed clock.
-func checkBuiltImage(t *testing.T, ctx context.Context, path string, k corpus.Case, subtree string) {
+func checkBuiltImage(t *testing.T, ctx context.Context, path string, k corpus.Case, subtree, policy string) {
 	t.Helper()
 	img, err := diskimage.Open(path)
 	if err != nil {
@@ -295,7 +295,11 @@ func checkBuiltImage(t *testing.T, ctx context.Context, path string, k corpus.Ca
 	if reader == nil {
 		t.Fatalf("%s: no filesystem", path)
 	}
-	compareViewWith(t, ctx, filepath.Base(path), reader, k.Observation.Views[0], compareOptions{subtree: subtree, ignoreTimes: map[string]bool{"birth": true, "modify": true, "change": true, "access": true}})
+	opts := compareOptions{subtree: subtree, ignoreTimes: map[string]bool{"birth": true, "modify": true, "change": true, "access": true}}
+	if policy != "preserve" {
+		opts.compression = policy
+	}
+	compareViewWith(t, ctx, filepath.Base(path), reader, k.Observation.Views[0], opts)
 }
 
 // TestRepackPreservesEverySector repacks every retained image into both
