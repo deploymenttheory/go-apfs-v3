@@ -381,7 +381,7 @@ func ExpandGzip(src, dst string) error {
 	if err := out.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, dst)
+	return publishExpansion(tmp, dst, size)
 }
 
 // sparseBlock is the granularity at which zero runs are left unwritten.
@@ -433,4 +433,29 @@ func (r *expansionInput) Read(p []byte) (int, error) {
 		r.err = err
 	}
 	return n, err
+}
+
+// publishExpansion tolerates a concurrent winner only when its completed bytes match.
+func publishExpansion(tmp, dst string, size int64) error {
+	if err := os.Rename(tmp, dst); err != nil {
+		// Windows can deny replacement while another expansion publishes the
+		// same cache entry. Accept that winner only after comparing complete
+		// bytes, never merely because a destination exists.
+		info, statErr := os.Stat(dst)
+		if statErr != nil || !info.Mode().IsRegular() || info.Size() != size {
+			return err
+		}
+		want, digestErr := schema.FileDigest(tmp)
+		if digestErr != nil {
+			return errors.Join(err, digestErr)
+		}
+		got, digestErr := schema.FileDigest(dst)
+		if digestErr != nil {
+			return errors.Join(err, digestErr)
+		}
+		if got != want {
+			return err
+		}
+	}
+	return nil
 }
