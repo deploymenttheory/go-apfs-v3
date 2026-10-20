@@ -54,6 +54,10 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if err != nil {
 		return nil, err
 	}
+	if len(att.Volumes) == 0 {
+		_ = v.Disk.Detach(ctx, att)
+		return nil, fmt.Errorf("continuation %s: no volume discovered on the writable copy", out.Name)
+	}
 	volume := att.Volumes[0]
 	multiVolume := len(att.Volumes) > 1
 	if out.Expect.SystemMember != "" {
@@ -266,9 +270,13 @@ func (v *Verifier) fsckRaw(ctx context.Context, raw, fs string) error {
 	if err != nil {
 		return err
 	}
-	rdev := att.Volumes[0].RDev
-	if fs == "apfs" {
-		rdev = att.RDev
+	rdev := att.RDev
+	if fs != "apfs" {
+		if len(att.Volumes) == 0 {
+			_ = v.Disk.Detach(ctx, att)
+			return fmt.Errorf("fsck %s: no %s volume discovered on the attached copy", raw, fs)
+		}
+		rdev = att.Volumes[0].RDev
 	}
 	_, err = v.Disk.Fsck(ctx, fs, rdev)
 	if derr := v.Disk.Detach(ctx, att); err == nil {
