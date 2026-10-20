@@ -114,6 +114,32 @@ disposable VM: a development Mac once panicked under these tests
 ([native-testing-incident.md](native-testing-incident.md)). Inside one, set
 `APFS_NATIVE_DISPOSABLE_VM=1`.
 
+### Interrupted images
+
+`hfs-journal-interruption` and `apfs-checkpoint-interruption` retain actual
+native write windows separately from their recovered expectations. Capture
+attaches a writable raw image with `-nokernel -noautofsck`, confirms the exact
+image/device/owner in `hdiutil info`, and changes metadata through the kernel
+while requesting `F_FULLFSYNC`. A bounded C observer pauses only that image's
+helper, copies its backing bytes and resumes it. An independent watchdog
+resumes the helper if the observer dies. No transaction is manufactured.
+
+Read-only acquisition measurements reject missed windows and distinguish
+linear/wrapped journals, complete/incomplete tails and checkpoint data/mapping/
+committed/wrapped windows. These measurements do not supply expected filesystem
+states. HFS originals are never mounted: Apple's replay-only syscall runs on
+a copy, whose device bytes are retained before fsck or mounted observation.
+APFS's checker supplies the selected XID and its kernel mount supplies the view.
+Deliberate APFS checksum damage records the parent digest and exact byte change;
+a separate descriptor-disabled control supplies the independently checked older
+state. Damaged originals are never mounted to fabricate a fallback expectation.
+
+Observations bind these cases with `recovery`; HFS replayed states also name
+their `replayOnly` image. Each case retains the native helper sources and binary
+digests. All original images, transcripts, observations and digests remain
+immutable. A full capture includes both recipes; missing profiles or stages
+fail portable conformance.
+
 ## Portable conformance
 
 `acceptance/*_test.go`:
@@ -150,6 +176,16 @@ disposable VM: a development Mac once panicked under these tests
   cannot be translated fails the test.
 - `TestEveryCorpusCaseHasAConsumer` fails when a recipe is in the corpus
   without a test that asserts on it.
+- `TestRecoveryMatchesAppleStates` inspects and recovers every interruption:
+  HFS replay must match Apple's replay-only disk byte for byte, with only the
+  documented primary unmounted flag added at publication; APFS must select
+  Apple's XID and change only block zero and rejected descriptors. Recovered
+  files, identities, metadata, links, forks and signatures must match Apple's
+  state. Original inputs remain unchanged and failed publication leaves no output.
+  `TestRecoveryCopyInterruptedBeforePublication` kills a child process after
+  observing an actual partial staging copy and requires the same source/output
+  guarantees. Both recovery encodings return to the native tier; UDZO outputs
+  also undergo native/Go/native continuation.
 
 Outputs are written to `APFS_OUTPUT_DIR` with `outputs.json` describing
 each one's expectation; CI uploads them per producer as

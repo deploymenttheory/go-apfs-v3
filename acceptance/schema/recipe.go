@@ -33,10 +33,10 @@ type Recipe struct {
 type Requirements struct {
 	Sudo         bool     `json:"sudo"`
 	Entitlements []string `json:"entitlements,omitempty"`
-	// Helpers names programs the capture tool must build from Apple open
-	// source under acceptance/recipes/helpers before running the recipe,
+	// Helpers names Apple source adapters and bounded native acquisition
+	// observers under acceptance/recipes/helpers built before running the recipe,
 	// for example "newfs_hfs_debug" (exposes allocation geometry flags the
-	// shipping binary hides). They are Apple code compiled with xcrun.
+	// shipping binary hides). They are capture-only C compiled with xcrun.
 	Helpers  []string `json:"helpers,omitempty"`
 	MinMajor int      `json:"minMajor,omitempty"`
 	// VersionNotes records expected behaviour differences between producers

@@ -154,6 +154,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		return nil, err
 	}
 	var diffs []Difference
+	if out.Expect.SelectedXID != 0 && obs.Checks.SelectedXID != out.Expect.SelectedXID {
+		diffs = append(diffs, Difference{Field: "checks.selectedXID", Got: fmt.Sprint(obs.Checks.SelectedXID), Want: fmt.Sprint(out.Expect.SelectedXID)})
+	}
 	if out.Expect.DiskSHA256 != "" && obs.Image.DiskSHA256 != out.Expect.DiskSHA256 {
 		diffs = append(diffs, Difference{Path: "", Field: "image.diskSHA256", Got: obs.Image.DiskSHA256, Want: out.Expect.DiskSHA256})
 	}

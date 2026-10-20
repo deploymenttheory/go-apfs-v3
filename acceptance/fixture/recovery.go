@@ -58,6 +58,7 @@ func (c *Capture) runRecoveryStage(ctx context.Context, stage *schema.Stage) err
 	}
 	var recovery *schema.Recovery
 	var replayOnly *schema.Image
+	var disabledXID uint64
 	switch ctl.Action {
 	case "journal-window", "checkpoint-window":
 		captured, evidence, err := c.captureWindow(ctx, live, stage.Name, ctl)
@@ -84,6 +85,9 @@ func (c *Capture) runRecoveryStage(ctx context.Context, stage *schema.Stage) err
 			return err
 		}
 		kind := ctl.Params["kind"]
+		if kind == "disabled-latest" {
+			disabledXID = state.Latest.XID
+		}
 		offset, count, err := checkpointDamageOffset(live, kind, state)
 		if err != nil {
 			return err
@@ -112,6 +116,8 @@ func (c *Capture) runRecoveryStage(ctx context.Context, stage *schema.Stage) err
 		if kind != "disabled-latest" {
 			recovery = &schema.Recovery{Kind: "checkpoint", ExpectedStage: "disabled-latest", RefuseOpen: true, Damage: &schema.Damage{ParentSHA256: parent, Offset: offset, Before: hex.EncodeToString(before), After: hex.EncodeToString(after)}}
 		}
+		derivation, _ := json.Marshal(schema.Damage{ParentSHA256: parent, Offset: offset, Before: hex.EncodeToString(before), After: hex.EncodeToString(after)})
+		c.t.Commands = append(c.t.Commands, schema.Command{Label: "declared-checkpoint-damage", Argv: []string{"damage", kind}, Status: "0", Expected: "0", StdoutText: string(derivation)})
 	default:
 		return fmt.Errorf("unsupported recovery stage control %q", ctl.Action)
 	}
@@ -144,7 +150,10 @@ func (c *Capture) runRecoveryStage(ctx context.Context, stage *schema.Stage) err
 	}
 	obs.Recovery, obs.ReplayOnly = recovery, replayOnly
 	if obs.Checks.SelectedXID == 0 && c.Profile.Family == "apfs" {
-		return errors.New("Apple fsck did not identify the recovery checkpoint")
+		return errors.New("apple fsck did not identify the recovery checkpoint")
+	}
+	if disabledXID != 0 && obs.Checks.SelectedXID >= disabledXID {
+		return errors.New("descriptor-disabled control did not select an earlier Apple checkpoint")
 	}
 	return c.writeObservation(prefix, &obs)
 }
@@ -313,10 +322,7 @@ func (c *Capture) captureWindow(ctx context.Context, live, stage string, ctl *sc
 				shape = tail
 			}
 			evidence["journal"], evidence["unappliedSectors"], evidence["shape"] = s, changes, shape
-			accepted = s.Start != s.End && changes > 0 && shape == ctl.Params["shape"]
-			if mode == "tail" {
-				accepted = accepted && s.End == uint64(number(window["observedEnd"]))
-			}
+			accepted = journalWindowMatches(s, ctl.Params["shape"], uint64(number(window["observedEnd"])), changes, tail)
 		} else {
 			s, err := measureCheckpoints(candidate)
 			if err != nil {
@@ -464,7 +470,7 @@ func (c *Capture) replayJournal(ctx context.Context, live, stage string) (*schem
 		return nil, err
 	}
 	if state.Start != state.End {
-		return nil, errors.New("Apple replay-only syscall left a pending journal")
+		return nil, errors.New("apple replay-only syscall left a pending journal")
 	}
 	return &schema.Image{File: filepath.Base(archive), SHA256: sum, Bytes: info.Size(), Format: "raw", DiskSHA256: digest, DiskBytes: n, SectorSize: 512, PartitionMap: "none"}, nil
 }

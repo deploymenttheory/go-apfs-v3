@@ -1,3 +1,33 @@
+/*
+ * Copyright (c) 2002-2015 Apple Inc. All rights reserved.
+ *
+ * @APPLE_OSREFERENCE_LICENSE_HEADER_START@
+ *
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. The rights granted to you under the License
+ * may not be used to create, or enable the creation or redistribution of,
+ * unlawful or unlicensed copies of an Apple operating system, or to
+ * circumvent, violate, or enable the circumvention or violation of, any
+ * terms of an Apple operating system software license agreement.
+ *
+ * Please obtain a copy of the License at
+ * http://www.opensource.apple.com/apsl/ and read it before using this file.
+ *
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ *
+ * @APPLE_OSREFERENCE_LICENSE_HEADER_END@
+ */
+// SPDX-License-Identifier: APSL-2.0
+// Modified 2026-10-20: bounded, read-only acquisition measurements. No replay
+// or expected filesystem state is computed here. Pinned sources: docs/sources.json.
 package fixture
 
 import (
@@ -6,6 +36,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 )
 
 // journalWindow measures native cursors and unapplied home sectors solely to
@@ -18,6 +49,23 @@ type journalWindow struct {
 	BlockListSize uint32 `json:"blockListSize"`
 	HeaderSize    uint32 `json:"headerSize"`
 	Sequence      uint32 `json:"sequence"`
+}
+
+func journalWindowMatches(s *journalWindow, wanted string, observedEnd uint64, changes int, tail string) bool {
+	if s.Start == s.End {
+		return false
+	}
+	if strings.HasSuffix(wanted, "-tail") {
+		// The declared committed range can already match home sectors while
+		// Apple is writing the next transaction beyond its recorded end.
+		// The tail's checksums/sequence and Apple's replay qualify that window.
+		return tail == wanted && s.End == observedEnd
+	}
+	shape := "linear"
+	if s.Start > s.End {
+		shape = "wrapped"
+	}
+	return shape == wanted && changes > 0
 }
 
 func acquisitionJournalChecksum(b []byte) uint32 {

@@ -112,6 +112,14 @@ source hashes and native libc qualification are recorded in the source inventory
 its [BSD license](LICENSES/BSD-x-sys.txt).
 It introduces no cgo dependency.
 
+The capture-only HFS journal observers under
+`acceptance/recipes/helpers/hfs-journal` and the acquisition checksum in
+`acceptance/fixture/journal_window.go` retain Apple's APSL-2.0 notices. Their
+public HFS source basis is pinned in `docs/sources.json`. Helper provenance
+records preserve the original project source digests; capture retains those
+sources and built-helper digests beside every interruption case. These observers
+are never linked into the product or used to generate expected recovery bytes.
+
 HFS catalog mutation also adapts Apple `core/hfs_catalog.c`, `hfs_link.c`,
 `hfs_vnops.c` and `hfs_cnode.c` at the same pinned HFS revision under APSL-2.0.
 Translated functions and exact source hashes are recorded in `docs/sources.json`;

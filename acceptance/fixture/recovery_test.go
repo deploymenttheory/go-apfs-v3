@@ -292,6 +292,12 @@ func TestJournalAcquisitionDistinguishesUnappliedMetadataAndTailCompleteness(t *
 			if err != nil || changes != 0 {
 				t.Fatal("completed home writes mistaken for interruption", changes, err)
 			}
+			if tail != "absent" && !journalWindowMatches(s, want, s.End, changes, want) {
+				t.Fatal("valid native tail rejected after committed home writes completed")
+			}
+			if journalWindowMatches(s, "linear", s.End, changes, "") {
+				t.Fatal("completed home writes mistaken for a pending linear commit")
+			}
 		})
 	}
 }

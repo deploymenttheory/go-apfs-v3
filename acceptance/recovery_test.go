@@ -10,9 +10,11 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
@@ -52,12 +54,29 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if recovery.Damage != nil {
+				parent, ok := byKey[stageKey(k.Producer, k.Recipe, k.Profile, "window-committed")]
+				if !ok {
+					t.Fatal("damage control has no original parent")
+				}
+				assertDeclaredRecoveryDamage(t, source, parent.Image(), recovery.Damage)
+			}
 			var replay block.Source
 			var closeReplay func() error
-			if recovery.Kind == "journal" {
+			switch recovery.Kind {
+			case "journal":
 				journal, err := hfsplus.InspectJournal(source)
 				if err != nil || !journal.Pending {
 					t.Fatalf("pending native journal: %+v %v", journal, err)
+				}
+				geometry, ok := recovery.Acquisition["journal"].(map[string]any)
+				if !ok {
+					t.Fatal("native journal acquisition geometry is missing")
+				}
+				for name, value := range map[string]uint64{"offset": journal.Offset, "size": journal.Size, "start": journal.Start, "end": journal.End, "sequence": uint64(journal.Sequence), "headerSize": uint64(journal.HeaderSize), "blockListSize": uint64(journal.BlockListSize)} {
+					if uint64(number(geometry[name])) != value {
+						t.Errorf("journal inspect %s: got %d, recorded %v", name, value, geometry[name])
+					}
 				}
 				if err := hfsplus.ValidateMutation(ctx, source); err == nil {
 					t.Fatal("ordinary mutation admitted an unreplayed journal")
@@ -104,7 +123,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				if sum, err := recoveryDiskDigest(scratch, scratch.Size()); err != nil || sum != ref.DiskSHA256 {
 					t.Fatalf("Go replay differs from Apple's replay-only bytes: %s, want %s (%v)", sum, ref.DiskSHA256, err)
 				}
-			} else if recovery.Kind == "checkpoint" {
+			case "checkpoint":
 				report, err := apfs.InspectCheckpoints(ctx, source)
 				if err != nil || uint64(report.SelectedTransaction) != expected.Observation.Checks.SelectedXID {
 					t.Fatalf("checkpoint selected %+v, Apple selected %d (%v)", report, expected.Observation.Checks.SelectedXID, err)
@@ -114,7 +133,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 						t.Fatal("ordinary open silently fell back through damaged checkpoint")
 					}
 				}
-			} else {
+			default:
 				t.Fatalf("unknown recovery kind %q", recovery.Kind)
 			}
 			for _, format := range []string{"UDRO", "UDZO"} {
@@ -165,7 +184,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				if err := image.Close(); err != nil {
 					t.Fatal(err)
 				}
-				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "recover-" + recovery.Kind, Format: format, Source: caseRef(k), Expect: schema.Expectation{View: recovery.ExpectedStage, DiskSHA256: diskHash, Codesign: []string{"Fixture/Example.app"}, Continuation: format == "UDZO"}})
+				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "recover-" + recovery.Kind, Format: format, Source: caseRef(k), Expect: schema.Expectation{View: recovery.ExpectedStage, DiskSHA256: diskHash, SelectedXID: expected.Observation.Checks.SelectedXID, Codesign: []string{"Fixture/Example.app"}, Continuation: format == "UDZO"}})
 			}
 			failed := filepath.Join(t.TempDir(), "canceled.dmg")
 			canceled, cancel := context.WithCancel(ctx)
@@ -211,6 +230,97 @@ func TestCorpusContainsEveryRecoveryProfileAndStage(t *testing.T) {
 	}
 }
 
+// The child pauses only after the real staging file contains an incomplete
+// copy. Killing that process then exercises production publication and source
+// ownership without timing a fast copy or adding a production fault hook.
+func TestRecoveryCopyInterruptedBeforePublication(t *testing.T) {
+	if source := os.Getenv("APFS_RECOVERY_COPY_SOURCE"); source != "" {
+		work := os.Getenv("APFS_RECOVERY_COPY_WORK")
+		info, err := os.Stat(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx := &recoveryCopyContext{Context: context.Background(), work: work, size: info.Size()}
+		if _, err := recoverImage(ctx, source, os.Getenv("APFS_RECOVERY_COPY_OUTPUT"), os.Getenv("APFS_RECOVERY_COPY_KIND"), "UDZO"); err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("recovery completed without observing its staging copy")
+	}
+	cases, _ := loadCorpus(t)
+	for _, k := range cases {
+		journal := k.Profile == "hfsplus-j" && k.Stage == "interrupted-linear"
+		checkpoint := k.Profile == "apfs" && k.Stage == "window-data"
+		if !journal && !checkpoint {
+			continue
+		}
+		if k.Observation.Recovery == nil {
+			t.Fatal("interruption fixture lacks recovery evidence")
+		}
+		t.Run(fmt.Sprintf("macos-%d/%s", k.Producer, k.Recipe), func(t *testing.T) {
+			source := k.Image()
+			before, err := schema.FileDigest(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			work := t.TempDir()
+			output := filepath.Join(work, "output.dmg")
+			child := exec.Command(os.Args[0], "-test.run=^TestRecoveryCopyInterruptedBeforePublication$", "-test.timeout=30s")
+			child.Env = append(os.Environ(), "APFS_RECOVERY_COPY_SOURCE="+source, "APFS_RECOVERY_COPY_WORK="+work, "APFS_RECOVERY_COPY_OUTPUT="+output, "APFS_RECOVERY_COPY_KIND="+k.Observation.Recovery.Kind, "TMPDIR="+work, "TMP="+work, "TEMP="+work)
+			if err := child.Start(); err != nil {
+				t.Fatal(err)
+			}
+			done := make(chan error, 1)
+			go func() { done <- child.Wait() }()
+			defer func() { _ = child.Process.Kill() }()
+			deadline := time.After(20 * time.Second)
+			for {
+				if _, err := os.Stat(filepath.Join(work, "copy-observed")); err == nil {
+					break
+				}
+				select {
+				case err := <-done:
+					t.Fatalf("child exited before a partial copy was observed: %v", err)
+				case <-deadline:
+					t.Fatal("no partial recovery copy observed within 20 seconds")
+				case <-time.After(time.Millisecond):
+				}
+			}
+			if err := child.Process.Kill(); err != nil {
+				t.Fatal(err)
+			}
+			if err := <-done; err == nil {
+				t.Fatal("interrupted recovery exited successfully")
+			}
+			if _, err := os.Lstat(output); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal("interrupted recovery published an output", err)
+			}
+			if after, err := schema.FileDigest(source); err != nil || after != before {
+				t.Fatal("interrupted recovery changed its source", err)
+			}
+		})
+	}
+}
+
+type recoveryCopyContext struct {
+	context.Context
+	work string
+	size int64
+}
+
+func (c *recoveryCopyContext) Err() error {
+	paths, _ := filepath.Glob(filepath.Join(c.work, ".apfs-edit-disk-*"))
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err == nil && info.Size() > 0 && info.Size() < c.size {
+			if err := os.WriteFile(filepath.Join(c.work, "copy-observed"), []byte("partial staged disk\n"), 0o600); err != nil {
+				return err
+			}
+			time.Sleep(time.Hour) // the parent kills this child at the observed copy
+		}
+	}
+	return c.Context.Err()
+}
+
 func recoverImage(ctx context.Context, source, out, kind, format string) (imageedit.Report, error) {
 	if kind == "journal" {
 		return imageedit.RecoverJournal(ctx, source, out, imageedit.JournalRecoveryOptions{Format: format})
@@ -225,6 +335,48 @@ func recoveryDiskDigest(source io.ReaderAt, size int64) (string, error) {
 		err = io.ErrUnexpectedEOF
 	}
 	return hex.EncodeToString(h.Sum(nil)), err
+}
+
+func assertDeclaredRecoveryDamage(t *testing.T, source block.Source, parentPath string, damage *schema.Damage) {
+	t.Helper()
+	parent, err := block.Open(parentPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer parent.Close()
+	if digest, err := recoveryDiskDigest(parent, parent.Size()); err != nil || digest != damage.ParentSHA256 {
+		t.Fatal("damage parent digest differs", err)
+	}
+	before, err := hex.DecodeString(damage.Before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := hex.DecodeString(damage.After)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(before) != 1 || len(after) != 1 || before[0]^after[0] != 1 || damage.Offset < 0 || damage.Offset >= parent.Size() || source.Size() != parent.Size() {
+		t.Fatal("damage is not the declared single checksum-bit change")
+	}
+	want, got := make([]byte, 128<<10), make([]byte, 128<<10)
+	for offset := int64(0); offset < parent.Size(); offset += int64(len(want)) {
+		n := min(int64(len(want)), parent.Size()-offset)
+		if err := block.ReadFull(parent, want[:n], offset); err != nil {
+			t.Fatal(err)
+		}
+		if damage.Offset >= offset && damage.Offset < offset+n {
+			if want[damage.Offset-offset] != before[0] {
+				t.Fatal("damage does not match its original byte")
+			}
+			want[damage.Offset-offset] = after[0]
+		}
+		if err := block.ReadFull(source, got[:n], offset); err != nil {
+			t.Fatal(err)
+		}
+		if string(want[:n]) != string(got[:n]) {
+			t.Fatalf("damage changed undeclared bytes at offset %d", offset)
+		}
+	}
 }
 
 func replayPublicationDigest(t *testing.T, source block.Source) string {

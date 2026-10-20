@@ -362,9 +362,10 @@ func BuildHelpers(ctx context.Context, c Commander, helpersDir, out string, name
 			argv = []string{"xcrun", "clang", "-Wall", "-Wextra", "-Werror", "-O2", filepath.Join(src, "apfs_snapshot.c"), "-o", bin}
 		case "hfs-journal-capture", "hfs-journal-replay", "apfs-checkpoint-capture":
 			dir, source := "hfs-journal", "hfs_journal_capture.c"
-			if name == "hfs-journal-replay" {
+			switch name {
+			case "hfs-journal-replay":
 				source = "hfs_journal_replay.c"
-			} else if name == "apfs-checkpoint-capture" {
+			case "apfs-checkpoint-capture":
 				dir, source = "apfs-checkpoint", "apfs_checkpoint_capture.c"
 			}
 			argv = []string{"xcrun", "clang", "-Wall", "-Wextra", "-Werror", "-O2", filepath.Join(helpersDir, dir, source), "-o", bin}
