@@ -194,11 +194,15 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	a := &Attachment{Image: path}
 	entities, _ := info["system-entities"].([]any)
 	var devEntries []diskEntity
+	mountable := 0
 	for _, e := range entities {
 		entity, _ := e.(map[string]any)
 		if dev, _ := entity["dev-entry"].(string); dev != "" {
 			hint, _ := entity["content-hint"].(string)
 			devEntries = append(devEntries, diskEntity{dev, hint})
+		}
+		if m, _ := entity["potentially-mountable"].(bool); m {
+			mountable++
 		}
 	}
 	whole, ok := wholeDisk(devEntries)
@@ -210,8 +214,18 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	if opts.NoInventory {
 		return a, nil
 	}
-	if err := d.Refresh(ctx, a); err != nil {
-		return nil, err
+	// hdiutil names the mountable volumes it attached; diskutil can lag
+	// behind it, so discovery is repeated briefly until it finds them all.
+	for attempt := 0; ; attempt++ {
+		if err := d.Refresh(ctx, a); err != nil {
+			return nil, err
+		}
+		// Zero volumes is the lag that matters (an observer would see an
+		// empty image); a partial count gets only a short grace period.
+		if len(a.Volumes) >= mountable || (len(a.Volumes) > 0 && attempt >= 2) || attempt == 9 {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 	if opts.Mount {
 		for _, e := range entities {

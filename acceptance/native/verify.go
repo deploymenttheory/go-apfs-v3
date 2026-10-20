@@ -79,6 +79,10 @@ func (v *Verifier) observeImage(ctx context.Context, label, image, format string
 	if err != nil {
 		return nil, err
 	}
+	if len(att.Volumes) == 0 {
+		_ = v.Disk.Detach(ctx, att)
+		return nil, fmt.Errorf("%s: no volume discovered on the attached image", label)
+	}
 	work := filepath.Join(v.Work, "observe", sanitize(label))
 	_ = os.RemoveAll(work)
 	t := &fixture.Transcript{}
