@@ -44,21 +44,25 @@ func TestCreateImageDoesNotRetryOtherFailures(t *testing.T) {
 	}
 }
 
-func TestWholeDiskIsTheImagesLowestNumberedDisk(t *testing.T) {
+func TestWholeDiskIsTheImagesPartitionedDisk(t *testing.T) {
+	gpt, store := "GUID_partition_scheme", "EF57347C-0000-11AA-AA11-00306543ECAC"
 	for _, tc := range []struct {
-		entries []string
+		entries []diskEntity
 		want    string
 	}{
-		{[]string{"/dev/disk12", "/dev/disk12s1", "/dev/disk13", "/dev/disk13s1"}, "/dev/disk12"},
-		{[]string{"/dev/disk13", "/dev/disk13s1", "/dev/disk12s1", "/dev/disk12"}, "/dev/disk12"},
-		{[]string{"/dev/disk10", "/dev/disk9", "/dev/disk9s1"}, "/dev/disk9"},
-		{[]string{"/dev/disk4"}, "/dev/disk4"},
+		// The synthesized container took a lower, freed device number.
+		{[]diskEntity{{"/dev/disk6", store}, {"/dev/disk6s1", "41504653-0000-11AA-AA11-00306543ECAC"}, {"/dev/disk7", gpt}, {"/dev/disk7s1", store}}, "/dev/disk7"},
+		{[]diskEntity{{"/dev/disk12", gpt}, {"/dev/disk12s1", store}, {"/dev/disk13", store}}, "/dev/disk12"},
+		{[]diskEntity{{"/dev/disk9", "Apple_partition_scheme"}, {"/dev/disk9s1", "Apple_partition_map"}, {"/dev/disk9s2", "Apple_HFS"}}, "/dev/disk9"},
+		// Without a partition map: the lowest-numbered whole disk.
+		{[]diskEntity{{"/dev/disk5", store}, {"/dev/disk4", store}, {"/dev/disk5s1", "41504653-0000-11AA-AA11-00306543ECAC"}}, "/dev/disk4"},
+		{[]diskEntity{{"/dev/disk4", "Apple_HFS"}}, "/dev/disk4"},
 	} {
 		if got, ok := wholeDisk(tc.entries); !ok || got != tc.want {
 			t.Errorf("wholeDisk(%v) = %q, want %q", tc.entries, got, tc.want)
 		}
 	}
-	if _, ok := wholeDisk([]string{"/dev/disk4s1"}); ok {
+	if _, ok := wholeDisk([]diskEntity{{"/dev/disk4s1", "Apple_HFS"}}); ok {
 		t.Error("a slice alone is not a whole disk")
 	}
 }

@@ -192,11 +192,12 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	a := &Attachment{Image: path}
 	entities, _ := info["system-entities"].([]any)
-	var devEntries []string
+	var devEntries []diskEntity
 	for _, e := range entities {
 		entity, _ := e.(map[string]any)
 		if dev, _ := entity["dev-entry"].(string); dev != "" {
-			devEntries = append(devEntries, dev)
+			hint, _ := entity["content-hint"].(string)
+			devEntries = append(devEntries, diskEntity{dev, hint})
 		}
 	}
 	whole, ok := wholeDisk(devEntries)
@@ -224,15 +225,21 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	return a, nil
 }
 
-// wholeDisk picks the image's own disk from hdiutil's device entries: the
-// lowest-numbered /dev/diskN without a slice. An APFS image also lists the
-// container macOS synthesizes from it, a whole disk numbered after the
-// image's own; the entries' order is not reliable, and the two can share a
-// path length (disk12 and disk13).
-func wholeDisk(entries []string) (string, bool) {
+// diskEntity is one device hdiutil attach reported for an image.
+type diskEntity struct{ dev, contentHint string }
+
+// wholeDisk picks the image's own disk from hdiutil's device entries. An
+// APFS image also lists the container macOS synthesizes from it, another
+// whole disk; neither the entries' order nor their numbers identify the
+// image's own (device numbers are reused lowest-free, so the container can
+// take a lower number while other images detach). The image's disk is the
+// one whose content is a partition scheme. Without a partition map there is
+// one physical store, and a synthesized container passes its bytes through,
+// so the lowest-numbered disk without a slice serves.
+func wholeDisk(entries []diskEntity) (string, bool) {
 	best, bestN := "", -1
-	for _, dev := range entries {
-		digits, ok := strings.CutPrefix(dev, "/dev/disk")
+	for _, e := range entries {
+		digits, ok := strings.CutPrefix(e.dev, "/dev/disk")
 		if !ok || digits == "" {
 			continue
 		}
@@ -240,8 +247,11 @@ func wholeDisk(entries []string) (string, bool) {
 		if err != nil {
 			continue // a slice such as disk12s1
 		}
+		if strings.HasSuffix(e.contentHint, "_partition_scheme") {
+			return e.dev, true
+		}
 		if bestN < 0 || n < bestN {
-			best, bestN = dev, n
+			best, bestN = e.dev, n
 		}
 	}
 	return best, bestN >= 0
