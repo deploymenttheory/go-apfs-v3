@@ -210,6 +210,12 @@ summary lists every verdict and the cross-version drift table.
   Open the observation JSON in the corpus cache to see what the kernel
   reported; the difference message names the field.
 - **Native**: the job summary names the output and the differing field.
+  Every wait for macOS disk state (volume discovery after an attach, mount
+  confirmation, a container appearing in `diskutil apfs list`, a busy
+  `hdiutil`) goes through one bounded, jittered helper in
+  `acceptance/fixture/settle.go`, is recorded in the case transcript, and
+  is counted in the summary's wait table; a rising count is the first sign
+  of a runner problem. Verdicts are never retried.
   Diagnostics are uploaded on failure. A difference on one verifier only is
   Apple version behaviour; record it in `known-drift.json` with a reason if
   it is legitimate.

@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -208,19 +207,16 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		// A container attached moments ago can be missing from the listing
 		// while DiskArbitration catches up, so a miss is retried briefly.
 		var entry map[string]any
-		for attempt := 0; ; attempt++ {
+		if err := Settle(ctx, in.T, "apfs-listing", ShortWait, func() (bool, string, error) {
 			listing, err := in.Disk.APFSList(ctx)
 			if err != nil {
-				return err
+				return false, "", err
 			}
 			var ok bool
-			if entry, ok = apfsVolumeListing(listing, a.VolumeUUID); ok {
-				break
-			}
-			if attempt == 4 {
-				return fmt.Errorf("volume %s (%s) is not in diskutil apfs list", vol.Name, a.VolumeUUID)
-			}
-			time.Sleep(time.Second)
+			entry, ok = apfsVolumeListing(listing, a.VolumeUUID)
+			return ok, fmt.Sprintf("volume %s (%s) is not in diskutil apfs list", vol.Name, a.VolumeUUID), nil
+		}); err != nil {
+			return err
 		}
 		a.ReserveBytes = int64(number(entry["CapacityReserve"]))
 		a.QuotaBytes = int64(number(entry["CapacityQuota"]))

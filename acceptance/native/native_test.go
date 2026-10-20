@@ -30,6 +30,33 @@ import (
 // It also returns the output groups to verify: each group's hosts must
 // agree on every output, and only outputs derived from this macOS
 // version's fixtures are kept.
+// TestMain reports, after every test in this phase, how often each kind
+// of wait for macOS disk state had to retry. A rising count warns that the
+// runners' DiskArbitration is lagging before it causes failures.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	counts := fixture.WaitCounts()
+	phase := os.Getenv("APFS_NATIVE_GROUPS")
+	if phase == "" {
+		phase = "all"
+	}
+	rows := []string{"| wait | retries |", "| --- | --- |"}
+	for _, c := range counts {
+		rows = append(rows, fmt.Sprintf("| %s | %d |", c.What, c.Retries))
+		fmt.Printf("wait %s retried %d times\n", c.What, c.Retries)
+	}
+	if len(counts) == 0 {
+		rows = append(rows, "| none | 0 |")
+	}
+	if path := os.Getenv("GITHUB_STEP_SUMMARY"); path != "" {
+		if f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644); err == nil {
+			fmt.Fprintf(f, "## Waits for macOS disk state (%s phase)\n\n%s\n\n", phase, strings.Join(rows, "\n"))
+			_ = f.Close()
+		}
+	}
+	os.Exit(code)
+}
+
 // nativeGroup is APFS_NATIVE_GROUPS: "fixtures" (cross-version parity,
 // which needs only the corpus), "main" (every host's outputs), "slow" (the
 // slow bucket's outputs) or empty for all three. CI runs the phases as

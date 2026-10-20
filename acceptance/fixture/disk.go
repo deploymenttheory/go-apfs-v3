@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Attachment is an attached disk image and the volumes macOS found in it.
@@ -138,14 +138,18 @@ func (d *HostDisk) CreateImage(ctx context.Context, path, size, layout, fs, fsar
 	argv = append(argv, "-volname", volname, "-type", "UDIF", path)
 	// hdiutil can report the disk-image framework busy for a moment after
 	// the previous image detached; every attempt stays in the transcript.
-	var err error
-	for attempt := 0; attempt < 3; attempt++ {
-		if _, err = d.run(ctx, "create-image", false, nil, argv...); err == nil || !strings.Contains(err.Error(), "Resource busy") {
-			return err
+	return Settle(ctx, d.T, "image-framework-busy", BusyWait, func() (bool, string, error) {
+		_, err := d.run(ctx, "create-image", false, nil, argv...)
+		switch {
+		case err == nil:
+			return true, "", nil
+		case strings.Contains(err.Error(), "Resource busy"):
+			_ = os.Remove(path) // a refused create leaves nothing worth keeping
+			return false, err.Error(), nil
+		default:
+			return false, "", err
 		}
-		time.Sleep(time.Second)
-	}
-	return err
+	})
 }
 
 func (d *HostDisk) CreateRaw(_ context.Context, path string, bytes int64) error {
@@ -215,17 +219,24 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 		return a, nil
 	}
 	// hdiutil names the mountable volumes it attached; diskutil can lag
-	// behind it, so discovery is repeated briefly until it finds them all.
-	for attempt := 0; ; attempt++ {
+	// behind it, so discovery is repeated until it finds them all. Zero
+	// volumes is the lag that matters (an observer would see an empty
+	// image); a partial count gets a short grace period. A spent budget is
+	// not an error here: callers that need a volume refuse an empty list.
+	checks := 0
+	err = Settle(ctx, d.T, "volume-discovery", ShortWait, func() (bool, string, error) {
+		checks++
 		if err := d.Refresh(ctx, a); err != nil {
-			return nil, err
+			return false, "", err
 		}
-		// Zero volumes is the lag that matters (an observer would see an
-		// empty image); a partial count gets only a short grace period.
-		if len(a.Volumes) >= mountable || (len(a.Volumes) > 0 && attempt >= 2) || attempt == 9 {
-			break
+		if len(a.Volumes) >= mountable || (len(a.Volumes) > 0 && checks >= 3) {
+			return true, "", nil
 		}
-		time.Sleep(500 * time.Millisecond)
+		return false, fmt.Sprintf("%d of %d mountable volumes discovered", len(a.Volumes), mountable), nil
+	})
+	var notSettled *NotSettledError
+	if err != nil && !errors.As(err, &notSettled) {
+		return nil, err
 	}
 	if opts.Mount {
 		for _, e := range entities {
@@ -393,30 +404,30 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 }
 
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
-	var err error
-	for attempt := 0; attempt < 6; attempt++ {
-		if attempt > 0 {
+	checks := 0
+	return Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
+		checks++
+		if checks > 1 {
 			// A busy report can follow a detach that completed; by now the
 			// device number may belong to another image, which a blind
 			// retry would detach from under its owner.
-			if owned, oerr := d.attachedTo(ctx, a); oerr == nil && !owned {
-				return nil // the busy report followed a completed detach
+			if owned, err := d.attachedTo(ctx, a); err == nil && !owned {
+				return true, "", nil
 			}
 		}
 		cmd := Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}, Expected: "record"}
 		result := d.C.Run(ctx, cmd)
 		_ = d.T.Record(cmd, result)
-		if result.Err == nil && result.Status == 0 {
-			err = nil
-			break
+		err := fmt.Errorf("hdiutil detach %s: exit %d: %s", a.Dev, result.Status, strings.TrimSpace(string(result.Stderr)))
+		switch {
+		case result.Err == nil && result.Status == 0:
+			return true, "", nil
+		case result.Err == nil && result.Status == 16: // EBUSY
+			return false, err.Error(), nil
+		default:
+			return false, "", err
 		}
-		err = fmt.Errorf("hdiutil detach %s: exit %d: %s", a.Dev, result.Status, strings.TrimSpace(string(result.Stderr)))
-		if result.Status != 16 { // EBUSY is the only retried outcome
-			return err
-		}
-		time.Sleep(time.Second)
-	}
-	return err
+	})
 }
 
 // attachedTo reports whether hdiutil still lists the attachment's device
@@ -469,27 +480,29 @@ func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir st
 	// The kernel, not diskutil, says where the volume is: diskutil info can
 	// report the mount point of the device number's previous occupant, an
 	// empty directory, while DiskArbitration catches up.
-	var last string
-	for attempt := 0; attempt < 10; attempt++ {
+	err := Settle(ctx, d.T, "mount-confirmation", ShortWait, func() (bool, string, error) {
 		point := dir
 		if point == "" {
 			info, err := d.Info(ctx, v.Dev)
 			if err != nil {
-				return err
+				return false, "", err
 			}
 			point, _ = info["MountPoint"].(string)
-		}
-		if point != "" {
-			from, err := mountedFrom(point)
-			if err == nil && from == v.Dev {
-				v.Mount = point
-				return nil
+			if point == "" {
+				return false, "diskutil reports no mount point yet", nil
 			}
-			last = fmt.Sprintf("%s is mounted from %q (%v)", point, from, err)
 		}
-		time.Sleep(500 * time.Millisecond)
+		from, err := mountedFrom(point)
+		if err == nil && from == v.Dev {
+			v.Mount = point
+			return true, "", nil
+		}
+		return false, fmt.Sprintf("%s is mounted from %q (%v)", point, from, err), nil
+	})
+	if err != nil {
+		return fmt.Errorf("mount %s: %w", v.Dev, err)
 	}
-	return fmt.Errorf("mount %s: the kernel does not report it mounted: %s", v.Dev, last)
+	return nil
 }
 
 func (d *HostDisk) Unmount(ctx context.Context, v *AttachedVolume) error {
