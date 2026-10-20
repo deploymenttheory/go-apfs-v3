@@ -55,6 +55,9 @@ type AttachOptions struct {
 	// Mount lets hdiutil mount the volumes where it chooses instead of
 	// attaching with -nomount; asr wants its target mounted that way.
 	Mount bool
+	// NoInventory skips volume discovery for callers that read only the
+	// raw device, which saves several diskutil calls per attach.
+	NoInventory bool
 }
 
 // Disk is the hdiutil/diskutil surface the interpreter and observer use.
@@ -189,28 +192,22 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	a := &Attachment{Image: path}
 	entities, _ := info["system-entities"].([]any)
+	var devEntries []string
 	for _, e := range entities {
 		entity, _ := e.(map[string]any)
-		dev, _ := entity["dev-entry"].(string)
-		if dev == "" {
-			continue
-		}
-		if a.Dev == "" {
-			a.Dev = dev
+		if dev, _ := entity["dev-entry"].(string); dev != "" {
+			devEntries = append(devEntries, dev)
 		}
 	}
-	if a.Dev == "" {
-		return nil, fmt.Errorf("attach %s: no device entry", path)
+	whole, ok := wholeDisk(devEntries)
+	if !ok {
+		return nil, fmt.Errorf("attach %s: no whole-disk device among %v", path, devEntries)
 	}
-	// The whole-disk device is the shortest /dev/diskN among the entities.
-	for _, e := range entities {
-		entity, _ := e.(map[string]any)
-		dev, _ := entity["dev-entry"].(string)
-		if dev != "" && len(dev) < len(a.Dev) {
-			a.Dev = dev
-		}
-	}
+	a.Dev = whole
 	a.RDev = strings.Replace(a.Dev, "/dev/disk", "/dev/rdisk", 1)
+	if opts.NoInventory {
+		return a, nil
+	}
 	if err := d.Refresh(ctx, a); err != nil {
 		return nil, err
 	}
@@ -225,6 +222,29 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 		}
 	}
 	return a, nil
+}
+
+// wholeDisk picks the image's own disk from hdiutil's device entries: the
+// lowest-numbered /dev/diskN without a slice. An APFS image also lists the
+// container macOS synthesizes from it, a whole disk numbered after the
+// image's own; the entries' order is not reliable, and the two can share a
+// path length (disk12 and disk13).
+func wholeDisk(entries []string) (string, bool) {
+	best, bestN := "", -1
+	for _, dev := range entries {
+		digits, ok := strings.CutPrefix(dev, "/dev/disk")
+		if !ok || digits == "" {
+			continue
+		}
+		n, err := strconv.Atoi(digits)
+		if err != nil {
+			continue // a slice such as disk12s1
+		}
+		if bestN < 0 || n < bestN {
+			best, bestN = dev, n
+		}
+	}
+	return best, bestN >= 0
 }
 
 func (a *Attachment) volumeByDev(dev string) *AttachedVolume {

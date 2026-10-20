@@ -116,7 +116,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			if len(p.DecryptHosts) > 0 && !slices.Contains(p.DecryptHosts, host) {
 				continue
 			}
-			att, err := v.Disk.Attach(ctx, filepath.Join(p.Dirs[host], o.File), fixture.AttachOptions{ReadOnly: true, Password: password})
+			att, err := v.Disk.Attach(ctx, filepath.Join(p.Dirs[host], o.File), fixture.AttachOptions{ReadOnly: true, Password: password, NoInventory: true})
 			if err != nil {
 				return nil, fmt.Errorf("output %s on %s: %w", out.Name, host, err)
 			}
@@ -198,13 +198,15 @@ func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image
 		}
 	}
 	digests := encrypted
+	read := ""
 	if len(digests) == 0 {
-		att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true})
+		att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, NoInventory: true})
 		if err != nil {
 			return nil, fmt.Errorf("output %s: %w", out.Name, err)
 		}
-		d, _, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
+		d, n, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
 		digests = append(digests, d)
+		read = fmt.Sprintf(" (read %d bytes from %s)", n, att.RDev)
 		if derr := v.Disk.Detach(ctx, att); err == nil {
 			err = derr
 		}
@@ -215,7 +217,7 @@ func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image
 	var diffs []Difference
 	for _, d := range digests {
 		if d != out.Expect.DiskSHA256 {
-			diffs = append(diffs, Difference{Field: "image.diskSHA256", Got: d + v.locateDifference(ctx, out, image, password), Want: out.Expect.DiskSHA256})
+			diffs = append(diffs, Difference{Field: "image.diskSHA256", Got: d + read + v.locateDifference(ctx, out, image, password), Want: out.Expect.DiskSHA256})
 		}
 	}
 	return diffs, nil
@@ -256,7 +258,7 @@ func (v *Verifier) locateDifference(ctx context.Context, out schema.Output, imag
 // blockDigests attaches an image read-only and hashes its device in 1 MiB
 // blocks.
 func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) ([][32]byte, error) {
-	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: strings.HasSuffix(image, ".raw"), Password: password})
+	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: strings.HasSuffix(image, ".raw"), Password: password, NoInventory: true})
 	if err != nil {
 		return nil, err
 	}

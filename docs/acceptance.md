@@ -17,10 +17,12 @@ the slow bucket on Linux and Windows, native truth on macOS 15, 26 and 27,
 and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
 before anything merges to `main`.
 
-The native jobs start when the portable jobs finish. They verify every
-host's outputs and the other versions' fixtures first, then collect the
-slow bucket's outputs, which run beside them, and verify those last, so no
-job waits on the slow bucket.
+The native jobs start beside the portable jobs, after the two-minute
+source checks. Each first reads the other two versions' fixtures, which
+needs only the corpus, while the portable jobs produce their images; it
+then collects every host's images as soon as they are uploaded, verifies
+them, and does the same for the slow bucket's. A phase whose inputs come
+from a failed job stops at once instead of waiting.
 
 ## The matrix
 

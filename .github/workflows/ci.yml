@@ -22,7 +22,8 @@ env:
 # fixture from macOS 15, 26 and 27 with the product on Linux, Windows and
 # macOS and produces images from them; portable-slow replays the
 # minutes-long catalog growth stages beside it. native runs on each macOS
-# version: it judges, with Apple tools, the images every host derived from
+# version from the start, reading the other two versions' fixtures while
+# the portable jobs run, then judges, with Apple tools, the images every host derived from
 # that version's fixtures (container checks for sector-preserving repacks;
 # check, mount, readback and a representative native continuation for
 # images Go wrote) and reads the other two versions' fixtures for
@@ -168,12 +169,15 @@ jobs:
 
   native:
     name: Apple verification on macOS ${{ matrix.major }}
-    needs: portable
+    # Native jobs start with the portable jobs: cross-version fixture parity
+    # needs only the corpus, so it runs while the portable jobs produce
+    # their images, which the job then collects as they are uploaded.
+    needs: checks
     permissions:
       contents: read
-      actions: read # list this run's artifacts while the slow bucket finishes
+      actions: read # follow this run's artifacts and jobs
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -181,6 +185,8 @@ jobs:
           - {major: 15, runner: macos-15}
           - {major: 26, runner: macos-26}
           - {major: 27, runner: xcode-27}
+    env:
+      APFS_EXPECT_MAJOR: ${{ matrix.major }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -192,36 +198,35 @@ jobs:
         with:
           path: ${{ github.workspace }}/.fixtures
           key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
+      - name: Build the product binary the continuation edits with
+        run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
+      - name: Read the other versions' fixtures with this kernel
+        env:
+          APFS_NATIVE_GROUPS: fixtures
+          APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
+          APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        run: go test -count=1 -v -parallel 3 -timeout 30m -tags native ./acceptance/native
+      - name: Wait for every host's images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/wait-for-artifacts.sh "Portable conformance" outputs-linux-macos-${{ matrix.major }} outputs-windows-macos-${{ matrix.major }} outputs-darwin-macos-${{ matrix.major }}
       - name: Download every host's images derived from this version's fixtures
         uses: actions/download-artifact@v7
         with:
           pattern: outputs-*-macos-${{ matrix.major }}
           path: ${{ runner.temp }}/host-outputs
-      - name: Build the product binary the continuation edits with
-        run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
-      - name: Verify the images and the other versions' fixtures with Apple tools
+      - name: Verify every host's images with Apple tools
         env:
-          APFS_EXPECT_MAJOR: ${{ matrix.major }}
+          APFS_NATIVE_GROUPS: main
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-          APFS_NATIVE_GROUPS: main
-        run: go test -count=1 -v -parallel 3 -timeout 45m -tags native ./acceptance/native
-      # The slow bucket runs beside the native job; its images are collected
-      # once the main outputs are verified, so the job never waits for it.
+        run: go test -count=1 -v -parallel 3 -timeout 40m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          for _ in $(seq 1 60); do
-            names=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '[.artifacts[].name] | join(" ")')
-            case " $names " in
-              *" slow-outputs-linux "*" slow-outputs-windows "*|*" slow-outputs-windows "*" slow-outputs-linux "*) exit 0 ;;
-            esac
-            sleep 30
-          done
-          echo "::error::the slow bucket's images did not appear within 30 minutes"
-          exit 1
+        run: .github/scripts/wait-for-artifacts.sh "Slow portable conformance" slow-outputs-linux slow-outputs-windows
       - name: Download the slow bucket's images
         uses: actions/download-artifact@v7
         with:
@@ -229,11 +234,10 @@ jobs:
           path: ${{ runner.temp }}/host-outputs
       - name: Verify the slow bucket's images with Apple tools
         env:
-          APFS_EXPECT_MAJOR: ${{ matrix.major }}
+          APFS_NATIVE_GROUPS: slow
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-          APFS_NATIVE_GROUPS: slow
         run: go test -count=1 -v -parallel 3 -timeout 20m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()

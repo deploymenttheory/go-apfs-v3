@@ -43,3 +43,22 @@ func TestCreateImageDoesNotRetryOtherFailures(t *testing.T) {
 		t.Fatalf("expected one attempt, got %d", len(cmd.calls))
 	}
 }
+
+func TestWholeDiskIsTheImagesLowestNumberedDisk(t *testing.T) {
+	for _, tc := range []struct {
+		entries []string
+		want    string
+	}{
+		{[]string{"/dev/disk12", "/dev/disk12s1", "/dev/disk13", "/dev/disk13s1"}, "/dev/disk12"},
+		{[]string{"/dev/disk13", "/dev/disk13s1", "/dev/disk12s1", "/dev/disk12"}, "/dev/disk12"},
+		{[]string{"/dev/disk10", "/dev/disk9", "/dev/disk9s1"}, "/dev/disk9"},
+		{[]string{"/dev/disk4"}, "/dev/disk4"},
+	} {
+		if got, ok := wholeDisk(tc.entries); !ok || got != tc.want {
+			t.Errorf("wholeDisk(%v) = %q, want %q", tc.entries, got, tc.want)
+		}
+	}
+	if _, ok := wholeDisk([]string{"/dev/disk4s1"}); ok {
+		t.Error("a slice alone is not a whole disk")
+	}
+}

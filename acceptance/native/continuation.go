@@ -127,10 +127,22 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 			paths[e.Path] = true
 		}
 	}
+	var missing []string
 	for _, want := range []string{"native-continuation/go/payload", "native-continuation/go/alias", "native-continuation/reused", "native-continuation/renamed"} {
 		if !paths[want] {
-			return obs, fmt.Errorf("continuation %s: %s missing after the product edit", out.Name, want)
+			missing = append(missing, want)
 		}
+	}
+	if len(missing) > 0 {
+		var seen []string
+		for _, vw := range obs.Views {
+			name := ""
+			if vw.Volume < len(obs.Volumes) {
+				name, _ = obs.Volumes[vw.Volume].Diskutil["VolumeName"].(string)
+			}
+			seen = append(seen, fmt.Sprintf("%s:%d entries", name, len(vw.Entries)))
+		}
+		return obs, fmt.Errorf("continuation %s: %v missing after the product edit of volume %s (%s); observed %v", out.Name, missing, volume.Name, volume.UUID, seen)
 	}
 	if paths["native-continuation/entry-00001"] {
 		return obs, fmt.Errorf("continuation %s: entry removed by the product still present", out.Name)

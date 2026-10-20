@@ -30,13 +30,35 @@ import (
 // It also returns the output groups to verify: each group's hosts must
 // agree on every output, and only outputs derived from this macOS
 // version's fixtures are kept.
-func newVerifier(t *testing.T) (*Verifier, []map[string]HostOutputs) {
+// nativeGroup is APFS_NATIVE_GROUPS: "fixtures" (cross-version parity,
+// which needs only the corpus), "main" (every host's outputs), "slow" (the
+// slow bucket's outputs) or empty for all three. CI runs the phases as
+// separate steps so each starts as soon as its inputs exist.
+func nativeGroup(t *testing.T) string {
+	t.Helper()
+	group := os.Getenv("APFS_NATIVE_GROUPS")
+	switch group {
+	case "", "fixtures", "main", "slow":
+		return group
+	}
+	t.Fatalf("APFS_NATIVE_GROUPS=%q, want fixtures, main or slow", group)
+	return ""
+}
+
+func newVerifier(t *testing.T) *Verifier {
 	t.Helper()
 	sharedOnce.Do(func() { shared, sharedErr = buildVerifier() })
 	if sharedErr != nil {
 		t.Fatal(sharedErr)
 	}
-	major := shared.Major
+	return shared.ForSubtest()
+}
+
+// outputGroups loads the outputs this invocation verifies: each group's
+// hosts must agree on every output, and only outputs derived from this
+// macOS version's fixtures are kept.
+func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
+	t.Helper()
 	root := os.Getenv("APFS_HOST_OUTPUTS")
 	if root == "" {
 		t.Fatal("APFS_HOST_OUTPUTS is required")
@@ -49,17 +71,10 @@ func newVerifier(t *testing.T) (*Verifier, []map[string]HostOutputs) {
 	for _, host := range []string{"linux", "windows"} {
 		slow[host] = filepath.Join(root, "slow-outputs-"+host)
 	}
-	// APFS_NATIVE_GROUPS selects which outputs this invocation verifies:
-	// "main" (every host's outputs), "slow" (the slow bucket's, which the
-	// job collects after the main outputs so it need not wait for them) or
-	// both when unset.
 	selected := map[string]map[string]string{"main": main, "slow": slow}
 	order := []string{"main", "slow"}
-	if only := os.Getenv("APFS_NATIVE_GROUPS"); only != "" {
-		if _, ok := selected[only]; !ok {
-			t.Fatalf("APFS_NATIVE_GROUPS=%q, want main or slow", only)
-		}
-		order = []string{only}
+	if group := nativeGroup(t); group != "" {
+		order = []string{group}
 	}
 	var groups []map[string]HostOutputs
 	for _, name := range order {
@@ -69,7 +84,7 @@ func newVerifier(t *testing.T) (*Verifier, []map[string]HostOutputs) {
 		}
 		groups = append(groups, hosts)
 	}
-	return shared.ForSubtest(), groups
+	return groups
 }
 
 // The corpus, recipes and producer identity are resolved once per test
@@ -152,7 +167,11 @@ func (s *summary) add(format string, args ...any) {
 // one Go wrote, and the continuation where the output asks for it.
 func TestOutputsWithAppleTools(t *testing.T) {
 	t.Parallel()
-	v, groups := newVerifier(t)
+	if nativeGroup(t) == "fixtures" {
+		t.Skip("outputs are verified in the main and slow phases")
+	}
+	v := newVerifier(t)
+	groups := outputGroups(t, v.Major)
 	var pairs []Paired
 	for _, hosts := range groups {
 		group, err := Pair(hosts)
@@ -251,10 +270,10 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 // recorded one. Differences must be in known-drift.json.
 func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	t.Parallel()
-	if os.Getenv("APFS_NATIVE_GROUPS") == "slow" {
-		t.Skip("cross-version parity runs with the main outputs")
+	if group := nativeGroup(t); group != "" && group != "fixtures" {
+		t.Skip("cross-version parity runs in the fixtures phase")
 	}
-	v, _ := newVerifier(t)
+	v := newVerifier(t)
 	cases, err := v.Corpus.Cases()
 	if err != nil {
 		t.Fatal(err)
