@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -380,11 +381,20 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 	var err error
 	for attempt := 0; attempt < 6; attempt++ {
+		if attempt > 0 {
+			// A busy report can follow a detach that completed; by now the
+			// device number may belong to another image, which a blind
+			// retry would detach from under its owner.
+			if owned, oerr := d.attachedTo(ctx, a); oerr == nil && !owned {
+				return nil // the busy report followed a completed detach
+			}
+		}
 		cmd := Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}, Expected: "record"}
 		result := d.C.Run(ctx, cmd)
 		_ = d.T.Record(cmd, result)
 		if result.Err == nil && result.Status == 0 {
-			return nil
+			err = nil
+			break
 		}
 		err = fmt.Errorf("hdiutil detach %s: exit %d: %s", a.Dev, result.Status, strings.TrimSpace(string(result.Stderr)))
 		if result.Status != 16 { // EBUSY is the only retried outcome
@@ -393,6 +403,33 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 		time.Sleep(time.Second)
 	}
 	return err
+}
+
+// attachedTo reports whether hdiutil still lists the attachment's device
+// under the attachment's image.
+func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) {
+	cmd := Command{Label: "hdiutil-info", Argv: []string{"hdiutil", "info", "-plist"}, Expected: "0"}
+	result := d.C.Run(ctx, cmd)
+	if result.Err != nil || result.Status != 0 {
+		return false, fmt.Errorf("hdiutil info: exit %d", result.Status)
+	}
+	info, err := d.plist(ctx, result.Stdout)
+	if err != nil {
+		return false, err
+	}
+	images, _ := info["images"].([]any)
+	for _, img := range images {
+		image, _ := img.(map[string]any)
+		path, _ := image["image-path"].(string)
+		entities, _ := image["system-entities"].([]any)
+		for _, e := range entities {
+			entity, _ := e.(map[string]any)
+			if dev, _ := entity["dev-entry"].(string); dev == a.Dev {
+				return filepath.Base(path) == filepath.Base(a.Image), nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // Mount mounts a volume at dir, or where diskutil chooses when dir is
