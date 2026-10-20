@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -151,7 +152,7 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
-	if a.View != b.View || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
+	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
 		return false
 	}
 	if len(a.Codesign) != len(b.Codesign) || len(a.IgnoreTimes) != len(b.IgnoreTimes) {
@@ -182,7 +183,7 @@ func planContainerChecks(group []Paired) {
 	turn := 0
 	for i := range group {
 		p := &group[i]
-		if p.Output.Expect.DiskSHA256 == "" || p.Output.Operation == "edit" {
+		if p.Output.Expect.DiskSHA256 == "" || p.Output.Operation == "edit" || strings.HasPrefix(p.Output.Operation, "recover-") {
 			continue
 		}
 		kind := fmt.Sprintf("%s/%v", p.Output.Format, p.Output.Encrypted)

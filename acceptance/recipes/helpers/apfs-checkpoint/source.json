@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/deploymenttheory/go-apfs-v3",
+  "revision": "2bd3e7a3ffb1d9a2883dc7df7c2ad09bdd778cc6",
+  "files": [
+    {
+      "file": "apfs_checkpoint_capture.c",
+      "originalPath": "acceptance/native/apfs_capture.c",
+      "sha256": "b48599daf50b13b2bf486b57b896f3ea6ac8156caf9a2757d3f42cd06777440f",
+      "changes": "Source retained byte for byte under a capability-based helper path."
+    }
+  ],
+  "purpose": "Bounded acquisition observers and Apple replay-only syscall adapter. They do not construct expected filesystem views or recovered disk bytes."
+}

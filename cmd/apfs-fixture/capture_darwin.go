@@ -42,9 +42,7 @@ func capture(ctx context.Context, args []string) error {
 	}
 	if len(selected) == 0 {
 		for _, r := range recipes {
-			if !needsInterruption(r) {
-				selected[r.Name] = true
-			}
+			selected[r.Name] = true
 		}
 	}
 	recipesDigest, err := schema.TreeDigest(*recipesDir)
@@ -127,18 +125,4 @@ func capture(ctx context.Context, args []string) error {
 	}
 	fmt.Printf("bundle %s sha256=%s bytes=%d cases=%d\n", path, sum, size, len(manifest.Cases))
 	return nil
-}
-
-func needsInterruption(r schema.Recipe) bool {
-	for _, s := range r.Stages {
-		for _, step := range s.Steps {
-			if step.Control != nil {
-				switch step.Control.Action {
-				case "journal-window", "replay-journal", "checkpoint-window", "damage":
-					return true
-				}
-			}
-		}
-	}
-	return false
 }

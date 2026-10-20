@@ -84,6 +84,16 @@ func TestPairRequiresEveryHostAndEqualPlaintext(t *testing.T) {
 	}
 }
 
+func TestPairRejectsDifferentRecoveryTransactionsAcrossHosts(t *testing.T) {
+	output := schema.Output{Name: "recovered", File: "recovered.dmg", SHA256: "same", Operation: "recover-checkpoint", Expect: schema.Expectation{SelectedXID: 10}}
+	linux := HostOutputs{Manifest: schema.Outputs{Host: "linux", Lock: "same", Outputs: []schema.Output{output}}}
+	output.Expect.SelectedXID = 11
+	windows := HostOutputs{Manifest: schema.Outputs{Host: "windows", Lock: "same", Outputs: []schema.Output{output}}}
+	if _, err := Pair(map[string]HostOutputs{"linux": linux, "windows": windows}); err == nil || !strings.Contains(err.Error(), "expectation") {
+		t.Fatal("different recovered transactions accepted", err)
+	}
+}
+
 func TestComparisonUnderAStoragePolicyIgnoresOnlyCompressionOwnedStorage(t *testing.T) {
 	source := schema.Entry{Path: "f", Kind: "file", Flags: 0x20, Size: 9, SHA256: "aa", Compression: &schema.Compression{Type: 7, Storage: "attribute", KernelRead: "ok"},
 		Xattrs: []schema.Xattr{{Name: "com.apple.decmpfs", Bytes: 30, SHA256: "decmpfs-source"}, {Name: "org.example", Bytes: 1, SHA256: "kept"}}}
@@ -135,9 +145,10 @@ func TestContainerChecksAreSpreadAcrossALineage(t *testing.T) {
 		repack("b.UDRO", "UDRO", false), repack("b.UDZO", "UDZO", false), repack("b.enc", "UDZO", true),
 		repack("c.enc", "UDZO", true),
 		{Name: "edit", Output: schema.Output{Name: "edit", Operation: "edit", Format: "UDZO", Expect: schema.Expectation{DiskSHA256: "d"}}},
+		{Name: "recovered-journal", Output: schema.Output{Name: "recovered-journal", Operation: "recover-journal", Format: "UDZO", Expect: schema.Expectation{DiskSHA256: "d"}}},
 	}
 	planContainerChecks(group)
-	for i, wantSkip := range []bool{false, false, false, true, true, true, true, false} {
+	for i, wantSkip := range []bool{false, false, false, true, true, true, true, false, false} {
 		if group[i].SkipChecksums != wantSkip {
 			t.Errorf("%s: skip checksums %v, want %v (verify once per format and encryption)", group[i].Name, group[i].SkipChecksums, wantSkip)
 		}

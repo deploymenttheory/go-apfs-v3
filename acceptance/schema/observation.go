@@ -18,9 +18,36 @@ type Observation struct {
 	Volumes  []Volume `json:"volumes"`
 	Views    []View   `json:"views"`
 	Checks   Checks   `json:"checks"`
+	// Recovery identifies an interrupted or explicitly damaged input. Its
+	// expected view belongs to the named independently observed Apple state.
+	// Inputs with no Views must never be mounted merely to obtain an oracle.
+	Recovery *Recovery `json:"recovery,omitempty"`
+	// ReplayOnly is the device retained immediately after Apple's replay-only
+	// HFS syscall, before any checker or mount. It is not the mounted view.
+	ReplayOnly *Image `json:"replayOnly,omitempty"`
 	// Commands is the complete transcript of every program the capture ran
 	// for this case, in order, including failures the recipe expected.
 	Commands []Command `json:"commands"`
+}
+
+// Recovery binds original acquisition evidence to its independent expectation.
+type Recovery struct {
+	Kind          string `json:"kind"` // journal or checkpoint
+	ExpectedStage string `json:"expectedStage"`
+	// RefuseOpen is true only when the ordinary reader must reject this input.
+	RefuseOpen bool `json:"refuseOpen,omitempty"`
+	// Acquisition records bounded, read-only window measurements, not an
+	// inferred filesystem view or a replacement for Apple's verdict.
+	Acquisition map[string]any `json:"acquisition,omitempty"`
+	Damage      *Damage        `json:"damage,omitempty"`
+}
+
+// Damage describes deliberate derivation without relabelling it as interruption.
+type Damage struct {
+	ParentSHA256 string `json:"parentSHA256"`
+	Offset       int64  `json:"offset"`
+	Before       string `json:"before"` // hexadecimal original bytes
+	After        string `json:"after"`  // hexadecimal replacement bytes
 }
 
 // Image describes the retained image file and the whole disk behind it.

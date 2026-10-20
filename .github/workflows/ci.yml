@@ -105,7 +105,9 @@ jobs:
         shell: bash
         env:
           APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
-        run: go test -count=1 -timeout 25m ./acceptance/...
+        run: |
+          go test -count=1 -timeout 2m ./acceptance/corpus ./acceptance/fixture ./acceptance/schema ./acceptance/native
+          go test -count=1 -timeout 25m ./acceptance/...
       # One artifact per producer: the native job for macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.

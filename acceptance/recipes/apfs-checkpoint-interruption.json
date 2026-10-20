@@ -7,7 +7,10 @@
     "apfsx"
   ],
   "requires": {
-    "sudo": true
+    "sudo": true,
+    "helpers": [
+      "apfs-checkpoint-capture"
+    ]
   },
   "image": {
     "create": "hdiutil",

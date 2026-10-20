@@ -36,8 +36,11 @@ Profiles: `apfs`, `apfsx` (case-sensitive), `hfsplus`, `hfsx`, `hfsplus-j`,
 - A recipe change changes `recipesSHA256` in `acceptance/fixtures.lock.json`;
   CI fails until a new corpus is captured and the lock is updated by review.
 - Steps may call only the Apple programs the schema allows, perform POSIX
-  operations through the kernel, or invoke a capture-tool procedure. Nothing
-  in a recipe or in the capture tool interprets on-disk structures.
+  operations through the kernel, or invoke a capture-tool procedure. Bounded
+  acquisition probes read journal/checkpoint headers to recognise native write
+  windows and locate explicitly declared checksum damage. They never traverse
+  filesystem trees, perform recovery or generate expected file observations:
+  Apple replay-only bytes, checker-selected XIDs and kernel reads are the oracle.
 - Expected failures are declared (`expect`) and recorded; a recipe never
   skips.
 - Differences between macOS versions are recorded by the observer and must

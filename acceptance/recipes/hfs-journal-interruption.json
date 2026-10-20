@@ -10,7 +10,11 @@
     "sudo": true,
     "versionNotes": {
       "helper": "The image helper process is diskimages-helper or diskimagesiod depending on the macOS version; the tool matches either."
-    }
+    },
+    "helpers": [
+      "hfs-journal-capture",
+      "hfs-journal-replay"
+    ]
   },
   "image": {
     "create": "raw-newfs",

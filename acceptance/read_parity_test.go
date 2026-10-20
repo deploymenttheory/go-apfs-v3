@@ -16,8 +16,10 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
 
@@ -50,6 +52,29 @@ func TestReadParity(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {
 			t.Parallel()
+			if k.Observation.ReplayOnly != nil {
+				// Apple's replay-only syscall empties the journal without marking
+				// the primary header unmounted. Ordinary reading must still refuse
+				// this state; explicit recovery adds the qualified marking and is
+				// compared with this case's native view by the recovery consumer.
+				source, err := block.Open(k.Image())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer source.Close()
+				r, err := hfsplus.Open(source)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if r.Clean {
+					t.Fatal("replay-only reference was marked clean before retention")
+				}
+				err = r.ReadDir(context.Background(), r.Root(), func(filesystem.DirEntry) error { return nil })
+				if !errors.Is(err, filesystem.ErrUnsupported) || !strings.Contains(err.Error(), "requires journal replay or recovery") {
+					t.Fatalf("ordinary reading did not explicitly refuse replay-only native state: %v", err)
+				}
+				return
+			}
 			compareCase(t, k, recipes[k.Recipe])
 		})
 	}

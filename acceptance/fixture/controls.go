@@ -19,7 +19,8 @@ import (
 )
 
 // runControl performs the capture-tool procedures a recipe cannot express
-// as one program. Interruption procedures arrive with #108.
+// as one program. Interruption controls run through runRecoveryStage so their
+// original bytes are retained before any checker or mount can change them.
 func (c *Capture) runControl(ctx context.Context, ctl *schema.ControlStep) error {
 	switch ctl.Action {
 	case "asr-snapshot":
@@ -30,8 +31,8 @@ func (c *Capture) runControl(ctx context.Context, ctl *schema.ControlStep) error
 		return c.freeSpaceSentinel(ctx, ctl.Name)
 	case "snapshot-api":
 		return c.snapshotAPI(ctx, ctl.Params)
-	case "journal-window", "replay-journal", "checkpoint-window", "damage", "pause-helper", "resume-helper", "retain-device":
-		return fmt.Errorf("control %s is not implemented until the interruption fixtures issue lands", ctl.Action)
+	case "journal-window", "replay-journal", "checkpoint-window", "damage":
+		return fmt.Errorf("control %s must be the only step of a recovery stage", ctl.Action)
 	}
 	return fmt.Errorf("unknown control %q", ctl.Action)
 }
@@ -359,6 +360,15 @@ func BuildHelpers(ctx context.Context, c Commander, helpersDir, out string, name
 		case "apfs-snapshot":
 			src := filepath.Join(helpersDir, "apfs-snapshot")
 			argv = []string{"xcrun", "clang", "-Wall", "-Wextra", "-Werror", "-O2", filepath.Join(src, "apfs_snapshot.c"), "-o", bin}
+		case "hfs-journal-capture", "hfs-journal-replay", "apfs-checkpoint-capture":
+			dir, source := "hfs-journal", "hfs_journal_capture.c"
+			switch name {
+			case "hfs-journal-replay":
+				source = "hfs_journal_replay.c"
+			case "apfs-checkpoint-capture":
+				dir, source = "apfs-checkpoint", "apfs_checkpoint_capture.c"
+			}
+			argv = []string{"xcrun", "clang", "-Wall", "-Wextra", "-Werror", "-O2", filepath.Join(helpersDir, dir, source), "-o", bin}
 		default:
 			return nil, fmt.Errorf("unknown helper %q", name)
 		}

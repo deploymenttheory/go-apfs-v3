@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/deploymenttheory/go-apfs-v3",
+  "revision": "2bd3e7a3ffb1d9a2883dc7df7c2ad09bdd778cc6",
+  "files": [
+    {
+      "file": "hfs_journal_capture.c",
+      "originalPath": "acceptance/native/hfs_capture.c",
+      "sha256": "a857e5d1a52ab330c0257c132b0f5514a196ce2b61d213830985a9e2e8bfd42b",
+      "changes": "Source retained byte for byte under a capability-based helper path."
+    },
+    {
+      "file": "hfs_journal_replay.c",
+      "originalPath": "acceptance/native/hfs_replay.c",
+      "sha256": "113c8a28cf17fb190f88fcc3dfca051af269b5733301b698bfc10e6203d2ef4c",
+      "changes": "Source retained byte for byte under a capability-based helper path."
+    }
+  ],
+  "purpose": "Bounded acquisition observers and Apple replay-only syscall adapter. They do not construct expected filesystem views or recovered disk bytes."
+}

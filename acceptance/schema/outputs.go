@@ -71,6 +71,9 @@ type Expectation struct {
 	// DiskSHA256 requires the attached raw device to hash to this value
 	// (sector-preserving repacks).
 	DiskSHA256 string `json:"diskSHA256,omitempty"`
+	// SelectedXID requires Apple's checker to select this recovered APFS
+	// transaction, independently of mounted file equality.
+	SelectedXID uint64 `json:"selectedXID,omitempty"`
 	// Codesign lists bundle paths that must verify after mounting.
 	Codesign []string `json:"codesign,omitempty"`
 	// Continuation asks the verifier to run the native write sequence and
