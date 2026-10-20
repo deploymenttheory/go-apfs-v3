@@ -353,7 +353,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 	recipes := recipesByName(t)
 	for _, k := range cases {
 		k := k
-		if k.Observation.Image.DiskSHA256 == "" {
+		if k.Observation.Image.DiskSHA256 == "" || k.Observation.Recovery != nil {
 			continue
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -182,7 +183,7 @@ func planContainerChecks(group []Paired) {
 	turn := 0
 	for i := range group {
 		p := &group[i]
-		if p.Output.Expect.DiskSHA256 == "" || p.Output.Operation == "edit" {
+		if p.Output.Expect.DiskSHA256 == "" || p.Output.Operation == "edit" || strings.HasPrefix(p.Output.Operation, "recover-") {
 			continue
 		}
 		kind := fmt.Sprintf("%s/%v", p.Output.Format, p.Output.Encrypted)

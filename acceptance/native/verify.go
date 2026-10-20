@@ -140,7 +140,8 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		}
 	}
 	image := filepath.Join(p.Dirs[p.Primary], p.ByHost[p.Primary].File)
-	if out.Expect.DiskSHA256 != "" && out.Operation != "edit" {
+	isRecovery := strings.HasPrefix(out.Operation, "recover-")
+	if out.Expect.DiskSHA256 != "" && out.Operation != "edit" && !isRecovery {
 		if len(p.DecryptHosts) > 0 {
 			image = filepath.Join(p.Dirs[p.DecryptHosts[0]], p.ByHost[p.DecryptHosts[0]].File)
 		}
@@ -164,7 +165,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	if len(obs.Checks.Codesign) != len(out.Expect.Codesign) {
 		diffs = append(diffs, Difference{Field: "codesign", Got: fmt.Sprint(len(obs.Checks.Codesign)), Want: fmt.Sprint(len(out.Expect.Codesign))})
 	}
-	if out.Expect.DiskSHA256 == "" || out.Operation == "edit" {
+	if out.Expect.DiskSHA256 == "" || out.Operation == "edit" || isRecovery {
 		ignore := map[string]bool{}
 		for _, name := range out.Expect.IgnoreTimes {
 			ignore[name] = true

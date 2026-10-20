@@ -281,6 +281,9 @@ func (c *Capture) newTranscript() {
 
 func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
 	c.newTranscript()
+	if isRecoveryStage(stage) {
+		return c.runRecoveryStage(ctx, stage)
+	}
 	if stage.From != "" {
 		if c.att != nil {
 			if err := c.detach(ctx); err != nil {
