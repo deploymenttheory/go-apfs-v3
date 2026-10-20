@@ -394,12 +394,7 @@ func (c *Capture) retain(ctx context.Context, stage *schema.Stage) (string, erro
 		if err != nil {
 			return "", err
 		}
-		info, err := c.Disk.Info(ctx, att.Dev)
-		if err != nil {
-			_ = c.Disk.Detach(ctx, att)
-			return "", err
-		}
-		_, err = c.Disk.DeviceDigest(ctx, att.RDev, int64(number(info["TotalSize"])), out)
+		_, _, err = c.Disk.DeviceDigest(ctx, att.RDev, out)
 		if derr := c.Disk.Detach(ctx, att); err == nil {
 			err = derr
 		}

@@ -161,13 +161,13 @@ func (d *fakeDisk) Convert(_ context.Context, src, format, out, encryption strin
 
 func (d *fakeDisk) Chpass(context.Context, string, []byte, []byte) error { return nil }
 
-func (d *fakeDisk) DeviceDigest(_ context.Context, rdev string, bytes int64, out string) (string, error) {
+func (d *fakeDisk) DeviceDigest(_ context.Context, rdev, out string) (string, int64, error) {
 	if out != "" {
 		if err := os.WriteFile(out, []byte("device"), 0o644); err != nil {
-			return "", err
+			return "", 0, err
 		}
 	}
-	return strings.Repeat("ab", 32), nil
+	return strings.Repeat("ab", 32), 64 << 20, nil
 }
 
 func (d *fakeDisk) Info(_ context.Context, dev string) (map[string]any, error) {

@@ -120,12 +120,8 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			if err != nil {
 				return nil, fmt.Errorf("output %s on %s: %w", out.Name, host, err)
 			}
-			info, err := v.Disk.Info(ctx, att.Dev)
-			if err == nil {
-				var d string
-				d, err = v.Disk.DeviceDigest(ctx, att.RDev, int64(number(info["TotalSize"])), "")
-				digests = append(digests, d)
-			}
+			d, _, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
+			digests = append(digests, d)
 			if derr := v.Disk.Detach(ctx, att); err == nil {
 				err = derr
 			}
@@ -207,12 +203,8 @@ func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image
 		if err != nil {
 			return nil, fmt.Errorf("output %s: %w", out.Name, err)
 		}
-		info, err := v.Disk.Info(ctx, att.Dev)
-		if err == nil {
-			var d string
-			d, err = v.Disk.DeviceDigest(ctx, att.RDev, int64(number(info["TotalSize"])), "")
-			digests = append(digests, d)
-		}
+		d, _, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
+		digests = append(digests, d)
 		if derr := v.Disk.Detach(ctx, att); err == nil {
 			err = derr
 		}
@@ -362,18 +354,6 @@ func (v *Verifier) existingPaths(source schema.CaseRef, volume int) map[string]b
 		}
 	}
 	return out
-}
-
-func number(v any) float64 {
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int64:
-		return float64(n)
-	case int:
-		return float64(n)
-	}
-	return 0
 }
 
 func sanitize(s string) string {

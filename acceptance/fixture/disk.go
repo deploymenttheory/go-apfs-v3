@@ -69,7 +69,11 @@ type Disk interface {
 	Unmount(ctx context.Context, v *AttachedVolume) error
 	Convert(ctx context.Context, src, format, out, encryption string, password []byte) error
 	Chpass(ctx context.Context, image string, oldPassword, newPassword []byte) error
-	DeviceDigest(ctx context.Context, rdev string, bytes int64, out string) (string, error)
+	// DeviceDigest hashes a raw device to its end (optionally writing a
+	// gzip copy) and returns the digest and the bytes read. The size comes
+	// from the device itself: diskutil can report a stale size for a
+	// device number another image held moments earlier.
+	DeviceDigest(ctx context.Context, rdev, out string) (string, int64, error)
 	Info(ctx context.Context, dev string) (map[string]any, error)
 	List(ctx context.Context, dev string) (map[string]any, error)
 	// APFSList is diskutil apfs list -plist for every container, the only
@@ -420,10 +424,10 @@ func (d *HostDisk) Chpass(ctx context.Context, image string, oldPassword, newPas
 
 // DeviceDigest hashes bytes of the raw device and, when out is not empty,
 // streams them gzip-compressed to out.
-func (d *HostDisk) DeviceDigest(_ context.Context, rdev string, bytes int64, out string) (string, error) {
+func (d *HostDisk) DeviceDigest(_ context.Context, rdev, out string) (string, int64, error) {
 	f, err := os.Open(rdev)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	defer func() { _ = f.Close() }()
 	sink := io.Writer(io.Discard)
@@ -431,23 +435,24 @@ func (d *HostDisk) DeviceDigest(_ context.Context, rdev string, bytes int64, out
 	if out != "" {
 		w, err := newGzipFile(out)
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 		sink, closer = w, w.Close
 	}
 	digest := sha256.New()
-	if _, err := io.CopyN(io.MultiWriter(digest, sink), f, bytes); err != nil {
+	n, err := io.CopyBuffer(io.MultiWriter(digest, sink), f, make([]byte, 1<<20))
+	if err != nil {
 		if closer != nil {
 			_ = closer()
 		}
-		return "", fmt.Errorf("read %s: %w", rdev, err)
+		return "", n, fmt.Errorf("read %s: %w", rdev, err)
 	}
 	if closer != nil {
 		if err := closer(); err != nil {
-			return "", err
+			return "", n, err
 		}
 	}
-	return hex.EncodeToString(digest.Sum(nil)), nil
+	return hex.EncodeToString(digest.Sum(nil)), n, nil
 }
 
 func (d *HostDisk) Info(ctx context.Context, dev string) (map[string]any, error) {
