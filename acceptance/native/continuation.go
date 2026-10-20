@@ -39,10 +39,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if err != nil {
 		return nil, err
 	}
-	info, err := v.Disk.Info(ctx, att.Dev)
-	if err == nil {
-		_, err = v.Disk.DeviceDigest(ctx, att.RDev, int64(number(info["TotalSize"])), raw+".gz")
-	}
+	_, _, err = v.Disk.DeviceDigest(ctx, att.RDev, raw+".gz")
 	if derr := v.Disk.Detach(ctx, att); err == nil {
 		err = derr
 	}

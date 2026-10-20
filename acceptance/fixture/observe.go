@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -98,11 +99,11 @@ func observeImage(ctx context.Context, in ObserveInput, obs *schema.Observation)
 		obs.Image.PartitionMap = "none"
 	}
 	if size > 0 {
-		digest, err := in.Disk.DeviceDigest(ctx, in.Att.RDev, size, "")
+		digest, n, err := in.Disk.DeviceDigest(ctx, in.Att.RDev, "")
 		if err != nil {
 			return err
 		}
-		obs.Image.DiskSHA256, obs.Image.DiskBytes = digest, size
+		obs.Image.DiskSHA256, obs.Image.DiskBytes = digest, n
 	}
 	listing, err := in.Disk.List(ctx, in.Att.Dev)
 	if err != nil {
@@ -204,13 +205,22 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 			a.Role, _ = roles[0].(string)
 		}
 		// diskutil info omits reserve and quota; the apfs listing has them.
-		listing, err := in.Disk.APFSList(ctx)
-		if err != nil {
-			return err
-		}
-		entry, ok := apfsVolumeListing(listing, a.VolumeUUID)
-		if !ok {
-			return fmt.Errorf("volume %s (%s) is not in diskutil apfs list", vol.Name, a.VolumeUUID)
+		// A container attached moments ago can be missing from the listing
+		// while DiskArbitration catches up, so a miss is retried briefly.
+		var entry map[string]any
+		for attempt := 0; ; attempt++ {
+			listing, err := in.Disk.APFSList(ctx)
+			if err != nil {
+				return err
+			}
+			var ok bool
+			if entry, ok = apfsVolumeListing(listing, a.VolumeUUID); ok {
+				break
+			}
+			if attempt == 4 {
+				return fmt.Errorf("volume %s (%s) is not in diskutil apfs list", vol.Name, a.VolumeUUID)
+			}
+			time.Sleep(time.Second)
 		}
 		a.ReserveBytes = int64(number(entry["CapacityReserve"]))
 		a.QuotaBytes = int64(number(entry["CapacityQuota"]))

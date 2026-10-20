@@ -206,7 +206,7 @@ jobs:
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
           APFS_NATIVE_GROUPS: main
-        run: go test -count=1 -v -parallel 6 -timeout 45m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 3 -timeout 45m -tags native ./acceptance/native
       # The slow bucket runs beside the native job; its images are collected
       # once the main outputs are verified, so the job never waits for it.
       - name: Wait for the slow bucket's images
@@ -234,7 +234,7 @@ jobs:
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
           APFS_NATIVE_GROUPS: slow
-        run: go test -count=1 -v -parallel 6 -timeout 20m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 3 -timeout 20m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
