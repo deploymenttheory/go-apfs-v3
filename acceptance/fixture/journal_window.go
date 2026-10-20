@@ -34,10 +34,17 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
 )
+
+var errJournalAcquisition = errors.New("unusable native journal acquisition")
+
+func rejectJournalAcquisition(reason string) error {
+	return fmt.Errorf("%w: %s", errJournalAcquisition, reason)
+}
 
 // journalWindow measures native cursors and unapplied home sectors solely to
 // reject missed acquisition windows. It never constructs recovered disk bytes.
@@ -95,31 +102,31 @@ func measureJournal(path string) (*journalWindow, error) {
 	}
 	be, le := binary.BigEndian, binary.LittleEndian
 	if string(header[:2]) != "H+" && string(header[:2]) != "HX" {
-		return nil, errors.New("missing native HFS volume")
+		return nil, rejectJournalAcquisition("missing native HFS volume")
 	}
 	blockSize, infoBlock := uint64(be.Uint32(header[40:])), uint64(be.Uint32(header[12:]))
 	if blockSize != 4096 || infoBlock == 0 || infoBlock >= uint64(info.Size())/blockSize {
-		return nil, errors.New("invalid native journal information range")
+		return nil, rejectJournalAcquisition("invalid native journal information range")
 	}
 	if _, err := f.ReadAt(header[:180], int64(infoBlock*blockSize)); err != nil {
 		return nil, err
 	}
 	s := &journalWindow{Offset: be.Uint64(header[36:]), Size: be.Uint64(header[44:])}
 	if be.Uint32(header) != 1 || s.Offset > uint64(info.Size()) || s.Size > uint64(info.Size())-s.Offset || s.Size < 512 || s.Size > 16<<20 {
-		return nil, errors.New("unsupported native journal acquisition geometry")
+		return nil, rejectJournalAcquisition("unsupported native journal acquisition geometry")
 	}
 	if _, err := f.ReadAt(header[:48], int64(s.Offset)); err != nil {
 		return nil, err
 	}
 	if string(header[:4]) != "xLNJ" || le.Uint32(header[4:]) != 0x12345678 || le.Uint64(header[24:]) != s.Size {
-		return nil, errors.New("invalid native journal acquisition header")
+		return nil, rejectJournalAcquisition("invalid native journal acquisition header")
 	}
 	s.Start, s.End = le.Uint64(header[8:]), le.Uint64(header[16:])
 	s.BlockListSize, s.HeaderSize, s.Sequence = le.Uint32(header[32:]), le.Uint32(header[40:]), le.Uint32(header[44:])
 	stored := le.Uint32(header[36:])
 	clear(header[36:40])
 	if acquisitionJournalChecksum(header[:44]) != stored || s.HeaderSize != 512 || s.BlockListSize < 32 || s.BlockListSize > 1<<20 || uint64(s.BlockListSize) >= s.Size || s.Start < 512 || s.Start > s.Size || s.End < 512 || s.End > s.Size {
-		return nil, errors.New("invalid native journal checksum or cursors")
+		return nil, rejectJournalAcquisition("invalid native journal checksum or cursors")
 	}
 	return s, nil
 }
@@ -133,7 +140,7 @@ func (s *journalWindow) read(f io.ReaderAt, offset uint64, size uint32) ([]byte,
 		offset = uint64(s.HeaderSize)
 	}
 	if offset < uint64(s.HeaderSize) || offset >= s.Size || uint64(size) > s.Size-uint64(s.HeaderSize) {
-		return nil, errors.New("journal acquisition read outside ring")
+		return nil, rejectJournalAcquisition("journal acquisition read outside ring")
 	}
 	b := make([]byte, size)
 	n := min(uint64(size), s.Size-offset)
@@ -158,10 +165,11 @@ func measureJournalChanges(path string, s *journalWindow) (int, string, error) {
 	defer func() { _ = f.Close() }()
 	le := binary.LittleEndian
 	latest := map[int64][]byte{}
-	position, consumed := s.Start, uint64(0)
-	for position != s.End {
+	position, consumed := s.advance(s.Start, 0), uint64(0)
+	end := s.advance(s.End, 0)
+	for position != end {
 		if consumed >= s.Size-uint64(s.HeaderSize) {
-			return 0, "", errors.New("journal acquisition traversal exceeded ring")
+			return 0, "", rejectJournalAcquisition("journal acquisition traversal exceeded ring")
 		}
 		list, err := s.read(f, position, s.BlockListSize)
 		if err != nil {
@@ -170,14 +178,14 @@ func measureJournalChanges(path string, s *journalWindow) (int, string, error) {
 		maximum, count, used, stored, flags := le.Uint16(list), le.Uint16(list[2:]), le.Uint32(list[4:]), le.Uint32(list[8:]), le.Uint32(list[12:])
 		clear(list[8:12])
 		if acquisitionJournalChecksum(list[:32]) != stored || count < 1 || count > maximum || int(maximum) > len(list)/16-1 || used < s.BlockListSize || uint64(used) > s.Size-uint64(s.HeaderSize)-consumed {
-			return 0, "", errors.New("invalid native committed block list during acquisition")
+			return 0, "", rejectJournalAcquisition("invalid native committed block list during acquisition")
 		}
 		offset, actual := s.advance(position, uint64(s.BlockListSize)), s.BlockListSize
 		for index := 1; index < int(count); index++ {
 			record := list[16+index*16:]
 			number, length, sum := int64(le.Uint64(record)), le.Uint32(record[8:]), le.Uint32(record[12:])
 			if length == 0 || length%512 != 0 || length > used-actual {
-				return 0, "", errors.New("invalid native committed payload length")
+				return 0, "", rejectJournalAcquisition("invalid native committed payload length")
 			}
 			payload, err := s.read(f, offset, length)
 			if err != nil {
@@ -185,7 +193,7 @@ func measureJournalChanges(path string, s *journalWindow) (int, string, error) {
 			}
 			if number != -1 {
 				if number < 0 || number > 64<<20/512 || int64(length) > 64<<20-number*512 || flags&1 != 0 && sum != 0 && acquisitionJournalChecksum(payload) != sum {
-					return 0, "", errors.New("invalid native committed payload checksum or range")
+					return 0, "", rejectJournalAcquisition("invalid native committed payload checksum or range")
 				}
 				for part := 0; part < int(length); part += 512 {
 					latest[number*512+int64(part)] = payload[part : part+512]
@@ -194,7 +202,7 @@ func measureJournalChanges(path string, s *journalWindow) (int, string, error) {
 			offset, actual = s.advance(offset, uint64(length)), actual+length
 		}
 		if actual != used {
-			return 0, "", errors.New("native committed payload size mismatch")
+			return 0, "", rejectJournalAcquisition("native committed payload size mismatch")
 		}
 		consumed += uint64(used)
 		position = s.advance(position, uint64(used))

@@ -2,9 +2,12 @@ package fixture
 
 import (
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 func TestImageHelperRequiresTheExactOwnedWritableAttachment(t *testing.T) {
@@ -312,7 +315,50 @@ func TestJournalAcquisitionRejectsCommittedChecksumDamage(t *testing.T) {
 	if _, err := f.WriteAt([]byte{0xff}, 8192+1024); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := measureJournalChanges(p, s); err == nil {
-		t.Fatal("damaged committed payload accepted")
+	if _, _, err := measureJournalChanges(p, s); !errors.Is(err, errJournalAcquisition) {
+		t.Fatal("damaged committed payload was not classified as an unusable acquisition", err)
+	}
+}
+
+func TestRejectedAcquisitionPreservesItsFirstSnapshotAndDoesNotRetryIOFailures(t *testing.T) {
+	profile, _ := schema.LookupProfile("hfsx-j")
+	c := &Capture{Profile: profile, Out: t.TempDir(), t: &Transcript{}}
+	first, _ := journalAcquisitionFile(t)
+	before, err := schema.FileDigest(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stage := "interrupted-incomplete-tail"
+	if err := c.rejectAcquisition(first, stage, map[string]any{"attempt": 0}, rejectJournalAcquisition("partially written committed list")); err != nil {
+		t.Fatal(err)
+	}
+	archive := filepath.Join(c.Out, c.prefix()+"."+stage+".rejected.raw.gz")
+	digest, err := schema.FileDigest(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expanded := filepath.Join(t.TempDir(), "original.raw")
+	if err := gunzipCopy(archive, expanded); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := schema.FileDigest(expanded); err != nil || after != before {
+		t.Fatal("rejected evidence changed", err)
+	}
+	second, _ := journalAcquisitionFile(t)
+	if err := c.rejectAcquisition(second, stage, map[string]any{"attempt": 1}, rejectJournalAcquisition("another partial list")); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := schema.FileDigest(archive); err != nil || after != digest {
+		t.Fatal("later rejection overwrote original evidence", err)
+	}
+	third, _ := journalAcquisitionFile(t)
+	if err := c.rejectAcquisition(third, stage, map[string]any{}, os.ErrPermission); !errors.Is(err, os.ErrPermission) {
+		t.Fatal("I/O error entered the acquisition retry path", err)
+	}
+	if _, err := os.Stat(third); err != nil {
+		t.Fatal("I/O failure discarded its input", err)
+	}
+	if len(c.t.Commands) != 2 {
+		t.Fatal("acquisition rejections were not recorded", len(c.t.Commands))
 	}
 }

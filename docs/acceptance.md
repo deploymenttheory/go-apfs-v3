@@ -109,7 +109,10 @@ The corpus cache is `os.UserCacheDir()/go-apfs-v3/fixtures/<digest>` or
 `os.TempDir()/go-apfs-v3-fixtures` or `APFS_FIXTURE_EXPAND`: zero runs are
 never written, so an expanded corpus costs its data blocks (a few hundred
 megabytes), not the images' nominal sizes, and the CI cache never carries
-expansions. `cmd/apfs-fixture capture` refuses to run outside a
+expansions. Each expansion is keyed by its image digest, so a refreshed capture
+cannot reuse an older raw image with the same name. Concurrent expansion uses
+independent temporary files and publishes only completed copies.
+`cmd/apfs-fixture capture` refuses to run outside a
 disposable VM: a development Mac once panicked under these tests
 ([native-testing-incident.md](native-testing-incident.md)). Inside one, set
 `APFS_NATIVE_DISPOSABLE_VM=1`.
@@ -129,6 +132,10 @@ linear/wrapped journals, complete/incomplete tails and checkpoint data/mapping/
 committed/wrapped windows. These measurements do not supply expected filesystem
 states. HFS originals are never mounted: Apple's replay-only syscall runs on
 a copy, whose device bytes are retained before fsck or mounted observation.
+An acquisition that caught a partially written committed journal is rejected
+before any native verdict and the bounded window search continues. The first
+unusable snapshot is retained verbatim, every rejection is recorded, and I/O
+failures remain fatal. Native replay and checker verdicts are never retried.
 APFS's checker supplies the selected XID and its kernel mount supplies the view.
 Deliberate APFS checksum damage records the parent digest and exact byte change;
 a separate descriptor-disabled control supplies the independently checked older

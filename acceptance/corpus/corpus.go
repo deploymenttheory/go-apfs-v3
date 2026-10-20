@@ -326,7 +326,13 @@ func (k Case) Image() string {
 	if !strings.HasSuffix(path, ".raw.gz") {
 		return path
 	}
-	expanded := filepath.Join(k.expandDir, "macos-"+strconv.Itoa(k.Producer), k.Recipe, strings.TrimSuffix(k.Observation.Image.File, ".gz"))
+	if !schema.ValidDigest(k.Observation.Image.SHA256) {
+		return path + ": raw image has no valid content digest"
+	}
+	// Producer/name identifies a case across captures, not its bytes. Bind
+	// expansions to the retained image digest so a corpus refresh cannot read
+	// an older capture from the same expansion cache.
+	expanded := filepath.Join(k.expandDir, "macos-"+strconv.Itoa(k.Producer), k.Recipe, k.Observation.Image.SHA256, strings.TrimSuffix(k.Observation.Image.File, ".gz"))
 	if _, err := os.Stat(expanded); err == nil {
 		return expanded
 	}
@@ -351,11 +357,13 @@ func ExpandGzip(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	tmp := dst + ".partial"
-	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	defer func() { _ = gz.Close() }()
+	out, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".partial-*")
 	if err != nil {
 		return err
 	}
+	tmp := out.Name()
+	defer func() { _ = os.Remove(tmp) }()
 	if err := markSparse(out); err != nil {
 		_ = out.Close()
 		_ = os.Remove(tmp)
@@ -382,11 +390,15 @@ const sparseBlock = 64 << 10
 // copySparse writes r to out, skipping zero blocks so the file's allocated
 // size is its data, and returns the logical size written.
 func copySparse(out *os.File, r io.Reader) (int64, error) {
+	input := &expansionInput{Reader: r}
 	buf := make([]byte, sparseBlock*16)
 	var zero [sparseBlock]byte
 	var offset int64
 	for {
-		n, err := io.ReadFull(r, buf)
+		n, err := io.ReadFull(input, buf)
+		if input.err != nil {
+			return offset, input.err
+		}
 		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 			return offset, err
 		}
@@ -405,4 +417,20 @@ func copySparse(out *os.File, r io.Reader) (int64, error) {
 			return offset, nil
 		}
 	}
+}
+
+// io.ReadFull uses ErrUnexpectedEOF for an ordinary final partial buffer;
+// preserve a decompressor's own error so a truncated gzip cannot masquerade
+// as that successful short final read.
+type expansionInput struct {
+	io.Reader
+	err error
+}
+
+func (r *expansionInput) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		r.err = err
+	}
+	return n, err
 }

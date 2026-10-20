@@ -260,6 +260,14 @@ func (c *Capture) captureWindow(ctx context.Context, live, stage string, ctl *sc
 	if !ok {
 		return "", nil, fmt.Errorf("missing capture helper %s", helperName)
 	}
+	var journalOffset uint64
+	if helperName == "hfs-journal-capture" {
+		s, err := measureJournal(live)
+		if err != nil {
+			return "", nil, err
+		}
+		journalOffset = s.Offset
+	}
 	workerCtx, cancel := context.WithCancel(ctx)
 	done := make(chan error, 1)
 	go func() { done <- c.churnRecovery(workerCtx, filepath.Join(att.Volumes[0].Mount, "Fixture")) }()
@@ -287,11 +295,7 @@ func (c *Capture) captureWindow(ctx context.Context, live, stage string, ctl *sc
 		candidate = filepath.Join(c.Work, fmt.Sprintf("%s.%s.candidate-%d.raw", c.prefix(), stage, attempt))
 		argv := []string{helper, live, strconv.Itoa(identifier)}
 		if helperName == "hfs-journal-capture" {
-			s, err := measureJournal(live)
-			if err != nil {
-				return "", nil, err
-			}
-			argv = append(argv, strconv.FormatUint(s.Offset, 10))
+			argv = append(argv, strconv.FormatUint(journalOffset, 10))
 		}
 		argv = append(argv, candidate, mode)
 		cmd := Command{Label: "capture-window", Argv: argv, Sudo: true, Expected: "0", Timeout: 30 * time.Second}
@@ -308,10 +312,22 @@ func (c *Capture) captureWindow(ctx context.Context, live, stage string, ctl *sc
 		if helperName == "hfs-journal-capture" {
 			s, err := measureJournal(candidate)
 			if err != nil {
+				if errors.Is(err, errJournalAcquisition) {
+					if err := c.rejectAcquisition(candidate, stage, evidence, err); err != nil {
+						return "", nil, err
+					}
+					continue
+				}
 				return "", nil, err
 			}
 			changes, tail, err := measureJournalChanges(candidate, s)
 			if err != nil {
+				if errors.Is(err, errJournalAcquisition) {
+					if err := c.rejectAcquisition(candidate, stage, evidence, err); err != nil {
+						return "", nil, err
+					}
+					continue
+				}
 				return "", nil, err
 			}
 			shape := "linear"
@@ -350,6 +366,35 @@ func (c *Capture) captureWindow(ctx context.Context, live, stage string, ctl *sc
 		}
 	}
 	return "", nil, fmt.Errorf("no %s native capture window within 90 seconds", stage)
+}
+
+// Reject an acquisition before any Apple replay/checker verdict. Retain the
+// first unusable snapshot byte for byte and record every rejection; I/O errors
+// and failed native verdicts never enter this retry path.
+func (c *Capture) rejectAcquisition(candidate, stage string, evidence map[string]any, reason error) error {
+	if !errors.Is(reason, errJournalAcquisition) {
+		return reason
+	}
+	evidence["rejected"] = reason.Error()
+	archive := filepath.Join(c.Out, c.prefix()+"."+stage+".rejected.raw.gz")
+	if _, err := os.Lstat(archive); errors.Is(err, os.ErrNotExist) {
+		if err := gzipCopy(candidate, archive); err != nil {
+			return err
+		}
+		image, err := rawImageEvidence(candidate, archive)
+		if err != nil {
+			return err
+		}
+		evidence["rejectedImage"] = image
+	} else if err != nil {
+		return err
+	}
+	entry, err := json.Marshal(evidence)
+	if err != nil {
+		return err
+	}
+	c.t.Commands = append(c.t.Commands, schema.Command{Label: "rejected-acquisition", Argv: []string{"journal-window", stage}, Status: "0", Expected: "record", StdoutText: string(entry)})
+	return os.Remove(candidate)
 }
 
 func (c *Capture) churnRecovery(ctx context.Context, root string) error {
