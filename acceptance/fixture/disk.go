@@ -415,15 +415,30 @@ func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir st
 	if _, err := d.run(ctx, "mount", false, nil, argv...); err != nil {
 		return err
 	}
-	info, err := d.Info(ctx, v.Dev)
-	if err != nil {
-		return err
+	// The kernel, not diskutil, says where the volume is: diskutil info can
+	// report the mount point of the device number's previous occupant, an
+	// empty directory, while DiskArbitration catches up.
+	var last string
+	for attempt := 0; attempt < 10; attempt++ {
+		point := dir
+		if point == "" {
+			info, err := d.Info(ctx, v.Dev)
+			if err != nil {
+				return err
+			}
+			point, _ = info["MountPoint"].(string)
+		}
+		if point != "" {
+			from, err := mountedFrom(point)
+			if err == nil && from == v.Dev {
+				v.Mount = point
+				return nil
+			}
+			last = fmt.Sprintf("%s is mounted from %q (%v)", point, from, err)
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
-	v.Mount, _ = info["MountPoint"].(string)
-	if v.Mount == "" {
-		v.Mount = dir
-	}
-	return nil
+	return fmt.Errorf("mount %s: the kernel does not report it mounted: %s", v.Dev, last)
 }
 
 func (d *HostDisk) Unmount(ctx context.Context, v *AttachedVolume) error {
