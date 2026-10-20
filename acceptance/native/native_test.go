@@ -166,6 +166,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
+	for _, key := range order {
+		planContainerChecks(lineages[key])
+	}
 	t.Run("outputs", func(t *testing.T) {
 		for _, key := range order {
 			group := lineages[key]

@@ -124,3 +124,36 @@ func TestComparisonChecksIdentityOnlyForEntriesThatExistedBeforeAnEdit(t *testin
 		t.Fatalf("an existing entry must keep its identity, got %v", d)
 	}
 }
+
+func TestContainerChecksAreSpreadAcrossALineage(t *testing.T) {
+	repack := func(name, format string, encrypted bool) Paired {
+		return Paired{Name: name, Output: schema.Output{Name: name, Operation: "repack", Format: format, Encrypted: encrypted, Expect: schema.Expectation{DiskSHA256: "d"}},
+			ByHost: map[string]schema.Output{"darwin": {}, "linux": {}, "windows": {}}}
+	}
+	group := []Paired{
+		repack("a.UDRO", "UDRO", false), repack("a.UDZO", "UDZO", false), repack("a.enc", "UDZO", true),
+		repack("b.UDRO", "UDRO", false), repack("b.UDZO", "UDZO", false), repack("b.enc", "UDZO", true),
+		repack("c.enc", "UDZO", true),
+		{Name: "edit", Output: schema.Output{Name: "edit", Operation: "edit", Format: "UDZO", Expect: schema.Expectation{DiskSHA256: "d"}}},
+	}
+	planContainerChecks(group)
+	for i, wantSkip := range []bool{false, false, false, true, true, true, true, false} {
+		if group[i].SkipChecksums != wantSkip {
+			t.Errorf("%s: skip checksums %v, want %v (verify once per format and encryption)", group[i].Name, group[i].SkipChecksums, wantSkip)
+		}
+	}
+	var decrypted []string
+	for _, p := range group {
+		if p.Output.Encrypted {
+			if len(p.DecryptHosts) != 1 {
+				t.Fatalf("%s: decrypt hosts %v, want one", p.Name, p.DecryptHosts)
+			}
+			decrypted = append(decrypted, p.DecryptHosts[0])
+		} else if len(p.DecryptHosts) != 0 {
+			t.Errorf("%s: plaintext output selected for decryption", p.Name)
+		}
+	}
+	if strings.Join(decrypted, ",") != "darwin,linux,windows" {
+		t.Errorf("decryption rotated through %v, want every host in turn", decrypted)
+	}
+}

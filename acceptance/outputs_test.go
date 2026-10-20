@@ -258,6 +258,23 @@ func continuesNatively(format, policy string) bool {
 	return format == "UDZO" && policy != "none"
 }
 
+// checkDecryptedDisk opens a produced encrypted image with the output
+// password and requires its decoded disk to hash to want. Every host checks
+// its own copies here; the native tier has Apple decrypt one host's copy
+// of each output, rotating across hosts.
+func checkDecryptedDisk(t *testing.T, ctx context.Context, path, want string) {
+	t.Helper()
+	img, err := diskimage.OpenWithPassword(ctx, path, []byte(outputPassword))
+	if err != nil {
+		t.Errorf("%s: open with the output password: %v", filepath.Base(path), err)
+		return
+	}
+	defer func() { _ = img.Close() }()
+	if got, _ := hashReaderAt(img, img.Size()); got != want {
+		t.Errorf("%s: decrypted disk %s, want %s", filepath.Base(path), got, want)
+	}
+}
+
 // explicitPolicy names a build's storage policy for the native verifier;
 // preserve keeps the source's storage and needs no relaxation.
 func explicitPolicy(policy string) string {
@@ -373,6 +390,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 				if report.DiskSHA256 != k.Observation.Image.DiskSHA256 {
 					t.Errorf("%s: encrypted repack disk %s, native %s", name, report.DiskSHA256, k.Observation.Image.DiskSHA256)
 				}
+				checkDecryptedDisk(t, ctx, path, k.Observation.Image.DiskSHA256)
 				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "encrypt", Format: "UDZO", Encrypted: true, Password: "output", Source: caseRef(k), Expect: schema.Expectation{DiskSHA256: k.Observation.Image.DiskSHA256}})
 			}
 			if enc != nil {
@@ -387,6 +405,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 				if report.DiskSHA256 != k.Observation.Image.DiskSHA256 {
 					t.Errorf("%s: rewrapped disk %s, native %s", name, report.DiskSHA256, k.Observation.Image.DiskSHA256)
 				}
+				checkDecryptedDisk(t, ctx, path, k.Observation.Image.DiskSHA256)
 				if _, err := diskimage.OpenWithPassword(ctx, path, []byte(password)); !errors.Is(err, filesystem.ErrAuthentication) {
 					t.Errorf("%s: old password still unlocks the rewrapped image: %v", name, err)
 				}
