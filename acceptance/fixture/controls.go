@@ -62,12 +62,8 @@ func (c *Capture) asrSnapshot(ctx context.Context, name string) error {
 	var lastErr error
 	for attempt := 1; attempt <= 3; attempt++ {
 		target := filepath.Join(c.Work, fmt.Sprintf("asr-target-%s-%d.dmg", sanitize(name), attempt))
+		// CreateImage waits out a busy disk-image framework itself.
 		if err := c.Disk.CreateImage(ctx, target, "128m", "GPTSPUD", "APFS", "", "asr-target"); err != nil {
-			lastErr = err
-			if strings.Contains(err.Error(), "Resource busy") {
-				time.Sleep(time.Second)
-				continue
-			}
 			return err
 		}
 		snapshot, err := c.asrAttempt(ctx, name, source, target, attempt)
@@ -215,22 +211,18 @@ func (c *Capture) settleEncryption(ctx context.Context, volume string, fileVault
 	if vol == nil {
 		return fmt.Errorf("settle-encryption: unknown volume %q", volume)
 	}
-	deadline := time.Now().Add(90 * time.Second)
-	for {
+	if err := Settle(ctx, c.t, "encryption-migration", MigrationWait, func() (bool, string, error) {
 		info, err := c.Disk.Info(ctx, vol.Dev)
 		if err != nil {
-			return err
+			return false, "", err
 		}
 		migrating, _ := info["CryptoMigrationOn"].(bool)
 		fv, _ := info["FileVault"].(bool)
-		if !migrating && fv == fileVault {
-			return c.refreshVars(ctx)
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("settle-encryption %s: still migrating after 90s (FileVault=%v)", volume, fv)
-		}
-		time.Sleep(time.Second)
+		return !migrating && fv == fileVault, fmt.Sprintf("migrating=%v FileVault=%v, want FileVault=%v", migrating, fv, fileVault), nil
+	}); err != nil {
+		return fmt.Errorf("settle-encryption %s: %w", volume, err)
 	}
+	return c.refreshVars(ctx)
 }
 
 // freeSpaceSentinel writes recognisable bytes into the first Apple_Free
