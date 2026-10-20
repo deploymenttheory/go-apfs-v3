@@ -353,7 +353,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 	recipes := recipesByName(t)
 	for _, k := range cases {
 		k := k
-		if k.Observation.Image.DiskSHA256 == "" || k.Observation.Recovery != nil {
+		if k.Observation.Image.DiskSHA256 == "" {
 			continue
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {
@@ -361,6 +361,10 @@ func TestRepackPreservesEverySector(t *testing.T) {
 			ctx := context.Background()
 			source := k.Image()
 			enc := k.Observation.Image.Encryption
+			view := ""
+			if recovery := k.Observation.Recovery; recovery != nil {
+				view = recovery.ExpectedStage
+			}
 			for _, format := range []string{"UDRO", "UDZO"} {
 				name := outputName(k, "repack."+format+".dmg")
 				var report pack.RepackReport
@@ -377,7 +381,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 				if report.DiskSHA256 != k.Observation.Image.DiskSHA256 || report.DiskBytes != k.Observation.Image.DiskBytes {
 					t.Errorf("%s: repacked disk %s (%d bytes), native device %s (%d bytes)", name, report.DiskSHA256, report.DiskBytes, k.Observation.Image.DiskSHA256, k.Observation.Image.DiskBytes)
 				}
-				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "repack", Format: format, Source: caseRef(k), Expect: schema.Expectation{DiskSHA256: k.Observation.Image.DiskSHA256}})
+				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "repack", Format: format, Source: caseRef(k), Expect: schema.Expectation{View: view, DiskSHA256: k.Observation.Image.DiskSHA256}})
 			}
 			if enc == nil && strings.HasSuffix(source, ".dmg") {
 				name := outputName(k, "repack.encrypted-256.UDZO.dmg")

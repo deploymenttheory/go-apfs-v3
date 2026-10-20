@@ -140,6 +140,11 @@ digests. All original images, transcripts, observations and digests remain
 immutable. A full capture includes both recipes; missing profiles or stages
 fail portable conformance.
 
+Apple's replay-only HFS state still has a mounted primary-header flag. Portable
+read parity requires ordinary reads to refuse that state explicitly; recovery
+adds the validated unmounted marking and compares its readable result with the
+same native observation. No captured header is rewritten to make a test pass.
+
 ## Portable conformance
 
 `acceptance/*_test.go`:
@@ -213,7 +218,8 @@ decrypt to the same device, then judges each output:
   repack of each format and encryption in a lineage. Apple decrypts one
   host's copy of each encrypted repack, rotating through the hosts; every
   host decrypts all of its own encrypted outputs with the product in the
-  portable tier.
+  portable tier. Interrupted inputs are preserved byte for byte too; their
+  recovered outputs receive the separate filesystem-health verdict below.
 - **Images the product wrote** (builds, edits, stage replays, encrypted
   builds): `hdiutil verify`, read-only attach, `fsck_apfs -n` or
   `fsck_hfs -fn`, `codesign --verify --deep --strict`, mounted readback
