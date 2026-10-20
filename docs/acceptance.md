@@ -167,10 +167,15 @@ only the third it verifies. It pairs every output by name across hosts,
 requires plaintext copies to be byte-identical and encrypted copies to
 decrypt to the same device, then judges each output:
 
-- **Sector-preserving repacks**: `hdiutil verify` and the attached device
-  digest, which must equal the digest the kernel recorded for the source.
-  The sectors are Apple's own image, already mounted and checked on the
-  producing Mac, so what Apple must still accept is the container.
+- **Sector-preserving repacks**: the attached device digest, which must
+  equal the digest the kernel recorded for the source. The sectors are
+  Apple's own image, already mounted and checked on the producing Mac, so
+  what Apple must still accept is the container. `hdiutil verify`, which
+  re-reads a whole image to check its UDIF checksums, runs on the first
+  repack of each format and encryption in a lineage. Apple decrypts one
+  host's copy of each encrypted repack, rotating through the hosts; every
+  host decrypts all of its own encrypted outputs with the product in the
+  portable tier.
 - **Images the product wrote** (builds, edits, stage replays, encrypted
   builds): `hdiutil verify`, read-only attach, `fsck_apfs -n` or
   `fsck_hfs -fn`, `codesign --verify --deep --strict`, mounted readback

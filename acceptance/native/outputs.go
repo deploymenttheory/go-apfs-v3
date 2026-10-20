@@ -74,6 +74,14 @@ type Paired struct {
 	// Passwords are the public output passwords from the primary host's
 	// manifest.
 	Passwords map[string]string
+	// SkipChecksums skips hdiutil verify for a sector-preserving output
+	// whose lineage already had its UDIF checksums verified in the same
+	// format and encryption; its device digest is still checked.
+	SkipChecksums bool
+	// DecryptHosts, when set, limits which hosts' copies of an encrypted
+	// sector-preserving output Apple decrypts; every host decrypts its own
+	// copies in the portable tier.
+	DecryptHosts []string
 }
 
 // Pair groups outputs by name across hosts and requires every host to have
@@ -160,4 +168,34 @@ func expectationsEqual(a, b schema.Expectation) bool {
 		}
 	}
 	return true
+}
+
+// planContainerChecks spreads the expensive container work of
+// sector-preserving outputs across a lineage. hdiutil verify, which re-reads
+// a whole image to check its UDIF checksums, runs on the first output of
+// each format and encryption; every output still has its device digest
+// checked. Apple decrypts one host's copy of each encrypted output, the
+// host rotating through the lineage so every host's encryption is judged;
+// each host decrypts all of its own copies in the portable tier.
+func planContainerChecks(group []Paired) {
+	verified := map[string]bool{}
+	turn := 0
+	for i := range group {
+		p := &group[i]
+		if p.Output.Expect.DiskSHA256 == "" || p.Output.Operation == "edit" {
+			continue
+		}
+		kind := fmt.Sprintf("%s/%v", p.Output.Format, p.Output.Encrypted)
+		p.SkipChecksums = verified[kind]
+		verified[kind] = true
+		if p.Output.Encrypted {
+			hosts := make([]string, 0, len(p.ByHost))
+			for host := range p.ByHost {
+				hosts = append(hosts, host)
+			}
+			sort.Strings(hosts)
+			p.DecryptHosts = []string{hosts[turn%len(hosts)]}
+			turn++
+		}
+	}
 }
