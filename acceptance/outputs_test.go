@@ -94,6 +94,12 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
+	if os.Getenv("APFS_OUTPUT_DIR") == "" && outputsRoot != "" {
+		if err := os.RemoveAll(outputsRoot); err != nil {
+			fmt.Fprintln(os.Stderr, "temporary outputs:", err)
+			code = 1
+		}
+	}
 	os.Exit(code)
 }
 
