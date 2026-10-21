@@ -20,6 +20,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
@@ -333,7 +334,12 @@ func (k Case) Image() string {
 	// expansions to the retained image digest so a corpus refresh cannot read
 	// an older capture from the same expansion cache.
 	expanded := filepath.Join(k.expandDir, "macos-"+strconv.Itoa(k.Producer), k.Recipe, k.Observation.Image.SHA256, strings.TrimSuffix(k.Observation.Image.File, ".gz"))
-	if _, err := os.Stat(expanded); err == nil {
+	// Wait for an in-process publisher's rename handle to close before
+	// handing the path to a reader that may not share Windows delete access.
+	expansionPublication.Lock()
+	_, statErr := os.Stat(expanded)
+	expansionPublication.Unlock()
+	if statErr == nil {
 		return expanded
 	}
 	if err := ExpandGzip(path, expanded); err != nil {
@@ -435,27 +441,40 @@ func (r *expansionInput) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Decompression stays parallel; only publication and winner verification share
+// a critical section, so Windows rename/delete handles cannot race those reads.
+var expansionPublication sync.Mutex
+
 // publishExpansion tolerates a concurrent winner only when its completed bytes match.
 func publishExpansion(tmp, dst string, size int64) error {
-	if err := os.Rename(tmp, dst); err != nil {
-		// Windows can deny replacement while another expansion publishes the
-		// same cache entry. Accept that winner only after comparing complete
-		// bytes, never merely because a destination exists.
-		info, statErr := os.Stat(dst)
-		if statErr != nil || !info.Mode().IsRegular() || info.Size() != size {
-			return err
+	expansionPublication.Lock()
+	defer expansionPublication.Unlock()
+	// Reuse completed entries without opening them for replacement. Readers
+	// may already hold them open. A second publisher still has to prove its
+	// complete bytes match; merely finding a destination is insufficient.
+	publishErr := os.ErrExist
+	if _, err := os.Lstat(dst); os.IsNotExist(err) {
+		publishErr = os.Rename(tmp, dst)
+		if publishErr == nil {
+			return nil
 		}
-		want, digestErr := schema.FileDigest(tmp)
-		if digestErr != nil {
-			return errors.Join(err, digestErr)
-		}
-		got, digestErr := schema.FileDigest(dst)
-		if digestErr != nil {
-			return errors.Join(err, digestErr)
-		}
-		if got != want {
-			return err
-		}
+	} else if err != nil {
+		return err
+	}
+	info, statErr := os.Lstat(dst)
+	if statErr != nil || !info.Mode().IsRegular() || info.Size() != size {
+		return publishErr
+	}
+	want, err := schema.FileDigest(tmp)
+	if err != nil {
+		return errors.Join(publishErr, err)
+	}
+	got, err := schema.FileDigest(dst)
+	if err != nil {
+		return errors.Join(publishErr, err)
+	}
+	if got != want {
+		return fmt.Errorf("completed expansion differs at %s: %w", dst, publishErr)
 	}
 	return nil
 }
