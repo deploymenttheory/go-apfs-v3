@@ -210,6 +210,11 @@ func TestOutputsWithAppleTools(t *testing.T) {
 	if len(pairs) == 0 {
 		t.Fatalf("no outputs derived from macOS %d fixtures", v.Major)
 	}
+	if nativeGroup(t) != "slow" {
+		if err := requireWorkspaceOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
 	for _, key := range order {

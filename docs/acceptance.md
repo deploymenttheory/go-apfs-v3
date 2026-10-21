@@ -187,7 +187,23 @@ same native observation. No captured header is rewritten to make a test pass.
   is listed in `unreplayableStages` with its reason; any other stage that
   cannot be translated fails the test.
 - `TestEveryCorpusCaseHasAConsumer` fails when a recipe is in the corpus
-  without a test that asserts on it.
+  without an assertion beyond read parity.
+- `TestWorkspaceOperationsMatchAppleStates` extracts `workspace-edits` and
+  chains content replacement, ordered tree edits and metadata/fork edits through
+  new immutable workspaces. Every stage is reopened and compared with its native
+  observation. Source identities and link groups remain intact; new identities
+  are explicitly portable. Parent manifest digests must match the preceding
+  export. Native rejection and filename-boundary controls must produce the
+  corresponding public error category without publishing a completed workspace.
+- `TestFileCommandSessionsMatchAppleJourney` runs the captured journey through
+  separate product CLI processes, including session open/verify/export/remove,
+  ordinary commands, declared host inputs and rejection controls. Rejections
+  must leave the published revision unchanged. `TestSessionPermissionsMatchAppleStates`
+  reopens the public session API between operations, with explicit native actor
+  ownership, and checks ACL inheritance, set-ID writes/truncation, chown effects
+  and ordinary/preserving/no-attribute copy composition. Both consumers export
+  the before and every native after state. Missing producers, profiles, stages
+  or native output artifacts fail the gate.
 - `TestRecoveryMatchesAppleStates` inspects and recovers every interruption:
   HFS replay must match Apple's replay-only disk byte for byte, with only the
   documented primary unmounted flag added at publication; APFS must select
@@ -206,6 +222,17 @@ the copies must be byte-identical (encrypted copies must differ). CI
 produces each output once: the native tier requires every host's copy to
 be byte-identical, which covers the repeat and catches more.
 
+Workspace consumers return `.tar.gz` preservation exports through the same
+artifacts. Archive headers retain portable names and bytes, omitting host owner
+IDs, permissions and wall clocks. Aliases are serialized as regular files, with
+logical link identity retained in the manifest. Workspace edits preserve source
+timestamps unless the recipe explicitly supplies a metadata timestamp. Session
+clocks are fixed from the captured scenario (one hour after its latest timestamp);
+captured operation clocks are projected onto that instant while pre-existing
+clocks and explicit assignments remain exact. Fresh objects cannot invent
+runner-injected provenance; copied provenance remains exact. These policies
+project comparisons without modifying native observations.
+
 ## Native truth
 
 `go test -tags native ./acceptance/native` on each macOS version, with
@@ -214,7 +241,7 @@ be byte-identical, which covers the repeat and catches more.
 `slow-outputs-<host>`) and `APFS_PRODUCT_CLI` (the built product). The
 portable jobs upload one artifact per producer, so a native job downloads
 only the third it verifies. It pairs every output by name across hosts,
-requires plaintext copies to be byte-identical and encrypted copies to
+requires plaintext images to be byte-identical and encrypted images to
 decrypt to the same device, then judges each output:
 
 - **Sector-preserving repacks**: the attached device digest, which must
@@ -239,6 +266,15 @@ decrypt to the same device, then judges each output:
   resource fork, native compression), `fsck`, an edit through the product
   binary, and a final check. Each continuation's scratch is removed when
   it finishes.
+
+Preservation exports receive a separate independent verdict. The verifier reads
+their JSON and archive format without importing the product. It checks source
+and creation identities, link groups, original byte names and portable name
+mapping, every logical/raw/blob digest, projected file and symlink record,
+metadata and serialized ACL bytes against the captured Apple view. Edits must
+retain the preceding export's actual manifest digest. Host metadata availability
+and creation provenance can differ between session exports, so every host's
+complete archive is checked individually against the same native reference.
 
 A known product limit is recorded where the output is produced, never by
 weakening a comparison: `knownProductLimits` in

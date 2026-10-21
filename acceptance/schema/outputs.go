@@ -3,11 +3,12 @@ package schema
 // OutputsSchema is the current outputs.json schema version.
 const OutputsSchema = 1
 
-// Outputs indexes every image the portable conformance suite produced on
+// Outputs indexes every image and preservation export the suite produced on
 // one host. The native verifier reads this file from each host's artifact:
-// plaintext outputs must be byte-identical across hosts, encrypted outputs
+// plaintext images must be byte-identical across hosts, encrypted images
 // must decrypt to the same device bytes, and every output is then checked
-// with Apple tools against the expectation it names.
+// with Apple tools against the expectation it names. Preservation exports are
+// independently checked on every host's copy against the native observation.
 type Outputs struct {
 	Schema int    `json:"schema"`
 	Host   string `json:"host"` // linux, windows, darwin
@@ -21,16 +22,16 @@ type Outputs struct {
 	Outputs   []Output          `json:"outputs"`
 }
 
-// Output is one produced image and the expectation it must satisfy.
+// Output is one produced image or preservation export and its expectation.
 type Output struct {
 	// Name is unique within the suite and identical on every host, so the
 	// verifier can pair outputs across hosts.
 	Name string `json:"name"`
 	File string `json:"file"`
 	// Operation is build, compress, container, encrypt, decrypt, repack,
-	// edit, copy, recover-checkpoint, recover-journal or session.
+	// edit, copy, recover-checkpoint, recover-journal, or workspace-*.
 	Operation string `json:"operation"`
-	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw
+	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace
 	Bytes     int64  `json:"bytes"`
 	SHA256    string `json:"sha256"`
 	// Encrypted outputs carry fresh random material, so their digests
@@ -56,6 +57,9 @@ type CaseRef struct {
 
 // Expectation tells the native verifier what to compare the output with.
 type Expectation struct {
+	// Workspace selects independent manifest/blob verification for a portable
+	// preservation archive, rather than attaching it as a disk image.
+	Workspace *WorkspaceExpectation `json:"workspace,omitempty"`
 	// View names the stage whose observation holds the expected entries;
 	// empty means the source case's own observation.
 	View string `json:"view,omitempty"`
@@ -95,4 +99,15 @@ type Expectation struct {
 	// fsck still run; the edit must fail with exactly this text, and an
 	// edit that succeeds fails the check until the expectation is removed.
 	ContinuationRefusal string `json:"continuationRefusal,omitempty"`
+}
+
+// WorkspaceExpectation describes the public timestamp policy exercised by the
+// producer. The native reference remains immutable; comparisons project only
+// preserved clocks or the explicitly supplied command clock.
+type WorkspaceExpectation struct {
+	Policy  string `json:"policy"` // preserve or commands
+	ClockNS int64  `json:"clockNs,omitempty"`
+	// ParentOutput names the preceding exported workspace whose manifest
+	// digest must be retained by this edit, independently on each host.
+	ParentOutput string `json:"parentOutput,omitempty"`
 }

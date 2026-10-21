@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
@@ -87,8 +89,9 @@ type Paired struct {
 
 // Pair groups outputs by name across hosts and requires every host to have
 // produced every name against the same lock. Plaintext copies must be
-// byte-identical; encrypted copies must all differ (fresh random material)
-// and are verified individually.
+// byte-identical; encrypted copies must all differ (fresh random material).
+// Preservation archives retain host availability/provenance and are independently
+// verified on every host's copy, rather than treating a matching digest as proof.
 func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 	var names []string
 	byName := map[string]*Paired{}
@@ -131,13 +134,13 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 		for host, o := range p.ByHost {
 			digests[o.SHA256] = append(digests[o.SHA256], host)
 			hostNames = append(hostNames, host)
-			if !expectationsEqual(o.Expect, p.Output.Expect) || o.Operation != p.Output.Operation || o.Encrypted != p.Output.Encrypted {
+			if !expectationsEqual(o.Expect, p.Output.Expect) || o.Operation != p.Output.Operation || o.Encrypted != p.Output.Encrypted || o.Source != p.Output.Source || o.Format != p.Output.Format {
 				return nil, fmt.Errorf("output %s: hosts disagree about its expectation", name)
 			}
 		}
 		sort.Strings(hostNames)
 		switch {
-		case !p.Output.Encrypted && len(digests) != 1:
+		case !p.Output.Encrypted && p.Output.Expect.Workspace == nil && len(digests) != 1:
 			return nil, fmt.Errorf("output %s: plaintext bytes differ across hosts: %v", name, digests)
 		case p.Output.Encrypted && len(digests) != len(hosts):
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)
@@ -149,9 +152,72 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 	return out, nil
 }
 
+// A fixture or export omitted by every host must not disappear from the native
+// verdict table. Require each stage of the capabilities this consumer qualifies.
+func requireWorkspaceOutputs(pairs []Paired, cases map[string]corpus.Case, major int) error {
+	produced := map[string]schema.Output{}
+	for _, p := range pairs {
+		o := p.Output
+		if o.Expect.Workspace == nil {
+			continue
+		}
+		if o.Format != "workspace" || o.Encrypted || o.Expect.Continuation {
+			return fmt.Errorf("invalid workspace output %s", o.Name)
+		}
+		ref := o.Source
+		if ref.Stage != "before" {
+			return fmt.Errorf("workspace output %s lost its original source", o.Name)
+		}
+		if o.Expect.View != "" {
+			ref.Stage = o.Expect.View
+		}
+		key := CaseKey(ref)
+		if _, exists := produced[key]; exists {
+			return fmt.Errorf("duplicate workspace state %s", key)
+		}
+		produced[key] = o
+	}
+	for _, k := range cases {
+		if k.Producer != major {
+			continue
+		}
+		var policy, operation string
+		switch k.Recipe {
+		case "workspace-edits":
+			policy = "preserve"
+			switch k.Stage {
+			case "before":
+				operation = "extract"
+			case "replaced":
+				operation = "replace"
+			case "restructured", "metadata":
+				operation = "edit"
+			default:
+				return fmt.Errorf("unqualified workspace stage %s", k.Stage)
+			}
+		case "file-command-journeys", "permission-inheritance":
+			policy, operation = "commands", "session"
+		default:
+			continue
+		}
+		key := CaseKey(schema.CaseRef{Producer: k.Producer, Recipe: k.Recipe, Profile: k.Profile, Stage: k.Stage})
+		o, exists := produced[key]
+		if !exists {
+			return fmt.Errorf("no independently verifiable workspace output for %s", key)
+		}
+		if o.Operation != "workspace-"+operation || o.Expect.Workspace.Policy != policy || o.Expect.Subtree != "Fixture" {
+			return fmt.Errorf("wrong workspace consumer for %s", key)
+		}
+	}
+	return nil
+}
+
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
+	if !reflect.DeepEqual(a.Workspace, b.Workspace) {
+		return false
+	}
 	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
 		return false
 	}
