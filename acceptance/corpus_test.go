@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
@@ -55,9 +56,9 @@ var consumers = map[string][]string{
 	"partitioned-disks":            {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
 	"hfs-mutation-sources":         {"TestReadParity", "TestExistingImageEditsMatchAppleStates"},
 	"apfs-mutation-sources":        {"TestReadParity", "TestExistingImageEditsMatchAppleStates"},
-	"file-command-journeys":        {"TestReadParity"},
-	"workspace-edits":              {"TestReadParity"},
-	"permission-inheritance":       {"TestReadParity"},
+	"file-command-journeys":        {"TestReadParity", "TestFileCommandSessionsMatchAppleJourney"},
+	"workspace-edits":              {"TestReadParity", "TestWorkspaceOperationsMatchAppleStates"},
+	"permission-inheritance":       {"TestReadParity", "TestSessionPermissionsMatchAppleStates"},
 	// Stage sequences the image editor replays from Apple's prior state.
 	"apfs-container-geometry":       {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
 	"apfs-directory-statistics":     {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
@@ -78,7 +79,7 @@ func TestEveryCorpusCaseHasAConsumer(t *testing.T) {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if len(consumers[name]) == 0 {
+		if !slices.ContainsFunc(consumers[name], func(test string) bool { return test != "TestReadParity" }) {
 			t.Errorf("recipe %s is in the corpus but no test beyond read parity consumes it", name)
 		}
 	}

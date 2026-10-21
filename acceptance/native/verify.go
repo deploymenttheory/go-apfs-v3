@@ -105,6 +105,37 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	if err != nil {
 		return nil, err
 	}
+	if out.Expect.Workspace != nil {
+		source, ok := v.Cases[CaseKey(out.Source)]
+		if !ok || len(source.Observation.Views) != 1 {
+			return nil, fmt.Errorf("workspace source has no unique native view")
+		}
+		// Preservation manifests retain host availability/default provenance.
+		// Judge every host's actual bytes independently against the same Apple
+		// view, including all logical/raw data and attributes.
+		var diffs []Difference
+		var hosts []string
+		for host := range p.ByHost {
+			hosts = append(hosts, host)
+		}
+		slices.Sort(hosts)
+		for _, host := range hosts {
+			o := p.ByHost[host]
+			filename := filepath.Join(p.Dirs[host], o.File)
+			if sum, err := schema.FileDigest(filename); err != nil || sum != o.SHA256 {
+				return nil, fmt.Errorf("%s: workspace archive digest mismatch (%v)", host, err)
+			}
+			d, err := VerifyWorkspaceArchive(filename, out.Source.Profile, source.Observation.Views[0], want, out.Expect)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", host, err)
+			}
+			for _, difference := range d {
+				difference.Path = host + ":" + difference.Path
+				diffs = append(diffs, difference)
+			}
+		}
+		return diffs, nil
+	}
 	recipe := v.Recipes[k.Recipe]
 	var password []byte
 	var digests []string
