@@ -172,7 +172,14 @@ func buildVerifier() (*Verifier, error) {
 	} else if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
 	}
-	return &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer}, nil
+	var unpacker string
+	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" {
+		unpacker, err = buildAppleDoubleUnpacker(context.Background(), commander, work)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer, AppleDoubleUnpack: unpacker}, nil
 }
 
 // summary collects job-summary rows from parallel subtests.
@@ -211,6 +218,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		t.Fatalf("no outputs derived from macOS %d fixtures", v.Major)
 	}
 	if nativeGroup(t) != "slow" {
+		if err := requireAppleDoubleOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireWorkspaceOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}

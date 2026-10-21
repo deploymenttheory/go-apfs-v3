@@ -29,9 +29,9 @@ type Output struct {
 	Name string `json:"name"`
 	File string `json:"file"`
 	// Operation is build, compress, container, encrypt, decrypt, repack,
-	// edit, copy, recover-checkpoint, recover-journal, or workspace-*.
+	// edit, copy, recover-checkpoint, recover-journal, appledouble, or workspace-*.
 	Operation string `json:"operation"`
-	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace
+	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace, appledouble
 	Bytes     int64  `json:"bytes"`
 	SHA256    string `json:"sha256"`
 	// Encrypted outputs carry fresh random material, so their digests
@@ -57,6 +57,8 @@ type CaseRef struct {
 
 // Expectation tells the native verifier what to compare the output with.
 type Expectation struct {
+	// AppleDouble selects the retained serialized metadata control for this path.
+	AppleDouble *AppleDoubleExpectation `json:"appleDouble,omitempty"`
 	// Workspace selects independent manifest/blob verification for a portable
 	// preservation archive, rather than attaching it as a disk image.
 	Workspace *WorkspaceExpectation `json:"workspace,omitempty"`
@@ -99,6 +101,11 @@ type Expectation struct {
 	// fsck still run; the edit must fail with exactly this text, and an
 	// edit that succeeds fails the check until the expectation is removed.
 	ContinuationRefusal string `json:"continuationRefusal,omitempty"`
+}
+
+// AppleDoubleExpectation binds an encoded metadata output to one native export.
+type AppleDoubleExpectation struct {
+	Path string `json:"path"`
 }
 
 // WorkspaceExpectation describes the public timestamp policy exercised by the
