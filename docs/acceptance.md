@@ -324,7 +324,11 @@ Cross-version verification requires every live and retained snapshot view,
 matching volumes by name instead of attachment order. Missing and duplicate
 views fail. Retained diskutil command plists supply roles and container UUIDs
 that older observation records omitted; this is a read-only projection of the
-original commands and digests. Captured evidence is never rewritten.
+original commands and digests. Global listings are scoped to the observed
+container before validating its complete inventory; unrelated containers being
+detached cannot invalidate that target. New APFS listing transcripts retain
+complete text up to the parser's eight MiB bound. Missing text or malformed target
+evidence fails explicitly. Captured evidence is never rewritten.
 
 Transient readbacks retain input-file digests and all mounted observations.
 They omit whole-device hashing when no assertion consumes it. Repack/recovery
