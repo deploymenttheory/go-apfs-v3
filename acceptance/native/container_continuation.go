@@ -21,8 +21,9 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 		if volume.Mount == "" {
 			return fmt.Errorf("peer %q is not mounted", volume.Name)
 		}
-		if err := v.writableDirectory(ctx, filepath.Join(volume.Mount, "container-continuation")); err != nil {
-			return err
+		directory := filepath.Join(volume.Mount, "container-continuation")
+		if err := v.writableDirectory(ctx, directory); err != nil {
+			return fmt.Errorf("volume %q create continuation directory %q: %w", volume.Name, directory, err)
 		}
 	}
 	if out.Source.Recipe == "container-volumes" {
@@ -35,29 +36,40 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 			return fmt.Errorf("missing empty pressure volume")
 		}
 		if err := v.pressureVolume(ctx, limited, 16<<20); err != nil {
-			return fmt.Errorf("quota: %w", err)
+			return fmt.Errorf("quota on volume %q: %w", limited.Name, err)
 		}
 		// The unreserved peer must run out before consuming the reserved
 		// allocation. Keep the pressure file until the reserved write is synced.
 		pressure := filepath.Join(empty.Mount, "container-continuation", "pressure")
 		if err := v.fillVolume(ctx, pressure, 256<<20); err != nil {
-			return fmt.Errorf("reservation pressure: %w", err)
+			return fmt.Errorf("reservation pressure on volume %q: %w", empty.Name, err)
 		}
 		proof := filepath.Join(reserved.Mount, "container-continuation", "reservation-proof")
-		if err := v.Vol.WriteFile(proof, make([]byte, 1<<20), true); err != nil {
-			return fmt.Errorf("reserved volume lost protected allocation: %w", err)
+		data := make([]byte, 1<<20)
+		for i := range data {
+			data[i] = byte(i%251 + 1)
+		}
+		if err := v.Vol.WriteFile(proof, data, true); err != nil {
+			return fmt.Errorf("volume %q write protected allocation %q: %w", reserved.Name, proof, err)
 		}
 		if err := v.Vol.Fullfsync(proof); err != nil {
-			return err
+			return fmt.Errorf("volume %q sync protected allocation %q: %w", reserved.Name, proof, err)
 		}
-		if err := v.Vol.Truncate(pressure, 0); err != nil {
-			return err
+		if err := v.checkNativePayload(proof, data); err != nil {
+			return fmt.Errorf("volume %q protected allocation readback: %w", reserved.Name, err)
 		}
-		if err := v.Vol.Remove(pressure); err != nil {
-			return err
+		stat, err := v.Vol.Lstat(proof)
+		if err != nil {
+			return fmt.Errorf("volume %q stat protected allocation %q: %w", reserved.Name, proof, err)
 		}
-		if err := v.Vol.Remove(proof); err != nil {
-			return err
+		if stat.Allocated < int64(len(data)) {
+			return fmt.Errorf("volume %q protected allocation %q has %d allocated bytes, require %d", reserved.Name, proof, stat.Allocated, len(data))
+		}
+		if err := v.releasePressure(pressure); err != nil {
+			return fmt.Errorf("volume %q release reservation pressure: %w", empty.Name, err)
+		}
+		if err := v.releasePressure(proof); err != nil {
+			return fmt.Errorf("volume %q release protected allocation: %w", reserved.Name, err)
 		}
 	}
 	for _, volume := range att.Volumes {
@@ -68,10 +80,13 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 		// accidental selection or cross-volume alias cannot pass readback.
 		filename := filepath.Join(volume.Mount, "container-continuation", "peer")
 		if err := v.Vol.WriteFile(filename, []byte(volume.Name+"\n"), true); err != nil {
-			return err
+			return fmt.Errorf("volume %q write peer %q: %w", volume.Name, filename, err)
 		}
 		if err := v.Vol.Fullfsync(filename); err != nil {
-			return err
+			return fmt.Errorf("volume %q sync peer %q: %w", volume.Name, filename, err)
+		}
+		if err := v.checkNativePayload(filename, []byte(volume.Name+"\n")); err != nil {
+			return fmt.Errorf("volume %q peer readback: %w", volume.Name, err)
 		}
 	}
 	return nil
@@ -82,43 +97,71 @@ func (v *Verifier) pressureVolume(ctx context.Context, volume *fixture.AttachedV
 	if err := v.fillVolume(ctx, filename, bound); err != nil {
 		return err
 	}
-	if err := v.Vol.Truncate(filename, 0); err != nil {
-		return err
-	}
-	if err := v.Vol.Remove(filename); err != nil {
+	if err := v.releasePressure(filename); err != nil {
 		return err
 	}
 	// Reusing quota after removing the last owner is a separate required result.
 	if err := v.Vol.WriteFile(filename, make([]byte, 32<<10), true); err != nil {
-		return fmt.Errorf("reusing released quota: %w", err)
+		return fmt.Errorf("reuse released quota at %q: %w", filename, err)
 	}
 	if err := v.Vol.Fullfsync(filename); err != nil {
-		return err
+		return fmt.Errorf("sync reused quota at %q: %w", filename, err)
 	}
-	return v.Vol.Remove(filename)
+	return v.releasePressure(filename)
+}
+
+// releasePressure commits the deallocation while its inode still exists.
+// Removing the last name alone can leave APFS's transaction pending; immediately
+// allocating another file can then encounter the pressure this test just made.
+// Every syscall is required once: no failed allocation or sync is retried.
+func (v *Verifier) releasePressure(filename string) error {
+	if err := v.Vol.Truncate(filename, 0); err != nil {
+		return fmt.Errorf("truncate pressure file %q: %w", filename, err)
+	}
+	if err := v.Vol.Fullfsync(filename); err != nil {
+		return fmt.Errorf("sync released pressure file %q: %w", filename, err)
+	}
+	if err := v.Vol.Remove(filename); err != nil {
+		return fmt.Errorf("unlink released pressure file %q: %w", filename, err)
+	}
+	return nil
+}
+
+func (v *Verifier) checkNativePayload(filename string, data []byte) error {
+	got, size, err := v.Vol.Hash(filename)
+	if err != nil {
+		return fmt.Errorf("hash %q: %w", filename, err)
+	}
+	want := fmt.Sprintf("%x", sha256.Sum256(data))
+	if size != int64(len(data)) || got != want {
+		return fmt.Errorf("payload %q has %s/%d bytes, require %s/%d", filename, got, size, want, len(data))
+	}
+	return nil
 }
 
 func (v *Verifier) fillVolume(ctx context.Context, filename string, bound int64) error {
 	if err := v.Vol.WriteFile(filename, nil, true); err != nil {
-		return err
+		return fmt.Errorf("create pressure file %q: %w", filename, err)
 	}
 	chunk := make([]byte, 512<<10)
 	for written := int64(0); written < bound; written += int64(len(chunk)) {
 		if err := ctx.Err(); err != nil {
-			return err
+			return fmt.Errorf("fill pressure file %q: %w", filename, err)
 		}
 		err := v.Vol.AppendFile(filename, chunk)
+		operation := "append pressure"
 		if err == nil {
 			err = v.Vol.Fullfsync(filename)
+			operation = "sync pressure"
 		}
 		if errors.Is(err, syscall.EDQUOT) || errors.Is(err, syscall.ENOSPC) {
 			return nil
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("%s file %q: %w", operation, filename, err)
 		}
 	}
-	return fmt.Errorf("native allocation pressure did not reach EDQUOT/ENOSPC within %d bytes", bound)
+	return fmt.Errorf("native allocation pressure at %q did not reach EDQUOT/ENOSPC within %d bytes", filename, bound)
 }
 
 func compareContinuedContainer(before, after *schema.Observation, selected string) error {
