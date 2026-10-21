@@ -12,6 +12,7 @@ import (
 
 const inventoryListing = `<plist version="1.0"><dict><key>Containers</key><array><dict>
 <key>APFSContainerUUID</key><string>11111111-2222-4333-8444-555555555555</string>
+<key>ContainerReference</key><string>disk6</string>
 <key>Volumes</key><array>
 <dict><key>APFSVolumeUUID</key><string>aaaaaaaa-1111-4222-8333-444444444444</string><key>Name</key><string>Data</string><key>Roles</key><array><string>Data</string></array><key>CapacityReserve</key><integer>4096</integer><key>CapacityQuota</key><integer>8192</integer><key>Encryption</key><false/></dict>
 <dict><key>APFSVolumeUUID</key><string>bbbbbbbb-1111-4222-8333-444444444444</string><key>Name</key><string>System</string><key>Roles</key><array><string>System</string></array><key>CapacityReserve</key><integer>0</integer><key>CapacityQuota</key><integer>0</integer><key>Encryption</key><false/></dict>
@@ -19,8 +20,8 @@ const inventoryListing = `<plist version="1.0"><dict><key>Containers</key><array
 
 func observedAPFSInventory() *schema.Observation {
 	obs := &schema.Observation{Volumes: []schema.Volume{
-		{Index: 0, Diskutil: map[string]any{"VolumeName": "Data"}, APFS: &schema.APFSVolume{VolumeUUID: "AAAAAAAA-1111-4222-8333-444444444444", ReserveBytes: 4096, QuotaBytes: 8192}},
-		{Index: 1, Diskutil: map[string]any{"VolumeName": "System"}, APFS: &schema.APFSVolume{VolumeUUID: "BBBBBBBB-1111-4222-8333-444444444444"}},
+		{Index: 0, Diskutil: map[string]any{"VolumeName": "Data", "APFSContainerReference": "disk6"}, APFS: &schema.APFSVolume{VolumeUUID: "AAAAAAAA-1111-4222-8333-444444444444", ReserveBytes: 4096, QuotaBytes: 8192}},
+		{Index: 1, Diskutil: map[string]any{"VolumeName": "System", "APFSContainerReference": "disk6"}, APFS: &schema.APFSVolume{VolumeUUID: "BBBBBBBB-1111-4222-8333-444444444444"}},
 	}}
 	setInventoryTranscript(obs, inventoryListing)
 	return obs
@@ -52,10 +53,87 @@ func TestAPFSInventoryRecoversNativeRolesWithoutChangingEvidence(t *testing.T) {
 	unrelated := observedAPFSInventory().Commands[0]
 	unrelated.StdoutText = strings.ReplaceAll(inventoryListing, "aaaaaaaa-1111-4222-8333-444444444444", "cccccccc-1111-4222-8333-444444444444")
 	unrelated.StdoutText = strings.ReplaceAll(unrelated.StdoutText, "bbbbbbbb-1111-4222-8333-444444444444", "dddddddd-1111-4222-8333-444444444444")
+	unrelated.StdoutText = strings.ReplaceAll(unrelated.StdoutText, "<string>disk6</string>", "<string>disk8</string>")
+	unrelated.StdoutText = strings.ReplaceAll(unrelated.StdoutText, "11111111-2222-4333-8444-555555555555", "33333333-2222-4333-8444-555555555555")
 	unrelated.StdoutSHA256 = ""
 	obs.Commands = append(obs.Commands, unrelated, schema.Command{Argv: unrelated.Argv, Status: "1", StdoutText: "failed output"})
 	if _, err := APFSInventory(obs); err != nil {
 		t.Fatal("unrelated later command:", err)
+	}
+}
+
+func TestAPFSInventoryScopesGlobalListingsBeforeTargetValidation(t *testing.T) {
+	for _, unrelated := range []string{
+		`<dict><key>ContainerReference</key><string>disk99</string></dict>`,
+		`<dict><key>ContainerReference</key><string>disk99</string><key>Volumes</key><array/></dict>`,
+		`<dict><key>ContainerReference</key><string>disk99</string><key>Volumes</key><string>transient</string></dict>`,
+		`<dict><key>ContainerReference</key><string>disk99</string><key>Volumes</key><array><string>transient</string></array></dict>`,
+	} {
+		obs := observedAPFSInventory()
+		listing := strings.Replace(inventoryListing, "<key>Containers</key><array>", "<key>Containers</key><array>"+unrelated, 1)
+		setInventoryTranscript(obs, listing)
+		if _, err := APFSInventory(obs); err != nil {
+			t.Errorf("unrelated global inventory row affected the target: %s: %v", unrelated, err)
+		}
+	}
+	// A known container UUID can also identify unrelated rows when a source has
+	// no device reference. The volume UUIDs still bind the selected full listing.
+	obs := observedAPFSInventory()
+	for i := range obs.Volumes {
+		delete(obs.Volumes[i].Diskutil, "APFSContainerReference")
+		obs.Volumes[i].APFS.ContainerUUID = "11111111-2222-4333-8444-555555555555"
+	}
+	unrelated := `<dict><key>APFSContainerUUID</key><string>33333333-2222-4333-8444-555555555555</string></dict>`
+	setInventoryTranscript(obs, strings.Replace(inventoryListing, "<key>Containers</key><array>", "<key>Containers</key><array>"+unrelated, 1))
+	if _, err := APFSInventory(obs); err != nil {
+		t.Fatal("known unrelated container identity affected the target:", err)
+	}
+	previous := obs.Commands[0]
+	setInventoryTranscript(obs, `<plist><dict><key>Containers</key><array><dict><key>APFSContainerUUID</key><string>11111111-2222-4333-8444-555555555555</string></dict></array></dict></plist>`)
+	obs.Commands = append([]schema.Command{previous}, obs.Commands...)
+	if _, err := APFSInventory(obs); err == nil {
+		t.Fatal("target identified by container UUID bypassed its missing volume inventory")
+	}
+}
+
+func TestAPFSInventoryNeverFallsBackPastInvalidTargetEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		listing string
+		scoped  bool
+	}{
+		{"missing-volumes", `<plist><dict><key>Containers</key><array><dict><key>ContainerReference</key><string>disk6</string></dict></array></dict></plist>`, false},
+		{"empty-volumes", `<plist><dict><key>Containers</key><array><dict><key>ContainerReference</key><string>disk6</string><key>APFSContainerUUID</key><string>11111111-2222-4333-8444-555555555555</string><key>Volumes</key><array/></dict></array></dict></plist>`, false},
+		{"malformed-target-volume", strings.Replace(inventoryListing, "<key>Volumes</key><array>", "<key>Volumes</key><array><string>invalid</string>", 1), false},
+		{"conflicting-reference", strings.ReplaceAll(inventoryListing, "<string>disk6</string>", "<string>disk8</string>"), false},
+		{"wrong-volume-identities", strings.ReplaceAll(strings.ReplaceAll(inventoryListing, "aaaaaaaa-1111-4222-8333-444444444444", "cccccccc-1111-4222-8333-444444444444"), "bbbbbbbb-1111-4222-8333-444444444444", "dddddddd-1111-4222-8333-444444444444"), false},
+		{"ambiguous-target", strings.Replace(inventoryListing, "<key>Containers</key><array>", `<key>Containers</key><array><dict><key>ContainerReference</key><string>disk6</string></dict>`, 1), false},
+		{"missing-scoped-target", `<plist><dict><key>Containers</key><array><dict><key>ContainerReference</key><string>disk99</string></dict></array></dict></plist>`, true},
+		{"unidentifiable-transient", `<plist><dict><key>Containers</key><array><dict/></array></dict></plist>`, false},
+		{"unidentifiable-malformed-volumes", `<plist><dict><key>Containers</key><array><dict><key>Volumes</key><array><string>transient</string></array></dict></array></dict></plist>`, false},
+		{"unidentifiable-empty-volumes", `<plist><dict><key>Containers</key><array><dict><key>Volumes</key><array/></dict></array></dict></plist>`, false},
+		{"invalid-unrelated-identity", `<plist><dict><key>Containers</key><array><dict><key>APFSContainerUUID</key><string>invalid</string><key>Volumes</key><string>transient</string></dict></array></dict></plist>`, false},
+		{"invalid-unrelated-reference", `<plist><dict><key>Containers</key><array><dict><key>ContainerReference</key><string>invalid</string><key>Volumes</key><array/></dict></array></dict></plist>`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			obs := observedAPFSInventory()
+			previous := obs.Commands[0]
+			setInventoryTranscript(obs, tc.listing)
+			if tc.scoped {
+				obs.Commands[0].Argv = append(obs.Commands[0].Argv, "disk6")
+			}
+			obs.Commands = append([]schema.Command{previous}, obs.Commands...)
+			if _, err := APFSInventory(obs); err == nil {
+				t.Fatal("invalid latest target listing was replaced by older valid evidence")
+			}
+		})
+	}
+	obs := observedAPFSInventory()
+	previous := obs.Commands[0]
+	obs.Commands[0].StdoutText = ""
+	obs.Commands = append([]schema.Command{previous}, obs.Commands...)
+	if _, err := APFSInventory(obs); err == nil || !strings.Contains(err.Error(), "text unavailable") {
+		t.Fatalf("omitted native text must remain an explicit evidence refusal, got %v", err)
 	}
 }
 

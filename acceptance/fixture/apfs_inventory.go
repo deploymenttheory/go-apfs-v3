@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -22,6 +21,7 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 		return nil, fmt.Errorf("missing observed APFS inventory")
 	}
 	wanted := make(map[string]schema.Volume, len(obs.Volumes))
+	references, containers := map[string]bool{}, map[string]bool{}
 	for _, v := range obs.Volumes {
 		if v.APFS == nil || !inventoryUUID(v.APFS.VolumeUUID) {
 			return nil, fmt.Errorf("volume %d has no valid native APFS identity", v.Index)
@@ -31,11 +31,26 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			return nil, fmt.Errorf("duplicate observed APFS UUID %s", id)
 		}
 		wanted[id] = v
+		if ref, _ := v.Diskutil["APFSContainerReference"].(string); ref != "" {
+			if !inventoryReference(ref) {
+				return nil, fmt.Errorf("volume %d has an invalid native APFS container reference", v.Index)
+			}
+			references[strings.TrimPrefix(ref, "/dev/")] = true
+		}
+		if v.APFS.ContainerUUID != "" {
+			if !inventoryUUID(v.APFS.ContainerUUID) {
+				return nil, fmt.Errorf("volume %d has an invalid native APFS container identity", v.Index)
+			}
+			containers[strings.ToUpper(v.APFS.ContainerUUID)] = true
+		}
 	}
 	for i := len(obs.Commands) - 1; i >= 0; i-- {
 		cmd := obs.Commands[i]
-		if cmd.Status != "0" || len(cmd.Argv) < 4 || filepath.Base(cmd.Argv[0]) != "diskutil" || cmd.Argv[1] != "apfs" || cmd.Argv[2] != "list" || cmd.Argv[3] != "-plist" {
+		if cmd.Status != "0" || !isAPFSListPlist(cmd.Argv) {
 			continue
+		}
+		if cmd.StdoutText == "" {
+			return nil, fmt.Errorf("retained APFS listing text unavailable")
 		}
 		if cmd.StdoutSHA256 != "" {
 			sum := sha256.Sum256([]byte(cmd.StdoutText))
@@ -47,39 +62,52 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 		if err != nil {
 			return nil, fmt.Errorf("retained APFS listing: %w", err)
 		}
-		containers, ok := listing["Containers"].([]any)
+		listedContainers, ok := listing["Containers"].([]any)
 		if !ok {
 			return nil, fmt.Errorf("retained APFS listing has no Containers array")
 		}
 		var selected map[string]any
-		for _, item := range containers {
+		for _, item := range listedContainers {
 			container, ok := item.(map[string]any)
 			if !ok {
 				return nil, fmt.Errorf("malformed retained APFS container")
 			}
-			volumes, ok := container["Volumes"].([]any)
-			if !ok {
-				return nil, fmt.Errorf("retained APFS container has no Volumes array")
-			}
-			matches := false
+			ref, _ := container["ContainerReference"].(string)
+			ref = strings.TrimPrefix(ref, "/dev/")
+			containerID, _ := container["APFSContainerUUID"].(string)
+			matches := references[ref] || containers[strings.ToUpper(containerID)]
+			volumes, hasVolumes := container["Volumes"].([]any)
+			completeVolumeIDs := hasVolumes && len(volumes) != 0
 			for _, item := range volumes {
 				v, ok := item.(map[string]any)
 				if !ok {
-					return nil, fmt.Errorf("malformed retained APFS volume")
+					completeVolumeIDs = false
+					continue // Strict validation follows only after target selection.
 				}
 				id, _ := v["APFSVolumeUUID"].(string)
+				if !inventoryUUID(id) {
+					completeVolumeIDs = false
+				}
 				if _, ok := wanted[strings.ToUpper(id)]; ok {
 					matches = true
 				}
 			}
+			distinctReference := len(references) != 0 && inventoryReference(ref) && !references[ref]
+			distinctContainer := len(containers) != 0 && inventoryUUID(containerID) && !containers[strings.ToUpper(containerID)]
+			provedUnrelated := completeVolumeIDs || distinctReference || distinctContainer
 			if matches {
 				if selected != nil {
 					return nil, fmt.Errorf("observed volumes occur in several retained APFS containers")
 				}
 				selected = container
+			} else if !provedUnrelated {
+				return nil, fmt.Errorf("unidentifiable retained APFS container has incomplete volume identities")
 			}
 		}
 		if selected == nil {
+			if len(cmd.Argv) == 5 && (references[strings.TrimPrefix(cmd.Argv[4], "/dev/")] || containers[strings.ToUpper(cmd.Argv[4])]) {
+				return nil, fmt.Errorf("retained target APFS listing omits the observed container")
+			}
 			continue
 		}
 		return enrichInventory(obs.Volumes, selected)
@@ -92,13 +120,19 @@ func enrichInventory(observed []schema.Volume, container map[string]any) ([]sche
 	if !inventoryUUID(id) {
 		return nil, fmt.Errorf("invalid retained APFS container UUID")
 	}
-	volumes := container["Volumes"].([]any)
+	volumes, ok := container["Volumes"].([]any)
+	if !ok {
+		return nil, fmt.Errorf("retained target APFS container has no Volumes array")
+	}
 	if len(volumes) != len(observed) {
 		return nil, fmt.Errorf("retained APFS volume count %d, observed %d", len(volumes), len(observed))
 	}
 	byID := map[string]map[string]any{}
 	for _, item := range volumes {
-		v := item.(map[string]any)
+		v, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("malformed retained target APFS volume")
+		}
 		uuid, _ := v["APFSVolumeUUID"].(string)
 		if !inventoryUUID(uuid) || byID[strings.ToUpper(uuid)] != nil {
 			return nil, fmt.Errorf("invalid or duplicate retained APFS volume UUID")
@@ -108,6 +142,12 @@ func enrichInventory(observed []schema.Volume, container map[string]any) ([]sche
 	out := make([]schema.Volume, len(observed))
 	names := map[string]bool{}
 	for i, original := range observed {
+		if expected, _ := original.Diskutil["APFSContainerReference"].(string); expected != "" {
+			got, _ := container["ContainerReference"].(string)
+			if strings.TrimPrefix(expected, "/dev/") != strings.TrimPrefix(got, "/dev/") {
+				return nil, fmt.Errorf("recorded APFS container reference differs from retained target listing")
+			}
+		}
 		listed := byID[strings.ToUpper(original.APFS.VolumeUUID)]
 		if listed == nil {
 			return nil, fmt.Errorf("observed volume %s absent from retained APFS inventory", original.APFS.VolumeUUID)
@@ -168,11 +208,24 @@ func inventoryUUID(s string) bool {
 	return false
 }
 
+func inventoryReference(s string) bool {
+	s = strings.TrimPrefix(s, "/dev/")
+	if !strings.HasPrefix(s, "disk") || len(s) == len("disk") {
+		return false
+	}
+	for _, c := range s[len("disk"):] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // The retained diskutil list format uses only dictionaries, arrays, strings,
 // integers and booleans. Parse it directly, with bounded text, depth and tokens,
 // so reconstructing historical evidence never invokes a native command.
 func readInventoryPlist(text string) (map[string]any, error) {
-	if len(text) == 0 || len(text) > 8<<20 {
+	if len(text) == 0 || len(text) > retainedAPFSListingTextLimit {
 		return nil, fmt.Errorf("APFS listing size outside bounds")
 	}
 	p := inventoryPlist{decoder: xml.NewDecoder(strings.NewReader(text))}
