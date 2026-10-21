@@ -179,6 +179,26 @@ func produceWorkspace(t *testing.T, before, after corpus.Case, operation string,
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Identity includes the source volume and view as well as its object ID.
+	// Bind the exported root to the original reader; the independent decoder
+	// then requires every inherited object to retain that same volume/view.
+	_, source, closeSource := openSingleVolume(t, context.Background(), before, recipesByName(t)[before.Recipe])
+	sourceRoot, err := filesystem.LookupExact(context.Background(), source, "Fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := source.Stat(context.Background(), sourceRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exported, err := w.Stat(context.Background(), w.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	closeSource()
+	if original.Identity != exported.Identity {
+		t.Fatal("workspace changed its source volume, view or root identity")
+	}
 	// The public reader and the independent archive decoder must agree with
 	// native observations. The latter also checks all raw values and identities.
 	compareViewWith(t, context.Background(), name, w, view, compareOptions{subtree: "Fixture"})
