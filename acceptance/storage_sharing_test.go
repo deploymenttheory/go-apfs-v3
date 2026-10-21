@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/native"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
@@ -343,6 +344,13 @@ func TestStorageAccountingMatchesNativeAllocation(t *testing.T) {
 			}
 			if len(k.Observation.Volumes) == 0 {
 				t.Fatal("native allocation control has no volumes")
+			}
+			inventory, err := fixture.APFSInventory(k.Observation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.EqualFold(report.ContainerUUID, inventory[0].APFS.ContainerUUID) {
+				t.Errorf("accounting container UUID %s, native %s", report.ContainerUUID, inventory[0].APFS.ContainerUUID)
 			}
 			var snapshots uint64
 			var reserved uint64

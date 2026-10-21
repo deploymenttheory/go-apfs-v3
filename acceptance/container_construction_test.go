@@ -17,6 +17,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
@@ -147,6 +148,40 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 				}
 				checkConstructedContainer(t, ctx, path, k, inventory, volumes, options.APFS)
 				expect.Continuation = format == "UDZO"
+				if k.Recipe == "volume-groups" && expect.Continuation {
+					// Native allocation on System is qualified. Existing-image
+					// mutation still explicitly refuses nonzero APFS roles.
+					expect.ContinuationRefusal = "APFS volume mutation profile: unsupported feature"
+					groupImage, err := diskimage.Open(path)
+					if err != nil {
+						t.Fatal(err)
+					}
+					groupReport, err := inspect.Image(ctx, groupImage)
+					if err != nil {
+						_ = groupImage.Close()
+						t.Fatal(err)
+					}
+					var systemUUID string
+					for _, volume := range groupReport.Partitions[0].APFS.Volumes {
+						if volume.Name == "System" {
+							systemUUID = volume.UUID
+						}
+					}
+					if err := groupImage.Close(); err != nil || systemUUID == "" {
+						t.Fatalf("selecting built System volume: %v", err)
+					}
+					refused := filepath.Join(t.TempDir(), "group-edit.dmg")
+					_, err = imageedit.Edit(ctx, path, refused, imageedit.Options{Volume: systemUUID, Format: "UDZO", Time: fixedClock}, func(*imageedit.Editor) error {
+						t.Fatal("role-bearing mutation reached the edit callback")
+						return nil
+					})
+					if !errors.Is(err, filesystem.ErrUnsupported) {
+						t.Fatalf("System/Data edit must retain its typed role refusal: %v", err)
+					}
+					if _, err := os.Lstat(refused); !errors.Is(err, fs.ErrNotExist) {
+						t.Fatalf("role refusal published an output: %v", err)
+					}
+				}
 				recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "container", Format: format, Source: caseRef(k), Expect: expect})
 			}
 		})

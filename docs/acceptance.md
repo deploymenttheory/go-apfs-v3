@@ -17,8 +17,8 @@ the slow bucket on Linux and Windows, native truth on macOS 15, 26 and 27,
 and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
 before anything merges to `main`.
 
-The native jobs start beside the portable jobs, after the two-minute
-source checks. Each first reads the other two versions' fixtures, which
+The native jobs start beside the source checks and portable jobs.
+Each first reads the other two versions' fixtures, which
 needs only the corpus, while the portable jobs produce their images; it
 then collects every host's images as soon as they are uploaded, verifies
 them, and does the same for the slow bucket's. A phase whose inputs come
@@ -165,6 +165,36 @@ same native observation. No captured header is rewritten to make a test pass.
   UDRO and UDZO images, with every compression policy where the fixture
   exercises compression, and encrypted builds; the build must read back
   as the subtree.
+- `TestConstructedContainersMatchNativeVolumes` rebuilds every retained
+  multi-volume and System/Data case into UDRO and UDZO, preserving the names,
+  case policies, roles, reserves, quotas, group relationships, contents, clocks,
+  metadata, forks and aliases. Filesystem identities are fresh. A fourth input
+  is genuinely empty: the captured volume named Empty already contains pressure
+  files. Public planning, streaming, publication and failure controls accompany
+  the twelve outputs. Missing producers, cases or native outputs fail.
+- `TestPackingReopenedPreservationSourcesMatchesNativeFiles` requires original
+  native readers, reopened workspaces and CLI-reopened sessions to produce the
+  same image bytes. Twelve additional images return to Apple tools. Packing
+  cannot change the immutable inputs or persisted sessions.
+- `TestCloneReadsUseNativeSharedExtents` traces reads through public data/fork
+  APIs to actual input-device offsets and compares them with retained native
+  physical extent measurements. It distinguishes shared clones, hard links,
+  byte-identical ordinary copies, partial copy-on-write and independent forks.
+  `TestStorageAccountingMatchesNativeAllocation` reconciles native geometry,
+  free space and reserves, volume/snapshot counts, container UUIDs and selected
+  transactions. Protection counts retain conservative internal bounds; the
+  captures do not supply exact native protection counts.
+- `TestSnapshotReadersKeepTheirHistoricalOwnership` interleaves live, named and
+  XID-selected historical reads, including held values and invalid selectors.
+  `TestSnapshotSessionsRetainTheSelectedHistoricalView` opens both captured
+  snapshots through separate CLI name/XID selections, verifies persisted source
+  identities and requires equivalent preservation exports. All twelve exports
+  receive an independent native-tier verdict against the selected historical
+  view; missing or invalid history cannot fall back to the live volume.
+- `TestHistoryAndEncryptedWritersRefuseWithoutPublication` checks the current
+  encrypted/history admission boundaries without writing or publishing outputs.
+  `TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors` requires explicit
+  valid volume selection and preserves the original source and destination state.
 - `TestRepackPreservesEverySector` repacks every retained image into both
   encodings; the decoded disk must hash to the digest the kernel reported
   for the attached device. Encrypted sources are decrypted and rewrapped.
@@ -266,14 +296,40 @@ decrypt to the same device, then judges each output:
   builds): `hdiutil verify`, read-only attach, `fsck_apfs -n` or
   `fsck_hfs -fn`, `codesign --verify --deep --strict`, mounted readback
   with the capture observer, and comparison with the expected view.
+  Fresh containers require every volume and group, including the empty peer,
+  signatures on each expected volume and the System object-ID namespace.
+  Existing-image checks preserve the complete peer inventory and static volume
+  metadata. Fresh object IDs may differ; link counts and alias relationships
+  remain exact.
 - **Continuation**, on a representative set marked where outputs are
   recorded (the compressed build of each profile and storage policy, the
   final edit phase of each mutation source, and the last replayed stage of
   each recipe): a sparse writable raw copy, the native write sequence (bulk
   creation, growth, links, renames, removal, reuse, large attributes, a
   resource fork, native compression), `fsck`, an edit through the product
-  binary, and a final check. Each continuation's scratch is removed when
-  it finishes.
+  binary, full preserved-state comparison, a further bounded allocation through
+  Apple's kernel, checker acceptance and remounted readback of the complete
+  result. Successful scratch copies are removed; failures retain their disk
+  states and command diagnostics.
+
+The constructed container's continuation independently writes every peer,
+exhausts the limited volume's quota, reuses released quota, fills an unreserved
+peer and proves the reserved volume remains writable. The System/Data output
+requires native bulk allocation on System and checker acceptance. Go currently
+refuses mutation of any role-bearing volume; that exact refusal must leave its
+input unchanged and publish no destination. It is recorded explicitly rather
+than claiming a successful Go edit of System/Data.
+
+Cross-version verification requires every live and retained snapshot view,
+matching volumes by name instead of attachment order. Missing and duplicate
+views fail. Retained diskutil command plists supply roles and container UUIDs
+that older observation records omitted; this is a read-only projection of the
+original commands and digests. Captured evidence is never rewritten.
+
+Transient readbacks retain input-file digests and all mounted observations.
+They omit whole-device hashing when no assertion consumes it. Repack/recovery
+disk-digest checks and fresh-container measured sizes remain required; fixture
+capture continues recording both file and device digests.
 
 Preservation exports receive a separate independent verdict. The verifier reads
 their JSON and archive format without importing the product. It checks source
@@ -306,11 +362,33 @@ the continuation's product edit fail with. The native writes and their
 `fsck` still run, the edit must fail with exactly that text, and an edit
 that succeeds fails the check until the entry is removed with the fix.
 
-Subtests run three at a time with `-v`, so progress is visible. Outputs
+Subtests run four at a time with `-v`, so progress is visible. Outputs
 and fixtures that share filesystem identities (one recipe and profile's
 lineage, or any fresh build) are attached one after another, never in
 parallel. The job
 summary lists every verdict and the cross-version drift table.
+
+### Qualification boundaries
+
+This coverage concerns the current admitted implementations. Clone/snapshot
+mutation and software-encrypted writing remain separate product work. The pinned
+clone-stage controls use encrypted containers or retained snapshot histories;
+they do not isolate plaintext clone-only writer admission. Positive arbitrary
+snapshot mutation still requires the independent oracle tracked in #74.
+
+`TestRecursiveHostImportsPreserveNativeLogicalTrees` checks an attribute-free
+subset of the native workspace tree: names, contents, empty directories, symlink
+targets and hard-link classes. Archive metadata is compared with ordinary host
+stat observations and explicit platform defaults; uncaptured ACLs and unavailable
+attribute inventories must be reported. These portable controls emit no native
+image artifacts. Full archive preservation of a foreign host's ACLs and attributes still needs an
+independent host-input inventory policy and native control. Host owner IDs,
+birth-time availability and provenance cannot be treated as restored fixture
+metadata or silently exempted from deterministic image checks.
+
+The performance changes preserve the required gate and eleven-job workflow.
+Issue #134 remains open until three consecutive warm runs of the complete
+combined workload record at most twelve jobs and forty-five minutes wall clock.
 
 ## Diagnosing a failure
 

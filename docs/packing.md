@@ -23,8 +23,10 @@ apfs pack --session build --volume-name Example --format UDRO \
 
 Directory import uses the existing session engine with archive preservation and
 regular-file hard-link preservation. Scratch is created and removed automatically.
-The directory's contents become the volume root's children; the volume root uses
-the session creation defaults. A session build retains its captured root metadata.
+The directory's contents become the volume root's children. Archive import also
+applies the source directory's available root metadata; fields the host does not
+expose retain explicit defaults and availability reports. A session build retains
+its captured root metadata.
 `--scratch-dir` and `APFS_SCRATCH_DIR` locate named sessions and select the
 temporary import scratch root. Unnamed imports default to the system temporary
 directory.

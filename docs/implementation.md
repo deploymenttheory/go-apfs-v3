@@ -8,7 +8,7 @@ and harness were not imported.
 | --- | --- |
 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
 | Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
-| Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented; native qualification enforced by the compatibility matrix |
+| Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented. The required corpus matrix covers workspace/session edits, AppleDouble native unpack, historical session selection and packing reopened preservation sources; recursive host imports have portable logical/default controls, while complete foreign-host archive metadata qualification remains pending |
 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Plaintext APFS file commands, selected-volume editing, directory statistics and copy-on-write allocation/tree/object-map/checkpoint transactions implemented; HFS metadata initialization, overflow growth and node-map extension implemented; ordinary ACL/set-ID metadata effects, ordered commands and completed-output persistence are qualified by the closed offline editing checklist; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
 | Snapshot lifecycle, clones, encrypted modification/creation | [Native history/sharing/encryption controls](apfs-lifecycle.md) retained from macOS 15/26/27; completed-key-change reads corrected. Clone, snapshot and encrypted writes pending; positive snapshot mutation oracle tracked in [#74](https://github.com/deploymenttheory/go-apfs-v3/issues/74) |
@@ -16,6 +16,16 @@ and harness were not imported.
 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
 
 ## Current evidence
+
+The current required coverage is described in [acceptance.md](acceptance.md).
+It includes fresh multi-volume and System/Data construction, explicit volume
+selection, native physical-sharing reads, storage accounting, historical readers
+and sessions, and the existing construction/edit/recovery consumers. Native
+readback requires the complete volume and historical-view inventory. Supported
+Go edits receive a further native allocation and remounted preservation check;
+System/Data role-bearing edits retain their explicit refusal. The historical
+qualification references below describe their original implementations, rather
+than additional workflows that run beside the current corpus matrix.
 
 The volume-inspection family compares native APFS, case-sensitive APFS, HFS+,
 and HFSX images against `diskutil`: name, case policy, allocation block size,

@@ -161,6 +161,9 @@ func requireWorkspaceOutputs(pairs []Paired, cases map[string]corpus.Case, major
 		if o.Expect.Workspace == nil {
 			continue
 		}
+		if o.Operation == "workspace-snapshot" {
+			continue // required independently for each captured snapshot below
+		}
 		if o.Format != "workspace" || o.Encrypted || o.Expect.Continuation {
 			return fmt.Errorf("invalid workspace output %s", o.Name)
 		}
@@ -251,13 +254,16 @@ func requireAppleDoubleOutputs(pairs []Paired, cases map[string]corpus.Case, maj
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
+	if !reflect.DeepEqual(a.Container, b.Container) {
+		return false
+	}
 	if !reflect.DeepEqual(a.AppleDouble, b.AppleDouble) {
 		return false
 	}
 	if !reflect.DeepEqual(a.Workspace, b.Workspace) {
 		return false
 	}
-	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
+	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Snapshot != b.Snapshot || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
 		return false
 	}
 	if len(a.Codesign) != len(b.Codesign) || len(a.IgnoreTimes) != len(b.IgnoreTimes) {

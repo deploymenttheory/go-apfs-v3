@@ -3,6 +3,7 @@ package native
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,23 +59,41 @@ func (v *Verifier) expectedView(out schema.Output) (corpus.Case, schema.View, er
 	}
 	volume := 0
 	if out.Expect.Volume != "" {
+		found := false
 		for _, vol := range k.Observation.Volumes {
 			if name, _ := vol.Diskutil["VolumeName"].(string); name == out.Expect.Volume {
+				if found {
+					return corpus.Case{}, schema.View{}, fmt.Errorf("output %s: duplicate expected volume %q", out.Name, name)
+				}
 				volume = vol.Index
+				found = true
 			}
+		}
+		if !found {
+			return corpus.Case{}, schema.View{}, fmt.Errorf("output %s: expected volume %q is absent", out.Name, out.Expect.Volume)
 		}
 	}
 	for _, view := range k.Observation.Views {
-		if view.Volume == volume && view.Snapshot == "" {
+		if view.Volume == volume && view.Snapshot == out.Expect.Snapshot {
 			return k, view, nil
 		}
 	}
-	return corpus.Case{}, schema.View{}, fmt.Errorf("output %s: case %s has no live view for volume %d", out.Name, CaseKey(ref), volume)
+	return corpus.Case{}, schema.View{}, fmt.Errorf("output %s: case %s has no view for volume %d snapshot %q", out.Name, CaseKey(ref), volume, out.Expect.Snapshot)
 }
 
 // observeImage attaches an image read-only and records it with the same
 // observer the capture tool uses.
 func (v *Verifier) observeImage(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe) (*schema.Observation, error) {
+	return v.observeImageWithDigest(ctx, label, image, format, password, spec, recipe, false)
+}
+
+// observeImageWithDigest keeps complete file hashes while allowing transient
+// readbacks to omit an unasserted whole-device hash. Captures retain both hashes.
+func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (*schema.Observation, error) {
+	t := &fixture.Transcript{}
+	if disk, ok := v.Disk.(fixture.TranscriptUser); ok {
+		disk.SetTranscript(t)
+	}
 	raw := strings.HasSuffix(image, ".raw")
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: raw, Password: password})
 	if err != nil {
@@ -86,11 +105,23 @@ func (v *Verifier) observeImage(ctx context.Context, label, image, format string
 	}
 	work := filepath.Join(v.Work, "observe", sanitize(label))
 	_ = os.RemoveAll(work)
-	t := &fixture.Transcript{}
 	vars := &fixture.Vars{Passwords: recipe.Passwords}
-	obs, err := fixture.Observe(ctx, fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "output"}, Stage: label, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: v.Disk, Vol: v.Vol, Vars: vars, T: t, Work: work, Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(label), Producer: v.Producer})
+	obs, err := fixture.Observe(ctx, fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "output"}, Stage: label, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: v.Disk, Vol: v.Vol, Vars: vars, T: t, Work: work, Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(label), Producer: v.Producer, OmitDeviceDigest: !deviceDigest})
 	if derr := v.Disk.Detach(ctx, att); err == nil {
 		err = derr
+	}
+	if obs != nil {
+		obs.Commands = t.Commands
+		data, writeErr := json.MarshalIndent(obs, "", "  ")
+		if writeErr == nil {
+			writeErr = os.MkdirAll(work, 0o755)
+		}
+		if writeErr == nil {
+			writeErr = os.WriteFile(filepath.Join(work, "observation.json"), append(data, '\n'), 0o644)
+		}
+		if err == nil {
+			err = writeErr
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", label, err)
@@ -110,9 +141,18 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		return v.verifyAppleDouble(ctx, p, k, want)
 	}
 	if out.Expect.Workspace != nil {
-		source, ok := v.Cases[CaseKey(out.Source)]
-		if !ok || len(source.Observation.Views) != 1 {
-			return nil, fmt.Errorf("workspace source has no unique native view")
+		sourceOutput := out
+		sourceOutput.Expect.View = ""
+		_, sourceView, err := v.expectedView(sourceOutput)
+		if err != nil {
+			return nil, fmt.Errorf("workspace source: %w", err)
+		}
+		var identity *workspaceSourceIdentity
+		if out.Expect.Snapshot != "" {
+			identity, err = historicalWorkspaceIdentity(v.Cases[CaseKey(out.Source)], sourceView, out.Expect)
+			if err != nil {
+				return nil, err
+			}
 		}
 		// Preservation manifests retain host availability/default provenance.
 		// Judge every host's actual bytes independently against the same Apple
@@ -129,7 +169,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			if sum, err := schema.FileDigest(filename); err != nil || sum != o.SHA256 {
 				return nil, fmt.Errorf("%s: workspace archive digest mismatch (%v)", host, err)
 			}
-			d, err := VerifyWorkspaceArchive(filename, out.Source.Profile, source.Observation.Views[0], want, out.Expect)
+			d, err := verifyWorkspaceArchive(filename, out.Source.Profile, sourceView, want, out.Expect, identity)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", host, err)
 			}
@@ -184,7 +224,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
-	obs, err := v.observeImage(ctx, out.Name, image, out.Format, password, spec, recipe)
+	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -200,8 +240,12 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			diffs = append(diffs, Difference{Path: c.Path, Field: "codesign", Got: fmt.Sprint(c.Status), Want: "0"})
 		}
 	}
-	if len(obs.Checks.Codesign) != len(out.Expect.Codesign) {
+	if out.Expect.Container == nil && len(obs.Checks.Codesign) != len(out.Expect.Codesign) {
 		diffs = append(diffs, Difference{Field: "codesign", Got: fmt.Sprint(len(obs.Checks.Codesign)), Want: fmt.Sprint(len(out.Expect.Codesign))})
+	}
+	if out.Expect.Container != nil {
+		d, err := v.compareConstructedContainer(obs, k, out)
+		return append(diffs, d...), err
 	}
 	if out.Expect.DiskSHA256 == "" || out.Operation == "edit" || isRecovery {
 		ignore := map[string]bool{}
@@ -217,14 +261,19 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 				opts.IgnoreTimes[name] = true
 			}
 		}
-		view := schema.View{}
-		for _, vw := range obs.Views {
-			if vw.Snapshot == "" {
-				view = vw
-				break
+		if opts.IgnoreIdentity {
+			view, err := onlyLiveView(obs)
+			if err != nil {
+				return nil, err
 			}
+			diffs = append(diffs, CompareViews(view, want, opts)...)
+		} else {
+			d, err := v.compareEditedVolumes(obs, k, out, opts)
+			if err != nil {
+				return nil, err
+			}
+			diffs = append(diffs, d...)
 		}
-		diffs = append(diffs, CompareViews(view, want, opts)...)
 	}
 	return diffs, nil
 }
@@ -337,6 +386,9 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 		password = []byte(recipe.Passwords[enc.Password])
 	}
 	spec := schema.ObserveSpec{}
+	for _, view := range k.Observation.Views {
+		spec.Snapshots = spec.Snapshots || view.Snapshot != ""
+	}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	image := k.Image()
 	obs, err := v.observeImage(ctx, fmt.Sprintf("drift-%d-%s-%s-%s", k.Producer, k.Recipe, k.Profile, k.Stage), image, k.Observation.Image.Format, password, spec, recipe)
@@ -344,18 +396,15 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 		return nil, nil, err
 	}
 	var known, unknown []Difference
-	for _, want := range k.Observation.Views {
-		for _, got := range obs.Views {
-			if got.Volume != want.Volume || got.Snapshot != want.Snapshot {
-				continue
-			}
-			for _, d := range CompareViews(got, want, CompareOptions{}) {
-				if KnownDrift(v.Drift, k.Recipe, k.Profile, d, [2]int{v.Major, k.Producer}) {
-					known = append(known, d)
-				} else {
-					unknown = append(unknown, d)
-				}
-			}
+	viewDiffs, err := compareObservationViews(obs, k.Observation, CompareOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, d := range viewDiffs {
+		if KnownDrift(v.Drift, k.Recipe, k.Profile, d, [2]int{v.Major, k.Producer}) {
+			known = append(known, d)
+		} else {
+			unknown = append(unknown, d)
 		}
 	}
 	return known, unknown, nil

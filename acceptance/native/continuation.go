@@ -22,16 +22,21 @@ import (
 // final state. The sequence exercises the allocator past the object IDs a
 // builder assigned, which is where the System volume object-ID namespace
 // once panicked the kernel.
-func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*schema.Observation, error) {
+func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (observed *schema.Observation, resultErr error) {
 	out := p.Output
 	image := filepath.Join(p.Dirs[p.Primary], p.ByHost[p.Primary].File)
 	work := filepath.Join(v.Work, "continuation", sanitize(out.Name))
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
 	}
-	// Every continuation holds a writable copy of a whole device; keeping
-	// them would exhaust the runner's disk.
-	defer func() { _ = os.RemoveAll(work) }()
+	// Successful continuations release their writable copies. Failed states
+	// remain available in the native diagnostics artifact.
+	defer func() {
+		var limit KnownLimit
+		if resultErr == nil || errors.As(resultErr, &limit) {
+			_ = os.RemoveAll(work)
+		}
+	}()
 	raw := filepath.Join(work, "writable.raw")
 	// A raw copy, not a shadow: HFS shadow writes left a stale alternate
 	// header in the retired harness.
@@ -60,9 +65,15 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	}
 	volume := att.Volumes[0]
 	multiVolume := len(att.Volumes) > 1
+	selected := out.Expect.Volume
 	if out.Expect.SystemMember != "" {
-		if vol := att.Volume(out.Expect.SystemMember); vol != nil {
-			volume = vol
+		selected = out.Expect.SystemMember
+	}
+	if selected != "" {
+		volume = att.Volume(selected)
+		if volume == nil {
+			_ = v.Disk.Detach(ctx, att)
+			return nil, fmt.Errorf("continuation %s: selected volume %q is missing", out.Name, selected)
 		}
 	}
 	for _, vol := range att.Volumes {
@@ -77,6 +88,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if volume.Mount == "" {
 		_ = v.Disk.Detach(ctx, att)
 		return nil, fmt.Errorf("continuation %s: volume %s is not mounted", out.Name, volume.Name)
+	}
+	if out.Expect.Container != nil {
+		if err := v.containerWrites(ctx, att, out); err != nil {
+			_ = v.Disk.Detach(ctx, att)
+			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
+		}
 	}
 	if err := v.nativeWrites(ctx, volume.Mount); err != nil {
 		_ = v.Disk.Detach(ctx, att)
@@ -96,6 +113,10 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
+	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, schema.ObserveSpec{}, k.recipe)
+	if err != nil {
+		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
+	}
 	// The product edits the natively modified volume into a new image.
 	edited := filepath.Join(work, "edited.dmg")
 	argv := []string{v.Product, "edit", "--image", raw, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
@@ -107,13 +128,29 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	var refusalSource string
+	if out.Expect.ContinuationRefusal != "" {
+		refusalSource, err = schema.FileDigest(raw)
+		if err != nil {
+			return nil, err
+		}
+	}
 	outb, err := cmd.CombinedOutput()
+	if writeErr := os.WriteFile(filepath.Join(work, "product-edit.log"), outb, 0o644); writeErr != nil {
+		return nil, writeErr
+	}
 	if refusal := out.Expect.ContinuationRefusal; refusal != "" {
 		if err == nil {
 			return nil, fmt.Errorf("continuation %s: the product edit succeeded although %q was expected; the limit is lifted, so remove the expected refusal", out.Name, refusal)
 		}
 		if !strings.Contains(string(outb), refusal) {
 			return nil, fmt.Errorf("continuation %s: product edit failed differently from the tracked limit %q: %v\n%s", out.Name, refusal, err, outb)
+		}
+		if _, statErr := os.Lstat(edited); !errors.Is(statErr, fs.ErrNotExist) {
+			return nil, fmt.Errorf("continuation %s: refused edit published a destination: %v", out.Name, statErr)
+		}
+		if digest, digestErr := schema.FileDigest(raw); digestErr != nil || digest != refusalSource {
+			return nil, fmt.Errorf("continuation %s: refused edit changed its native input: %v", out.Name, digestErr)
 		}
 		return nil, KnownLimit{Refusal: refusal}
 	}
@@ -124,6 +161,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", nil, spec, k.recipe)
 	if err != nil {
 		return nil, err
+	}
+	if err := compareContinuedContainer(before, obs, volume.Name); err != nil {
+		return obs, fmt.Errorf("continuation %s: %w", out.Name, err)
 	}
 	paths := map[string]bool{}
 	for _, vw := range obs.Views {
@@ -151,7 +191,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (*s
 	if paths["native-continuation/entry-00001"] {
 		return obs, fmt.Errorf("continuation %s: entry removed by the product still present", out.Name)
 	}
-	return obs, nil
+	return v.nativeWriteAfterEdit(ctx, out, edited, work, volume.Name, obs, k.recipe)
 }
 
 // KnownLimit reports that the continuation's native writes passed and the
@@ -168,6 +208,17 @@ type schemaCase struct{ recipe schema.Recipe }
 // attributes, a resource fork and native compression.
 func (v *Verifier) nativeWrites(ctx context.Context, mount string) error {
 	root := filepath.Join(mount, "native-continuation")
+	if err := v.writableDirectory(ctx, root); err != nil {
+		return err
+	}
+	stage := filepath.Join(v.Work, "stage-"+filepath.Base(mount))
+	if err := os.MkdirAll(filepath.Join(stage, "tree"), 0o755); err != nil {
+		return err
+	}
+	return v.writeContinuationTree(ctx, root, stage)
+}
+
+func (v *Verifier) writableDirectory(ctx context.Context, root string) error {
 	if err := v.Vol.Mkdir(root, 0o755); errors.Is(err, fs.ErrPermission) {
 		// A volume root owned by another user (as Apple's own fixtures
 		// are) takes the continuation directory the way recipes create
@@ -181,10 +232,10 @@ func (v *Verifier) nativeWrites(ctx context.Context, mount string) error {
 	} else if err != nil {
 		return err
 	}
-	stage := filepath.Join(v.Work, "stage-"+filepath.Base(mount))
-	if err := os.MkdirAll(filepath.Join(stage, "tree"), 0o755); err != nil {
-		return err
-	}
+	return nil
+}
+
+func (v *Verifier) writeContinuationTree(ctx context.Context, root, stage string) error {
 	for i := 0; i < 2000; i++ {
 		dir := filepath.Join(stage, "tree", fmt.Sprintf("d%02d", i%64))
 		if err := os.MkdirAll(dir, 0o755); err != nil {
