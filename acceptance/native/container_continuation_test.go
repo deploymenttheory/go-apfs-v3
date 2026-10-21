@@ -285,7 +285,7 @@ func TestContainerPressureReportsFailedOperationsWithoutRetries(t *testing.T) {
 			filename := filepath.Join("/container", tc.volume, "container-continuation", tc.file)
 			volume.fail = tc.operation + ":" + filename
 			err := v.containerWrites(context.Background(), att, out)
-			if !errors.Is(err, syscall.EIO) || !strings.Contains(err.Error(), tc.context) || !strings.Contains(err.Error(), filename) || !strings.Contains(err.Error(), tc.volume) || volume.failCalls != 1 {
+			if !errors.Is(err, syscall.EIO) || !strings.Contains(err.Error(), tc.context) || !strings.Contains(err.Error(), fmt.Sprintf("%q", filename)) || !strings.Contains(err.Error(), tc.volume) || volume.failCalls != 1 {
 				t.Fatalf("operation must fail once with exact stage and path: %v, calls=%d", err, volume.failCalls)
 			}
 		})
