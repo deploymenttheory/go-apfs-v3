@@ -95,7 +95,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
 		}
 	}
-	if err := v.nativeWrites(ctx, volume.Mount); err != nil {
+	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
 		_ = v.Disk.Detach(ctx, att)
 		return nil, fmt.Errorf("continuation %s: native writes: %w", out.Name, err)
 	}
@@ -206,12 +206,11 @@ type schemaCase struct{ recipe schema.Recipe }
 // nativeWrites is the continuation sequence: bulk creation past the
 // builder's object IDs, growth, links, renames, removal, reuse, large
 // attributes, a resource fork and native compression.
-func (v *Verifier) nativeWrites(ctx context.Context, mount string) error {
+func (v *Verifier) nativeWrites(ctx context.Context, mount, stage string) error {
 	root := filepath.Join(mount, "native-continuation")
 	if err := v.writableDirectory(ctx, root); err != nil {
 		return err
 	}
-	stage := filepath.Join(v.Work, "stage-"+filepath.Base(mount))
 	if err := os.MkdirAll(filepath.Join(stage, "tree"), 0o755); err != nil {
 		return err
 	}

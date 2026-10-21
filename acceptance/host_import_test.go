@@ -215,9 +215,13 @@ func materializeNativeHostTree(t *testing.T, ctx context.Context, host string, s
 		}
 	}
 	stamp := fixedClock.Add(time.Hour)
+	// Linux relatime advances an old atime after the first alias is read.
+	// Use an explicit future input atime so copying hard-linked paths as
+	// independent files cannot change their source metadata mid-import.
+	access := time.Now().UTC().Add(48 * time.Hour)
 	for _, entry := range append([]schema.Entry{{Path: ".", Kind: "dir"}}, entries...) {
 		if entry.Kind != "symlink" {
-			if err := os.Chtimes(filepath.Join(host, filepath.FromSlash(entry.Path)), stamp, stamp); err != nil {
+			if err := os.Chtimes(filepath.Join(host, filepath.FromSlash(entry.Path)), access, stamp); err != nil {
 				t.Fatal(err)
 			}
 		}
