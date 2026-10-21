@@ -17,6 +17,8 @@ import (
 // reservation policies on disposable writable copies. Pressure is bounded by
 // the declared small container; it never fills the runner's host filesystem.
 func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment, out schema.Output) error {
+	var reservedProof *fixture.AttachedVolume
+	var proofData []byte
 	for _, volume := range att.Volumes {
 		if volume.Mount == "" {
 			return fmt.Errorf("peer %q is not mounted", volume.Name)
@@ -44,33 +46,26 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 		if err := v.fillVolume(ctx, pressure, 256<<20); err != nil {
 			return fmt.Errorf("reservation pressure on volume %q: %w", empty.Name, err)
 		}
-		proof := filepath.Join(reserved.Mount, "container-continuation", "reservation-proof")
-		data := make([]byte, 1<<20)
-		for i := range data {
-			data[i] = byte(i%251 + 1)
-		}
-		if err := v.Vol.WriteFile(proof, data, true); err != nil {
+		proof := filepath.Join(reserved.Mount, filepath.FromSlash(reservationProofPath))
+		proofData = reservationProofData()
+		if err := v.Vol.WriteFile(proof, proofData, true); err != nil {
 			return fmt.Errorf("volume %q write protected allocation %q: %w", reserved.Name, proof, err)
 		}
 		if err := v.Vol.Fullfsync(proof); err != nil {
 			return fmt.Errorf("volume %q sync protected allocation %q: %w", reserved.Name, proof, err)
 		}
-		if err := v.checkNativePayload(proof, data); err != nil {
-			return fmt.Errorf("volume %q protected allocation readback: %w", reserved.Name, err)
-		}
-		stat, err := v.Vol.Lstat(proof)
-		if err != nil {
-			return fmt.Errorf("volume %q stat protected allocation %q: %w", reserved.Name, proof, err)
-		}
-		if stat.Allocated < int64(len(data)) {
-			return fmt.Errorf("volume %q protected allocation %q has %d allocated bytes, require %d", reserved.Name, proof, stat.Allocated, len(data))
+		if err := v.checkReservedAllocation(reserved, proofData); err != nil {
+			return err
 		}
 		if err := v.releasePressure(pressure); err != nil {
 			return fmt.Errorf("volume %q release reservation pressure: %w", empty.Name, err)
 		}
-		if err := v.releasePressure(proof); err != nil {
-			return fmt.Errorf("volume %q release protected allocation: %w", reserved.Name, err)
-		}
+		// This allocation is the proof, not disposable pressure. Retain it
+		// through peer writes, the Go edit and final native allocation, whose
+		// exact whole-volume comparisons must preserve its bytes and identity.
+		// Retiring it here can also increase the unused reservation before
+		// APFS has reclaimed its checkpoint-protected blocks.
+		reservedProof = reserved
 	}
 	for _, volume := range att.Volumes {
 		if volume.Mount == "" {
@@ -88,6 +83,34 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 		if err := v.checkNativePayload(filename, []byte(volume.Name+"\n")); err != nil {
 			return fmt.Errorf("volume %q peer readback: %w", volume.Name, err)
 		}
+	}
+	if reservedProof != nil {
+		return v.checkReservedAllocation(reservedProof, proofData)
+	}
+	return nil
+}
+
+const reservationProofPath = "container-continuation/reservation-proof"
+
+func reservationProofData() []byte {
+	data := make([]byte, 1<<20)
+	for i := range data {
+		data[i] = byte(i%251 + 1)
+	}
+	return data
+}
+
+func (v *Verifier) checkReservedAllocation(volume *fixture.AttachedVolume, data []byte) error {
+	filename := filepath.Join(volume.Mount, filepath.FromSlash(reservationProofPath))
+	if err := v.checkNativePayload(filename, data); err != nil {
+		return fmt.Errorf("volume %q protected allocation readback: %w", volume.Name, err)
+	}
+	stat, err := v.Vol.Lstat(filename)
+	if err != nil {
+		return fmt.Errorf("volume %q stat protected allocation %q: %w", volume.Name, filename, err)
+	}
+	if stat.Allocated < int64(len(data)) {
+		return fmt.Errorf("volume %q protected allocation %q has %d allocated bytes, require %d", volume.Name, filename, stat.Allocated, len(data))
 	}
 	return nil
 }
@@ -113,6 +136,8 @@ func (v *Verifier) pressureVolume(ctx context.Context, volume *fixture.AttachedV
 // releasePressure commits the deallocation while its inode still exists.
 // Removing the last name alone can leave APFS's transaction pending; immediately
 // allocating another file can then encounter the pressure this test just made.
+// The sync need not empty APFS's pending-free queue: subsequent allocations and
+// readback establish usable headroom while older checkpoints may retain blocks.
 // Every syscall is required once: no failed allocation or sync is retried.
 func (v *Verifier) releasePressure(filename string) error {
 	if err := v.Vol.Truncate(filename, 0); err != nil {

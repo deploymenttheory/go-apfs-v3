@@ -119,6 +119,7 @@ func TestNativePressureRequiresTheBoundedAllocationOutcome(t *testing.T) {
 // ordering failure without mounting a filesystem on the developer host.
 type pressureProtocolVolume struct {
 	fixture.Volume
+	// pending models uncommitted truncations, not APFS's pending-free queue.
 	pending                       map[string]bool
 	quotaReached, pressureReached bool
 	protectedSynced               bool
@@ -126,6 +127,8 @@ type pressureProtocolVolume struct {
 	failCalls                     int
 	corrupt                       string
 	unallocatedProof              bool
+	retiredProof                  bool
+	damageProofAfterPeers         string
 }
 
 func (v *pressureProtocolVolume) fault(operation, filename string) error {
@@ -147,7 +150,18 @@ func (v *pressureProtocolVolume) WriteFile(filename string, data []byte, exclusi
 		data = append([]byte(nil), data...)
 		data[0] ^= 0xff
 	}
-	return v.Volume.WriteFile(filename, data, exclusive)
+	if err := v.Volume.WriteFile(filename, data, exclusive); err != nil {
+		return err
+	}
+	if filepath.Base(filename) == "peer" && strings.Contains(filename, "Fresh Empty") {
+		switch v.damageProofAfterPeers {
+		case "contents":
+			return v.Pwrite(filepath.Join("/container", "Reserved", filepath.FromSlash(reservationProofPath)), 0, []byte{0})
+		case "allocation":
+			v.unallocatedProof = true
+		}
+	}
+	return nil
 }
 
 func (v *pressureProtocolVolume) AppendFile(filename string, data []byte) error {
@@ -179,12 +193,21 @@ func (v *pressureProtocolVolume) Truncate(filename string, size int64) error {
 	}
 	if size == 0 {
 		v.pending[filename] = true
+		if filepath.Base(filename) == "reservation-proof" {
+			v.retiredProof = true
+		}
 	}
 	return nil
 }
 
 func (v *pressureProtocolVolume) Fullfsync(filename string) error {
 	if v.pending[filename] {
+		// Native APFS can increase the unused reservation before the old
+		// proof's checkpoint-protected blocks have retired. Its cleanup sync
+		// then exhausts unreserved metadata headroom despite successful writes.
+		if filepath.Base(filename) == "reservation-proof" {
+			return syscall.ENOSPC
+		}
 		if err := v.fault("release-sync", filename); err != nil {
 			return err
 		}
@@ -249,7 +272,7 @@ func TestContainerPressureCommitsDeallocationBeforePeerWrites(t *testing.T) {
 	if err := v.containerWrites(context.Background(), att, out); err != nil {
 		t.Fatal(err)
 	}
-	if !volume.quotaReached || !volume.pressureReached || !volume.protectedSynced || len(volume.pending) != 0 {
+	if !volume.quotaReached || !volume.pressureReached || !volume.protectedSynced || len(volume.pending) != 0 || volume.retiredProof {
 		t.Fatal("quota, exhaustion, protected allocation or durable release was not verified")
 	}
 	for _, peer := range att.Volumes {
@@ -258,11 +281,12 @@ func TestContainerPressureCommitsDeallocationBeforePeerWrites(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		for _, name := range []string{"pressure", "reservation-proof"} {
-			if _, err := volume.Volume.Lstat(filepath.Join(peer.Mount, "container-continuation", name)); !errors.Is(err, syscall.ENOENT) {
-				t.Fatalf("pressure file %s on %s was retained: %v", name, peer.Name, err)
-			}
+		if _, err := volume.Volume.Lstat(filepath.Join(peer.Mount, "container-continuation", "pressure")); !errors.Is(err, syscall.ENOENT) {
+			t.Fatalf("unreserved pressure on %s was retained: %v", peer.Name, err)
 		}
+	}
+	if err := v.checkReservedAllocation(att.Volume("Reserved"), reservationProofData()); err != nil {
+		t.Fatal("protected allocation did not survive peer writes:", err)
 	}
 }
 
@@ -276,7 +300,6 @@ func TestContainerPressureReportsFailedOperationsWithoutRetries(t *testing.T) {
 		{"pressure-truncate", "truncate", "Fresh Empty", "pressure", "release reservation pressure"},
 		{"pressure-release", "release-sync", "Fresh Empty", "pressure", "sync released pressure"},
 		{"pressure-unlink", "unlink", "Fresh Empty", "pressure", "unlink released pressure"},
-		{"proof-release", "release-sync", "Reserved", "reservation-proof", "release protected allocation"},
 		{"peer-write", "write", "Limited", "peer", "write peer"},
 		{"peer-sync", "sync", "Reserved", "peer", "sync peer"},
 	} {
@@ -293,17 +316,80 @@ func TestContainerPressureReportsFailedOperationsWithoutRetries(t *testing.T) {
 }
 
 func TestContainerPressureRequiresAllocatedProofAndExactPeerContents(t *testing.T) {
-	for _, change := range []string{"unallocated proof", "reservation-proof", "peer"} {
+	for _, change := range []string{"unallocated proof", "reservation-proof", "peer", "proof contents after peers", "proof allocation after peers"} {
 		t.Run(change, func(t *testing.T) {
 			v, att, out, volume := containerPressureProtocol(t)
-			if change == "unallocated proof" {
+			switch change {
+			case "unallocated proof":
 				volume.unallocatedProof = true
-			} else {
+			case "proof contents after peers":
+				volume.damageProofAfterPeers = "contents"
+			case "proof allocation after peers":
+				volume.damageProofAfterPeers = "allocation"
+			default:
 				volume.corrupt = change
 			}
 			if err := v.containerWrites(context.Background(), att, out); err == nil {
 				t.Fatal("allocation or readback corruption passed the native protocol")
 			}
 		})
+	}
+}
+
+func TestReservedAllocationSurvivesProductAndFinalNativeWrites(t *testing.T) {
+	before, after := continuedObservations()
+	data := reservationProofData()
+	proof := schema.Entry{Path: reservationProofPath, Kind: "file", ID: 500, Links: 1, Mode: 0o644, Size: int64(len(data)), Allocated: int64(len(data)), SHA256: fmt.Sprintf("%x", sha256.Sum256(data))}
+	before.Views[0].Entries = append(before.Views[0].Entries, proof)
+	after.Views[0].Entries = append(after.Views[0].Entries, proof)
+	if err := compareContinuedContainer(before, after, "Reserved"); err != nil {
+		t.Fatal("retained reservation proof after product writes:", err)
+	}
+	final := cloneObservation(t, after)
+	allocated := []byte("allocated after the product transaction")
+	final.Views[0].Entries = append(final.Views[0].Entries, schema.Entry{Path: "native-continuation/native-after-go", Kind: "file", ID: 501, Links: 1, Size: int64(len(allocated)), SHA256: fmt.Sprintf("%x", sha256.Sum256(allocated))})
+	if err := compareFinalNativeWrite(after, final, "Reserved", allocated); err != nil {
+		t.Fatal("retained reservation proof after final native allocation:", err)
+	}
+	for _, stage := range []string{"product writes", "final native allocation"} {
+		for _, alteration := range []string{"removed", "truncated", "corrupt", "different identity", "changed metadata", "moved to peer"} {
+			t.Run(stage+"/"+alteration, func(t *testing.T) {
+				reference := after
+				if stage == "final native allocation" {
+					reference = final
+				}
+				changed := cloneObservation(t, reference)
+				for i, entry := range changed.Views[0].Entries {
+					if entry.Path != reservationProofPath {
+						continue
+					}
+					switch alteration {
+					case "removed", "moved to peer":
+						changed.Views[0].Entries = append(changed.Views[0].Entries[:i], changed.Views[0].Entries[i+1:]...)
+						if alteration == "moved to peer" {
+							changed.Views[1].Entries = append(changed.Views[1].Entries, entry)
+						}
+					case "truncated":
+						changed.Views[0].Entries[i].Size = 0
+					case "corrupt":
+						changed.Views[0].Entries[i].SHA256 = "different"
+					case "different identity":
+						changed.Views[0].Entries[i].ID++
+					case "changed metadata":
+						changed.Views[0].Entries[i].Times.Modify++
+					}
+					break
+				}
+				var err error
+				if stage == "product writes" {
+					err = compareContinuedContainer(before, changed, "Reserved")
+				} else {
+					err = compareFinalNativeWrite(after, changed, "Reserved", allocated)
+				}
+				if err == nil {
+					t.Fatal("reservation proof escaped exact pipeline comparison")
+				}
+			})
+		}
 	}
 }
