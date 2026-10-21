@@ -77,7 +77,8 @@ func compareObservationViews(got, want *schema.Observation, opts CompareOptions)
 }
 
 // compareEditedVolumes requires preservation of peer volumes as well as the
-// selected edited volume. Relaxations apply only to the selected volume.
+// selected edited volume. Stage replays project their explicit command clocks
+// on every edited volume; unrelated peers and entries remain exact.
 func (v *Verifier) compareEditedVolumes(got *schema.Observation, k corpus.Case, out schema.Output, opts CompareOptions) ([]Difference, error) {
 	want := k.Observation
 	if len(got.Volumes) != len(want.Volumes) || len(got.Views) != len(want.Views) {
@@ -86,6 +87,10 @@ func (v *Verifier) compareEditedVolumes(got *schema.Observation, k corpus.Case, 
 	selected := out.Expect.Volume
 	if selected == "" && len(want.Volumes) == 1 {
 		selected = volumeName(want.Volumes[0])
+	}
+	projected, err := v.replayClockViews(out, want)
+	if err != nil {
+		return nil, err
 	}
 	var diffs []Difference
 	metadataDiffs, err := comparePreservedVolumeMetadata(got, want)
@@ -108,7 +113,17 @@ func (v *Verifier) compareEditedVolumes(got *schema.Observation, k corpus.Case, 
 				return nil, err
 			}
 			viewOptions := CompareOptions{}
-			if name == selected && expectedView.Snapshot == "" {
+			if replayed, edited := projected[name]; edited && expectedView.Snapshot == "" {
+				expectedView = replayed
+				viewOptions = opts
+				viewOptions.IgnoreTimes = nil
+				source := v.Cases[CaseKey(out.Source)]
+				before, err := namedVolume(source.Observation, name)
+				if err != nil {
+					return nil, err
+				}
+				viewOptions.Existing = v.existingPaths(out.Source, before.Index)
+			} else if projected == nil && name == selected && expectedView.Snapshot == "" {
 				viewOptions = opts
 				if out.Expect.NewIdentities {
 					viewOptions.Existing = v.existingPaths(out.Source, expected.Index)
