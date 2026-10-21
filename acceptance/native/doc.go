@@ -6,6 +6,8 @@
 // parity of the fixtures themselves. Preservation exports receive independent
 // manifest, graph, metadata and blob verification against the Apple observations
 // on every host's copy, without using the product's workspace reader.
+// AppleDouble receives independent serialized-value checks and Apple's public
+// COPYFILE_UNPACK verdict against a retained native control on the same kernel.
 //
 // The package never imports the product: the product is exercised only as
 // a built binary named by APFS_PRODUCT_CLI. Everything that is not a system

@@ -188,6 +188,14 @@ same native observation. No captured header is rewritten to make a test pass.
   cannot be translated fails the test.
 - `TestEveryCorpusCaseHasAConsumer` fails when a recipe is in the corpus
   without an assertion beyond read parity.
+- `TestAppleDoubleMatchesNativeExports` decodes every retained `file-corpus`
+  AppleDouble export and compares FinderInfo, resource-fork bytes, container
+  flags/debug tags and ordered serialized attributes against an independent
+  reader. Empty attributes, serialized ACL text and attribute flags remain
+  exact. Re-encoding returns one canonical `.bin` output per native export;
+  local repeats and every portable host must produce identical bytes. Padding
+  and entry offsets may differ from the original Apple layout. Missing native
+  producer/profile controls or returned outputs fail the gate.
 - `TestWorkspaceOperationsMatchAppleStates` extracts `workspace-edits` and
   chains content replacement, ordered tree edits and metadata/fork edits through
   new immutable workspaces. Every stage is reopened and compared with its native
@@ -219,8 +227,8 @@ Outputs are written to `APFS_OUTPUT_DIR` with `outputs.json` describing
 each one's expectation; CI uploads them per producer as
 `outputs-<host>-macos-<major>`. Locally every output is produced twice and
 the copies must be byte-identical (encrypted copies must differ). CI
-produces each output once: the native tier requires every host's copy to
-be byte-identical, which covers the repeat and catches more.
+produces each output once: the native tier requires every host's image or
+AppleDouble copy to be byte-identical, which covers the repeat and catches more.
 
 Workspace consumers return `.tar.gz` preservation exports through the same
 artifacts. Archive headers retain portable names and bytes, omitting host owner
@@ -275,6 +283,21 @@ metadata and serialized ACL bytes against the captured Apple view. Edits must
 retain the preceding export's actual manifest digest. Host metadata availability
 and creation provenance can differ between session exports, so every host's
 complete archive is checked individually against the same native reference.
+
+AppleDouble outputs are bound to the original export's path and digest. The
+independent reader checks every host's actual bytes and serialized values.
+The native job builds a small adapter that only calls Apple's public
+`copyfile(..., COPYFILE_UNPACK)` API, then unpacks both the retained Apple
+control and one byte-identical portable output onto fresh ordinary files on
+the same destination filesystem. Native positive controls must restore every
+nonempty ordinary attribute, FinderInfo and resource fork, and restore an ACL
+when serialized ACL text is present. The unpacked data fork must stay intact;
+the complete native attribute inventory and raw ACL must match the control.
+Empty-value omission and ACL application remain native policy; serialized
+presence and values are checked separately and exactly. Command transcripts
+and readback digests are written to the native diagnostics directory. The
+adapter is built and run only on guarded disposable CI VMs; no new captures,
+fixture changes or CI jobs are required.
 
 A known product limit is recorded where the output is produced, never by
 weakening a comparison: `knownProductLimits` in

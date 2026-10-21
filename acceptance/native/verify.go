@@ -19,17 +19,18 @@ import (
 // Verifier holds what one macOS job needs: the corpus, every host's
 // outputs, the recipes (for passwords) and the product binary.
 type Verifier struct {
-	Major    int
-	Corpus   *corpus.Corpus
-	Cases    map[string]corpus.Case // producer/recipe/profile/stage
-	Recipes  map[string]schema.Recipe
-	Drift    *schema.KnownDrift
-	Product  string // path to the product command-line binary
-	Work     string
-	Disk     fixture.Disk
-	Vol      fixture.Volume
-	C        fixture.Commander
-	Producer schema.Producer
+	Major             int
+	Corpus            *corpus.Corpus
+	Cases             map[string]corpus.Case // producer/recipe/profile/stage
+	Recipes           map[string]schema.Recipe
+	Drift             *schema.KnownDrift
+	Product           string // path to the product command-line binary
+	Work              string
+	Disk              fixture.Disk
+	Vol               fixture.Volume
+	C                 fixture.Commander
+	Producer          schema.Producer
+	AppleDoubleUnpack string // guarded public copyfile(3) adapter, built once
 }
 
 // ForSubtest returns a copy of the verifier with its own disk transcript,
@@ -104,6 +105,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	k, want, err := v.expectedView(out)
 	if err != nil {
 		return nil, err
+	}
+	if out.Expect.AppleDouble != nil {
+		return v.verifyAppleDouble(ctx, p, k, want)
 	}
 	if out.Expect.Workspace != nil {
 		source, ok := v.Cases[CaseKey(out.Source)]

@@ -3,6 +3,7 @@ package corpus
 import (
 	"bytes"
 	"compress/gzip"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -33,6 +34,53 @@ func compressedRaw(t *testing.T, data []byte) (string, string) {
 		t.Fatal(err)
 	}
 	return path, sum
+}
+
+func TestRawExpansionRetainsCompletedBytesAndOpenReaders(t *testing.T) {
+	for _, matching := range []bool{true, false} {
+		t.Run(map[bool]string{true: "matching capture", false: "different capture"}[matching], func(t *testing.T) {
+			retained := []byte("completed native fixture")
+			input := retained
+			if !matching {
+				input = []byte("different native fixture")
+			}
+			src, sourceSum := compressedRaw(t, input)
+			dst := filepath.Join(t.TempDir(), "expanded.raw")
+			if err := os.WriteFile(dst, retained, 0644); err != nil {
+				t.Fatal(err)
+			}
+			reader, err := os.Open(dst)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = reader.Close() }()
+			before, err := reader.Stat()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = ExpandGzip(src, dst)
+			if (err == nil) != matching {
+				t.Fatalf("matching=%v: %v", matching, err)
+			}
+			after, err := os.Stat(dst)
+			if err != nil || !os.SameFile(before, after) {
+				t.Fatal("completed expansion was replaced", err)
+			}
+			for _, read := range []func() ([]byte, error){func() ([]byte, error) { return io.ReadAll(reader) }, func() ([]byte, error) { return os.ReadFile(dst) }} {
+				got, err := read()
+				if err != nil || !bytes.Equal(got, retained) {
+					t.Fatal("completed bytes changed", got, err)
+				}
+			}
+			if sum, err := schema.FileDigest(src); err != nil || sum != sourceSum {
+				t.Fatal("captured source changed", err)
+			}
+			partial, err := filepath.Glob(filepath.Join(filepath.Dir(dst), "*.partial-*"))
+			if err != nil || len(partial) != 0 {
+				t.Fatal("partial files remain", partial, err)
+			}
+		})
+	}
 }
 
 func TestRawExpansionsDoNotReuseAnotherCapturesBytes(t *testing.T) {

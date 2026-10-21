@@ -212,9 +212,48 @@ func requireWorkspaceOutputs(pairs []Paired, cases map[string]corpus.Case, major
 	return nil
 }
 
+// Require every retained AppleDouble control, even if all hosts omit it.
+func requireAppleDoubleOutputs(pairs []Paired, cases map[string]corpus.Case, major int) error {
+	produced := map[string]bool{}
+	for _, p := range pairs {
+		o := p.Output
+		if o.Expect.AppleDouble == nil {
+			continue
+		}
+		if o.Operation != "appledouble" || o.Format != "appledouble" || o.Encrypted || !reflect.DeepEqual(o.Expect, schema.Expectation{AppleDouble: o.Expect.AppleDouble}) {
+			return fmt.Errorf("invalid AppleDouble consumer %s", o.Name)
+		}
+		key := CaseKey(o.Source) + "\x00" + o.Expect.AppleDouble.Path
+		if produced[key] {
+			return fmt.Errorf("duplicate AppleDouble consumer %s", o.Name)
+		}
+		produced[key] = true
+	}
+	for _, k := range cases {
+		if k.Producer != major || k.Recipe != "file-corpus" || k.Stage != "final" {
+			continue
+		}
+		if k.Observation == nil || len(k.Observation.Views) != 1 || len(k.Observation.Views[0].AppleDouble) == 0 {
+			return fmt.Errorf("missing native AppleDouble controls for %d/%s/%s", major, k.Recipe, k.Profile)
+		}
+		seen := map[string]bool{}
+		for _, e := range k.Observation.Views[0].AppleDouble {
+			key := CaseKey(schema.CaseRef{Producer: k.Producer, Recipe: k.Recipe, Profile: k.Profile, Stage: k.Stage}) + "\x00" + e.Path
+			if seen[e.Path] || !produced[key] {
+				return fmt.Errorf("no unique independently verifiable AppleDouble output for %s", key)
+			}
+			seen[e.Path] = true
+		}
+	}
+	return nil
+}
+
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
+	if !reflect.DeepEqual(a.AppleDouble, b.AppleDouble) {
+		return false
+	}
 	if !reflect.DeepEqual(a.Workspace, b.Workspace) {
 		return false
 	}
