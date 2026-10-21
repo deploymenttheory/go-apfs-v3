@@ -20,9 +20,11 @@ before anything merges to `main`.
 The native jobs start beside the source checks and portable jobs.
 Each first reads the other two versions' fixtures, which
 needs only the corpus, while the portable jobs produce their images; it
-then collects every host's images as soon as they are uploaded, verifies
-them, and does the same for the slow bucket's. A phase whose inputs come
-from a failed job stops at once instead of waiting.
+then collects and verifies the slow bucket's images before every host's main
+outputs. The slow artifacts arrive while the main producers are still working,
+so their verification uses that waiting window. Both output phases remain
+required. A phase whose inputs come from a failed job stops at once instead
+of waiting. Performance qualification still requires complete warm runs.
 
 ## The matrix
 

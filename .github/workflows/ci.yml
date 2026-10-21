@@ -172,6 +172,8 @@ jobs:
     # Cross-version fixture parity needs only the corpus, so native jobs
     # start alongside source and portable checks. The required gate still
     # waits for every check; independent work need not wait for cross-builds.
+    # Verify the slow bucket before collecting the main outputs: its artifacts
+    # arrive while the main producers are still working, filling that wait.
     permissions:
       contents: read
       actions: read # follow this run's artifacts and jobs
@@ -206,6 +208,22 @@ jobs:
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
         run: go test -count=1 -v -parallel 4 -timeout 30m -tags native ./acceptance/native
+      - name: Wait for the slow bucket's images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/wait-for-artifacts.sh "Slow portable conformance" slow-outputs-linux slow-outputs-windows
+      - name: Download the slow bucket's images
+        uses: actions/download-artifact@v7
+        with:
+          pattern: slow-outputs-*
+          path: ${{ runner.temp }}/host-outputs
+      - name: Verify the slow bucket's images with Apple tools
+        env:
+          APFS_NATIVE_GROUPS: slow
+          APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
+          APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        run: go test -count=1 -v -parallel 4 -timeout 20m -tags native ./acceptance/native
       - name: Wait for every host's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -224,22 +242,6 @@ jobs:
         # Parallelism applies to independent filesystem lineages. Outputs
         # sharing a container or volume UUID remain serial within a lineage.
         run: go test -count=1 -v -parallel 4 -timeout 40m -tags native ./acceptance/native
-      - name: Wait for the slow bucket's images
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: .github/scripts/wait-for-artifacts.sh "Slow portable conformance" slow-outputs-linux slow-outputs-windows
-      - name: Download the slow bucket's images
-        uses: actions/download-artifact@v7
-        with:
-          pattern: slow-outputs-*
-          path: ${{ runner.temp }}/host-outputs
-      - name: Verify the slow bucket's images with Apple tools
-        env:
-          APFS_NATIVE_GROUPS: slow
-          APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
-          APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
-          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 4 -timeout 20m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
