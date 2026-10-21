@@ -316,7 +316,10 @@ decrypt to the same device, then judges each output:
 
 The constructed container's continuation independently writes every peer,
 exhausts the limited volume's quota, reuses released quota, fills an unreserved
-peer and proves the reserved volume remains writable. The System/Data output
+peer and proves the reserved volume remains writable. Its synced, hashed and
+physically allocated proof remains present through the Go edit and final native
+allocation; both complete readbacks require its preservation. Unreserved pressure
+is durably released before normal continuation writes. The System/Data output
 requires native bulk allocation on System and checker acceptance. Go currently
 refuses mutation of any role-bearing volume; that exact refusal must leave its
 input unchanged and publish no destination. It is recorded explicitly rather
