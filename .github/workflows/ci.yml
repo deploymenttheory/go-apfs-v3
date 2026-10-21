@@ -105,9 +105,7 @@ jobs:
         shell: bash
         env:
           APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
-        run: |
-          go test -count=1 -timeout 2m ./acceptance/corpus ./acceptance/fixture ./acceptance/schema ./acceptance/native
-          go test -count=1 -timeout 25m ./acceptance/...
+        run: go test -count=1 -timeout 25m ./acceptance/...
       # One artifact per producer: the native job for macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.
@@ -171,10 +169,9 @@ jobs:
 
   native:
     name: Apple verification on macOS ${{ matrix.major }}
-    # Native jobs start with the portable jobs: cross-version fixture parity
-    # needs only the corpus, so it runs while the portable jobs produce
-    # their images, which the job then collects as they are uploaded.
-    needs: checks
+    # Cross-version fixture parity needs only the corpus, so native jobs
+    # start alongside source and portable checks. The required gate still
+    # waits for every check; independent work need not wait for cross-builds.
     permissions:
       contents: read
       actions: read # follow this run's artifacts and jobs
@@ -208,7 +205,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 3 -timeout 30m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 4 -timeout 30m -tags native ./acceptance/native
       - name: Wait for every host's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -224,7 +221,9 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 3 -timeout 40m -tags native ./acceptance/native
+        # Parallelism applies to independent filesystem lineages. Outputs
+        # sharing a container or volume UUID remain serial within a lineage.
+        run: go test -count=1 -v -parallel 4 -timeout 40m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -240,7 +239,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 3 -timeout 20m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 4 -timeout 20m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
