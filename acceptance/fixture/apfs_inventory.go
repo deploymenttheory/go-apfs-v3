@@ -78,6 +78,7 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			matches := references[ref] || containers[strings.ToUpper(containerID)]
 			volumes, hasVolumes := container["Volumes"].([]any)
 			completeVolumeIDs := hasVolumes && len(volumes) != 0
+			volumeIDs := map[string]bool{}
 			for _, item := range volumes {
 				v, ok := item.(map[string]any)
 				if !ok {
@@ -85,9 +86,10 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 					continue // Strict validation follows only after target selection.
 				}
 				id, _ := v["APFSVolumeUUID"].(string)
-				if !inventoryUUID(id) {
+				if !inventoryUUID(id) || volumeIDs[strings.ToUpper(id)] {
 					completeVolumeIDs = false
 				}
+				volumeIDs[strings.ToUpper(id)] = true
 				if _, ok := wanted[strings.ToUpper(id)]; ok {
 					matches = true
 				}

@@ -114,6 +114,7 @@ func TestAPFSInventoryNeverFallsBackPastInvalidTargetEvidence(t *testing.T) {
 		{"unidentifiable-empty-volumes", `<plist><dict><key>Containers</key><array><dict><key>Volumes</key><array/></dict></array></dict></plist>`, false},
 		{"invalid-unrelated-identity", `<plist><dict><key>Containers</key><array><dict><key>APFSContainerUUID</key><string>invalid</string><key>Volumes</key><string>transient</string></dict></array></dict></plist>`, false},
 		{"invalid-unrelated-reference", `<plist><dict><key>Containers</key><array><dict><key>ContainerReference</key><string>invalid</string><key>Volumes</key><array/></dict></array></dict></plist>`, false},
+		{"unidentifiable-duplicate-volume-identities", `<plist><dict><key>Containers</key><array><dict><key>Volumes</key><array><dict><key>APFSVolumeUUID</key><string>cccccccc-1111-4222-8333-444444444444</string></dict><dict><key>APFSVolumeUUID</key><string>cccccccc-1111-4222-8333-444444444444</string></dict></array></dict></array></dict></plist>`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			obs := observedAPFSInventory()
