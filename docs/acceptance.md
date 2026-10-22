@@ -381,11 +381,25 @@ summary lists every verdict and the cross-version drift table.
 
 ### Qualification boundaries
 
-This coverage concerns the current admitted implementations. Clone/snapshot
-mutation and software-encrypted writing remain separate product work. The pinned
-clone-stage controls use encrypted containers or retained snapshot histories;
-they do not isolate plaintext clone-only writer admission. Positive arbitrary
-snapshot mutation still requires the independent oracle tracked in #74.
+This coverage concerns the current admitted implementations. The `apfs-clones`
+family isolates plaintext APFS/APFSX sharing from snapshots and volume encryption.
+It retains native replacement, truncation, metadata, fork/attribute, unlink and
+reclamation states. Portable edits must preserve untouched physical sharing;
+native verification compares the sharing graph and requires further native clone
+writes followed by the ordinary Go/native continuation.
+
+The `encrypted-image-edits` family supplies native before/after states for APFS,
+APFSX, HFS+ and HFSX and AES-128/AES-256 envelopes. Every producer emits both UDRO
+and UDZO outputs with preserved, replaced or removed envelope credentials. Native
+checks measure cipher policy independently and require the replaced password to
+fail authentication. Encrypted continuations retain the source cipher through a
+further Go/native edit. Both families require exact operation-clock projections
+and preserved untouched timestamps rather than timestamp exemptions.
+
+Positive software-encrypted APFS volume writing remains separate product work.
+Existing nested encryption controls enforce distinct image/volume credentials,
+authentication and the explicit write refusal; they do not qualify positive
+nested writes. Snapshot mutation still requires the independent oracle in #74.
 
 `TestRecursiveHostImportsPreserveNativeLogicalTrees` checks an attribute-free
 subset of the native workspace tree: names, contents, empty directories, symlink
@@ -393,7 +407,8 @@ targets and hard-link classes. Archive metadata is compared with ordinary host
 stat observations and explicit platform defaults; uncaptured ACLs and unavailable
 attribute inventories must be reported. These portable controls emit no native
 image artifacts. Full archive preservation of a foreign host's ACLs and attributes still needs an
-independent host-input inventory policy and native control. Host owner IDs,
+independent host-input inventory policy and native control, tracked in
+[#143](https://github.com/deploymenttheory/go-apfs-v3/issues/143). Host owner IDs,
 birth-time availability and provenance cannot be treated as restored fixture
 metadata or silently exempted from deterministic image checks.
 
