@@ -603,7 +603,9 @@ func (d *HostDisk) Imageinfo(ctx context.Context, image string, password []byte)
 }
 
 func (d *HostDisk) Snapshots(ctx context.Context, dev string) ([]map[string]any, error) {
-	out, err := d.run(ctx, "list-snapshots", false, nil, "diskutil", "apfs", "listSnapshots", "-plist", dev)
+	// Read the complete native inventory independently of the volume owner.
+	// This is one privileged read; any native failure remains fatal.
+	out, err := d.run(ctx, "list-snapshots", true, nil, "diskutil", "apfs", "listSnapshots", "-plist", dev)
 	if err != nil {
 		return nil, err
 	}
