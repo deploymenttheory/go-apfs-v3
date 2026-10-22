@@ -42,6 +42,11 @@ func (v *Volume) CloneStreams(ctx context.Context, root uint64) (map[uint64]file
 			return corrupt("captured clone stream descriptor", 0)
 		}
 		if size == 0 {
+			// An actual empty descriptor can still have several stream owners.
+			// Unlike an empty extent map or a private-ID hint, its shared stream
+			// ID establishes explicit lineage without implying physical storage.
+			digest := sha256.Sum256([]byte(fmt.Sprintf("APFS empty stream identity:%s:%d:%d:%d:%s", v.UUID, v.xid, id, len(name), name)))
+			streams = append(streams, capturedCloneStream{object, name, hex.EncodeToString(digest[:])})
 			return nil
 		}
 		hash := sha256.New()
