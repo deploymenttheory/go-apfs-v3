@@ -82,16 +82,21 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if err != nil {
 		return report, err
 	}
-	if _, err := cloneOutcomes(ctx, r); err != nil {
+	if _, err := cloneOutcomes(ctx, r, true); err != nil {
 		return report, err
 	}
 	prepared, err := filecompression.Prepare(ctx, r, o.FileCompression, o.ScratchDir, &compressionBudget)
 	if err != nil {
 		return report, err
 	}
-	defer func() { err = errors.Join(err, prepared.Close()) }()
+	defer func() {
+		err = errors.Join(err, prepared.Close())
+		if err != nil {
+			report.Clones = nil
+		}
+	}()
 	r = prepared
-	clones, err := cloneOutcomes(ctx, r)
+	clones, err := cloneOutcomes(ctx, r, false)
 	if err != nil {
 		return report, err
 	}
@@ -180,6 +185,9 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 		for _, r := range prepared {
 			err = errors.Join(err, r.Close())
 		}
+		if err != nil {
+			report.Clones = nil
+		}
 	}()
 	var outcomes []CompressionOutcome
 	var clones []CloneOutcome
@@ -188,7 +196,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 		if e != nil {
 			return report, e
 		}
-		if _, e := cloneOutcomes(ctx, cloneReader); e != nil {
+		if _, e := cloneOutcomes(ctx, cloneReader, true); e != nil {
 			return report, e
 		}
 		r, e := filecompression.Prepare(ctx, cloneReader, o.FileCompression, o.ScratchDir, &compressionBudget)
@@ -196,7 +204,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 			return report, e
 		}
 		prepared = append(prepared, r)
-		volumeClones, e := cloneOutcomes(ctx, r)
+		volumeClones, e := cloneOutcomes(ctx, r, false)
 		if e != nil {
 			return report, e
 		}
@@ -236,6 +244,10 @@ func compressionPolicy(policy string) string {
 // CreateContainer uses the same no-overwrite publication contract as Create.
 func CreateContainer(ctx context.Context, path string, volumes []apfs.VolumeSpec, o ContainerOptions) (report ContainerReport, err error) {
 	err = publish(ctx, path, func(out io.Writer) error { report, err = WriteContainer(ctx, out, volumes, o); return err })
+	var published *filesystem.PublishedOutputError
+	if err != nil && !errors.As(err, &published) {
+		report.Clones = nil
+	}
 	return report, err
 }
 
@@ -279,6 +291,10 @@ func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (r
 		report, err = Write(ctx, out, r, o)
 		return err
 	})
+	var published *filesystem.PublishedOutputError
+	if err != nil && !errors.As(err, &published) {
+		report.Clones = nil
+	}
 	return report, err
 }
 
