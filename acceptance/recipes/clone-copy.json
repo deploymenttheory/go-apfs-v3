@@ -1,0 +1,647 @@
+{
+  "schema": 1,
+  "name": "clone-copy",
+  "purpose": "Apple cp -c controls for APFS clone creation and HFS ordinary-copy fallback: source metadata and destination ACL inheritance, compressed and sparse raw streams, independent forks and attributes, recursive copies and symlinks, replacement of existing hardlinked/symlink destinations, no-clobber and invalid-option cleanup, subsequent private writes and final source removal. Equal independent bytes remain a physical negative control.",
+  "profiles": [
+    "apfs",
+    "apfsx",
+    "hfsplus",
+    "hfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "64m",
+    "layout": "NONE",
+    "output": "raw",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/source",
+            "pattern": "sequence",
+            "bytes": 131073,
+            "label": "clone-source-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/source/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 32769,
+            "label": "clone-source-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/source",
+            "name": "org.go-apfs.large",
+            "pattern": "sequence",
+            "bytes": 8193,
+            "label": "clone-source-attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/source",
+            "name": "org.go-apfs.inline",
+            "content": "Independent clone metadata"
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "501:20",
+              "$MOUNT/Fixture/source"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "source-ownership"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/source",
+            "mode": 2528
+          }
+        },
+        {
+          "fs": {
+            "op": "settimes",
+            "path": "$MOUNT/Fixture/source",
+            "times": {
+              "birth": 1704164645000000000,
+              "mtime": 1704251045000000000,
+              "atime": 1704337445000000000
+            }
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "everyone allow read,readattr,readextattr,readsecurity",
+              "$MOUNT/Fixture/source"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "source-acl"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/equal-independent",
+            "pattern": "sequence",
+            "bytes": 131073,
+            "label": "clone-source-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/overwrite",
+            "content": "Old destination data"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/overwrite",
+            "target": "$MOUNT/Fixture/overwrite-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/destination-link",
+            "target": "overwrite-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/source-link",
+            "target": "source"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/nested"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/nested/leaf",
+            "pattern": "sequence",
+            "bytes": 16385,
+            "label": "recursive-clone-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/nested/leaf/..namedfork/rsrc",
+            "content": "Recursive independent fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/tree/nested/leaf",
+            "name": "org.go-apfs.inline",
+            "content": "Recursive attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/tree/nested/leaf",
+            "target": "$MOUNT/Fixture/tree/nested/alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/tree/symlink",
+            "target": "nested/leaf"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed-source"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed-source/..namedfork/rsrc",
+            "payload": "rsrc-type-4.fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/compressed-source",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-4.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/compressed-source",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "pattern": "sequence",
+            "bytes": 4096,
+            "label": "sparse-clone-prefix"
+          }
+        },
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "bytes": 1048576
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "offset": 1044480,
+            "pattern": "sequence",
+            "bytes": 4096,
+            "label": "sparse-clone-tail"
+          }
+        },
+        {
+          "tool": {
+            "program": "chmod",
+            "args": [
+              "+a",
+              "everyone allow read,readattr,readextattr,readsecurity,file_inherit,directory_inherit",
+              "$MOUNT/Fixture"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "destination-inherited-acl"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "copied",
+      "steps": [
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/source",
+              "$MOUNT/Fixture/clone"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-regular"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-cp",
+              "$MOUNT/Fixture/source",
+              "$MOUNT/Fixture/preserved"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-preserve"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/source",
+              "$MOUNT/Fixture/overwrite"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-existing"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/source",
+              "$MOUNT/Fixture/destination-link"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-destination-symlink"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/source-link",
+              "$MOUNT/Fixture/followed"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-source-symlink"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-cR",
+              "$MOUNT/Fixture/tree",
+              "$MOUNT/Fixture/copied-tree"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-recursive"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/compressed-source",
+              "$MOUNT/Fixture/compressed-clone"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-compressed"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/sparse-source",
+              "$MOUNT/Fixture/sparse-clone"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "clone-sparse"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/clone",
+            "target": "$MOUNT/Fixture/clone-alias"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "data-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/clone",
+            "pattern": "sequence",
+            "bytes": 65537,
+            "label": "private-clone-data"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "fork-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/clone/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 24577,
+            "label": "private-clone-fork"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "attribute-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/preserved",
+            "name": "org.go-apfs.large",
+            "pattern": "sequence",
+            "bytes": 4097,
+            "label": "private-clone-attribute"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "source-removed",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/source"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    },
+    {
+      "name": "refused",
+      "steps": [
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-cX",
+              "$MOUNT/Fixture/clone",
+              "$MOUNT/Fixture/invalid-options"
+            ],
+            "sudo": true,
+            "expect": "1",
+            "label": "refuse-clone-no-attributes"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT/Fixture/clone",
+              "$MOUNT/Fixture/clone"
+            ],
+            "sudo": true,
+            "expect": "1",
+            "label": "refuse-clone-self-copy"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-cn",
+              "$MOUNT/Fixture/clone",
+              "$MOUNT/Fixture/preserved"
+            ],
+            "sudo": true,
+            "expect": "1",
+            "label": "refuse-clone-no-clobber"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/clone",
+            "target": "$MOUNT/Fixture/preserved",
+            "expect": "EEXIST"
+          },
+          "only": [
+            "apfs",
+            "apfsx"
+          ]
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/source",
+          "Fixture/clone",
+          "Fixture/clone-alias",
+          "Fixture/preserved",
+          "Fixture/overwrite",
+          "Fixture/overwrite-alias",
+          "Fixture/destination-link",
+          "Fixture/followed",
+          "Fixture/equal-independent",
+          "Fixture/tree/nested/leaf",
+          "Fixture/tree/nested/alias",
+          "Fixture/copied-tree/nested/leaf",
+          "Fixture/copied-tree/nested/alias"
+        ],
+        "samples": 8
+      }
+    }
+  ]
+}
