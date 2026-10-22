@@ -23,7 +23,12 @@ type Editor struct {
 // Edit stages the source once, runs ordinary ordered commands, validates the
 // final filesystem and publishes one completed image. Neither failed commands
 // nor a failed callback publish any intermediate output.
-func Edit(ctx context.Context, source, destination string, options Options, commands func(*Editor) error) (Report, error) {
+func Edit(ctx context.Context, source, destination string, options Options, commands func(*Editor) error) (report Report, err error) {
+	defer func() {
+		if err != nil {
+			report.Clones = nil
+		}
+	}()
 	if commands == nil {
 		return Report{}, fs.ErrInvalid
 	}

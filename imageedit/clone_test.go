@@ -190,3 +190,50 @@ func TestOrderedCopyBatchMaterializesSourceAttributesBeforeCloning(t *testing.T)
 		t.Fatal("clone preceded source attribute materialization", string(got))
 	}
 }
+
+func TestFailedClonePublicationDoesNotReportPublishedSharing(t *testing.T) {
+	ctx := context.Background()
+	source := fixture(t, "APFS")
+	original, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range []string{"callback", "ignored command", "existing destination"} {
+		t.Run(failure, func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "output.dmg")
+			clonedScratch := false
+			report, err := imageedit.Edit(ctx, source, output, imageedit.Options{Time: clock}, func(editor *imageedit.Editor) error {
+				copied, err := editor.Copy([]imageedit.CopyCommand{{Sources: []string{"/file"}, Destination: "/clone", Options: imageedit.CopyOptions{Clone: true}}})
+				if err != nil {
+					return err
+				}
+				clonedScratch = len(copied.Clones) == 1 && copied.Clones[0].Cloned
+				if failure == "callback" {
+					return errors.New("stop before publication")
+				}
+				if failure == "ignored command" {
+					_, _ = editor.Apply([]imageedit.Change{{Path: "/missing/file", Data: bytes.NewReader([]byte("refused"))}})
+				}
+				if failure == "existing destination" {
+					return os.WriteFile(output, []byte("keep existing output"), 0600)
+				}
+				return nil
+			})
+			if err == nil || !clonedScratch || len(report.Clones) != 0 {
+				t.Fatal("failed image publication reported completed clone sharing", err, clonedScratch, report.Clones)
+			}
+			data, statErr := os.ReadFile(output)
+			if failure == "existing destination" {
+				if statErr != nil || string(data) != "keep existing output" {
+					t.Fatal("publication replaced existing output", statErr)
+				}
+			} else if !errors.Is(statErr, fs.ErrNotExist) {
+				t.Fatal("failed edit published output", statErr)
+			}
+		})
+	}
+	after, err := os.ReadFile(source)
+	if err != nil || !bytes.Equal(after, original) {
+		t.Fatal("failed edit changed original", err)
+	}
+}
