@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "name": "lzfse-images",
+  "purpose": "Apple-produced LZFSE UDIF images with independent decoded-sector digests, mounted readback and filesystem checkers across every supported plaintext filesystem profile.",
+  "profiles": ["apfs", "apfsx", "hfsplus", "hfsx"],
+  "requires": {"sudo": false},
+  "image": {
+    "create": "hdiutil",
+    "size": "64m",
+    "layout": "GPTSPUD",
+    "output": "ULFO",
+    "volumeName": "LZFSE Fixture"
+  },
+  "stages": [
+    {
+      "name": "final",
+      "steps": [
+        {"fs": {"op": "mkdir", "path": "$MOUNT/Fixture"}},
+        {"fs": {"op": "write", "path": "$MOUNT/Fixture/payload", "content": "Independent LZFSE image contents.\n", "repeat": 4096}},
+        {"fs": {"op": "write", "path": "$MOUNT/Fixture/binary", "pattern": "sequence", "bytes": 131073}},
+        {"fs": {"op": "write", "path": "$MOUNT/Fixture/binary/..namedfork/rsrc", "pattern": "reverse", "bytes": 8193}},
+        {"fs": {"op": "setxattr", "path": "$MOUNT/Fixture/binary", "name": "org.go-apfs.lzfse", "content": "\u0000lzfse\u0000"}},
+        {"fs": {"op": "setxattr", "path": "$MOUNT/Fixture/binary", "name": "org.go-apfs.empty", "content": ""}},
+        {"tool": {"program": "ln", "args": ["$MOUNT/Fixture/binary", "$MOUNT/Fixture/alias"], "expect": "0"}},
+        {"fs": {"op": "symlink", "path": "$MOUNT/Fixture/link", "target": "payload"}},
+        {"fs": {"op": "write", "path": "$MOUNT/Fixture/empty", "content": ""}}
+      ],
+      "observe": {"checks": ["verify", "fsck"]}
+    }
+  ]
+}

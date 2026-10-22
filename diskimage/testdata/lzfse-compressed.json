@@ -1,0 +1,12 @@
+{
+  "source": "https://github.com/lzfse/lzfse",
+  "revision": "e634ca58b4821d9f3d560cdc6df5dec02ffc93fd",
+  "generation": "Reference C encoder, make -j2 then build/bin/lzfse -encode -i synthetic.raw -o synthetic.lzfse",
+  "payload": "16384 bytes: byte((i*17+(i/127)%29)%251), integer division, i=0..16383",
+  "payloadBytes": 16384,
+  "payloadSHA256": "e8917260bb04a32b053d478f5f68e5962d72e37aeb8f998bfb4ee5e95cb6391e",
+  "encodedBytes": 959,
+  "encodedSHA256": "64cafa0bae4b6fb3c5b2ecf18ae61f1952f7b4b27492181fb13b622a6cedf05f",
+  "encodedMagic": "bvx2",
+  "scope": "Synthetic regular-file codec vector; no firmware or native filesystem operations."
+}

@@ -55,7 +55,7 @@ type Image struct {
 	File         string `json:"file"`
 	SHA256       string `json:"sha256"`
 	Bytes        int64  `json:"bytes"`
-	Format       string `json:"format"`       // UDZO, UDRO, UDBZ, UDRW, raw
+	Format       string `json:"format"`       // UDZO, UDRO, UDBZ, ULFO, UDRW, raw
 	PartitionMap string `json:"partitionMap"` // GPT, APM, none
 	SectorSize   int    `json:"sectorSize"`
 	// DiskSHA256 is the SHA-256 of the attached raw device, which is what a

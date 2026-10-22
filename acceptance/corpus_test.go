@@ -46,6 +46,7 @@ func loadCorpus(t *testing.T) ([]corpus.Case, *corpus.Corpus) {
 var consumers = map[string][]string{
 	"apfs-clones":                  {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
 	"encrypted-image-edits":        {"TestReadParity", "TestEncryptedImageEditsMatchAppleStates"},
+	"lzfse-images":                 {"TestReadParity", "TestRepackPreservesEverySector"},
 	"hfs-journal-interruption":     {"TestRecoveryMatchesAppleStates"},
 	"apfs-checkpoint-interruption": {"TestReadParity", "TestRecoveryMatchesAppleStates"},
 	"file-corpus":                  {"TestReadParity", "TestBuildFromFixtures", "TestPackingReopenedPreservationSourcesMatchesNativeFiles", "TestRepackPreservesEverySector", "TestAppleDoubleMatchesNativeExports", "TestStorageAccountingMatchesNativeAllocation"},
