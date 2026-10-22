@@ -59,11 +59,28 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 				var replay []schema.Step
 				for index, stage := range recipe.Stages[1:] {
 					replay = append(replay, stage.Steps...)
-					for _, step := range stage.Steps {
+					for stepIndex, step := range stage.Steps {
 						if len(step.Only) != 0 && !containsString(step.Only, profile) {
 							continue
 						}
-						if step.Tool != nil {
+						if step.Host != nil {
+							if stepIndex+1 >= len(stage.Steps) || stage.Steps[stepIndex+1].Tool == nil {
+								t.Fatal("clone session staging payload lacks its native write")
+							}
+							if _, err := native.CloneCopyWriteStep(*step.Host, *stage.Steps[stepIndex+1].Tool); err != nil {
+								t.Fatal(err)
+							}
+						} else if step.Tool != nil && step.Tool.Program == "dd" {
+							if stepIndex == 0 || stage.Steps[stepIndex-1].Host == nil {
+								t.Fatal("clone session native write lacks its staging payload")
+							}
+							write, err := native.CloneCopyWriteStep(*stage.Steps[stepIndex-1].Host, *step.Tool)
+							if err != nil {
+								t.Fatal(err)
+							}
+							s.actorContext(t, 0)
+							sessionCloneFS(t, s, &write)
+						} else if step.Tool != nil {
 							uid := actor
 							if step.Tool.Sudo {
 								uid = 0
