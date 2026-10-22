@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/hex"
 	"reflect"
 	"slices"
 	"testing"
@@ -20,7 +21,7 @@ func TestCloneCopyClocksModelSameSecondMutationAndDestinationAliases(t *testing.
 				editedClockEntry("Fixture/overwrite", "file", 3), editedClockEntry("Fixture/old-alias", "file", 3),
 				editedClockEntry("Fixture/source-link", "symlink", 4), editedClockEntry("Fixture/target-link", "symlink", 5),
 			}}
-			source.Entries[4].Target, source.Entries[5].Target = "source", "old-alias"
+			source.Entries[4].Target, source.Entries[5].Target = hex.EncodeToString([]byte("source")), hex.EncodeToString([]byte("old-alias"))
 			target := schema.View{Entries: slices.Clone(source.Entries)}
 			target.Entries[2].ID = 10
 			target.Entries[5].ID, target.Entries[5].Kind, target.Entries[5].Target = 11, "file", ""
@@ -77,7 +78,7 @@ func TestCloneCopyClocksModelSameSecondMutationAndDestinationAliases(t *testing.
 
 func TestRecursiveCloneClocksDistinguishCopiedAliasesAndSymlinks(t *testing.T) {
 	source := schema.View{Entries: []schema.Entry{editedClockEntry("Fixture", "dir", 1), editedClockEntry("Fixture/tree", "dir", 2), editedClockEntry("Fixture/tree/leaf", "file", 3), editedClockEntry("Fixture/tree/alias", "file", 3), editedClockEntry("Fixture/tree/link", "symlink", 4)}}
-	source.Entries[4].Target = "leaf"
+	source.Entries[4].Target = hex.EncodeToString([]byte("leaf"))
 	target := schema.View{Entries: slices.Clone(source.Entries)}
 	for i, name := range []string{"copy", "copy/leaf", "copy/alias", "copy/link"} {
 		kind := []string{"dir", "file", "file", "symlink"}[i]
