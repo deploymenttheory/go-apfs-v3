@@ -73,8 +73,9 @@ Generic writes to compression-owned, security or `com.apple.fs.*` attributes are
 rejected. FinderInfo and flags retain the qualified APFS/HFS+ coupling rules.
 Ordinary copies preserve opaque attributes and destination ACLs. `cp -p` composes
 source direct ACL entries with destination inherited entries even with `-X`. New
-objects inherit parent ACLs through the shared Darwin filesec policy. Symbolic
-ACL editing and native process permission enforcement remain outside file-command sessions.
+files and directories inherit parent ACLs through the shared Darwin filesec
+policy; symlinks retain explicitly supplied ACLs. Symbolic ACL editing and native
+process permission enforcement remain outside file-command sessions.
 
 Apple `cp -a` copies regular-file hard-link aliases independently.
 `--preserve-links` explicitly retains those relationships within one copy command.

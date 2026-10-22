@@ -107,8 +107,9 @@ Bytes that an original image already omitted cannot be recovered by repacking.
 
 The admitted inputs are flat raw GPT/APM disks with 512-byte logical sectors or recognizable bare APFS/HFS+
 volumes, and flattened, single-segment version-4 UDIFs with XML metadata and raw,
-zero/ignored, zlib or bzip2 runs. Block tables and runs must cover the entire disk
-in order without overlap or gaps. Stored payloads must be accounted for. Every
+zero/ignored, zlib, bzip2 or [bounded LZFSE](lzfse-images.md) runs. Block tables
+and runs must cover the entire disk in order without overlap or gaps. Stored
+payloads must be accounted for. Every
 present data, block and master CRC32 is verified before encoding. An absent native
 checksum is accepted only when its complete field is zero; a computed disk hash
 does not establish authenticity or filesystem health. Structural/checksum errors
