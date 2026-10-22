@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/hex"
 	"fmt"
 	"path"
 	"slices"
@@ -41,11 +42,19 @@ func ProjectEditedViewClocks(source, target schema.View, steps []schema.Step, pr
 		if entry.Path == "" || entry.Path == ".." || path.Clean(entry.Path) != entry.Path || strings.HasPrefix(entry.Path, "/") || strings.HasPrefix(entry.Path, "../") || entry.ID == 0 || state.paths[entry.Path] != nil || !slices.Contains([]string{"file", "dir", "symlink"}, entry.Kind) {
 			return schema.View{}, fmt.Errorf("invalid native clock source path %q", entry.Path)
 		}
+		target := entry.Target
+		if entry.Kind == "symlink" {
+			decoded, err := hex.DecodeString(target)
+			if err != nil {
+				return schema.View{}, fmt.Errorf("native clock source has invalid symlink target: %q", entry.Path)
+			}
+			target = string(decoded)
+		}
 		node := objects[entry.ID]
 		if node == nil {
-			node = &editedClockNode{id: entry.ID, kind: entry.Kind, target: entry.Target, times: entry.Times}
+			node = &editedClockNode{id: entry.ID, kind: entry.Kind, target: target, times: entry.Times}
 			objects[entry.ID] = node
-		} else if node.kind != entry.Kind || node.target != entry.Target || !sameInodeClocks(node.times, entry.Times) {
+		} else if node.kind != entry.Kind || node.target != target || !sameInodeClocks(node.times, entry.Times) {
 			return schema.View{}, fmt.Errorf("native aliases disagree on clocks: %q", entry.Path)
 		}
 		state.paths[entry.Path] = node
@@ -178,6 +187,9 @@ func (s *editedClockState) apply(command schema.FSStep) error {
 			kind = "symlink"
 		}
 		s.paths[rel] = s.newNode(kind)
+		if kind == "symlink" {
+			s.paths[rel].target = command.Target
+		}
 	case "link", "rename":
 		target, err := editedClockPath(command.Target)
 		if err != nil {

@@ -85,7 +85,7 @@ func CompareViews(got, want schema.View, opts CompareOptions) []Difference {
 			continue
 		}
 		diffs = append(diffs, compareEntry(g, expected[p], opts)...)
-		if opts.IgnoreIdentity && expected[p].ID != 0 && g.ID != 0 {
+		if (opts.IgnoreIdentity || opts.Existing != nil) && expected[p].ID != 0 && g.ID != 0 {
 			w := expected[p].ID
 			if previous, ok := forward[w]; ok && previous != g.ID {
 				diffs = append(diffs, Difference{Path: p, Field: "identity.aliases", Got: "separate objects", Want: "one shared object"})

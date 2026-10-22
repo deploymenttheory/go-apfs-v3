@@ -123,6 +123,13 @@ func (v *Verifier) compareEditedVolumes(got *schema.Observation, k corpus.Case, 
 					return nil, err
 				}
 				viewOptions.Existing = v.existingPaths(out.Source, before.Index)
+				if out.Source.Recipe == "clone-copy" {
+					sourceView, err := observedView(source.Observation, before.Index, "")
+					if err != nil {
+						return nil, err
+					}
+					viewOptions.Existing = retainedCloneCopyIdentities(sourceView, expectedView)
+				}
 			} else if projected == nil && name == selected && expectedView.Snapshot == "" {
 				viewOptions = opts
 				if out.Expect.NewIdentities {
