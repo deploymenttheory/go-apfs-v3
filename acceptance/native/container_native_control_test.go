@@ -33,17 +33,43 @@ var matchedNativeNames = []string{"Reserved", "Limited", "Empty", "Fresh Empty"}
 const matchedNativeMetadataSource = `#include <copyfile.h>
 #include <sys/attr.h>
 #include <sys/stat.h>
+#include <sys/xattr.h>
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static int remove_destination_only_attrs(const char *source, const char *destination) {
+    int options = XATTR_NOFOLLOW | XATTR_SHOWCOMPRESSION;
+    ssize_t size = listxattr(destination, NULL, 0, options);
+    if (size < 0) { perror("list destination root attrs"); return 1; }
+    if (size == 0) return 0;
+    char *names = malloc((size_t)size);
+    if (names == NULL) { perror("allocate root attrs"); return 1; }
+    ssize_t count = listxattr(destination, names, (size_t)size, options);
+    if (count < 0) { perror("read destination root attrs"); free(names); return 1; }
+    for (char *name = names; name < names + count; name += strlen(name) + 1) {
+        if (getxattr(source, name, NULL, 0, 0, options) >= 0) continue;
+        if (errno != ENOATTR) { perror("read source root attr"); free(names); return 1; }
+        if (removexattr(destination, name, XATTR_NOFOLLOW) != 0) {
+            perror("remove destination-only root attr"); free(names); return 1;
+        }
+        fprintf(stderr, "removed destination-only root attr: %s\n", name);
+    }
+    free(names);
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc != 4) return 2;
-    if (strcmp(argv[1], "metadata") == 0) {
+    int normalize = strcmp(argv[1], "normalize") == 0;
+    if (strcmp(argv[1], "metadata") == 0 || normalize) {
         if (copyfile(argv[2], argv[3], NULL,
             COPYFILE_METADATA | COPYFILE_NOFOLLOW) != 0) {
             perror("copyfile metadata"); return 1;
         }
+        if (normalize && remove_destination_only_attrs(argv[2], argv[3]) != 0) return 1;
     } else if (strcmp(argv[1], "times") != 0) return 2;
     struct stat source;
     if (lstat(argv[2], &source) != 0) { perror("lstat source"); return 1; }
@@ -206,6 +232,62 @@ func buildMatchedNativeContainer(ctx context.Context, parent *Verifier, goImage,
 			return "", nil, err
 		}
 		rootHistory[name]["nativeAfterCopy"] = entry
+	}
+	if err := closeMatchedNativeAttachment(ctx, v, goSource); err != nil {
+		return "", nil, err
+	}
+	goSource = nil
+	if err := closeMatchedNativeAttachment(ctx, v, apple); err != nil {
+		return "", nil, err
+	}
+	apple = nil
+	// First writable mounts can initialize native root attributes and hidden
+	// directory entries after the initial copy. Preserve that exact state,
+	// then perform one fixed normalization phase on a newly opened image.
+	// This is preparation, not a pressure-workload retry or a parity exception.
+	initialized := filepath.Join(work, "apple-initialized-source.raw")
+	if err := run("retain initialized Apple source", false, "cp", "-p", raw, initialized); err != nil {
+		return "", nil, err
+	}
+	initializedDigest, err := schema.FileDigest(initialized)
+	if err != nil {
+		return "", nil, err
+	}
+	if err := writeMatchedNativeJSON(filepath.Join(work, "initialization.json"), map[string]any{"image": filepath.Base(initialized), "bytes": matchedNativeCapacity, "sha256": initializedDigest, "phase": "after initial payload copy and clean close; before fixed metadata normalization"}); err != nil {
+		return "", nil, err
+	}
+	apple, err = v.Disk.Attach(ctx, raw, fixture.AttachOptions{Raw: true})
+	if err != nil {
+		return "", nil, err
+	}
+	goSource, err = v.Disk.Attach(ctx, goImage, fixture.AttachOptions{ReadOnly: true})
+	if err != nil {
+		return "", nil, err
+	}
+	for _, name := range matchedNativeNames {
+		src, dst := goSource.Volume(name), apple.Volume(name)
+		if src == nil || dst == nil {
+			return "", nil, fmt.Errorf("normalization volume %q is missing", name)
+		}
+		if err := v.Disk.Mount(ctx, src, "owners,noatime", filepath.Join(work, "go-normalize", sanitize(name)), true); err != nil {
+			return "", nil, err
+		}
+		if err := v.Disk.Mount(ctx, dst, "owners,noatime", filepath.Join(work, "apple-normalize", sanitize(name)), false); err != nil {
+			return "", nil, err
+		}
+		entry, err := readMatchedNativeRoot(v, dst.Mount)
+		if err != nil {
+			return "", nil, err
+		}
+		rootHistory[name]["nativeBeforeNormalization"] = entry
+		if err := run("normalize initialized volume root metadata "+name, true, metadataTool, "normalize", src.Mount, dst.Mount); err != nil {
+			return "", nil, err
+		}
+		entry, err = readMatchedNativeRoot(v, dst.Mount)
+		if err != nil {
+			return "", nil, err
+		}
+		rootHistory[name]["nativeAfterNormalization"] = entry
 	}
 	if err := closeMatchedNativeAttachment(ctx, v, goSource); err != nil {
 		return "", nil, err
