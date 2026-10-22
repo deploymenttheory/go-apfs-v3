@@ -1,7 +1,10 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/fs"
@@ -14,6 +17,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/native"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 )
@@ -85,7 +89,7 @@ func TestAPFSCloneControlsRetainNativeSharingAndAdmitMutation(t *testing.T) {
 						t.Fatal(entry.Path, fork, err)
 					}
 					if value.Size() != 0 {
-						checkForkPhysicalReads(t, trace, entry.Path+"/"+fork, value, runs, sum)
+						checkClonePhysicalReads(t, trace, entry.Path+"/"+fork, value, runs, sum)
 					}
 					if err := value.Close(); err != nil {
 						t.Fatal(err)
@@ -94,6 +98,52 @@ func TestAPFSCloneControlsRetainNativeSharingAndAdmitMutation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func checkClonePhysicalReads(t *testing.T, trace *physicalReads, label string, value filesystem.Value, runs [][3]int64, sum string) {
+	t.Helper()
+	if !schema.ValidDigest(sum) || len(runs) == 0 {
+		t.Fatal("plaintext clone fork lacks native physical/digest evidence", label)
+	}
+	hash := sha256.New()
+	var end int64
+	for _, run := range runs {
+		if run[0] != end || run[1] < 0 || run[2] <= 0 || run[2] > 1<<20 || run[2] > value.Size()-end {
+			t.Fatal("invalid plaintext clone native run", label, run)
+		}
+		data := make([]byte, run[2])
+		trace.begin()
+		err := block.ReadFull(value, data, run[0])
+		reads := trace.end()
+		if err != nil {
+			t.Fatal(label, err)
+		}
+		// Plaintext values read exact logical bytes. The encrypted-control
+		// helper's 512-byte XTS expansion does not apply to these sources.
+		if err := native.ComparePhysicalRead(reads, run, 1); err != nil {
+			t.Fatal(label, err)
+		}
+		_, _ = hash.Write(data)
+		end += run[2]
+	}
+	if end != value.Size() || hex.EncodeToString(hash.Sum(nil)) != sum {
+		t.Fatal("plaintext clone fork differs from native bytes", label)
+	}
+}
+
+type clonePhysicalValue struct{ block.Source }
+
+func (clonePhysicalValue) Close() error { return nil }
+
+func TestPlaintextClonePhysicalReadsKeepUnalignedTailsExact(t *testing.T) {
+	data := []byte("abc")
+	trace := &physicalReads{Source: bytes.NewReader(append(make([]byte, 4096), data...))}
+	section, err := block.NewSection(trace, 4096, int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	checkClonePhysicalReads(t, trace, "plain tail", clonePhysicalValue{section}, [][3]int64{{0, 4096, 3}}, hex.EncodeToString(sum[:]))
 }
 
 type cloneFailureInput struct {
