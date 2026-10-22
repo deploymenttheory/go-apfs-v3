@@ -2,6 +2,8 @@ package fixture
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -77,6 +79,33 @@ func TestUnmountPathStopsAtNonBusyFailure(t *testing.T) {
 	if err := d.UnmountPath(context.Background(), "/tmp/fixture-snapshot"); err == nil ||
 		len(cmd.calls) != 1 {
 		t.Fatalf("non-busy unmount should fail once: %v, calls=%v", err, cmd.calls)
+	}
+}
+
+func TestUnmountPathDoesNotRetryCommandFailuresMentioningBusy(t *testing.T) {
+	for _, status := range []int{-1, 1} {
+		t.Run(fmt.Sprintf("status-%d", status), func(t *testing.T) {
+			instantWaits(t)
+			cause := errors.New("launch failed: Resource busy")
+			cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {
+				{Status: status, Err: cause, Stderr: []byte("Resource busy")}, {Status: 0},
+			}}}
+			d := &HostDisk{C: cmd, T: &Transcript{}}
+			err := d.UnmountPath(context.Background(), "/tmp/fixture-snapshot")
+			if !errors.Is(err, cause) || len(cmd.calls) != 1 || len(d.T.Commands) != 1 {
+				t.Fatalf("command failure was retried or lost: %v, calls=%v, transcript=%+v", err, cmd.calls, d.T.Commands)
+			}
+		})
+	}
+}
+
+func TestUnmountPathDoesNotRunAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := &fakeCommander{}
+	d := &HostDisk{C: cmd, T: &Transcript{}}
+	if err := d.UnmountPath(ctx, "/tmp/fixture-snapshot"); !errors.Is(err, context.Canceled) || len(cmd.calls) != 0 {
+		t.Fatalf("cancelled unmount ran a command or lost cancellation: %v, calls=%v", err, cmd.calls)
 	}
 }
 

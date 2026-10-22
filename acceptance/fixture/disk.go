@@ -591,15 +591,24 @@ func (d *HostDisk) MountSnapshot(ctx context.Context, name, mount, pin string) e
 }
 
 func (d *HostDisk) UnmountPath(ctx context.Context, path string) error {
-	// Snapshot readers may release their last vnode just after observation
-	// closes it. Retry only the transient busy outcome; every attempt and wait
-	// remains in the native transcript.
+	// Only an actual busy unmount result permits bounded cleanup settling.
+	// Keep every failed command and wait; never retry a checker or observation.
 	return Settle(ctx, d.T, "snapshot-unmount-busy", BusyWait, func() (bool, string, error) {
-		_, err := d.run(ctx, "umount", false, nil, "/sbin/umount", path)
+		if err := ctx.Err(); err != nil {
+			return false, "", err
+		}
+		cmd := Command{Label: "umount", Argv: []string{"/sbin/umount", path}, Expected: "0"}
+		result := d.C.Run(ctx, cmd)
+		err := d.T.Record(cmd, result)
+		if ctx.Err() != nil {
+			return false, "", errors.Join(err, ctx.Err())
+		}
 		switch {
+		case result.Err != nil:
+			return false, "", err
 		case err == nil:
 			return true, "", nil
-		case strings.Contains(err.Error(), "Resource busy"):
+		case result.Status == 1 && strings.Contains(string(result.Stderr), "Resource busy"):
 			return false, err.Error(), nil
 		default:
 			return false, "", err
