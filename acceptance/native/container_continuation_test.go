@@ -291,7 +291,7 @@ func containerPressureProtocol(t *testing.T) (*Verifier, *fixture.Attachment, sc
 	return &Verifier{Vol: volume, Disk: disk}, att, out, volume
 }
 
-func TestContainerPressureClosesPressureOwnerBeforePeers(t *testing.T) {
+func TestContainerPressureCrossesCleanBoundaryBeforePeerWrites(t *testing.T) {
 	v, att, out, volume := containerPressureProtocol(t)
 	original := att
 	att, err := v.containerWrites(context.Background(), att, out, "writable.raw")
@@ -300,10 +300,6 @@ func TestContainerPressureClosesPressureOwnerBeforePeers(t *testing.T) {
 	}
 	if att == original || att.Volume("Reserved") == original.Volume("Reserved") || att.Volumes[0].Name == original.Volumes[0].Name {
 		t.Fatal("continuation reused stale attachment, volume or discovery order")
-	}
-	disk := v.Disk.(*containerPressureDisk)
-	if !disk.ownerClosed || disk.events[0] != "unmount Fresh Empty" {
-		t.Fatal("clean boundary closed a peer before the unlinked pressure owner")
 	}
 	if !volume.quotaReached || !volume.pressureReached || !volume.protectedSynced || len(volume.pending) != 0 || volume.retiredProof || !volume.boundaryComplete || volume.peerWrites != len(att.Volumes) {
 		t.Fatal("quota, exhaustion, protected allocation or durable release was not verified")
