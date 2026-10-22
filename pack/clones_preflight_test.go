@@ -25,6 +25,7 @@ func (cloneBytesValue) Close() error { return nil }
 type compressedCloneSource struct {
 	filesystem.Reader
 	attributes map[uint64][]byte
+	dataGroup  bool
 }
 
 func (r compressedCloneSource) Stat(ctx context.Context, id uint64) (filesystem.Node, error) {
@@ -33,6 +34,9 @@ func (r compressedCloneSource) Stat(ctx context.Context, id uint64) (filesystem.
 		node.Metadata.BSDFlags.Value |= 32
 		node.Compression = filesystem.Observed(filesystem.Compression{Type: 3})
 		node.CloneStreams = &filesystem.CloneStreams{Attributes: map[string]string{filesystem.Decmpfs: "declared-encoded-stream"}}
+		if r.dataGroup {
+			node.CloneStreams = &filesystem.CloneStreams{Data: "declared-raw-stream"}
+		}
 	}
 	return node, err
 }
@@ -111,6 +115,43 @@ func TestCompressionCannotEraseConflictingOriginalClonePayloads(t *testing.T) {
 				t.Fatal("storage transform erased a false original group", policy, report.Clones, out.Len(), err)
 			}
 		}
+	}
+}
+
+func TestCompressionCannotEraseConflictingDataStreamDescriptors(t *testing.T) {
+	ctx := context.Background()
+	s, options := inputFormat(t, "APFS")
+	if _, err := s.Copy(ctx, []string{"/file"}, "/independent", session.CopyOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	reader := compressedCloneSource{Reader: s, attributes: map[uint64][]byte{}, dataGroup: true}
+	for i, path := range []string{"/file", "/independent"} {
+		payload := bytes.Repeat([]byte("data"), 32*(i+1))
+		if _, err := s.ReplaceData(ctx, path, bytes.NewReader(payload)); err != nil {
+			t.Fatal(err)
+		}
+		id, _ := s.LookupPath(ctx, path, true)
+		var encoded bytes.Buffer
+		writer := zlib.NewWriter(&encoded)
+		if _, err := writer.Write(payload); err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		header := make([]byte, 16)
+		binary.LittleEndian.PutUint32(header, 0x636d7066)
+		binary.LittleEndian.PutUint32(header[4:], 3)
+		binary.LittleEndian.PutUint64(header[8:], uint64(len(payload)))
+		reader.attributes[id] = append(header, encoded.Bytes()...)
+	}
+	if _, err := apfs.Plan(ctx, reader, apfs.BuildOptions{Name: "Conflicting Descriptors", Time: options.Volume.Time}); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatal("original builder did not reject incompatible descriptors", err)
+	}
+	options.FileCompression = "none"
+	var output bytes.Buffer
+	if report, err := pack.Write(ctx, &output, reader, options); !errors.Is(err, filesystem.ErrCorrupt) || output.Len() != 0 || len(report.Clones) != 0 {
+		t.Fatal("compression erased incompatible original descriptors", output.Len(), report.Clones, err)
 	}
 }
 
