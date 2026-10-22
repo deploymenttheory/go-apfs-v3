@@ -9,10 +9,20 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
+
+type partialCloneReader struct {
+	filesystem.Reader
+	object uint64
+}
+
+func (r partialCloneReader) CloneStreams(context.Context, uint64) (map[uint64]filesystem.CloneStreams, error) {
+	return map[uint64]filesystem.CloneStreams{r.object: {Partial: []string{"", filesystem.ResourceFork, "org.go-apfs.large"}}}, nil
+}
 
 func cloneSessionNode(t *testing.T, s *Session, name string) filesystem.Node {
 	t.Helper()
@@ -156,8 +166,8 @@ func TestSessionCloneFailureLeavesPublishedRevisionAndSourceUnchanged(t *testing
 		t.Fatal(err)
 	}
 	s.beforePublish = func() error { return io.ErrShortWrite }
-	if _, err := s.Copy(ctx, []string{"/source"}, "/clone", CopyOptions{Clone: true}); !errors.Is(err, io.ErrShortWrite) {
-		t.Fatal(err)
+	if report, err := s.Copy(ctx, []string{"/source"}, "/clone", CopyOptions{Clone: true}); !errors.Is(err, io.ErrShortWrite) || len(report.Clones) != 0 {
+		t.Fatal("unpublished clone was reported as materialized", report.Clones, err)
 	}
 	s.beforePublish = nil
 	after, err := os.ReadFile(filepath.Join(directory, "current"))
@@ -206,5 +216,85 @@ func TestSessionOpenRejectsConflictingCloneGroupsWithoutChangingScratch(t *testi
 	after, err := os.ReadFile(current)
 	if err != nil || !bytes.Equal(after, data) {
 		t.Fatal("rejected metadata admission changed scratch", err)
+	}
+}
+
+func TestSessionCapturedPartialMarkersPersistAndDetachOnlyWithReplacedStreams(t *testing.T) {
+	ctx := context.Background()
+	source, _ := newSession(t)
+	if _, err := source.Touch(ctx, []string{"/partial"}, TouchOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.ReplaceData(ctx, "/partial", bytes.NewReader([]byte("data"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.ReplaceResourceFork(ctx, "/partial", bytes.NewReader([]byte("fork"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := source.SetAttribute(ctx, []string{"/partial"}, "org.go-apfs.large", bytes.NewReader([]byte("attribute")), AttributeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	id := cloneSessionNode(t, source, "/partial").Identity.Object
+	directory := filepath.Join(t.TempDir(), "captured")
+	s, err := Capture(ctx, partialCloneReader{Reader: source, object: id}, directory, Options{Time: source.document.Config.Time})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(ctx, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.Chmod(ctx, []string{"/partial"}, "0700", WalkOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := cloneSessionNode(t, s, "/partial").CloneStreams.Partial; !reflect.DeepEqual(got, []string{"", filesystem.ResourceFork, "org.go-apfs.large"}) {
+		t.Fatal("metadata edit discarded partial ownership", got)
+	}
+	if _, err := s.ReplaceData(ctx, "/partial", bytes.NewReader([]byte("private data"))); err != nil {
+		t.Fatal(err)
+	}
+	if got := cloneSessionNode(t, s, "/partial").CloneStreams.Partial; !reflect.DeepEqual(got, []string{filesystem.ResourceFork, "org.go-apfs.large"}) {
+		t.Fatal("data replacement changed unrelated partial markers", got)
+	}
+	if _, err := s.ReplaceResourceFork(ctx, "/partial", bytes.NewReader([]byte("private fork"))); err != nil {
+		t.Fatal(err)
+	}
+	if got := cloneSessionNode(t, s, "/partial").CloneStreams.Partial; !reflect.DeepEqual(got, []string{"org.go-apfs.large"}) {
+		t.Fatal("fork replacement changed unrelated partial marker", got)
+	}
+	if _, err := s.SetAttribute(ctx, []string{"/partial"}, "org.go-apfs.large", bytes.NewReader([]byte("private attribute")), AttributeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if cloneSessionNode(t, s, "/partial").CloneStreams != nil {
+		t.Fatal("complete replacement retained obsolete partial markers")
+	}
+}
+
+func TestSessionCloneSchemaRetainsReadableLegacyRevisions(t *testing.T) {
+	ctx := context.Background()
+	s, directory := newSession(t)
+	document := s.document
+	document.Schema = 1
+	data, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(directory, "current"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(ctx, directory)
+	if err != nil {
+		t.Fatal("legacy session was rejected", err)
+	}
+	defer s.Close()
+	if _, err := s.Touch(ctx, []string{"/new"}, TouchOptions{}); err != nil || s.document.Schema != 2 {
+		t.Fatal("legacy session did not advance to clone-capable schema", err)
 	}
 }

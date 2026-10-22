@@ -32,6 +32,8 @@ func (s *Session) Copy(ctx context.Context, sources []string, to string, options
 		return nil
 	})
 	report.OmittedAttributes = omitted
-	report.Clones = clones
+	if err == nil {
+		report.Clones = clones
+	}
 	return report, err
 }
