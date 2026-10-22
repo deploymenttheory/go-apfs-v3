@@ -230,6 +230,12 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireWorkspaceOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireCloneOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })

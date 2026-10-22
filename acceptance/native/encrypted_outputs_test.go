@@ -1,12 +1,60 @@
 package native
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
+
+func nativeEncryptedOutputPolicy() (*Verifier, Paired, *schema.Observation) {
+	ref := schema.CaseRef{Producer: 15, Recipe: "encrypted-image-edits", Profile: "apfs", Stage: "before-aes256"}
+	source := &schema.Observation{Image: schema.Image{Encryption: &schema.ImageEncryption{Cipher: "AES-256", Password: "image"}, Imageinfo: encryptedImageInfo("AES-256")}}
+	v := &Verifier{Cases: map[string]corpus.Case{CaseKey(ref): {Observation: source}}, Recipes: map[string]schema.Recipe{ref.Recipe: {Passwords: map[string]string{"image": "original public fixture password"}}}}
+	p := Paired{Output: schema.Output{Operation: "edit", Encrypted: true, Password: "output", Source: ref}, Passwords: map[string]string{"output": "replacement public fixture password"}}
+	return v, p, &schema.Observation{Image: schema.Image{Imageinfo: encryptedImageInfo("AES-256")}}
+}
+
+func TestEncryptedEditPolicyUsesApplesMeasuredSourceAndOutputCipher(t *testing.T) {
+	v, p, observed := nativeEncryptedOutputPolicy()
+	if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
+		t.Fatal(err)
+	}
+	observed.Image.Imageinfo = encryptedImageInfo("AES-128")
+	if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
+		t.Fatal("native cipher downgrade passed despite product policy")
+	}
+	p.Output.Encrypted, p.Output.Password = false, ""
+	if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
+		t.Fatal("explicit decryption accepted a still-encrypted image")
+	}
+	observed.Image.Imageinfo = map[string]any{"Properties": map[string]any{"Encrypted": false}}
+	if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRekeyedOutputRequiresNativeAuthenticationRejectionOfTheOldPassword(t *testing.T) {
+	v, p, _ := nativeEncryptedOutputPolicy()
+	disk := &envelopeDisk{}
+	v.Disk = disk
+	for _, nativeErr := range []error{nil, errors.New("disk I/O failed"), errors.New("Insufficient privileges (-69863)")} {
+		disk.infoErr = nativeErr
+		if err := v.checkReplacedImagePassword(context.Background(), p, "output.dmg"); err == nil {
+			t.Fatal("old-password acceptance or unrelated native failure passed", nativeErr)
+		}
+	}
+	disk.infoErr = errors.New("hdiutil: imageinfo failed - Authentication error")
+	if err := v.checkReplacedImagePassword(context.Background(), p, "output.dmg"); err != nil {
+		t.Fatal(err)
+	}
+	if string(disk.password) != "original public fixture password" {
+		t.Fatal("native check did not use the replaced source credential")
+	}
+}
 
 func encryptedEditInventory() ([]Paired, map[string]corpus.Case) {
 	cases := map[string]corpus.Case{}

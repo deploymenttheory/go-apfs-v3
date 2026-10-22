@@ -63,6 +63,7 @@ type envelopeDisk struct {
 	fixture.Disk
 	info          map[string]any
 	infoCalls     int
+	infoErr       error
 	converted     string
 	password      []byte
 	conversionErr error
@@ -71,7 +72,7 @@ type envelopeDisk struct {
 func (d *envelopeDisk) Imageinfo(_ context.Context, _ string, password []byte) (map[string]any, error) {
 	d.infoCalls++
 	d.password = bytes.Clone(password)
-	return d.info, nil
+	return d.info, d.infoErr
 }
 
 func (d *envelopeDisk) Convert(_ context.Context, _, _, out, cipher string, password []byte) error {

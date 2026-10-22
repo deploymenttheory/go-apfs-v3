@@ -1,10 +1,83 @@
 package native
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
+
+func (v *Verifier) checkReplacedImagePassword(ctx context.Context, p Paired, image string) error {
+	out := p.Output
+	if out.Operation != "edit" || out.Source.Recipe != "encrypted-image-edits" || !out.Encrypted || out.Password != "output" {
+		return nil
+	}
+	source, ok := v.Cases[CaseKey(out.Source)]
+	if !ok || source.Observation == nil || source.Observation.Image.Encryption == nil {
+		return fmt.Errorf("rekeyed image lacks its native source credentials")
+	}
+	recipe, ok := v.Recipes[out.Source.Recipe]
+	if !ok {
+		return fmt.Errorf("rekeyed image lacks its native credential recipe")
+	}
+	old, ok := recipe.Passwords[source.Observation.Image.Encryption.Password]
+	if !ok {
+		return fmt.Errorf("rekeyed image has an unknown source password reference")
+	}
+	current, ok := p.Passwords[out.Password]
+	if !ok || current == old {
+		return fmt.Errorf("rekeyed image does not declare a distinct replacement credential")
+	}
+	_, err := v.Disk.Imageinfo(ctx, image, []byte(old))
+	if err == nil {
+		return fmt.Errorf("native reader opened a rekeyed output with the replaced image password")
+	}
+	// This is the retained hdiutil diagnostic for rejected image credentials.
+	// I/O, privilege, tool-launch and metadata failures do not prove rejection.
+	if !strings.Contains(err.Error(), "imageinfo failed - Authentication error") {
+		return fmt.Errorf("native old-password check failed unexpectedly: %w", err)
+	}
+	return nil
+}
+
+// checkEncryptedEditPolicy compares Apple's measured output encryption with
+// the captured native source policy independently of the product's report.
+func (v *Verifier) checkEncryptedEditPolicy(out schema.Output, observed *schema.Observation) error {
+	if out.Operation != "edit" || out.Source.Recipe != "encrypted-image-edits" {
+		return nil
+	}
+	if observed == nil {
+		return fmt.Errorf("encrypted edit has no native output observation")
+	}
+	if !out.Encrypted {
+		properties, ok := observed.Image.Imageinfo["Properties"].(map[string]any)
+		if !ok || properties["Encrypted"] != false {
+			return fmt.Errorf("explicit envelope removal did not produce a native plaintext image")
+		}
+		return nil
+	}
+	source, ok := v.Cases[CaseKey(out.Source)]
+	if !ok || source.Observation == nil || source.Observation.Image.Encryption == nil {
+		return fmt.Errorf("encrypted edit has no native source encryption policy")
+	}
+	want, err := nativeImageCipher(source.Observation.Image.Imageinfo)
+	if err != nil {
+		return fmt.Errorf("native encrypted source policy: %w", err)
+	}
+	if want != source.Observation.Image.Encryption.Cipher {
+		return fmt.Errorf("captured source cipher disagrees with native imageinfo")
+	}
+	got, err := nativeImageCipher(observed.Image.Imageinfo)
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("encrypted edit changed native image cipher from %s to %s", want, got)
+	}
+	return nil
+}
 
 // requireEncryptedEditOutputs prevents an entire host cohort from silently
 // omitting a filesystem, source cipher, encoding or encryption policy.

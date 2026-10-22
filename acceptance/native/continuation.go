@@ -112,6 +112,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
 		}
 	}
+	if out.Source.Recipe == "apfs-clones" {
+		if err := v.continueCloneWrites(ctx, volume.Mount, filepath.Join(work, "clone-native-source")); err != nil {
+			_ = v.Disk.Detach(ctx, att)
+			return nil, fmt.Errorf("continuation %s: native clone writes: %w", out.Name, err)
+		}
+	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
 		_ = v.Disk.Detach(ctx, att)
 		return nil, fmt.Errorf("continuation %s: native writes: %w", out.Name, err)
