@@ -16,6 +16,7 @@ import (
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/codec/lzfse"
 )
 
 const maxChunk = 64 << 20
@@ -114,7 +115,7 @@ func openUDIF(source block.Source, footer []byte) (*udif, error) {
 				if storedSize != length*512 {
 					return nil, corrupt("UDIF raw chunk length")
 				}
-			case 0x80000005, 0x80000006:
+			case 0x80000005, 0x80000006, 0x80000007:
 				if length*512 > maxChunk || storedSize > maxChunk {
 					return nil, filesystem.ErrLimit
 				}
@@ -291,13 +292,44 @@ func (u *udif) readChunk(i int, p []byte, off int64) error {
 	for len(u.cache) != 0 && (len(u.cache) >= maxCachedChunks || u.cacheSize+c.size > maxChunk) {
 		u.evictChunk()
 	}
+	b, err := u.decompressChunk(c)
+	if err != nil {
+		return err
+	}
+	u.cache = append(u.cache, decodedChunk{index: i, data: b})
+	u.cacheSize += int64(len(b))
+	copy(p, b[off:off+int64(len(p))])
+	return nil
+}
+
+func (u *udif) decompressChunk(c chunk) ([]byte, error) {
+	if c.kind == 0x80000007 {
+		// Both buffers are bounded by openUDIF's existing compressed chunk
+		// limits. The decoder cannot grow the caller-owned destination.
+		stored := make([]byte, c.storedSize)
+		defer clear(stored)
+		if err := block.ReadFull(u.source, stored, c.stored); err != nil {
+			return nil, err
+		}
+		b := make([]byte, c.size)
+		n, err := lzfse.DecodeExact(b, stored)
+		if err != nil {
+			clear(b)
+			return nil, fmt.Errorf("UDIF LZFSE: %w: %v", filesystem.ErrCorrupt, err)
+		}
+		if int64(n) != c.size {
+			clear(b)
+			return nil, corrupt("UDIF decoded chunk length")
+		}
+		return b, nil
+	}
 	stored := io.NewSectionReader(u.source, c.stored, c.storedSize)
 	var decoded io.Reader
 	var closer io.Closer
 	if c.kind == 0x80000005 {
 		r, err := zlib.NewReader(stored)
 		if err != nil {
-			return fmt.Errorf("UDIF zlib: %w: %v", filesystem.ErrCorrupt, err)
+			return nil, fmt.Errorf("UDIF zlib: %w: %v", filesystem.ErrCorrupt, err)
 		}
 		decoded, closer = r, r
 	} else {
@@ -312,16 +344,13 @@ func (u *udif) readChunk(i int, p []byte, off int64) error {
 	}
 	if err != nil {
 		clear(b)
-		return fmt.Errorf("UDIF decompression: %w: %v", filesystem.ErrCorrupt, err)
+		return nil, fmt.Errorf("UDIF decompression: %w: %v", filesystem.ErrCorrupt, err)
 	}
 	if int64(len(b)) != c.size {
 		clear(b)
-		return corrupt("UDIF decoded chunk length")
+		return nil, corrupt("UDIF decoded chunk length")
 	}
-	u.cache = append(u.cache, decodedChunk{index: i, data: b})
-	u.cacheSize += int64(len(b))
-	copy(p, b[off:off+int64(len(p))])
-	return nil
+	return b, nil
 }
 
 // Metadata paths may span many distant runs. Cache bounded regions of raw

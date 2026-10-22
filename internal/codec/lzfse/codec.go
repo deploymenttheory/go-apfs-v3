@@ -13,6 +13,14 @@ func Decode(dst, src []byte) (int, error) {
 	return d.n, err
 }
 
+// DecodeExact decodes one complete stream occupying all of src. Unlike Apple's
+// prefix decoder, it rejects bytes after the end marker. Discard output on error.
+func DecodeExact(dst, src []byte) (int, error) {
+	d := decoder{dst: dst, src: src, exact: true}
+	err := d.decode()
+	return d.n, err
+}
+
 // DecodeLZVN decodes a complete raw LZVN stream.
 func DecodeLZVN(dst, src []byte) (int, error) {
 	d := lzvnDecoder{dst: dst, src: src}
