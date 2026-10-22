@@ -230,9 +230,16 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireWorkspaceOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireCloneOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
+	prioritizeLineages(order, "outputs")
 	for _, key := range order {
 		planContainerChecks(lineages[key])
 	}
@@ -320,7 +327,6 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 // another macOS version produced and compares this kernel's view with the
 // recorded one. Differences must be in known-drift.json.
 func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
-	t.Parallel()
 	if group := nativeGroup(t); group != "" && group != "fixtures" {
 		t.Skip("cross-version parity runs in the fixtures phase")
 	}
@@ -329,6 +335,10 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := requireRawImageEncryption(t, v, cases); err != nil {
+		t.Fatalf("raw image encryption proof: %v", err)
+	}
+	t.Parallel()
 	rows := &summary{}
 	var others []corpus.Case
 	for _, k := range cases {
@@ -339,6 +349,7 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	lineages, order := groupByLineage(others, func(k corpus.Case) string {
 		return fmt.Sprintf("macos-%d/%s/%s", k.Producer, k.Recipe, k.Profile)
 	})
+	prioritizeLineages(order, "fixtures")
 	t.Run("fixtures", func(t *testing.T) {
 		for _, key := range order {
 			group := lineages[key]

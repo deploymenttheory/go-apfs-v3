@@ -87,11 +87,11 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 			}
 			le.PutUint64(value[84:], 0)
 		}
-		stream := le.Uint64(value[8:])
-		if stream == 0 {
-			stream = id
-			le.PutUint64(value[8:], stream)
+		stream, e := m.privateDataStream(value)
+		if e != nil {
+			return 0, e
 		}
+		le.PutUint64(value[8:], stream)
 		blocks, e := m.replaceStream(stream, stream, c.Data)
 		if e != nil {
 			return 0, e
@@ -103,6 +103,15 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 		value, e = replaceInodeField(value, 8, 0x20, sv)
 		if e != nil {
 			return 0, e
+		}
+		// A whole replacement has dense logical coverage. Sparse-byte metadata
+		// describes the old stream and must not survive the replacement.
+		if le.Uint64(value[48:])&0x200 != 0 {
+			value, e = removeInodeField(value, 13)
+			if e != nil {
+				return 0, e
+			}
+			le.PutUint64(value[48:], le.Uint64(value[48:])&^uint64(0x200))
 		}
 		rc := make([]byte, 4)
 		le.PutUint32(rc, 1)
@@ -181,7 +190,7 @@ func (m *mutation) removeAttributeStream(attr buildRecord) error {
 	if len(attr.value) != 52 {
 		return corrupt("changed attribute stream", 0)
 	}
-	return m.removeStream(le.Uint64(attr.value[4:]))
+	return m.releaseStreamReference(le.Uint64(attr.value[4:]))
 }
 func (m *mutation) removeStream(id uint64) error {
 	for _, r := range m.fs.records(id, 8) {
@@ -191,10 +200,6 @@ func (m *mutation) removeStream(id uint64) error {
 			if e := m.releaseExtent(address, blocks); e != nil {
 				return e
 			}
-			if e := m.space.retire(false, address, blocks); e != nil {
-				return e
-			}
-			m.freed += blocks
 		}
 		if e := m.fs.put(r.key, nil); e != nil {
 			return e

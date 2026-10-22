@@ -77,7 +77,9 @@ APFS native ordinary attribute streams can carry flag `0x10`, absent from the
 physical extent owner is the stream ID; legacy attributes and resource forks use
 the owning inode ID. `apfs/build_records.go` centralizes that distinction for
 validation and mutation. Updates preserve the marker while using stream storage;
-embedded replacements remove it. Unknown flags and shared streams remain refused.
+embedded replacements remove it. Unknown flags remain refused. Admitted plaintext
+clone streams use counted copy-on-write ownership for attribute changes, as
+described in [APFS editing](apfs-editing.md#editing-existing-clones).
 No private APFS C implementation is claimed as a source port.
 
 The admitted image profiles remain those in [APFS editing](apfs-editing.md) and

@@ -149,8 +149,8 @@ func (d *fakeDisk) Unmount(_ context.Context, v *AttachedVolume) error {
 	return nil
 }
 
-func (d *fakeDisk) Convert(_ context.Context, src, format, out, encryption string, password []byte) error {
-	d.note("convert %s %s enc=%s", filepath.Base(src), format, encryption)
+func (d *fakeDisk) Convert(_ context.Context, src, format, out string, opts ConvertOptions) error {
+	d.note("convert %s %s enc=%s", filepath.Base(src), format, opts.Encryption)
 	img, err := readFakeImage(src)
 	if err != nil {
 		return err

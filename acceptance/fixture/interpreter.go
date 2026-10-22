@@ -407,7 +407,7 @@ func (c *Capture) retain(ctx context.Context, stage *schema.Stage) (string, erro
 		return out, nil
 	}
 	out := filepath.Join(dir, c.prefix()+"."+stage.Name+".dmg")
-	if err := c.Disk.Convert(ctx, c.scratch, format, out, "", nil); err != nil {
+	if err := c.Disk.Convert(ctx, c.scratch, format, out, ConvertOptions{}); err != nil {
 		return "", err
 	}
 	return out, nil

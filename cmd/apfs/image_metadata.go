@@ -115,8 +115,8 @@ func imageMetadataChanges(verb string, f *flag.FlagSet, args []string) ([]imagee
 	return changes, close, nil
 }
 
-func readImageAttributes(ctx context.Context, f *flag.FlagSet, common *sessionFlags, source string, partition int, args []string, out io.Writer) (err error) {
-	allowed := map[string]bool{"image": true, "partition": true, "volume": true, "p": true, "s": true, "x": true, "json": true}
+func readImageAttributes(ctx context.Context, f *flag.FlagSet, common *sessionFlags, source string, partition int, args []string, input io.Reader, out io.Writer) (err error) {
+	allowed := map[string]bool{"image": true, "partition": true, "volume": true, "p": true, "s": true, "x": true, "json": true, "image-password-file": true, "password-file": true}
 	f.Visit(func(option *flag.Flag) {
 		if !allowed[option.Name] {
 			err = fs.ErrInvalid
@@ -130,7 +130,7 @@ func readImageAttributes(ctx context.Context, f *flag.FlagSet, common *sessionFl
 	if read && (len(args) != 2 || common.json) || !read && (len(args) != 1 || hexadecimal) {
 		return fs.ErrInvalid
 	}
-	reader, close, err := (&readerOptions{partition: partition, volume: f.Lookup("volume").Value.String()}).open(ctx, source, nil)
+	reader, close, err := (&readerOptions{partition: partition, volume: f.Lookup("volume").Value.String(), imagePasswordFile: f.Lookup("image-password-file").Value.String(), passwordFile: f.Lookup("password-file").Value.String()}).open(ctx, source, input)
 	if err != nil {
 		return err
 	}

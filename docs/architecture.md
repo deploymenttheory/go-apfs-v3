@@ -298,9 +298,10 @@ This is not proof that every object in the checkpoint is consistent. Failure
 to resolve the selected view does not trigger silent fallback. Bad block zero
 and descriptor-tree layouts are currently explicit errors.
 
-Writable engines require exclusive ownership, feature admission, allocation
-accounting, and durable publication. APFS copy-on-write and HFS+ journaling need
-separate implementations. HFS+ metadata journaling is not atomic file-content
+Writable engines require validated ownership, feature admission, allocation
+accounting, and durable publication. Plaintext APFS clone edits reconcile shared
+stream and physical reference counts before copy-on-write and reclamation. APFS
+copy-on-write and HFS+ journaling need separate implementations. HFS+ metadata journaling is not atomic file-content
 replacement. Existing-image edits decode into project-owned private regular-file copies and
 explicitly publish new DMGs. Native shadow replay is not the transaction engine.
 `Sync` must describe exactly what becomes durable. The first HFS engine flushes

@@ -16,9 +16,9 @@ import (
 // nativeWriteAfterEdit allocates through Apple's kernel after the Go transaction,
 // then remounts and checks the written bytes and all unrelated entries. The input
 // output remains read-only; only a private complete raw copy is modified.
-func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, edited, work, selected string, before *schema.Observation, recipe schema.Recipe) (*schema.Observation, error) {
+func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, edited, work, selected string, before *schema.Observation, recipe schema.Recipe, envelope continuationEnvelope) (*schema.Observation, error) {
 	raw := filepath.Join(work, "native-after-go.raw")
-	att, err := v.Disk.Attach(ctx, edited, fixture.AttachOptions{ReadOnly: true, NoInventory: true})
+	att, err := v.Disk.Attach(ctx, edited, fixture.AttachOptions{ReadOnly: true, NoInventory: true, Password: envelope.password})
 	if err != nil {
 		return nil, err
 	}

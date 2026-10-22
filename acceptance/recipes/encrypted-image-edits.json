@@ -1,0 +1,304 @@
+{
+  "schema": 1,
+  "name": "encrypted-image-edits",
+  "purpose": "Independent native before and after states for ordered content, recursive archive copy, hard-link, fork, attribute and mode edits inside AES-128 and AES-256 DMG envelopes. Existing plaintext APFS, APFSX, HFS+ and HFSX filesystems retain their identities; image credentials remain independent of APFS volume encryption.",
+  "profiles": [
+    "apfs",
+    "apfsx",
+    "hfsplus",
+    "hfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "64m",
+    "layout": "GPTSPUD",
+    "output": "UDZO",
+    "mountOptions": "owners,noatime"
+  },
+  "passwords": {
+    "image": "public-edit-image-λ-😀",
+    "changed": "public-rekeyed-image-password",
+    "wrong": "public-incorrect-password",
+    "empty": ""
+  },
+  "stages": [
+    {
+      "name": "before",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/file",
+            "content": "Original encrypted-image payload.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/file/..namedfork/rsrc",
+            "content": "Independent resource fork.\u0000ÿ"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/file",
+            "name": "org.apfs.fixture",
+            "content": "original attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/file",
+            "target": "$MOUNT/Fixture/alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree"
+          }
+        },
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/tree/nested"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/tree/nested/leaf",
+            "content": "Recursive archive content.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/tree/nested/leaf",
+            "name": "org.apfs.fixture",
+            "content": "copied attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/tree/relative",
+            "target": "nested/leaf"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/file",
+            "mode": 489
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "after",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/file",
+            "content": "Edited encrypted-image payload.\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-a",
+              "$MOUNT/Fixture/tree",
+              "$MOUNT/Fixture/copied"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/copied/nested/leaf",
+            "mode": 416
+          }
+        },
+        {
+          "fs": {
+            "op": "rename",
+            "path": "$MOUNT/Fixture/copied/nested/leaf",
+            "target": "$MOUNT/Fixture/copied/nested/renamed"
+          }
+        },
+        {
+          "fs": {
+            "op": "symlink",
+            "path": "$MOUNT/Fixture/copied/nested/leaf",
+            "target": "renamed"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/file",
+            "name": "org.apfs.fixture",
+            "content": "edited attribute",
+            "option": "replace"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/file",
+            "target": "$MOUNT/Fixture/third-alias"
+          }
+        }
+      ],
+      "observe": {
+        "checks": [
+          "verify",
+          "fsck"
+        ]
+      }
+    }
+  ],
+  "derive": [
+    {
+      "name": "before-aes128",
+      "from": "before",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-128",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    },
+    {
+      "name": "before-aes256",
+      "from": "before",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-256",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    },
+    {
+      "name": "after-aes128",
+      "from": "after",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-128",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    },
+    {
+      "name": "after-aes256",
+      "from": "after",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-256",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    }
+  ]
+}

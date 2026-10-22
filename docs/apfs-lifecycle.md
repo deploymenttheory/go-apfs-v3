@@ -183,8 +183,9 @@ resource-fork streams can instead share physical ranges. Physical extent counts
 are signed: each retained snapshot contributes its chronological NEW/UPDATE tree,
 and a zero current count cannot erase an older view's ownership. The original
 physical `owning_obj_id` can outlive its inode, so general ownership does not
-require that hint to resolve to a current inode. The ordinary writer's separate
-exclusive-owner admission retains the stronger check needed by its release code.
+require that hint to resolve to a current inode. Plaintext clone mutation uses
+these reconciled counts to split and decrement shared physical ranges, retaining
+surviving references and retiring storage only when its final reference is gone.
 
 Native sparse inodes include sparse bytes in their stream allocation field.
 The explicit sparse-byte field and logical extent coverage must reconcile before
@@ -210,7 +211,8 @@ checkpoint is published. No-op commands do not retire checkpoints or write bytes
 Object-map pruning can retain each historical view's predecessor mapping, including
 deletion placeholders; the current ordinary writer admits no such extra views.
 This is file-backed scratch-copy recovery, not a claim of in-place power-loss
-atomicity or writable snapshot/clone support.
+atomicity or writable snapshot support. Existing plaintext clone editing uses
+the same scratch-copy transaction; see [clone editing](apfs-editing.md#editing-existing-clones).
 
 Tree/mapping traversal is bounded by 16,000 object reads and 1,048,576 records,
 alongside the existing checkpoint, space-manager, 4,096-snapshot and 64 MiB

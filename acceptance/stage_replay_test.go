@@ -31,6 +31,7 @@ import (
 // tag adds the recipes that take minutes per stage (see
 // stage_replay_slow_test.go).
 var replayedRecipes = map[string]bool{
+	"apfs-clones":                   true,
 	"apfs-container-geometry":       true,
 	"apfs-directory-statistics":     true,
 	"hfs-attributes-initialization": true,
@@ -145,7 +146,11 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 				current, final = out, out
 			}
 			checkReplayedImage(t, ctx, final, source, k, recipes[k.Recipe], touched)
-			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: []string{"birth", "modify", "change", "access"}, Continuation: last, NewIdentities: true, ContinuationRefusal: refusalIf(last, knownProductLimits[k.Recipe])}})
+			ignoreTimes := []string{"birth", "modify", "change", "access"}
+			if k.Recipe == "apfs-clones" {
+				ignoreTimes = nil // independent native command-clock projection
+			}
+			recordOutput(t, schema.Output{Name: name, File: filepath.Base(final), Operation: "edit", Format: "UDZO", Source: caseRef(source), Expect: schema.Expectation{View: k.Stage, IgnoreTimes: ignoreTimes, Continuation: last, NewIdentities: true, ContinuationRefusal: refusalIf(last, knownProductLimits[k.Recipe])}})
 		})
 	}
 }

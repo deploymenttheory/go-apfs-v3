@@ -2,7 +2,6 @@ package apfs
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
@@ -30,30 +29,19 @@ func (m *mutation) validateOwnership(storage *storageChecker) error {
 			return err
 		}
 		streams := volume.views[0].streams
-		if streams.cloned {
-			return fmt.Errorf("APFS clone history: %w", filesystem.ErrUnsupported)
-		}
-		for _, stream := range streams.streams {
-			if stream.owners != 1 {
-				return fmt.Errorf("APFS shared stream: %w", filesystem.ErrUnsupported)
-			}
-		}
 		for _, inode := range streams.inodes {
 			if _, err := statisticsForInode(inode.value); err != nil {
 				return err
 			}
 		}
-		var owners []ownedRange
 		for _, r := range volume.extents.all() {
-			if le.Uint64(r.value)>>60 != 1 || le.Uint32(r.value[16:]) != 1 {
-				return fmt.Errorf("APFS shared physical extent: %w", filesystem.ErrUnsupported)
+			if le.Uint64(r.value)>>60 != 1 || int32(le.Uint32(r.value[16:])) <= 0 {
+				return fmt.Errorf("APFS physical extent history: %w", filesystem.ErrUnsupported)
 			}
-			start := prefix(r.key).id
-			owners = append(owners, ownedRange{start, start + (le.Uint64(r.value) & objectMask), le.Uint64(r.value[8:])})
 		}
-		if err := validateExtentOwners(owners, slices.Clone(streams.owners)); err != nil {
-			return err
-		}
+		// The shared checker reconciles counts against all live streams. An
+		// original owning_obj_id can outlive its inode even at count one; clone
+		// flags are historical hints, not authority to free or overwrite data.
 	}
 	if le.Uint32(storage.mapHeader[36:]) != 0 || le.Uint64(storage.mapHeader[64:]) != 0 {
 		return fmt.Errorf("retained container map versions: %w", filesystem.ErrUnsupported)

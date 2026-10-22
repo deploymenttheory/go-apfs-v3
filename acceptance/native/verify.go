@@ -223,12 +223,21 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 		return v.verifyContainer(ctx, out, image, password, digests, !p.SkipChecksums)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
+	if out.Source.Recipe == "apfs-clones" {
+		spec.Extents, spec.Samples = cloneExtentPaths(), 12
+	}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
 	if err != nil {
 		return nil, err
 	}
 	var diffs []Difference
+	if err := v.checkEncryptedEditPolicy(out, obs); err != nil {
+		return nil, err
+	}
+	if err := v.checkReplacedImagePassword(ctx, p, image); err != nil {
+		return nil, err
+	}
 	if out.Expect.SelectedXID != 0 && obs.Checks.SelectedXID != out.Expect.SelectedXID {
 		diffs = append(diffs, Difference{Field: "checks.selectedXID", Got: fmt.Sprint(obs.Checks.SelectedXID), Want: fmt.Sprint(out.Expect.SelectedXID)})
 	}
@@ -274,6 +283,13 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			}
 			diffs = append(diffs, d...)
 		}
+	}
+	if out.Source.Recipe == "apfs-clones" && out.Operation == "edit" {
+		sharing, err := cloneOutputDifferences(obs, want)
+		if err != nil {
+			return nil, err
+		}
+		diffs = append(diffs, sharing...)
 	}
 	return diffs, nil
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,10 +51,14 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			resultErr = errors.Join(resultErr, fmt.Errorf("continuation %s: retain initial native commands: %w", out.Name, err))
 		}
 	}()
+	envelope, err := v.envelopeForContinuation(ctx, p, image)
+	if err != nil {
+		return nil, err
+	}
 	raw := filepath.Join(work, "writable.raw")
 	// A raw copy, not a shadow: HFS shadow writes left a stale alternate
 	// header in the retired harness.
-	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true})
+	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Password: envelope.password})
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +113,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
 		}
 	}
+	if out.Source.Recipe == "apfs-clones" {
+		if err := v.continueCloneWrites(ctx, volume.Mount, filepath.Join(work, "clone-native-source")); err != nil {
+			_ = v.Disk.Detach(ctx, att)
+			return nil, fmt.Errorf("continuation %s: native clone writes: %w", out.Name, err)
+		}
+	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
 		_ = v.Disk.Detach(ctx, att)
 		return nil, fmt.Errorf("continuation %s: native writes: %w", out.Name, err)
@@ -126,13 +137,36 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
-	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, schema.ObserveSpec{}, k.recipe)
+	nativeSpec := schema.ObserveSpec{}
+	if out.Source.Recipe == "apfs-clones" {
+		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
+	}
+	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, nativeSpec, k.recipe)
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
 	}
+	var cloneBefore schema.View
+	if out.Source.Recipe == "apfs-clones" {
+		cloneBefore, err = onlyLiveView(before)
+		if err == nil {
+			err = requireRetainedPartialClone(cloneBefore)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("continuation %s: native partial clone input: %w", out.Name, err)
+		}
+	}
+	partition, err := continuationPartition(envelope.imageinfo, before, volume.UUID)
+	if err != nil {
+		return nil, fmt.Errorf("continuation %s: select native filesystem partition: %w", out.Name, err)
+	}
 	// The product edits the natively modified volume into a new image.
+	editSource, imageArgs, err := v.prepareEncryptedContinuation(ctx, envelope, raw, work)
+	if err != nil {
+		return nil, err
+	}
 	edited := filepath.Join(work, "edited.dmg")
-	argv := []string{v.Product, "edit", "--image", raw, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
+	argv := []string{v.Product, "edit", "--image", editSource, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z", "--partition", strconv.Itoa(partition)}
+	argv = append(argv, imageArgs...)
 	if out.Expect.SystemMember != "" || multiVolume {
 		argv = append(argv, "--volume", volume.UUID)
 	}
@@ -143,7 +177,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	var refusalSource string
 	if out.Expect.ContinuationRefusal != "" {
-		refusalSource, err = schema.FileDigest(raw)
+		refusalSource, err = schema.FileDigest(editSource)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +196,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		if _, statErr := os.Lstat(edited); !errors.Is(statErr, fs.ErrNotExist) {
 			return nil, fmt.Errorf("continuation %s: refused edit published a destination: %v", out.Name, statErr)
 		}
-		if digest, digestErr := schema.FileDigest(raw); digestErr != nil || digest != refusalSource {
+		if digest, digestErr := schema.FileDigest(editSource); digestErr != nil || digest != refusalSource {
 			return nil, fmt.Errorf("continuation %s: refused edit changed its native input: %v", out.Name, digestErr)
 		}
 		return nil, KnownLimit{Refusal: refusal}
@@ -170,13 +204,26 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: product edit: %v\n%s", out.Name, err, outb)
 	}
-	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
-	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", nil, spec, k.recipe)
+	if err := v.checkContinuationEnvelope(ctx, envelope, edited); err != nil {
+		return nil, fmt.Errorf("continuation %s: %w", out.Name, err)
+	}
+	spec := nativeSpec
+	spec.Checks, spec.Codesign = []string{"verify", "fsck"}, out.Expect.Codesign
+	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", envelope.password, spec, k.recipe)
 	if err != nil {
 		return nil, err
 	}
 	if err := compareContinuedContainer(before, obs, volume.Name); err != nil {
 		return obs, fmt.Errorf("continuation %s: %w", out.Name, err)
+	}
+	if out.Source.Recipe == "apfs-clones" {
+		differences, err := cloneOutputDifferences(obs, cloneBefore)
+		if err != nil {
+			return obs, fmt.Errorf("continuation %s: continued clone sharing: %w", out.Name, err)
+		}
+		if len(differences) != 0 {
+			return obs, fmt.Errorf("continuation %s: continued clone sharing differs: %v", out.Name, differences)
+		}
 	}
 	paths := map[string]bool{}
 	for _, vw := range obs.Views {
@@ -204,7 +251,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if paths["native-continuation/entry-00001"] {
 		return obs, fmt.Errorf("continuation %s: entry removed by the product still present", out.Name)
 	}
-	return v.nativeWriteAfterEdit(ctx, out, edited, work, volume.Name, obs, k.recipe)
+	return v.nativeWriteAfterEdit(ctx, out, edited, work, volume.Name, obs, k.recipe, envelope)
 }
 
 // KnownLimit reports that the continuation's native writes passed and the

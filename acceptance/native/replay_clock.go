@@ -26,6 +26,9 @@ type replayClockVolume struct {
 // The source observation supplies preserved clocks and hard-link identities;
 // recipe commands supply changed clocks. No actual output values are consulted.
 func (v *Verifier) replayClockViews(out schema.Output, target *schema.Observation) (map[string]schema.View, error) {
+	if out.Source.Recipe == "apfs-clones" || out.Source.Recipe == "encrypted-image-edits" {
+		return v.singleVolumeEditClocks(out, target)
+	}
 	if out.Operation != "edit" || !out.Expect.NewIdentities || out.Expect.View == "" || len(target.Volumes) < 2 {
 		return nil, nil
 	}

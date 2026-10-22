@@ -105,7 +105,19 @@ jobs:
         shell: bash
         env:
           APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
-        run: go test -count=1 -timeout 25m ./acceptance/...
+        run: |
+          acceptance_package="$(go list ./acceptance)"
+          all_packages="$(go list ./acceptance/...)"
+          helper_packages=()
+          while IFS= read -r package; do
+            if [[ "$package" != "$acceptance_package" ]]; then
+              helper_packages+=("$package")
+            fi
+          done <<< "$all_packages"
+          if (( ${#helper_packages[@]} > 0 )); then
+            go test -count=1 -timeout 25m "${helper_packages[@]}"
+          fi
+          go test -count=1 -timeout 25m "$acceptance_package"
       # One artifact per producer: the native job for macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.
@@ -207,7 +219,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 4 -timeout 30m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 5 -timeout 30m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -223,7 +235,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 4 -timeout 20m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 5 -timeout 20m -tags native ./acceptance/native
       - name: Wait for every host's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -239,9 +251,10 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        # Start long measured lineages first to reduce the serial tail.
         # Parallelism applies to independent filesystem lineages. Outputs
         # sharing a container or volume UUID remain serial within a lineage.
-        run: go test -count=1 -v -parallel 4 -timeout 40m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 5 -timeout 40m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

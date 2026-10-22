@@ -44,15 +44,23 @@ original structures. Native reserves and quotas remain in force. Geometry uses
 contiguous checkpoint regions, inline CIB addresses and one internal-pool bitmap.
 Every current and pending-free block must have validated ownership.
 
-Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
-Fusion, encrypted image envelopes/volumes, pending reapers and
-unrecognized write profiles are refused before disk staging. Tracked directories
+Plaintext clone-bearing volumes are admitted when their stream and physical
+reference counts reconcile. Shared data, resource forks and attribute streams
+use copy-on-write; hard-link aliases retain their shared inode. Snapshot-bearing
+volumes, System/Data roles, Fusion, software-encrypted APFS volumes, pending
+reapers and unrecognized write profiles are refused before disk staging. Tracked directories
 retain their statistics and inheritance; protected filesystem-owned directories
 remain outside user mutation.
 Immutable, append-only and protected target objects are refused. Symlinks can be
 moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
 construction capabilities.
+
+Encrypted DMG envelopes are supported independently of APFS volume encryption.
+Supply `--image-password-file FILE`; output retains the source AES strength and
+password by default, using fresh random keys and salt. See
+[encrypted image editing](encrypted-image-editing.md) for password replacement,
+removal, stdin and the separate APFS volume credential boundary.
 
 The larger and multiple-volume controls were independently qualified at
 [run 38337086450](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337086450):
@@ -72,6 +80,24 @@ Birth/access times, ownership and unrelated metadata are preserved. Changed data
 and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
 chmod preserves ACLs. Set-ID writes require the explicit logical UID described
 below; these metadata effects do not emulate process authorization.
+
+## Editing existing clones
+
+Whole-file replacement and truncation detach only the edited clone's data stream.
+Resource-fork and attribute changes preserve unaffected shared streams; metadata
+changes retain existing sharing. Removing a hard-link alias retains its inode and
+streams until its final name is removed. Removing a clone decrements stream and
+physical references independently, and only the last physical reference retires
+storage for later reuse. Original physical owner hints can outlive their inode;
+validated reference counts determine reclamation. A compressed or empty inode
+can retain a private stream ID without a data-stream descriptor. That ID alone
+does not own storage: replacement creates a new stream, and unlink cannot
+release a different inode's data through the retained ID.
+
+This edits clones already present in an admitted image. The image commands do not
+create new APFS clones. Snapshot and encrypted-volume mutation have separate
+admission limits. Independent qualification requires the plaintext `apfs-clones`
+controls, Apple checks and subsequent native clone writes on macOS 15/26/27.
 
 ## File and directory operations
 

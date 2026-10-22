@@ -15,7 +15,7 @@ import (
 
 // Ordinary verb arguments remain intact after the initial --; --next separates
 // commands. Arguments are already shell-parsed, never shell-executed or JSON.
-func editCommands(ctx context.Context, args []string, out, diagnostics io.Writer) error {
+func editCommands(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) error {
 	separator := slices.Index(args, "--")
 	if separator < 0 {
 		return fmt.Errorf("usage: apfs edit --image IMAGE --output NEW_DMG [options] -- COMMAND [arguments] [--next COMMAND ...]")
@@ -30,6 +30,7 @@ func editCommands(ctx context.Context, args []string, out, diagnostics io.Writer
 	fixed := f.String("time", "", "one operation time for the batch, RFC3339 whole seconds")
 	f.String("uid", "", "logical creator/writer UID, independent of host credentials")
 	jsonOutput := f.Bool("json", false, "emit a machine-readable output report")
+	addEditEncryptionFlags(f)
 	if err := f.Parse(args[:separator]); err != nil {
 		return err
 	}
@@ -66,9 +67,14 @@ func editCommands(ctx context.Context, args []string, out, diagnostics io.Writer
 		return err
 	}
 	options.ActorUID = actor
+	options, err = editEncryptionOptions(f, input, options)
+	if err != nil {
+		return err
+	}
+	defer clearEditPasswords(options)
 	report, err := imageedit.Edit(ctx, *source, *destination, options, func(editor *imageedit.Editor) error {
 		for index, command := range commands {
-			if err := fileCommandWithEditor(ctx, command, io.Discard, diagnostics, editor, options); err != nil {
+			if err := fileCommandWithEditor(ctx, command, nil, io.Discard, diagnostics, editor, options); err != nil {
 				return fmt.Errorf("command %d (%s): %w", index+1, command[0], err)
 			}
 		}

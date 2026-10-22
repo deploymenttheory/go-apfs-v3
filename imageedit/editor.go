@@ -28,7 +28,10 @@ func Edit(ctx context.Context, source, destination string, options Options, comm
 		return Report{}, fs.ErrInvalid
 	}
 	return editImage(ctx, source, destination, options, func(view *mutablePartition, isAPFS bool) (Report, error) {
-		e := &Editor{ctx: ctx, view: view, isAPFS: isAPFS, options: options, active: true}
+		// Commands need filesystem choices, never envelope or volume credentials.
+		// A retained, expired Editor must not retain borrowed password buffers.
+		commandOptions := Options{ActorUID: options.ActorUID, Partition: options.Partition, Volume: options.Volume, Format: options.Format, Time: options.Time}
+		e := &Editor{ctx: ctx, view: view, isAPFS: isAPFS, options: commandOptions, active: true}
 		defer func() { e.active = false }()
 		if err := commands(e); err != nil {
 			return e.report, err

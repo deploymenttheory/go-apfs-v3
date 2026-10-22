@@ -1,0 +1,718 @@
+{
+  "schema": 1,
+  "name": "apfs-clones",
+  "purpose": "Plaintext clone-only editing controls: shared data, independent physically shared forks and large attributes, compressed and sparse clones, inode-independent metadata, hard-link aliases, source removal, final-owner retirement and subsequent allocation. Untouched clone sharing and equal independent bytes remain distinct physical controls. Every ordered state is Apple-created and retained.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "128m",
+    "layout": "NONE",
+    "output": "raw",
+    "volumeName": "Primary",
+    "mountOptions": "owners,noatime"
+  },
+  "stages": [
+    {
+      "name": "shared",
+      "steps": [
+        {
+          "fs": {
+            "op": "mkdir",
+            "path": "$MOUNT/Fixture/"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/source",
+            "pattern": "sequence",
+            "bytes": 131073,
+            "label": "original-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/source/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 32769,
+            "label": "original-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/source",
+            "name": "org.go-apfs.large",
+            "pattern": "sequence",
+            "bytes": 8193,
+            "label": "original-attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/source",
+            "name": "org.go-apfs.inline",
+            "content": "Original inline metadata"
+          }
+        },
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/source",
+            "mode": 416
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/edit"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/truncate"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/metadata"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/remove"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/source",
+            "target": "$MOUNT/Fixture/final-owner"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/edit",
+            "target": "$MOUNT/Fixture/edit-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "link",
+            "path": "$MOUNT/Fixture/metadata",
+            "target": "$MOUNT/Fixture/metadata-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/equal-independent",
+            "pattern": "sequence",
+            "bytes": 131073,
+            "label": "original-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/untouched-source",
+            "pattern": "sequence",
+            "bytes": 65537,
+            "label": "untouched-data"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/untouched-source/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 16385,
+            "label": "untouched-fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/untouched-source",
+            "target": "$MOUNT/Fixture/untouched-clone"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed-source"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed-source/..namedfork/rsrc",
+            "payload": "rsrc-type-4.fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/compressed-source",
+            "name": "com.apple.decmpfs",
+            "payload": "decmpfs-type-4.attr"
+          }
+        },
+        {
+          "fs": {
+            "op": "chflags",
+            "path": "$MOUNT/Fixture/compressed-source",
+            "flags": 32
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/compressed-source",
+            "target": "$MOUNT/Fixture/compressed-clone"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "content": "start"
+          }
+        },
+        {
+          "fs": {
+            "op": "pwrite",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "offset": 1048583,
+            "content": "end"
+          }
+        },
+        {
+          "fs": {
+            "op": "clone",
+            "path": "$MOUNT/Fixture/sparse-source",
+            "target": "$MOUNT/Fixture/sparse-clone"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "data-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/edit",
+            "pattern": "sequence",
+            "bytes": 8193,
+            "label": "replacement"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "data-truncated",
+      "steps": [
+        {
+          "fs": {
+            "op": "truncate",
+            "path": "$MOUNT/Fixture/truncate",
+            "bytes": 0
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "fork-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/fork/..namedfork/rsrc",
+            "pattern": "sequence",
+            "bytes": 5001,
+            "label": "replacement-fork"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "attribute-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/attribute",
+            "name": "org.go-apfs.large",
+            "pattern": "sequence",
+            "bytes": 6145,
+            "label": "replacement-attribute"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "metadata-changed",
+      "steps": [
+        {
+          "fs": {
+            "op": "chmod",
+            "path": "$MOUNT/Fixture/metadata-alias",
+            "mode": 384
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/metadata-alias",
+            "name": "org.go-apfs.inline",
+            "content": "Independent clone metadata"
+          }
+        },
+        {
+          "fs": {
+            "op": "setxattr",
+            "path": "$MOUNT/Fixture/metadata-alias",
+            "name": "org.go-apfs.new",
+            "content": "new clone attribute"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "compressed-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/compressed-clone",
+            "pattern": "sequence",
+            "bytes": 4097,
+            "label": "decompressed-replacement"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "sparse-replaced",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/sparse-clone",
+            "pattern": "sequence",
+            "bytes": 5001,
+            "label": "sparse-replacement"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "source-removed",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/source"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/compressed-source"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/sparse-source"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "clones-removed",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/edit"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/edit-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/truncate"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/fork"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/attribute"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/metadata"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/metadata-alias"
+          }
+        },
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/remove"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "final-owner-removed",
+      "steps": [
+        {
+          "fs": {
+            "op": "unlink",
+            "path": "$MOUNT/Fixture/final-owner"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    },
+    {
+      "name": "allocation-reused",
+      "steps": [
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT/Fixture/reused",
+            "pattern": "sequence",
+            "bytes": 262145,
+            "label": "after-final-owner"
+          }
+        }
+      ],
+      "observe": {
+        "extents": [
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
+        ],
+        "samples": 12,
+        "rawHeaders": true,
+        "checks": [
+          "fsck"
+        ]
+      }
+    }
+  ]
+}

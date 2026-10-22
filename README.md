@@ -106,7 +106,11 @@ Currently implemented:
   sectors in a completed output transaction; see [editing semantics](docs/hfs-editing.md).
 - Existing APFS file and directory edits through `cp`, `chmod`, `mkdir`, `mv` and `rm`,
   retaining original identities, hard-link siblings, metadata and independent forks
-  through copy-on-write allocation and checkpoint updates; see [APFS editing semantics](docs/apfs-editing.md).
+  through copy-on-write allocation and checkpoint updates, including counted
+  ownership for existing plaintext clones; see [APFS editing semantics](docs/apfs-editing.md).
+- Existing APFS/HFS+/HFSX editing inside AES-128/256 DMG envelopes, preserving
+  encryption by default with explicit password replacement or removal; see
+  [encrypted image editing](docs/encrypted-image-editing.md).
 - Explicit HFS+/HFSX internal-journal inspection and recovery into a validated new image,
   with retained Apple replay-only byte comparisons; see [recovery semantics](docs/hfs-journal-recovery.md).
 - Streaming AppleDouble decoding/encoding using Apple copyfile layouts.
@@ -122,9 +126,11 @@ can be supplied, with at most one reading stdin. Passwords are never accepted as
 literal command-line options. Inspecting an encrypted DMG needs its image
 password; APFS volume inspection can report locked volumes without their password.
 `pack --output-password-file` supplies the new DMG password, independently of
-`--image-password-file`. Encrypted input requires an explicit output
-`--encryption AES-128|AES-256|none` policy; omitting it cannot remove encryption.
-See [encrypted packing](docs/packing.md#encrypted-dmg-output).
+`--image-password-file`. For packing and repacking, encrypted input requires an
+explicit output `--encryption AES-128|AES-256|none` policy; omitting it cannot
+remove encryption. Existing-image edits instead preserve the source envelope
+by default. See [encrypted packing](docs/packing.md#encrypted-dmg-output) and
+[encrypted image editing](docs/encrypted-image-editing.md).
 
 The qualified encryption profile uses APFS software single-key encryption with
 AES-256 key wrapping and AES-128-XTS sectors. Hardware/per-file keys, legacy key
