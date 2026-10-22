@@ -319,7 +319,11 @@ exhausts the limited volume's quota, reuses released quota, fills an unreserved
 peer and proves the reserved volume remains writable. Its synced, hashed and
 physically allocated proof remains present through the Go edit and final native
 allocation; both complete readbacks require its preservation. Unreserved pressure
-is durably released before normal continuation writes. The System/Data output
+is truncated, synced and unlinked before a required clean unmount, checker and
+remount of the same writable disk. The complete volume identities, absence of pressure files
+and retained proof are checked again before normal continuation writes. This
+fixed phase boundary does not retry a failed write or claim that APFS has no
+pending frees; subsequent native allocations must succeed. The System/Data output
 requires native bulk allocation on System and checker acceptance. Go currently
 refuses mutation of any role-bearing volume; that exact refusal must leave its
 input unchanged and publish no destination. It is recorded explicitly rather
