@@ -288,6 +288,10 @@ func (v *Verifier) cloneNativeState(path string) (nativeCloneState, error) {
 // existing Go-edited image. The normal continuation's unmount/fsck/full-view
 // Go edit and later native allocation remain mandatory after this procedure.
 func (v *Verifier) continueCloneWrites(ctx context.Context, mount, stage string) (resultErr error) {
+	return v.continueCloneWritesFrom(ctx, mount, stage, "Fixture/untouched-source", "Fixture/untouched-clone")
+}
+
+func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, sourcePath, siblingPath string) (resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -312,8 +316,8 @@ func (v *Verifier) continueCloneWrites(ctx context.Context, mount, stage string)
 		}
 		return transcript.RecordFS(op, paths, action(), "0")
 	}
-	source := filepath.Join(mount, "Fixture", "untouched-source")
-	sibling := filepath.Join(mount, "Fixture", "untouched-clone")
+	source := filepath.Join(mount, sourcePath)
+	sibling := filepath.Join(mount, siblingPath)
 	root := filepath.Join(mount, "native-clone-continuation")
 	if err := v.writableDirectory(ctx, root); err != nil {
 		return err
