@@ -190,6 +190,12 @@ jobs:
       contents: read
       actions: read # follow this run's artifacts and jobs
     runs-on: ${{ matrix.runner }}
+    # Leave capacity for Darwin producers when CI runs overlap. Each kernel
+    # has one native consumer; retain every pending required verification.
+    concurrency:
+      group: native-filesystem-verification-${{ matrix.major }}
+      queue: max
+      cancel-in-progress: false
     timeout-minutes: 120
     strategy:
       fail-fast: false
