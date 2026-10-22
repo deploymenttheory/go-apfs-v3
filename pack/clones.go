@@ -2,9 +2,12 @@ package pack
 
 import (
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"sort"
 
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
@@ -19,10 +22,11 @@ type CloneOutcome struct {
 	Reason string `json:"reason,omitempty"`
 }
 
-func cloneOutcomes(ctx context.Context, reader filesystem.Reader) ([]CloneOutcome, error) {
+func cloneOutcomes(ctx context.Context, reader filesystem.Reader, verify bool) ([]CloneOutcome, error) {
 	type member struct {
 		path, name string
 		copied     string
+		object     uint64
 	}
 	groups := map[string][]member{}
 	var outcomes []CloneOutcome
@@ -71,7 +75,7 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader) ([]CloneOutcom
 				if err := value.Close(); err != nil {
 					return err
 				}
-				groups[clones.Data] = append(groups[clones.Data], member{path: path, copied: copied})
+				groups[clones.Data] = append(groups[clones.Data], member{path: path, copied: copied, object: id})
 			}
 			for name, token := range clones.Attributes {
 				metadataBytes += 512 + len(name) + len(token)
@@ -89,7 +93,7 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader) ([]CloneOutcom
 				if err := value.Close(); err != nil {
 					return err
 				}
-				groups[token] = append(groups[token], member{path: path, name: name, copied: copied})
+				groups[token] = append(groups[token], member{path: path, name: name, copied: copied, object: id})
 			}
 		}
 		if node.Metadata.Mode.Value&0170000 == 0040000 {
@@ -119,9 +123,27 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader) ([]CloneOutcom
 	if err := visit(reader.Root(), "/", 0); err != nil {
 		return nil, err
 	}
+	var verifiedBytes int64
 	for _, members := range groups {
 		if len(members) < 2 {
 			continue
+		}
+		if verify {
+			var first [32]byte
+			var size int64
+			for i, member := range members {
+				if member.name != members[0].name {
+					return nil, fmt.Errorf("incompatible declared clone stream kind: %w", filesystem.ErrCorrupt)
+				}
+				digest, bytes, err := cloneValueDigest(ctx, reader, member.object, member.name, &verifiedBytes)
+				if err != nil {
+					return nil, err
+				}
+				if i > 0 && (digest != first || bytes != size) {
+					return nil, fmt.Errorf("conflicting declared clone payload before compression: %w", filesystem.ErrCorrupt)
+				}
+				first, size = digest, bytes
+			}
 		}
 		for _, member := range members {
 			outcome := CloneOutcome{Path: member.path, Stream: member.name, Action: "shared"}
@@ -141,4 +163,45 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader) ([]CloneOutcom
 		return outcomes[i].Stream < outcomes[j].Stream
 	})
 	return outcomes, nil
+}
+
+// Validate original raw values before a storage policy can replace their
+// representation. Hashes verify an existing declaration; they never form one.
+func cloneValueDigest(ctx context.Context, reader filesystem.Reader, object uint64, name string, total *int64) (digest [32]byte, size int64, err error) {
+	var value filesystem.Value
+	if name == "" {
+		value, err = reader.OpenRawData(ctx, object)
+	} else {
+		value, err = reader.OpenAttribute(ctx, object, name)
+	}
+	if err != nil {
+		return digest, 0, err
+	}
+	defer func() { err = errors.Join(err, value.Close()) }()
+	size = value.Size()
+	if size < 0 {
+		return digest, size, filesystem.ErrCorrupt
+	}
+	if size > 1<<40 || size > (1<<40)-*total {
+		return digest, size, filesystem.ErrLimit
+	}
+	*total += size
+	if size == 0 {
+		return sha256.Sum256(nil), size, ctx.Err()
+	}
+	hash := sha256.New()
+	buffer := make([]byte, 64<<10)
+	for offset := int64(0); offset < size; {
+		if err := ctx.Err(); err != nil {
+			return digest, size, err
+		}
+		chunk := buffer[:min(int64(len(buffer)), size-offset)]
+		if err := block.ReadFull(value, chunk, offset); err != nil {
+			return digest, size, err
+		}
+		_, _ = hash.Write(chunk)
+		offset += int64(len(chunk))
+	}
+	copy(digest[:], hash.Sum(nil))
+	return digest, size, ctx.Err()
 }
