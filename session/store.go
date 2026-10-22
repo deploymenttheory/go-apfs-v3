@@ -98,6 +98,7 @@ type Session struct {
 	directory string
 	root      *os.Root
 	lock      *os.File
+	lockHeld  bool
 	document  revision
 	digest    string
 	objects   map[uint64]object
@@ -234,6 +235,7 @@ func acquire(directory string) (s *Session, err error) {
 	if err = lockFile(s.lock); err != nil {
 		return nil, fmt.Errorf("session is in use: %w", errors.Join(filesystem.ErrConflict, err))
 	}
+	s.lockHeld = true
 	return s, nil
 }
 
@@ -987,7 +989,14 @@ func (s *Session) Close() error {
 	s.closed = true
 	var err error
 	if s.lock != nil {
-		err = s.lock.Close()
+		// A concurrently forked process can retain the open-file description
+		// until exec closes its inherited CLOEXEC descriptor. Release our lock
+		// explicitly rather than waiting for every descriptor to close.
+		if s.lockHeld {
+			err = unlockFile(s.lock)
+			s.lockHeld = false
+		}
+		err = errors.Join(err, s.lock.Close())
 	}
 	if s.root != nil {
 		err = errors.Join(err, s.root.Close())
