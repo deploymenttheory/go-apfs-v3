@@ -282,9 +282,11 @@ func (v *Verifier) writableDirectory(ctx context.Context, root string) error {
 		// A volume root owned by another user (as Apple's own fixtures
 		// are) takes the continuation directory the way recipes create
 		// theirs: as root, then handed to the runner's user.
+		t := &fixture.Transcript{}
+		v.setTranscript(t)
 		for _, argv := range [][]string{{"mkdir", root}, {"chown", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), root}} {
 			cmd := fixture.Command{Argv: argv, Sudo: true, Expected: "0"}
-			if err := (&fixture.Transcript{}).Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+			if err := t.Record(cmd, v.C.Run(ctx, cmd)); err != nil {
 				return err
 			}
 		}
@@ -305,6 +307,7 @@ func (v *Verifier) writeContinuationTree(ctx context.Context, root, stage string
 		}
 	}
 	t := &fixture.Transcript{}
+	v.setTranscript(t)
 	run := func(argv ...string) error {
 		cmd := fixture.Command{Argv: argv, Expected: "0", Timeout: 5 * time.Minute}
 		return t.Record(cmd, v.C.Run(ctx, cmd))
