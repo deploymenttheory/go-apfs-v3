@@ -8,14 +8,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// mountedFrom reports the device the kernel has mounted at dir; an
-// unmounted directory reports the device of the filesystem containing it.
-func mountedFrom(dir string) (string, error) {
+func mountedFilesystem(dir string) (mountIdentity, error) {
 	var st unix.Statfs_t
 	if err := unix.Statfs(dir, &st); err != nil {
-		return "", err
+		return mountIdentity{}, err
 	}
-	return strings.TrimRight(string(st.Mntfromname[:clen(st.Mntfromname[:])]), "\x00"), nil
+	return mountIdentity{
+		MountPoint: strings.TrimRight(string(st.Mntonname[:clen(st.Mntonname[:])]), "\x00"),
+		Source:     strings.TrimRight(string(st.Mntfromname[:clen(st.Mntfromname[:])]), "\x00"),
+		FSID:       st.Fsid.Val,
+	}, nil
 }
 
 func clen(b []byte) int {
