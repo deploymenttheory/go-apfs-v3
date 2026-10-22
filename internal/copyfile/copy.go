@@ -91,6 +91,9 @@ func Run(ctx context.Context, backend Backend, sources []string, to string, opti
 	if len(sources) == 0 || backend.Tree == nil || backend.Own == nil || backend.Apply == nil || backend.Time.IsZero() {
 		return fs.ErrInvalid
 	}
+	if options.Clone && options.NoAttributes {
+		return fmt.Errorf("cp -c and -X cannot be combined: %w", fs.ErrInvalid)
+	}
 	limits, err := backend.Limits.Normalize()
 	if err != nil {
 		return err
@@ -457,7 +460,7 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if !exists && current.path != "" {
+	if !exists && current.path != "" && !c.options.Clone {
 		dst = current.path
 	}
 	if exists {
@@ -476,6 +479,64 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 		if c.options.NoClobber && kind != 0040000 {
 			return fs.ErrExist
+		}
+	}
+	cloneFallback := ""
+	if c.options.Clone && kind == 0100000 {
+		// cp checks identical source/target identities through the destination
+		// symlink, but unlinks the named entry before trying clonefile.
+		literal, literalErr := resolve(ctx, c.backend.Tree, dst, false)
+		if !exists && literalErr == nil {
+			// A dangling destination was absent to stat, so native cp does not
+			// unlink it; clonefile fails EEXIST instead of following it.
+			return fs.ErrExist
+		}
+		if literalErr != nil && !errors.Is(literalErr, fs.ErrNotExist) {
+			return literalErr
+		}
+		if exists {
+			if literalErr != nil {
+				return literalErr
+			}
+			dst = literal.path
+			if err := c.backend.Apply(ctx, edit.Change{Op: edit.RemoveEntry, Path: dst}); err != nil {
+				return err
+			}
+			exists = false
+		}
+		if first := c.links[e.key]; c.options.PreserveLinks && first != "" {
+			if err := c.backend.Apply(ctx, edit.Change{Op: edit.CreateHardLink, Path: first, To: dst}); err != nil {
+				return err
+			}
+			if err := c.parentTime(ctx, dst); err != nil {
+				return err
+			}
+			if c.backend.Modified != nil {
+				if err := c.backend.Modified(ctx, dst); err != nil {
+					return err
+				}
+			}
+			if c.backend.CloneResult != nil {
+				cloned := !c.options.FromHost && c.backend.Tree.NameRules().Format == "APFS"
+				fallback := ""
+				if !cloned {
+					fallback = "hard-link relationship retained after ordinary-copy fallback"
+				}
+				c.backend.CloneResult(CloneResult{Source: e.path, Destination: dst, Cloned: cloned, Fallback: fallback})
+			}
+			return nil
+		}
+		switch {
+		case c.options.FromHost:
+			cloneFallback = "source and destination use different filesystems"
+		case c.backend.Tree.NameRules().Format != "APFS":
+			cloneFallback = "destination filesystem does not support cloning"
+		default:
+			if err := c.clone(ctx, e, dst); err != nil {
+				return err
+			}
+			c.links[e.key] = dst
+			return nil
 		}
 	}
 	m, defaults, err := c.metadata(ctx, e, dst)
@@ -698,7 +759,12 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 	}
 	if c.backend.Modified != nil {
-		return c.backend.Modified(ctx, dst)
+		if err := c.backend.Modified(ctx, dst); err != nil {
+			return err
+		}
+	}
+	if cloneFallback != "" && c.backend.CloneResult != nil {
+		c.backend.CloneResult(CloneResult{Source: e.path, Destination: dst, Fallback: cloneFallback})
 	}
 	return nil
 }
