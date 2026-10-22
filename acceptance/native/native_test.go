@@ -234,6 +234,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireCloneOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireCloneCopyOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
