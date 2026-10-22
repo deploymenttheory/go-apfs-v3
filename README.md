@@ -63,7 +63,7 @@ When several filesystems match, select `--partition INDEX` and/or `--volume ID`.
 Currently implemented:
 
 - Sized read-only block sources and bounded partition views.
-- Raw images; UDIF images with raw, zero, zlib, bzip2, and bounded LZFSE chunks.
+- Raw images; UDIF images with raw, zero, zlib, bzip2, and [bounded LZFSE chunks](docs/lzfse-images.md).
 - Password-protected `encrcdsa` v2 DMGs with AES-128/256-CBC, including encrypted
   images containing separately encrypted APFS volumes.
 - GPT header/table CRC validation and enumeration with 512/4096-byte sectors;
