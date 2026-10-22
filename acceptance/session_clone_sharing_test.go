@@ -95,12 +95,23 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 						}
 					}
 					after := states[index+1]
+					continuation := index == len(recipe.Stages)-2
+					var capacity int64
+					if continuation {
+						// Match other fresh builds that run the full native
+						// continuation; automatic padding is bounded.
+						capacity = 160 << 20
+					}
 					s.run(t, false, "session", "verify", "build")
 					name := outputName(after, "build.session-clones.UDZO.dmg")
 					current := filepath.Join(s.scratch, "build", "current")
 					revision := packingFileDigest(t, current)
 					output := produceTwice(t, name, true, func(destination string) error {
-						argv := []string{"pack", "--scratch-dir", s.scratch, "--session", "build", "--volume-name", "Session Clones", "--format", "UDZO", "--time", clock.Format(time.RFC3339Nano), "--json", destination}
+						argv := []string{"pack", "--scratch-dir", s.scratch, "--session", "build", "--volume-name", "Session Clones", "--format", "UDZO", "--time", clock.Format(time.RFC3339Nano), "--json"}
+						if capacity != 0 {
+							argv = append(argv, "--capacity", fmt.Sprint(capacity))
+						}
+						argv = append(argv, destination)
 						data, err := exec.Command(portableCommandBinary(t), argv...).CombinedOutput()
 						if err != nil {
 							return fmt.Errorf("pack reopened clone session: %w: %s", err, data)
@@ -127,8 +138,8 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					checkSessionCloneImage(t, output, projected)
-					recordOutput(t, schema.Output{Name: name, File: filepath.Base(output), Operation: "build", Format: "UDZO", Source: caseRef(before), Expect: schema.Expectation{View: stage.Name, Subtree: "Fixture", NewIdentities: true, CommandClockNS: clock.UnixNano(), Continuation: index == len(recipe.Stages)-2}})
+					checkSessionCloneImage(t, output, projected, capacity)
+					recordOutput(t, schema.Output{Name: name, File: filepath.Base(output), Operation: "build", Format: "UDZO", Source: caseRef(before), Expect: schema.Expectation{View: stage.Name, Subtree: "Fixture", NewIdentities: true, CommandClockNS: clock.UnixNano(), Continuation: continuation}})
 				}
 				if packingFileDigest(t, before.Image()) != sourceDigest {
 					t.Fatal("session clone journey changed its captured source image")
@@ -221,7 +232,7 @@ func sessionCloneFS(t *testing.T, state *commandSession, step *schema.FSStep) {
 	}
 }
 
-func checkSessionCloneImage(t *testing.T, image string, want schema.View) {
+func checkSessionCloneImage(t *testing.T, image string, want schema.View, capacity int64) {
 	t.Helper()
 	ctx := context.Background()
 	img, err := diskimage.Open(image)
@@ -229,6 +240,9 @@ func checkSessionCloneImage(t *testing.T, image string, want schema.View) {
 		t.Fatal(err)
 	}
 	defer img.Close()
+	if capacity != 0 && img.Size() != capacity {
+		t.Fatalf("native continuation build capacity: got %d bytes, want %d", img.Size(), capacity)
+	}
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatal(err)
