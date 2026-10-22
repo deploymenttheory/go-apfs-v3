@@ -21,6 +21,9 @@ type Attachment struct {
 	RDev      string
 	Container string // APFS container reference (diskN) when present
 	Volumes   []*AttachedVolume
+	// partitioned retains hdiutil's whole-disk topology while diskutil's
+	// partition inventory catches up. A partition scheme is never a bare volume.
+	partitioned bool
 }
 
 // AttachedVolume is one filesystem on an attachment.
@@ -228,6 +231,11 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	a.Dev = whole
 	a.RDev = strings.Replace(a.Dev, "/dev/disk", "/dev/rdisk", 1)
+	for _, e := range devEntries {
+		if e.dev == whole && isPartitionScheme(e.contentHint) {
+			a.partitioned = true
+		}
+	}
 	if opts.NoInventory {
 		return a, nil
 	}
@@ -286,7 +294,7 @@ func wholeDisk(entries []diskEntity) (string, bool) {
 		if err != nil {
 			continue // a slice such as disk12s1
 		}
-		if strings.HasSuffix(e.contentHint, "_partition_scheme") {
+		if isPartitionScheme(e.contentHint) {
 			return e.dev, true
 		}
 		if bestN < 0 || n < bestN {
@@ -294,6 +302,10 @@ func wholeDisk(entries []diskEntity) (string, bool) {
 		}
 	}
 	return best, bestN >= 0
+}
+
+func isPartitionScheme(content string) bool {
+	return strings.HasSuffix(content, "_partition_scheme")
 }
 
 func (a *Attachment) volumeByDev(dev string) *AttachedVolume {
@@ -328,7 +340,7 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	// synthesized APFS container reference means the device is a container
 	// or its physical store; a filesystem type means a mountable volume;
 	// neither means an unformatted or free region.
-	classify := func(id string, bare bool) error {
+	classify := func(id string, bare bool, contentHint string) error {
 		info, err := d.Info(ctx, "/dev/"+id)
 		if err != nil {
 			return err
@@ -337,6 +349,13 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 			if content, _ := info["Content"].(string); content == "Apple_APFS" || strings.HasPrefix(ref, "disk") && a.Container == "" {
 				a.Container = ref
 			}
+			return nil
+		}
+		content, _ := info["Content"].(string)
+		if isPartitionScheme(content) || isPartitionScheme(contentHint) || (bare && "/dev/"+id == a.Dev && a.partitioned) {
+			// A temporarily missing partition list is not evidence of a bare
+			// filesystem. Keep it absent so Attach's existing discovery wait
+			// can observe the actual slices; never mount the scheme itself.
 			return nil
 		}
 		if fsType, _ := info["FilesystemType"].(string); fsType != "" && fsType != "apfs" {
@@ -353,9 +372,10 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	for _, dsk := range disks {
 		disk, _ := dsk.(map[string]any)
 		id, _ := disk["DeviceIdentifier"].(string)
+		hint, _ := disk["Content"].(string)
 		parts, _ := disk["Partitions"].([]any)
 		if len(parts) == 0 {
-			if err := classify(id, true); err != nil {
+			if err := classify(id, true, hint); err != nil {
 				return err
 			}
 			continue
@@ -363,7 +383,8 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 		for _, p := range parts {
 			part, _ := p.(map[string]any)
 			id, _ := part["DeviceIdentifier"].(string)
-			if err := classify(id, false); err != nil {
+			hint, _ := part["Content"].(string)
+			if err := classify(id, false, hint); err != nil {
 				return err
 			}
 		}
