@@ -12,22 +12,29 @@ import (
 // continuationEnvelope keeps the image password separate from any filesystem
 // credentials. Its cipher comes from Apple's imageinfo, not the product.
 type continuationEnvelope struct {
-	cipher   string
-	password []byte
+	cipher    string
+	password  []byte
+	imageinfo map[string]any
 }
 
 func (v *Verifier) envelopeForContinuation(ctx context.Context, p Paired, image string) (continuationEnvelope, error) {
-	if !p.Output.Encrypted {
-		return continuationEnvelope{}, nil
+	envelope := continuationEnvelope{}
+	if p.Output.Encrypted {
+		password, ok := p.Passwords[p.Output.Password]
+		if !ok {
+			return continuationEnvelope{}, fmt.Errorf("continuation %s: unknown image password reference %q", p.Name, p.Output.Password)
+		}
+		envelope.password = []byte(password)
 	}
-	password, ok := p.Passwords[p.Output.Password]
-	if !ok {
-		return continuationEnvelope{}, fmt.Errorf("continuation %s: unknown image password reference %q", p.Name, p.Output.Password)
-	}
-	envelope := continuationEnvelope{password: []byte(password)}
+	// Keep Apple's partition ordinals for the later raw copy. Raw observations
+	// retain current diskutil topology but do not run imageinfo themselves.
 	info, err := v.Disk.Imageinfo(ctx, image, envelope.password)
 	if err != nil {
 		return continuationEnvelope{}, err
+	}
+	envelope.imageinfo = info
+	if !p.Output.Encrypted {
+		return envelope, nil
 	}
 	envelope.cipher, err = nativeImageCipher(info)
 	if err != nil {

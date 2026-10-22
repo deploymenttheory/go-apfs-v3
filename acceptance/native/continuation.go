@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -154,13 +155,17 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, fmt.Errorf("continuation %s: native partial clone input: %w", out.Name, err)
 		}
 	}
+	partition, err := continuationPartition(envelope.imageinfo, before, volume.UUID)
+	if err != nil {
+		return nil, fmt.Errorf("continuation %s: select native filesystem partition: %w", out.Name, err)
+	}
 	// The product edits the natively modified volume into a new image.
 	editSource, imageArgs, err := v.prepareEncryptedContinuation(ctx, envelope, raw, work)
 	if err != nil {
 		return nil, err
 	}
 	edited := filepath.Join(work, "edited.dmg")
-	argv := []string{v.Product, "edit", "--image", editSource, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
+	argv := []string{v.Product, "edit", "--image", editSource, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z", "--partition", strconv.Itoa(partition)}
 	argv = append(argv, imageArgs...)
 	if out.Expect.SystemMember != "" || multiVolume {
 		argv = append(argv, "--volume", volume.UUID)

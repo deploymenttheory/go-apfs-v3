@@ -95,6 +95,9 @@ func TestEncryptedContinuationUsesPrivatePasswordFilesAndPreservesNativeCipher(t
 	if err != nil {
 		t.Fatal(err)
 	}
+	if envelope.imageinfo["Properties"] == nil {
+		t.Fatal("original native imageinfo was not retained for partition selection")
+	}
 	work := t.TempDir()
 	image, args, err := v.prepareEncryptedContinuation(ctx, envelope, "native.raw", work)
 	if err != nil {
@@ -146,5 +149,18 @@ func TestEncryptedContinuationRefusesMissingCredentialsAndFailedNativeConversion
 	}
 	if _, err := os.Stat(filepath.Join(work, "image-password.bin")); !os.IsNotExist(err) {
 		t.Fatal("failed native conversion published product credentials", err)
+	}
+}
+
+func TestPlainContinuationRetainsNativeImageinfoWithoutCredentials(t *testing.T) {
+	disk := &envelopeDisk{info: map[string]any{"partitions": "independent native partition metadata"}}
+	v := &Verifier{Disk: disk}
+	envelope, err := v.envelopeForContinuation(context.Background(), Paired{}, "output.dmg")
+	if err != nil || disk.infoCalls != 1 || envelope.imageinfo["partitions"] != disk.info["partitions"] || envelope.cipher != "" || envelope.password != nil || disk.password != nil {
+		t.Fatal("plaintext continuation did not retain independent partition metadata", envelope, err)
+	}
+	disk.infoErr = errors.New("native imageinfo failed")
+	if _, err := v.envelopeForContinuation(context.Background(), Paired{}, "output.dmg"); !errors.Is(err, disk.infoErr) {
+		t.Fatal("native partition metadata failure was ignored", err)
 	}
 }

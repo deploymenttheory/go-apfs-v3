@@ -8,6 +8,9 @@ through the existing encryption writer before atomic publication at a new path.
 It retains unrelated partitions and sectors. Source bytes are never modified,
 and an existing destination is never overwritten.
 
+For a partitioned source, specify `--partition INDEX` to select the filesystem.
+Use `--volume UUID` as well when selecting among APFS volumes in that partition.
+
 ```sh
 apfs edit --image Original.dmg --output Edited.dmg \
   --image-password-file image-password -- \
