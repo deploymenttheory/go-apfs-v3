@@ -27,11 +27,9 @@ func (v *Verifier) remountAfterContainerPressure(ctx context.Context, att *fixtu
 	if err != nil {
 		return att, fmt.Errorf("pressure boundary stat protected allocation %q: %w", proof, err)
 	}
-	for _, volume := range att.Volumes {
-		if err := v.Disk.Unmount(ctx, volume); err != nil {
-			return att, fmt.Errorf("pressure boundary unmount volume %q: %w", volume.Name, err)
-		}
-	}
+	// A normal, unforced whole-image detach must cleanly close every volume
+	// before the independent filesystem check. There is no preliminary
+	// per-volume unmount or alternate close strategy after a failure.
 	if err := v.Disk.Detach(ctx, att); err != nil {
 		// Do not retry this failed boundary operation in caller cleanup.
 		return nil, fmt.Errorf("pressure boundary detach writable copy: %w", err)

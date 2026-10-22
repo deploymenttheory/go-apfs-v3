@@ -27,10 +27,10 @@ type containerPressureDisk struct {
 	changeAttachment func(*fixture.Attachment)
 	changeRemount    func() error
 	mounted          int
+	closedVolumes    int
 }
 
 var containerPressureLifecycle = []string{
-	"unmount Reserved", "unmount Limited", "unmount Empty", "unmount Fresh Empty",
 	"detach writable", "attach read-only", "fsck", "detach read-only", "attach writable",
 	"mount Fresh Empty", "mount Empty", "mount Limited", "mount Reserved",
 }
@@ -56,23 +56,34 @@ func (d *containerPressureDisk) step(event string) error {
 	return nil
 }
 
-func (d *containerPressureDisk) Unmount(_ context.Context, vol *fixture.AttachedVolume) error {
-	if !d.volume.quotaReached || !d.volume.pressureReached || !d.volume.protectedSynced || len(d.volume.pending) != 0 {
-		return fmt.Errorf("clean boundary preceded required pressure and truncation checks")
-	}
-	if err := d.step("unmount " + vol.Name); err != nil {
-		return err
-	}
-	vol.Mount = ""
-	return nil
+func (d *containerPressureDisk) Unmount(context.Context, *fixture.AttachedVolume) error {
+	return fmt.Errorf("pressure boundary used an individual unmount instead of a normal whole-image detach")
 }
 
 func (d *containerPressureDisk) Detach(_ context.Context, att *fixture.Attachment) error {
 	mode := "writable"
 	if att.Dev == "read-only" {
 		mode = "read-only"
+	} else {
+		if !d.volume.quotaReached || !d.volume.pressureReached || !d.volume.protectedSynced || len(d.volume.pending) != 0 {
+			return fmt.Errorf("clean close preceded required pressure and truncation checks")
+		}
+		for _, vol := range att.Volumes {
+			if vol.Mount == "" {
+				return fmt.Errorf("volume %q was closed before whole-image detach", vol.Name)
+			}
+		}
 	}
-	return d.step("detach " + mode)
+	if err := d.step("detach " + mode); err != nil {
+		return err
+	}
+	if mode == "writable" {
+		for _, vol := range att.Volumes {
+			vol.Mount = ""
+			d.closedVolumes++
+		}
+	}
+	return nil
 }
 
 func (d *containerPressureDisk) Attach(_ context.Context, path string, opts fixture.AttachOptions) (*fixture.Attachment, error) {
@@ -132,7 +143,7 @@ func TestContainerPressureRequiresEveryCleanBoundaryOperation(t *testing.T) {
 			v, att, out, volume := containerPressureProtocol(t)
 			disk := v.Disk.(*containerPressureDisk)
 			disk.fail = operation
-			_, err := v.containerWrites(context.Background(), att, out, "writable.raw")
+			current, err := v.containerWrites(context.Background(), att, out, "writable.raw")
 			if !errors.Is(err, syscall.EIO) || !strings.Contains(err.Error(), "pressure boundary") || volume.peerWrites != 0 {
 				t.Fatalf("failed boundary reached peer writes or lost its cause: %v, peers=%d", err, volume.peerWrites)
 			}
@@ -143,6 +154,9 @@ func TestContainerPressureRequiresEveryCleanBoundaryOperation(t *testing.T) {
 			}
 			if !reflect.DeepEqual(disk.events, containerPressureLifecycle[:end]) {
 				t.Fatalf("failed boundary retried or continued: %v", disk.events)
+			}
+			if operation == "detach writable" && (current != nil || disk.closedVolumes != 0) {
+				t.Fatal("failed whole-image detach was treated as closed or eligible for another detach")
 			}
 		})
 	}
