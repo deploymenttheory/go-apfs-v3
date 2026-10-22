@@ -248,4 +248,65 @@ func TestEncryptedImageAdmissionAndFailedCommandsPublishNothing(t *testing.T) {
 	if err != nil || !bytes.Equal(before, after) {
 		t.Fatal("failed edit changed source", err)
 	}
+	for _, envelope := range []string{"unknown-header", "trailing-record"} {
+		t.Run(envelope, func(t *testing.T) {
+			input := bytes.Clone(before)
+			if envelope == "unknown-header" {
+				input[800] = 1 // Outside the admitted password record.
+			} else {
+				input = append(input, []byte("unaccounted encryption trailer")...)
+			}
+			path := filepath.Join(t.TempDir(), "readable-encrypted.dmg")
+			if err := os.WriteFile(path, input, 0600); err != nil {
+				t.Fatal(err)
+			}
+			// Read admission is deliberately broader than rewriting: unknown
+			// envelope records must not silently disappear during an edit.
+			opened, err := diskimage.OpenWithPassword(ctx, path, password)
+			if err != nil {
+				t.Fatal("control does not reach write-profile admission", err)
+			}
+			opened.Close()
+			out := filepath.Join(t.TempDir(), "refused.dmg")
+			_, err = imageedit.Edit(ctx, path, out, imageedit.Options{Time: clock, ImagePassword: password}, func(*imageedit.Editor) error {
+				t.Fatal("unaccounted envelope reached mutation")
+				return nil
+			})
+			if !errors.Is(err, filesystem.ErrUnsupported) {
+				t.Fatal("unaccounted encrypted metadata accepted", err)
+			}
+			if _, err := os.Stat(out); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal("unaccounted envelope published output", err)
+			}
+		})
+	}
+	t.Run("cancel-after-private-edit", func(t *testing.T) {
+		cancelled, cancel := context.WithCancel(ctx)
+		defer cancel()
+		root := t.TempDir()
+		for _, variable := range []string{"TMPDIR", "TMP", "TEMP"} {
+			t.Setenv(variable, root)
+		}
+		out := filepath.Join(root, "cancelled.dmg")
+		_, err := imageedit.Edit(cancelled, source, out, imageedit.Options{Time: clock, ImagePassword: password}, func(editor *imageedit.Editor) error {
+			if _, err := editor.Apply([]imageedit.Change{{Operation: "mkdir", Path: "/private-cancelled"}}); err != nil {
+				return err
+			}
+			cancel()
+			return nil
+		})
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal("cancelled private edit succeeded", err)
+		}
+		if _, err := os.Stat(out); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatal("cancelled private edit published output", err)
+		}
+		if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
+			t.Fatal("cancelled edit retained private plaintext scratch", entries, err)
+		}
+	})
+	after, err = os.ReadFile(source)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("admission or cancellation changed source", err)
+	}
 }
