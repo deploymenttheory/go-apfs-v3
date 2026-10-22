@@ -227,7 +227,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -251,7 +264,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -273,7 +299,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -297,7 +336,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -322,7 +374,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -360,7 +425,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -384,7 +462,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -408,7 +499,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -441,7 +545,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -504,7 +621,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -525,7 +655,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,
@@ -549,7 +692,20 @@
       ],
       "observe": {
         "extents": [
-          "Fixture/*"
+          "Fixture/attribute",
+          "Fixture/edit",
+          "Fixture/edit-alias",
+          "Fixture/equal-independent",
+          "Fixture/final-owner",
+          "Fixture/fork",
+          "Fixture/metadata",
+          "Fixture/metadata-alias",
+          "Fixture/remove",
+          "Fixture/reused",
+          "Fixture/source",
+          "Fixture/truncate",
+          "Fixture/untouched-clone",
+          "Fixture/untouched-source"
         ],
         "samples": 12,
         "rawHeaders": true,

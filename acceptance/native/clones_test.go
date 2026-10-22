@@ -4,12 +4,56 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
+
+func TestCloneExtentCollectionKeepsDenseControlsAndExcludesUnsupportedProfiles(t *testing.T) {
+	recipes, err := schema.LoadRecipes(filepath.Join("..", "recipes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stages int
+	for _, recipe := range recipes {
+		if recipe.Name != "apfs-clones" {
+			continue
+		}
+		for _, stage := range recipe.Stages {
+			stages++
+			if !slices.Equal(stage.Observe.Extents, cloneExtentPaths()) {
+				t.Fatal("native output and retained control extent scopes differ", stage.Name)
+			}
+			for _, step := range stage.Steps {
+				fs := step.FS
+				if fs == nil || fs.Op == "mkdir" {
+					continue
+				}
+				for _, name := range []string{fs.Path, fs.Target} {
+					name = strings.Split(strings.TrimPrefix(name, "$MOUNT/"), "/..namedfork/")[0]
+					if name == "" || strings.HasPrefix(name, "Fixture/compressed-") || strings.HasPrefix(name, "Fixture/sparse-") {
+						continue
+					}
+					if !slices.Contains(stage.Observe.Extents, name) {
+						t.Fatal("ordinary dense clone control lost physical collection", stage.Name, name)
+					}
+				}
+			}
+		}
+	}
+	if stages != len(cloneEditStages) {
+		t.Fatal("clone recipe stages missing", stages)
+	}
+	for _, name := range cloneExtentPaths() {
+		if strings.ContainsAny(name, "*?[") || strings.HasPrefix(name, "Fixture/compressed-") || strings.HasPrefix(name, "Fixture/sparse-") {
+			t.Fatal("unsupported physical collection scope", name)
+		}
+	}
+}
 
 func cloneEvidenceView() schema.View {
 	return schema.View{Entries: []schema.Entry{

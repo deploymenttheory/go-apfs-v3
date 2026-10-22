@@ -21,6 +21,20 @@ import (
 
 var cloneEditStages = []string{"shared", "data-replaced", "data-truncated", "fork-replaced", "attribute-replaced", "metadata-changed", "compressed-replaced", "sparse-replaced", "source-removed", "clones-removed", "final-owner-removed", "allocation-reused"}
 
+// cloneExtentPaths selects the ordinary dense controls supported by Apple's
+// F_LOG2PHYS_EXT. The default observer still records every compressed and sparse
+// file's content, forks, attributes, compression and holes. Keep this collection
+// scope identical to every apfs-clones recipe stage.
+func cloneExtentPaths() []string {
+	return []string{
+		"Fixture/attribute", "Fixture/edit", "Fixture/edit-alias",
+		"Fixture/equal-independent", "Fixture/final-owner", "Fixture/fork",
+		"Fixture/metadata", "Fixture/metadata-alias", "Fixture/remove",
+		"Fixture/reused", "Fixture/source", "Fixture/truncate",
+		"Fixture/untouched-clone", "Fixture/untouched-source",
+	}
+}
+
 // requireCloneOutputs is a closed capability matrix, independent of which
 // outputs a producer happened to supply. Every Apple transition must be edited.
 func requireCloneOutputs(pairs []Paired, cases map[string]corpus.Case, major int) error {

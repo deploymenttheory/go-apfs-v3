@@ -224,7 +224,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
 	if out.Source.Recipe == "apfs-clones" {
-		spec.Extents, spec.Samples = []string{"Fixture/*"}, 12
+		spec.Extents, spec.Samples = cloneExtentPaths(), 12
 	}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
