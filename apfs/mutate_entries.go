@@ -669,7 +669,10 @@ func (m *mutation) removeEntry(entry *mutationEntry, recursive bool, stamp uint6
 	}
 	// Only the last link retires streams. The old checkpoint retains its extents
 	// until the existing space-manager deferred-free rules make them reusable.
-	stream := le.Uint64(r.value[8:])
+	stream, e := inodeDataStreamID(r.value)
+	if e != nil {
+		return e
+	}
 	if e = m.releaseStreamReference(stream); e != nil {
 		return e
 	}

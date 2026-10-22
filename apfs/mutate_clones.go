@@ -2,6 +2,35 @@ package apfs
 
 import "bytes"
 
+// A private-ID hint can survive on a descriptor-less compressed or empty
+// inode, including when another inode owns that ID's data. Only an actual
+// INO_EXT_TYPE_DSTREAM descriptor owns a stream reference.
+func inodeDataStreamID(inode []byte) (uint64, error) {
+	if len(inode) < 92 {
+		return 0, corrupt("changed inode stream", 0)
+	}
+	found := false
+	if err := extendedFields(inode[92:], func(kind byte, data []byte) error {
+		if kind == 8 {
+			if found || len(data) != 40 {
+				return corrupt("changed inode stream descriptor", 0)
+			}
+			found = true
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	if !found {
+		return 0, nil
+	}
+	id := le.Uint64(inode[8:])
+	if id == 0 || id > objectMask {
+		return 0, corrupt("changed inode stream ID", 0)
+	}
+	return id, nil
+}
+
 // Stream references count inode/attribute descriptors, not hard-link names.
 // The shared storage checker reconciles them before any mutation. Attributes
 // with one owner may omit the reference record entirely.
@@ -19,7 +48,14 @@ func (m *mutation) streamReferenceCount(id uint64) (uint32, error) {
 // A whole-data replacement needs a private stream only when other inodes
 // still use its records. Its new storage remains ordinary allocated COW data;
 // no untouched sibling's stream or physical mapping is rewritten.
-func (m *mutation) privateDataStream(id uint64) (uint64, error) {
+func (m *mutation) privateDataStream(inode []byte) (uint64, error) {
+	id, err := inodeDataStreamID(inode)
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		return m.nextFileID()
+	}
 	refs, err := m.streamReferenceCount(id)
 	if err != nil || refs == 1 {
 		return id, err

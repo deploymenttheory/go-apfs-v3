@@ -87,11 +87,7 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 			}
 			le.PutUint64(value[84:], 0)
 		}
-		stream := le.Uint64(value[8:])
-		if stream == 0 {
-			stream = id
-		}
-		stream, e = m.privateDataStream(stream)
+		stream, e := m.privateDataStream(value)
 		if e != nil {
 			return 0, e
 		}
