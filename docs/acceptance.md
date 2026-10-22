@@ -473,8 +473,10 @@ the continuation's product edit fail with. The native writes and their
 `fsck` still run, the edit must fail with exactly that text, and an edit
 that succeeds fails the check until the entry is removed with the fix.
 
-Subtests run five at a time with `-v`, so progress is visible. Complete lineages
-start longest first using retained timings; their members keep their order. Outputs
+Complete lineages run seven at a time with `-v`, so progress is visible. A shared
+bounded admission pool starts them longest first using retained timings; their
+members keep their order. A slot remains occupied until subtest cleanup finishes,
+including after a failed verdict. Outputs
 and fixtures that share filesystem identities (one recipe and profile's
 lineage, or any fresh build) are attached one after another, never in
 parallel. The job
@@ -556,6 +558,51 @@ lifetime checks alone do not supply those measurements. Never remove or move a
 backing path whose release is uncertain. Document unresolved causes explicitly
 and assess the integrated reliability outcome separately from product capability
 and performance qualification.
+
+### Measuring native scheduling
+
+The retained timing projection in
+`acceptance/native/testdata/lineage_timings.json` records complete-lineage
+elapsed times and start offsets from successful warm PR run
+[39793190385](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39793190385).
+It binds the three original job logs by SHA256. That run took **53m00s** with
+eleven jobs, ten Go cache hits and eight fixture cache hits. Each kernel passed
+eight serial raw conversion proofs, 558 fixture parity cases, two slow outputs
+and 1,016 main outputs. Its observed wall time exceeds the target.
+
+The file-only replay preserves every complete group, the serial proof/setup
+prefix, the three phase boundaries, actual producer-artifact readiness,
+download/transition delays and the final gate delay. It changes only ordered
+admission and its concurrency bound. Recalibrated costs are the rounded-up
+maximum observed duration of each complete lineage across kernels; missing
+measurements retain a positive fallback and never omit work.
+
+| Independent lineages | Projected wall time for the retained workload |
+| --- | --- |
+| 5 | 51m35s |
+| 6 | 46m32s |
+| 7 | 43m01s |
+
+Seven workers retaining the observed admission order instead project 45m38s.
+This comparison isolates the priority change from the concurrency increase.
+
+Reproduce the observed budget failure with:
+
+```sh
+go test -count=1 -parallel 7 -v -run '^TestNativeLineageTimingReplay$' ./acceptance/native -args -native-lineage-observed -native-lineage-budget=45m
+```
+
+Remove `-native-lineage-observed` to test the ordered-admission projection against
+the same budget. Ordinary tests also require every retained measured lineage to
+have a complete cost and check admission priority, the shared bound, cleanup and
+progress after aborted work.
+
+These are projections, not performance qualification. They hold measured group
+durations fixed and cannot predict changed IO contention, runner variance or new
+coverage. In particular, the added `clone-copy` and `lzfse-images` lineages have no
+native timing measurements yet and are absent from this retained workload.
+The next complete PR matrix must measure them; no elapsed time is subtracted
+from a real run to claim the forty-five-minute target.
 
 ## Diagnosing a failure
 
