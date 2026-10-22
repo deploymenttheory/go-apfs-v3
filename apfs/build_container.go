@@ -18,13 +18,13 @@ const (
 )
 
 type buildGeometry struct {
-	blocks, chunks, cibs, poolBlocks, poolBitmapBlocks, spacemanBlocks             uint64
-	bitmapAddressOffset, bitmapFreeOffset, deviceAddressOffset                     uint32
-	dataBase, dataBlocks, containerMap, bitmapBase, poolBase, payloadBase, usedEnd uint64
+	blocks, chunks, cibs, poolBlocks, poolBitmapBlocks, spacemanBlocks                               uint64
+	bitmapAddressOffset, bitmapFreeOffset, deviceAddressOffset                                       uint32
+	descriptorBlocks, dataBase, dataBlocks, containerMap, bitmapBase, poolBase, payloadBase, usedEnd uint64
 }
 
 func buildGeometryFor(blocks uint64) buildGeometry {
-	g := buildGeometry{blocks: blocks, chunks: (blocks + 32767) / 32768, dataBase: 9}
+	g := buildGeometry{blocks: blocks, chunks: (blocks + 32767) / 32768}
 	g.cibs = (g.chunks + 125) / 126
 	g.poolBlocks = 3 * (g.chunks + g.cibs)
 	g.poolBitmapBlocks = (g.poolBlocks + 32767) / 32768
@@ -32,7 +32,7 @@ func buildGeometryFor(blocks uint64) buildGeometry {
 	g.bitmapFreeOffset = g.bitmapAddressOffset + uint32((2*g.poolBitmapBlocks+7)/8*8)
 	g.deviceAddressOffset = g.bitmapFreeOffset + uint32(16*g.poolBitmapBlocks*2)
 	g.spacemanBlocks = (uint64(g.deviceAddressOffset) + 8*g.cibs + 4095) / 4096
-	g.dataBlocks = max(uint64(8), g.spacemanBlocks+3)
+	g.sizeCheckpoints()
 	g.containerMap = g.dataBase + g.dataBlocks
 	return g
 }
@@ -133,6 +133,9 @@ func (p *Layout) arrange(ctx context.Context) error {
 			return fmt.Errorf("APFS capacity cannot hold %d volumes: %w", len(trees), filesystem.ErrLimit)
 		}
 		g = buildGeometryFor(blocks)
+		if g.dataBlocks > 65536 || g.descriptorBlocks*4096 > checkpointByteLimit || g.dataBlocks/buildCheckpointCount*4096 > checkpointByteLimit {
+			return fmt.Errorf("APFS checkpoint growth budget: %w", filesystem.ErrLimit)
+		}
 		at := cmap.place(g.containerMap+1, 0)
 		oid = buildVolumeOID
 		for i := range trees {
@@ -317,7 +320,7 @@ func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64, volumes []volume
 	copy(b[72:], p.options.UUID[:])
 	le.PutUint64(b[88:], nextOID)
 	le.PutUint64(b[96:], 2)
-	le.PutUint32(b[104:], 8)
+	le.PutUint32(b[104:], uint32(g.descriptorBlocks))
 	le.PutUint32(b[108:], uint32(g.dataBlocks))
 	le.PutUint64(b[112:], 1)
 	le.PutUint64(b[120:], g.dataBase)
@@ -328,15 +331,11 @@ func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64, volumes []volume
 	le.PutUint64(b[152:], buildSpacemanOID)
 	le.PutUint64(b[160:], g.containerMap)
 	le.PutUint64(b[168:], buildReaperOID)
-	le.PutUint32(b[180:], uint32(min(uint64(100), (g.blocks+131071)/131072)))
+	le.PutUint32(b[180:], uint32(buildMaximumVolumes(g.blocks)))
 	for i, v := range volumes {
 		le.PutUint64(b[184+i*8:], v.oid)
 	}
-	minimum := uint64(8)
-	if g.blocks < 32768 {
-		minimum = uint64(buildMainQueueLimit(g.blocks))
-	}
-	le.PutUint64(b[1312:], minimum<<32|4<<16|1)
+	le.PutUint64(b[1312:], buildEphemeralMinimum(g.blocks)<<32|buildFilesystemEphemeralStructures<<16|1)
 	p.addBlock(0, b, 1, 0x80000001, 0)
 	cp := append([]byte(nil), b...)
 	p.addBlock(2, cp, 1, 0x80000001, 0)

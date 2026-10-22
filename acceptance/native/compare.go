@@ -14,8 +14,8 @@ type CompareOptions struct {
 	Subtree string
 	// IgnoreTimes names timestamps that may differ.
 	IgnoreTimes map[string]bool
-	// IgnoreIdentity accepts different object IDs and link counts, for a
-	// fresh build that allocated its own.
+	// IgnoreIdentity accepts different object IDs for a fresh build. Link
+	// counts and the partition of paths into aliases remain exact.
 	IgnoreIdentity bool
 	// Existing, when set, limits identity comparison to these paths: the
 	// entries that existed before an edit created the rest.
@@ -77,6 +77,7 @@ func CompareViews(got, want schema.View, opts CompareOptions) []Difference {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
+	forward, reverse := map[uint64]uint64{}, map[uint64]uint64{}
 	for _, p := range paths {
 		g, ok := observed[p]
 		if !ok {
@@ -84,6 +85,16 @@ func CompareViews(got, want schema.View, opts CompareOptions) []Difference {
 			continue
 		}
 		diffs = append(diffs, compareEntry(g, expected[p], opts)...)
+		if opts.IgnoreIdentity && expected[p].ID != 0 && g.ID != 0 {
+			w := expected[p].ID
+			if previous, ok := forward[w]; ok && previous != g.ID {
+				diffs = append(diffs, Difference{Path: p, Field: "identity.aliases", Got: "separate objects", Want: "one shared object"})
+			}
+			if previous, ok := reverse[g.ID]; ok && previous != w {
+				diffs = append(diffs, Difference{Path: p, Field: "identity.aliases", Got: "one shared object", Want: "separate objects"})
+			}
+			forward[w], reverse[g.ID] = g.ID, w
+		}
 	}
 	var extra []string
 	for p := range observed {
@@ -113,8 +124,8 @@ func compareEntry(got, want schema.Entry, opts CompareOptions) []Difference {
 		if opts.Existing == nil || opts.Existing[want.Path] {
 			add("id", got.ID, want.ID)
 		}
-		add("links", got.Links, want.Links)
 	}
+	add("links", got.Links, want.Links)
 	add("mode", fmt.Sprintf("%o", got.Mode), fmt.Sprintf("%o", want.Mode))
 	add("uid", got.UID, want.UID)
 	add("gid", got.GID, want.GID)

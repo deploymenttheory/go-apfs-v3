@@ -218,6 +218,12 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		t.Fatalf("no outputs derived from macOS %d fixtures", v.Major)
 	}
 	if nativeGroup(t) != "slow" {
+		if err := requirePreservationSourceOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireContainerOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireAppleDoubleOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -254,6 +260,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 // fresh build (which assigns its identities from fixed inputs). Images
 // sharing a container or volume UUID are never attached at the same time.
 func outputLineage(o schema.Output) string {
+	if o.Operation == "container" {
+		return "containers"
+	}
 	if o.Operation == "build" || (o.Operation == "encrypt" && o.Expect.Subtree != "") {
 		return "builds"
 	}

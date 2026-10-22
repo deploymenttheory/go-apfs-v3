@@ -57,6 +57,9 @@ type CaseRef struct {
 
 // Expectation tells the native verifier what to compare the output with.
 type Expectation struct {
+	// Container checks every source volume and each declared empty volume in a
+	// fresh APFS construction, including native inventory and shared allocation.
+	Container *ContainerExpectation `json:"container,omitempty"`
 	// AppleDouble selects the retained serialized metadata control for this path.
 	AppleDouble *AppleDoubleExpectation `json:"appleDouble,omitempty"`
 	// Workspace selects independent manifest/blob verification for a portable
@@ -65,6 +68,8 @@ type Expectation struct {
 	// View names the stage whose observation holds the expected entries;
 	// empty means the source case's own observation.
 	View string `json:"view,omitempty"`
+	// Snapshot selects an exact retained historical view within that stage.
+	Snapshot string `json:"snapshot,omitempty"`
 	// Subtree is the observed path the output's root corresponds to, for
 	// images built from part of a fixture (for example "Fixture").
 	Subtree string `json:"subtree,omitempty"`
@@ -101,6 +106,14 @@ type Expectation struct {
 	// fsck still run; the edit must fail with exactly this text, and an
 	// edit that succeeds fails the check until the expectation is removed.
 	ContinuationRefusal string `json:"continuationRefusal,omitempty"`
+}
+
+// ContainerExpectation records construction choices that differ from the native
+// source. Names, case rules, roles, limits and group membership come from the
+// retained native inventory; fresh UUIDs must be nonzero and independent.
+type ContainerExpectation struct {
+	CapacityBytes int64    `json:"capacityBytes"`
+	EmptyVolumes  []string `json:"emptyVolumes,omitempty"`
 }
 
 // AppleDoubleExpectation binds an encoded metadata output to one native export.

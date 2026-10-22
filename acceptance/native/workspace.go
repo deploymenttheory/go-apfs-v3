@@ -212,6 +212,16 @@ func readWorkspaceArchive(filename string) (map[string][]byte, error) {
 // projections, every logical/raw/blob digest, metadata and ACL bytes against
 // Apple observations. It is also runnable on portable hosts without native I/O.
 func VerifyWorkspaceArchive(filename, profileID string, before, after schema.View, expect schema.Expectation) ([]Difference, error) {
+	return verifyWorkspaceArchive(filename, profileID, before, after, expect, nil)
+}
+
+type workspaceSourceIdentity struct {
+	Volume string
+	Object uint64
+	View   uint64
+}
+
+func verifyWorkspaceArchive(filename, profileID string, before, after schema.View, expect schema.Expectation, identity *workspaceSourceIdentity) ([]Difference, error) {
 	want, err := WorkspaceReference(before, after, expect)
 	if err != nil {
 		return nil, err
@@ -281,6 +291,9 @@ func VerifyWorkspaceArchive(filename, profileID string, before, after schema.Vie
 	sourceRoot, ok := objects[doc.Root]
 	if !ok {
 		return nil, fmt.Errorf("missing workspace root object")
+	}
+	if identity != nil && (sourceRoot.Node.Created || sourceRoot.Node.Identity.Volume != identity.Volume || sourceRoot.Node.Identity.Object != identity.Object || sourceRoot.Node.Identity.View != identity.View) {
+		return nil, fmt.Errorf("workspace root does not identify the native historical view")
 	}
 	paths := map[uint64]string{}
 	projected := map[uint64]string{}

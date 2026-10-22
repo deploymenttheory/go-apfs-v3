@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -134,7 +135,11 @@ func (t *Transcript) Record(cmd Command, result Result) error {
 	default:
 		entry.Status = strconv.Itoa(result.Status)
 	}
-	entry.StdoutSHA256, entry.StdoutText = digestAndText(result.Stdout)
+	stdoutLimit := retainedTextLimit
+	if isAPFSListPlist(cmd.Argv) {
+		stdoutLimit = retainedAPFSListingTextLimit
+	}
+	entry.StdoutSHA256, entry.StdoutText = digestAndTextLimit(result.Stdout, stdoutLimit)
 	entry.StderrSHA256, entry.StderrText = digestAndText(result.Stderr)
 	t.Commands = append(t.Commands, entry)
 	if result.Err != nil {
@@ -182,12 +187,25 @@ func (t *Transcript) RecordFS(label string, argv []string, err error, expected s
 
 const retainedTextLimit = 16 << 10
 
+// Global APFS inventories include concurrently attached containers and remain
+// verdict evidence after the command returns. Keep their complete bounded text;
+// truncation would leave a digest that no inventory reader could interpret.
+const retainedAPFSListingTextLimit = 8 << 20
+
+func isAPFSListPlist(argv []string) bool {
+	return (len(argv) == 4 || len(argv) == 5) && filepath.Base(argv[0]) == "diskutil" && argv[1] == "apfs" && argv[2] == "list" && argv[3] == "-plist"
+}
+
 func digestAndText(data []byte) (string, string) {
+	return digestAndTextLimit(data, retainedTextLimit)
+}
+
+func digestAndTextLimit(data []byte, limit int) (string, string) {
 	if len(data) == 0 {
 		return "", ""
 	}
 	sum := sha256.Sum256(data)
-	if len(data) <= retainedTextLimit && utf8.Valid(data) && !bytes.ContainsRune(data, 0) {
+	if len(data) <= limit && utf8.Valid(data) && !bytes.ContainsRune(data, 0) {
 		return hex.EncodeToString(sum[:]), string(data)
 	}
 	return hex.EncodeToString(sum[:]), ""

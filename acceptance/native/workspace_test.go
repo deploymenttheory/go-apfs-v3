@@ -51,6 +51,36 @@ func workspaceEvidence() (workspaceDocument, map[string][]byte, schema.View) {
 	return doc, files, schema.View{Entries: []schema.Entry{e, f}}
 }
 
+func TestHistoricalWorkspaceCannotInventItsSourceIdentity(t *testing.T) {
+	for _, field := range []string{"valid", "volume", "view", "object"} {
+		t.Run(field, func(t *testing.T) {
+			doc, files, view := workspaceEvidence()
+			for i := range doc.Objects {
+				doc.Objects[i].Node.Identity.Volume = "NATIVE"
+				doc.Objects[i].Node.Identity.View = 17
+			}
+			switch field {
+			case "volume":
+				for i := range doc.Objects {
+					doc.Objects[i].Node.Identity.Volume = "OTHER"
+				}
+			case "view":
+				for i := range doc.Objects {
+					doc.Objects[i].Node.Identity.View = 18
+				}
+			case "object":
+				doc.Objects[0].Node.Identity.Object = 99
+			}
+			filename := writeWorkspaceEvidence(t, doc, files)
+			expect := schema.Expectation{Subtree: "Fixture", Snapshot: "old", Workspace: &schema.WorkspaceExpectation{Policy: "preserve"}}
+			_, err := verifyWorkspaceArchive(filename, "apfs", view, view, expect, &workspaceSourceIdentity{Volume: "NATIVE", Object: 2, View: 17})
+			if (err == nil) != (field == "valid") {
+				t.Fatalf("identity verdict %v for %s", err, field)
+			}
+		})
+	}
+}
+
 func TestEveryHostsWorkspaceReceivesAnIndependentVerdict(t *testing.T) {
 	ref := schema.CaseRef{Producer: 15, Recipe: "workspace-edits", Profile: "apfs", Stage: "before"}
 	expect := schema.Expectation{Subtree: "Fixture", Workspace: &schema.WorkspaceExpectation{Policy: "preserve"}}

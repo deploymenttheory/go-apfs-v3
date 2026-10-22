@@ -23,8 +23,10 @@ apfs pack --session build --volume-name Example --format UDRO \
 
 Directory import uses the existing session engine with archive preservation and
 regular-file hard-link preservation. Scratch is created and removed automatically.
-The directory's contents become the volume root's children; the volume root uses
-the session creation defaults. A session build retains its captured root metadata.
+The directory's contents become the volume root's children. Archive import also
+applies the source directory's available root metadata; fields the host does not
+expose retain explicit defaults and availability reports. A session build retains
+its captured root metadata.
 `--scratch-dir` and `APFS_SCRATCH_DIR` locate named sessions and select the
 temporary import scratch root. Unnamed imports default to the system temporary
 directory.
@@ -207,6 +209,13 @@ numbers are not carried into a rebuild. `--format UDZO` (default)
 uses zlib compression; `UDRO` uses raw chunks. Both represent zero chunks without
 storing their bytes and include data, block and master CRC32 checksums. Compression
 of the DMG envelope is independent of compression of files inside the volume.
+
+APFS checkpoint data and descriptor areas reserve capacity for four checkpoint
+generations, including growth of the declared free queues and per-volume
+ephemeral structures. This lets ordinary deletion and subsequent allocation
+publish larger checkpoints without exhausting metadata space while file-data
+capacity remains free. The growth allowance is builder policy; native continued
+allocation remains a separate acceptance requirement.
 
 Names use the pinned native comparison rules: APFS retains spelling and compares
 with normalization, while HFS uses its frozen decomposition. Case policy belongs

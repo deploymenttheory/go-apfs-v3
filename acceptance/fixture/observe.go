@@ -36,6 +36,11 @@ type ObserveInput struct {
 	Out      string // directory receiving exported files
 	Prefix   string // "<profile>.<stage>" for exported file names
 	Producer schema.Producer
+	// OmitDeviceDigest avoids a whole-device read for a transient native
+	// readback whose verdict compares only the mounted filesystem. Captures
+	// leave this false so their original image and device hashes are retained.
+	// The image file hash, device size and full inventory are always recorded.
+	OmitDeviceDigest bool
 }
 
 // rootExclusions are directories macOS creates on every mounted volume; they
@@ -90,6 +95,7 @@ func observeImage(ctx context.Context, in ObserveInput, obs *schema.Observation)
 		return err
 	}
 	size := int64(number(disk["TotalSize"]))
+	obs.Image.DiskBytes = size
 	if content, _ := disk["Content"].(string); strings.Contains(content, "GUID") {
 		obs.Image.PartitionMap = "GPT"
 	} else if strings.Contains(content, "Apple_partition") {
@@ -97,7 +103,7 @@ func observeImage(ctx context.Context, in ObserveInput, obs *schema.Observation)
 	} else {
 		obs.Image.PartitionMap = "none"
 	}
-	if size > 0 {
+	if size > 0 && !in.OmitDeviceDigest {
 		digest, n, err := in.Disk.DeviceDigest(ctx, in.Att.RDev, "")
 		if err != nil {
 			return err
