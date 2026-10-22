@@ -54,7 +54,8 @@ func ValidNode(n filesystem.Node) bool {
 				return false
 			}
 		}
-		if n.Identity.View != 0 || n.Compression.State != filesystem.Absent || m.BSDFlags.Value&32 != 0 {
+		clonedCompression := n.CloneStreams != nil && n.Compression.State == filesystem.Present && m.Mode.Value&0170000 == 0100000 && m.BSDFlags.Value&32 != 0 && n.CloneStreams.Attributes[filesystem.Decmpfs] != ""
+		if n.Identity.View != 0 || !clonedCompression && (n.Compression.State != filesystem.Absent || m.BSDFlags.Value&32 != 0) {
 			return false
 		}
 		if mode == 0100000 && !n.DataModified {

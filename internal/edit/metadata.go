@@ -38,6 +38,7 @@ func copyNode(n filesystem.Node) filesystem.Node {
 	if n.CloneStreams != nil {
 		sharing := *n.CloneStreams
 		sharing.Attributes = maps.Clone(sharing.Attributes)
+		sharing.Partial = slices.Clone(sharing.Partial)
 		n.CloneStreams = &sharing
 	}
 	return n
@@ -53,6 +54,7 @@ func markField(fields []string, field string) []string {
 }
 
 func (o *editedObject) removeAttribute(name string) {
+	o.detachCloneStream(name)
 	if o.removed == nil {
 		o.removed = map[string]bool{}
 	}
@@ -61,6 +63,7 @@ func (o *editedObject) removeAttribute(name string) {
 }
 
 func (o *editedObject) putAttribute(name string, data block.Source) {
+	o.detachCloneStream(name)
 	if o.attributes == nil {
 		o.attributes = map[string]block.Source{}
 	}

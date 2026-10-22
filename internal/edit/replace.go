@@ -9,6 +9,7 @@ import (
 )
 
 func ReplacementNode(ctx context.Context, reader filesystem.Reader, node filesystem.Node, size uint64) (filesystem.Node, map[string]bool, error) {
+	node = copyNode(node)
 	if node.Metadata.Mode.State != filesystem.Present || node.Metadata.Mode.Value&0170000 != 0100000 {
 		return node, nil, fs.ErrInvalid
 	}
@@ -43,6 +44,12 @@ func ReplacementNode(ctx context.Context, reader filesystem.Reader, node filesys
 	node.Compression = filesystem.Observation[filesystem.Compression]{State: filesystem.Absent}
 	node.Size = size
 	node.DataModified = true
+	sharing := editedObject{node: node}
+	sharing.detachCloneStream("")
+	for name := range removed {
+		sharing.detachCloneStream(name)
+	}
+	node = sharing.node
 	return node, removed, nil
 }
 
