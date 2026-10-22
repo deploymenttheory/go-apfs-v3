@@ -1,8 +1,8 @@
 # Transient diagnostic branch only: never merge this workflow into a PR or main.
-# This run reuses complete producer inventories and checks only the existing
-# container subtests. It is not full CI or performance qualification.
-name: Container continuation diagnostic
-run-name: Container continuation diagnostic on ${{ github.ref_name }}
+# This run pairs matched Apple/Go inputs and runs the ORIGINAL 576a476
+# pressure workload once per VM. It is not full CI or performance qualification.
+name: Matched container pressure diagnostic
+run-name: Matched container pressure diagnostic on ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: container-continuation-diagnostic-${{ github.run_id }}
+  group: matched-container-pressure-diagnostic-${{ github.run_id }}
   cancel-in-progress: false
 
 env:
@@ -22,18 +22,22 @@ env:
 
 jobs:
   native:
-    name: Container continuation diagnostic on macOS ${{ matrix.major }}
+    name: Matched pressure macOS ${{ matrix.major }} / ${{ matrix.builder }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {major: 15, runner: macos-15}
-          - {major: 26, runner: macos-26}
-          - {major: 27, runner: xcode-27}
+          - {major: 15, runner: macos-15, builder: go}
+          - {major: 15, runner: macos-15, builder: apple}
+          - {major: 26, runner: macos-26, builder: go}
+          - {major: 26, runner: macos-26, builder: apple}
+          - {major: 27, runner: xcode-27, builder: go}
+          - {major: 27, runner: xcode-27, builder: apple}
     env:
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
+      APFS_CONTAINER_BUILDER: ${{ matrix.builder }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -59,17 +63,17 @@ jobs:
           pattern: outputs-*-macos-${{ matrix.major }}
           path: ${{ runner.temp }}/host-outputs
           merge-multiple: false
-      - name: Diagnose every existing constructed-container verdict
+      - name: Run the original workload on one matched builder
         env:
           APFS_NATIVE_GROUPS: main
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 4 -timeout 40m -tags native -run '^TestOutputsWithAppleTools$/^outputs$/^containers$' ./acceptance/native
+        run: go test -count=1 -v -parallel 4 -timeout 40m -tags native -run '^TestMatchedContainerPressureDiagnostic$' ./acceptance/native
       - name: Upload diagnostic state
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: container-continuation-diagnostics-macos-${{ matrix.major }}
+          name: matched-container-pressure-macos-${{ matrix.major }}-${{ matrix.builder }}
           path: ${{ runner.temp }}/native-work/
           if-no-files-found: ignore
