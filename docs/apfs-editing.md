@@ -89,7 +89,10 @@ changes retain existing sharing. Removing a hard-link alias retains its inode an
 streams until its final name is removed. Removing a clone decrements stream and
 physical references independently, and only the last physical reference retires
 storage for later reuse. Original physical owner hints can outlive their inode;
-validated reference counts determine reclamation.
+validated reference counts determine reclamation. A compressed or empty inode
+can retain a private stream ID without a data-stream descriptor. That ID alone
+does not own storage: replacement creates a new stream, and unlink cannot
+release a different inode's data through the retained ID.
 
 This edits clones already present in an admitted image. The image commands do not
 create new APFS clones. Snapshot and encrypted-volume mutation have separate
