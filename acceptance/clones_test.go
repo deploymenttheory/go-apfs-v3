@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
@@ -181,21 +182,31 @@ func TestAPFSCloneEditFailuresNeverPublishOrAlterSource(t *testing.T) {
 			continue
 		}
 		t.Run(native.CaseKey(caseRef(k)), func(t *testing.T) {
-			storageImageUnchanged(t, k)
+			source := k.Image()
+			sourceSHA := k.Observation.Image.SHA256
+			if strings.HasSuffix(k.Observation.Image.File, ".raw.gz") {
+				// Image() expands the retained gzip. Bind the editor's actual
+				// input to the native raw-device digest, not the gzip digest.
+				sourceSHA = k.Observation.Image.DiskSHA256
+			}
 			for _, failure := range []string{"disk-full", "read-interrupted", "process-interrupted"} {
 				t.Run(failure, func(t *testing.T) {
+					storageImageUnchanged(t, k)
+					if sum, err := schema.FileDigest(source); err != nil || sum != sourceSHA {
+						t.Fatal("clone failure input differs from its native source", err)
+					}
 					root := t.TempDir()
 					destination := filepath.Join(root, "edited.dmg")
 					if failure == "process-interrupted" {
 						command := exec.Command(os.Args[0], "-test.run=^TestAPFSCloneEditFailuresNeverPublishOrAlterSource$")
-						command.Env = append(os.Environ(), "APFS_CLONE_EDIT_INTERRUPT_CHILD=1", "APFS_CLONE_EDIT_SOURCE="+k.Image(), "APFS_CLONE_EDIT_DESTINATION="+destination, "TMPDIR="+root, "TMP="+root, "TEMP="+root)
+						command.Env = append(os.Environ(), "APFS_CLONE_EDIT_INTERRUPT_CHILD=1", "APFS_CLONE_EDIT_SOURCE="+source, "APFS_CLONE_EDIT_DESTINATION="+destination, "TMPDIR="+root, "TMP="+root, "TEMP="+root)
 						var exit *exec.ExitError
 						if err := command.Run(); !errors.As(err, &exit) || exit.ExitCode() != 17 {
 							t.Fatal("child did not stop during clone COW", err)
 						}
 					} else {
 						input := cloneFailureInput{size: k.Observation.Image.DiskBytes, readError: failure == "read-interrupted"}
-						_, err := imageedit.Apply(context.Background(), k.Image(), destination, imageedit.Options{Time: fixedClock}, []imageedit.Change{{Path: "/Fixture/edit", Data: input}})
+						_, err := imageedit.Apply(context.Background(), source, destination, imageedit.Options{Time: fixedClock}, []imageedit.Change{{Path: "/Fixture/edit", Data: input}})
 						want := filesystem.ErrLimit
 						if failure == "read-interrupted" {
 							want = io.ErrUnexpectedEOF
@@ -207,7 +218,7 @@ func TestAPFSCloneEditFailuresNeverPublishOrAlterSource(t *testing.T) {
 					if _, err := os.Lstat(destination); !errors.Is(err, fs.ErrNotExist) {
 						t.Fatal("failed clone edit published a destination", err)
 					}
-					if sum, err := schema.FileDigest(k.Image()); err != nil || sum != k.Observation.Image.SHA256 {
+					if sum, err := schema.FileDigest(source); err != nil || sum != sourceSHA {
 						t.Fatal("failed clone edit changed its immutable source", err)
 					}
 				})
