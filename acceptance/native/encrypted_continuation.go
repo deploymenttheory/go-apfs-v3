@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 )
 
 // continuationEnvelope keeps the image password separate from any filesystem
@@ -70,7 +72,7 @@ func (v *Verifier) prepareEncryptedContinuation(ctx context.Context, envelope co
 		return raw, nil, nil
 	}
 	image := filepath.Join(work, "native-edited-encrypted.dmg")
-	if err := v.Disk.Convert(ctx, raw, "UDZO", image, envelope.cipher, envelope.password); err != nil {
+	if err := v.Disk.Convert(ctx, raw, "UDZO", image, fixture.ConvertOptions{Raw: true, Encryption: envelope.cipher, Password: envelope.password}); err != nil {
 		return "", nil, fmt.Errorf("encrypt native continuation input: %w", err)
 	}
 	passwordFile := filepath.Join(work, "image-password.bin")

@@ -65,6 +65,7 @@ type envelopeDisk struct {
 	infoCalls     int
 	infoErr       error
 	converted     string
+	raw           bool
 	password      []byte
 	conversionErr error
 }
@@ -75,9 +76,9 @@ func (d *envelopeDisk) Imageinfo(_ context.Context, _ string, password []byte) (
 	return d.info, d.infoErr
 }
 
-func (d *envelopeDisk) Convert(_ context.Context, _, _, out, cipher string, password []byte) error {
-	d.converted = cipher
-	d.password = bytes.Clone(password)
+func (d *envelopeDisk) Convert(_ context.Context, _, _, out string, opts fixture.ConvertOptions) error {
+	d.converted, d.raw = opts.Encryption, opts.Raw
+	d.password = bytes.Clone(opts.Password)
 	if d.conversionErr != nil {
 		return d.conversionErr
 	}
@@ -99,7 +100,7 @@ func TestEncryptedContinuationUsesPrivatePasswordFilesAndPreservesNativeCipher(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if image != filepath.Join(work, "native-edited-encrypted.dmg") || disk.converted != "AES-256" || string(disk.password) != password {
+	if image != filepath.Join(work, "native-edited-encrypted.dmg") || !disk.raw || disk.converted != "AES-256" || string(disk.password) != password {
 		t.Fatal("native envelope was not retained", image, disk.converted)
 	}
 	if len(args) != 2 || args[0] != "--image-password-file" {

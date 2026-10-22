@@ -60,6 +60,14 @@ type AttachOptions struct {
 	NoInventory bool
 }
 
+// ConvertOptions distinguish bare disk sectors from a recognized image and
+// select the output envelope. Raw is declared by the caller, never by a suffix.
+type ConvertOptions struct {
+	Raw        bool
+	Encryption string
+	Password   []byte
+}
+
 // Disk is the hdiutil/diskutil surface the interpreter and observer use.
 // HostDisk implements it over a Commander; tests use a fake.
 type Disk interface {
@@ -70,7 +78,7 @@ type Disk interface {
 	Detach(ctx context.Context, a *Attachment) error
 	Mount(ctx context.Context, v *AttachedVolume, options, dir string, readOnly bool) error
 	Unmount(ctx context.Context, v *AttachedVolume) error
-	Convert(ctx context.Context, src, format, out, encryption string, password []byte) error
+	Convert(ctx context.Context, src, format, out string, opts ConvertOptions) error
 	Chpass(ctx context.Context, image string, oldPassword, newPassword []byte) error
 	// DeviceDigest hashes a raw device to its end (optionally writing a
 	// gzip copy) and returns the digest and the bytes read. The size comes
@@ -461,12 +469,15 @@ func (d *HostDisk) Unmount(ctx context.Context, v *AttachedVolume) error {
 	return err
 }
 
-func (d *HostDisk) Convert(ctx context.Context, src, format, out, encryption string, password []byte) error {
+func (d *HostDisk) Convert(ctx context.Context, src, format, out string, opts ConvertOptions) error {
 	argv := []string{"hdiutil", "convert", src, "-format", format}
+	if opts.Raw {
+		argv = append(argv, "-srcimagekey", "diskimage-class=CRawDiskImage")
+	}
 	var stdin []byte
-	if encryption != "" {
-		argv = append(argv, "-encryption", encryption, "-stdinpass")
-		stdin = append(append([]byte(nil), password...), 0)
+	if opts.Encryption != "" {
+		argv = append(argv, "-encryption", opts.Encryption, "-stdinpass")
+		stdin = append(append([]byte(nil), opts.Password...), 0)
 	}
 	argv = append(argv, "-o", out)
 	_, err := d.run(ctx, "convert", false, stdin, argv...)
