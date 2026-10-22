@@ -373,7 +373,8 @@ the continuation's product edit fail with. The native writes and their
 `fsck` still run, the edit must fail with exactly that text, and an edit
 that succeeds fails the check until the entry is removed with the fix.
 
-Subtests run four at a time with `-v`, so progress is visible. Outputs
+Subtests run five at a time with `-v`, so progress is visible. Complete lineages
+start longest first using retained timings; their members keep their order. Outputs
 and fixtures that share filesystem identities (one recipe and profile's
 lineage, or any fresh build) are attached one after another, never in
 parallel. The job

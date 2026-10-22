@@ -239,6 +239,7 @@ func TestOutputsWithAppleTools(t *testing.T) {
 	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
+	prioritizeLineages(order, "outputs")
 	for _, key := range order {
 		planContainerChecks(lineages[key])
 	}
@@ -345,6 +346,7 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	lineages, order := groupByLineage(others, func(k corpus.Case) string {
 		return fmt.Sprintf("macos-%d/%s/%s", k.Producer, k.Recipe, k.Profile)
 	})
+	prioritizeLineages(order, "fixtures")
 	t.Run("fixtures", func(t *testing.T) {
 		for _, key := range order {
 			group := lineages[key]
