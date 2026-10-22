@@ -31,6 +31,7 @@ import (
 // tag adds the recipes that take minutes per stage (see
 // stage_replay_slow_test.go).
 var replayedRecipes = map[string]bool{
+	"apfs-clones":                   true,
 	"apfs-container-geometry":       true,
 	"apfs-directory-statistics":     true,
 	"hfs-attributes-initialization": true,

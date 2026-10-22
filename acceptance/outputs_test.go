@@ -36,7 +36,22 @@ var (
 	outputsList []schema.Output
 	outputsRoot string
 	outputsOnce sync.Once
+	// Only public fixture passwords belong in the acceptance output manifest.
+	outputPasswords = map[string]string{"output": outputPassword}
 )
+
+func registerOutputPassword(t *testing.T, ref, value string) {
+	t.Helper()
+	outputsMu.Lock()
+	defer outputsMu.Unlock()
+	if ref == "" {
+		t.Fatal("empty public output password reference")
+	}
+	if previous, exists := outputPasswords[ref]; exists && previous != value {
+		t.Fatalf("conflicting public output password reference %q", ref)
+	}
+	outputPasswords[ref] = value
+}
 
 // outputDir is where produced images are written. With APFS_OUTPUT_DIR set
 // the images and outputs.json are retained for the native verifier;
@@ -73,6 +88,11 @@ func recordOutput(t *testing.T, out schema.Output) {
 	out.SHA256, out.Bytes = sum, info.Size()
 	outputsMu.Lock()
 	defer outputsMu.Unlock()
+	if out.Encrypted {
+		if _, ok := outputPasswords[out.Password]; !ok {
+			t.Fatalf("encrypted output %s has an unregistered public password reference %q", out.Name, out.Password)
+		}
+	}
 	outputsList = append(outputsList, out)
 }
 
@@ -82,7 +102,7 @@ func TestMain(m *testing.M) {
 	if dir := os.Getenv("APFS_OUTPUT_DIR"); dir != "" && len(outputsList) > 0 {
 		sort.Slice(outputsList, func(i, j int) bool { return outputsList[i].Name < outputsList[j].Name })
 		lock, _ := schema.FileDigest(filepath.Join("fixtures.lock.json"))
-		manifest := schema.Outputs{Schema: schema.OutputsSchema, Host: runtime.GOOS, Arch: runtime.GOARCH, Go: runtime.Version(), Commit: os.Getenv("GITHUB_SHA"), Lock: lock, Passwords: map[string]string{"output": outputPassword}, Outputs: outputsList}
+		manifest := schema.Outputs{Schema: schema.OutputsSchema, Host: runtime.GOOS, Arch: runtime.GOARCH, Go: runtime.Version(), Commit: os.Getenv("GITHUB_SHA"), Lock: lock, Passwords: outputPasswords, Outputs: outputsList}
 		data, err := json.MarshalIndent(manifest, "", "  ")
 		if err == nil {
 			err = os.WriteFile(filepath.Join(dir, "outputs.json"), append(data, '\n'), 0o644)

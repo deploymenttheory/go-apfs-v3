@@ -50,10 +50,14 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			resultErr = errors.Join(resultErr, fmt.Errorf("continuation %s: retain initial native commands: %w", out.Name, err))
 		}
 	}()
+	envelope, err := v.envelopeForContinuation(ctx, p, image)
+	if err != nil {
+		return nil, err
+	}
 	raw := filepath.Join(work, "writable.raw")
 	// A raw copy, not a shadow: HFS shadow writes left a stale alternate
 	// header in the retired harness.
-	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true})
+	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Password: envelope.password})
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +135,13 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
 	}
 	// The product edits the natively modified volume into a new image.
+	editSource, imageArgs, err := v.prepareEncryptedContinuation(ctx, envelope, raw, work)
+	if err != nil {
+		return nil, err
+	}
 	edited := filepath.Join(work, "edited.dmg")
-	argv := []string{v.Product, "edit", "--image", raw, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
+	argv := []string{v.Product, "edit", "--image", editSource, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z"}
+	argv = append(argv, imageArgs...)
 	if out.Expect.SystemMember != "" || multiVolume {
 		argv = append(argv, "--volume", volume.UUID)
 	}
@@ -143,7 +152,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	var refusalSource string
 	if out.Expect.ContinuationRefusal != "" {
-		refusalSource, err = schema.FileDigest(raw)
+		refusalSource, err = schema.FileDigest(editSource)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +171,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		if _, statErr := os.Lstat(edited); !errors.Is(statErr, fs.ErrNotExist) {
 			return nil, fmt.Errorf("continuation %s: refused edit published a destination: %v", out.Name, statErr)
 		}
-		if digest, digestErr := schema.FileDigest(raw); digestErr != nil || digest != refusalSource {
+		if digest, digestErr := schema.FileDigest(editSource); digestErr != nil || digest != refusalSource {
 			return nil, fmt.Errorf("continuation %s: refused edit changed its native input: %v", out.Name, digestErr)
 		}
 		return nil, KnownLimit{Refusal: refusal}
@@ -170,8 +179,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: product edit: %v\n%s", out.Name, err, outb)
 	}
+	if err := v.checkContinuationEnvelope(ctx, envelope, edited); err != nil {
+		return nil, fmt.Errorf("continuation %s: %w", out.Name, err)
+	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
-	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", nil, spec, k.recipe)
+	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", envelope.password, spec, k.recipe)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +216,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if paths["native-continuation/entry-00001"] {
 		return obs, fmt.Errorf("continuation %s: entry removed by the product still present", out.Name)
 	}
-	return v.nativeWriteAfterEdit(ctx, out, edited, work, volume.Name, obs, k.recipe)
+	return v.nativeWriteAfterEdit(ctx, out, edited, work, volume.Name, obs, k.recipe, envelope)
 }
 
 // KnownLimit reports that the continuation's native writes passed and the
