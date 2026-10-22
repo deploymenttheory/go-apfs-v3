@@ -427,12 +427,24 @@
       "name": "data-replaced",
       "steps": [
         {
-          "fs": {
-            "op": "write",
-            "path": "$MOUNT/Fixture/clone",
+          "host": {
+            "path": "clone-data.payload",
             "pattern": "sequence",
             "bytes": 65537,
             "label": "private-clone-data"
+          }
+        },
+        {
+          "tool": {
+            "program": "dd",
+            "args": [
+              "if=$STAGE/clone-data.payload",
+              "of=$MOUNT/Fixture/clone",
+              "bs=131072"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "replace-clone-data"
           }
         }
       ],
@@ -463,12 +475,24 @@
       "name": "fork-replaced",
       "steps": [
         {
-          "fs": {
-            "op": "write",
-            "path": "$MOUNT/Fixture/clone/..namedfork/rsrc",
+          "host": {
+            "path": "clone-fork.payload",
             "pattern": "sequence",
             "bytes": 24577,
             "label": "private-clone-fork"
+          }
+        },
+        {
+          "tool": {
+            "program": "dd",
+            "args": [
+              "if=$STAGE/clone-fork.payload",
+              "of=$MOUNT/Fixture/clone/..namedfork/rsrc",
+              "bs=131072"
+            ],
+            "sudo": true,
+            "expect": "0",
+            "label": "replace-clone-fork"
           }
         }
       ],
