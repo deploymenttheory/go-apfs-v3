@@ -10,6 +10,7 @@ import (
 // Node describes a logical object. Its identity is independent of its directory
 // entry name. Size is the logical data-fork size, including sparse ranges.
 type Node struct {
+	CloneStreams *CloneStreams `json:"cloneStreams,omitempty"`
 	// AttributesUnavailable records a host import whose xattrs could not be enumerated.
 	AttributesUnavailable bool `json:"attributesUnavailable,omitempty"`
 	// MetadataDefaulted names values supplied because the source host could not report them.

@@ -24,6 +24,9 @@ import (
 // CopyOptions uses Apple cp's logical behavior. PreserveLinks is an explicit
 // extension: Apple -a means -RpP and does not preserve hard-link relationships.
 type Options struct {
+	// Clone requests Apple's cp -c behavior. Ordinary copying is used only
+	// when the source/target cannot share storage; outcomes report that choice.
+	Clone         bool
 	FromHost      bool
 	Recursive     bool
 	Preserve      bool
@@ -40,6 +43,16 @@ type Omission struct {
 	Attribute   string `json:"attribute"`
 	Reason      string `json:"reason"`
 }
+
+// CloneResult records an explicitly requested clone. Cloned means distinct
+// inode metadata with declared shared raw streams; Fallback explains why an
+// ordinary copy was used. Byte equality alone never sets Cloned.
+type CloneResult struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Cloned      bool   `json:"cloned"`
+	Fallback    string `json:"fallback,omitempty"`
+}
 type copyEntry struct {
 	node      filesystem.Node
 	path, key string
@@ -49,6 +62,10 @@ type copyEntry struct {
 // Backend owns destination state and immutable payload storage. Apply updates Tree;
 // Own consumes and closes each Value before returning a stable source.
 type Backend struct {
+	// CloneNamespace identifies the immutable input revision for new logical
+	// stream lineage. It is not derived from a stream's payload contents.
+	CloneNamespace  string
+	CloneResult     func(CloneResult)
 	Tree            *edit.Tree
 	Time            time.Time
 	UID, GID, Umask uint32

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"maps"
 	"math"
 	"slices"
 	"time"
@@ -34,6 +35,11 @@ func copyNode(n filesystem.Node) filesystem.Node {
 	n.MetadataDefaulted = slices.Clone(n.MetadataDefaulted)
 	n.MetadataModified = slices.Clone(n.MetadataModified)
 	n.AttributesModified = slices.Clone(n.AttributesModified)
+	if n.CloneStreams != nil {
+		sharing := *n.CloneStreams
+		sharing.Attributes = maps.Clone(sharing.Attributes)
+		n.CloneStreams = &sharing
+	}
 	return n
 }
 
