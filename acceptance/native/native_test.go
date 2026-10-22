@@ -327,7 +327,6 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 // another macOS version produced and compares this kernel's view with the
 // recorded one. Differences must be in known-drift.json.
 func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
-	t.Parallel()
 	if group := nativeGroup(t); group != "" && group != "fixtures" {
 		t.Skip("cross-version parity runs in the fixtures phase")
 	}
@@ -336,6 +335,10 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := requireRawImageEncryption(t, v, cases); err != nil {
+		t.Fatalf("raw image encryption proof: %v", err)
+	}
+	t.Parallel()
 	rows := &summary{}
 	var others []corpus.Case
 	for _, k := range cases {
