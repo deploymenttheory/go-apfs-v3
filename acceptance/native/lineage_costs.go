@@ -7,9 +7,10 @@ import (
 	"strings"
 )
 
-// lineageCosts are maximum complete-lineage wall seconds from the successful
-// native phases in runs 39749828710 (e638a67, full green) and 39760552842
-// (81eca7f, only macOS 15/27 green; macOS 26 failed fixture inventory).
+// lineageCosts are rounded-up maximum complete-lineage wall seconds across all
+// three kernels in successful warm PR run 39793190385 (277a0c1). The retained
+// timing projection in testdata/lineage_timings.json binds each original log's
+// SHA256 and preserves every group, including encrypted edits and APFS clones.
 // These estimates order work only; they are neither oracles nor qualification.
 //
 //go:embed lineage_costs.json

@@ -219,7 +219,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 5 -timeout 30m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 7 -timeout 30m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -235,7 +235,7 @@ jobs:
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -parallel 5 -timeout 20m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 7 -timeout 20m -tags native ./acceptance/native
       - name: Wait for every host's images
         env:
           GH_TOKEN: ${{ github.token }}
@@ -254,7 +254,7 @@ jobs:
         # Start long measured lineages first to reduce the serial tail.
         # Parallelism applies to independent filesystem lineages. Outputs
         # sharing a container or volume UUID remain serial within a lineage.
-        run: go test -count=1 -v -parallel 5 -timeout 40m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 7 -timeout 40m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

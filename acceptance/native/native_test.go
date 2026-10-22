@@ -5,6 +5,7 @@ package native
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -244,10 +245,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		planContainerChecks(lineages[key])
 	}
 	t.Run("outputs", func(t *testing.T) {
-		for _, key := range order {
+		nativeLineageAdmission().run(order, func(key string) {
 			group := lineages[key]
 			t.Run(key, func(t *testing.T) {
-				t.Parallel()
 				v := v.ForSubtest()
 				for _, p := range group {
 					p := p
@@ -256,7 +256,7 @@ func TestOutputsWithAppleTools(t *testing.T) {
 					})
 				}
 			})
-		}
+		})
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, fmt.Sprintf("Outputs verified on macOS %d (%d)", v.Major, len(pairs)), append([]string{"| output | hosts | verdict |", "| --- | --- | --- |"}, rows.rows...))
@@ -290,6 +290,21 @@ func groupByLineage[T any](items []T, key func(T) string) (map[string][]T, []str
 	sort.Strings(order)
 	return groups, order
 }
+
+var nativeLineages = sync.OnceValue(func() *lineageAdmission {
+	limit, err := strconv.Atoi(flag.Lookup("test.parallel").Value.String())
+	if err != nil {
+		panic(err)
+	}
+	return newLineageAdmission(limit)
+})
+
+// nativeLineageAdmission uses the same process-wide bound as -parallel. Go's
+// parallel-test barrier releases all registered subtests together, so sorted
+// registration alone does not preserve priority when they compete for a slot.
+// Run supports concurrent callers and returns after subtest cleanup; callbacks
+// keep the existing test names and cannot release a filesystem identity early.
+func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
@@ -351,10 +366,9 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	})
 	prioritizeLineages(order, "fixtures")
 	t.Run("fixtures", func(t *testing.T) {
-		for _, key := range order {
+		nativeLineageAdmission().run(order, func(key string) {
 			group := lineages[key]
 			t.Run(key, func(t *testing.T) {
-				t.Parallel()
 				v := v.ForSubtest()
 				for _, k := range group {
 					k := k
@@ -374,7 +388,7 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 					})
 				}
 			})
-		}
+		})
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, "Cross-version parity on macOS "+strconv.Itoa(v.Major), append([]string{"| fixture | producer | known drift | unexplained |", "| --- | --- | --- | --- |"}, rows.rows...))
