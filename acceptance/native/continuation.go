@@ -31,10 +31,10 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
 	}
+	finishCommands := v.recordContinuationCommands(work)
+	defer finishCommands(&resultErr)
 	initialCommands := &fixture.Transcript{}
-	if disk, ok := v.Disk.(fixture.TranscriptUser); ok {
-		disk.SetTranscript(initialCommands)
-	}
+	v.setTranscript(initialCommands)
 	// Successful continuations release their writable copies. Failed states
 	// remain available in the native diagnostics artifact.
 	defer func() {

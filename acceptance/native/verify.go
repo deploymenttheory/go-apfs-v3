@@ -32,6 +32,7 @@ type Verifier struct {
 	C                 fixture.Commander
 	Producer          schema.Producer
 	AppleDoubleUnpack string // guarded public copyfile(3) adapter, built once
+	continuationLog   *continuationCommands
 }
 
 // ForSubtest returns a copy of the verifier with its own disk transcript,
@@ -91,9 +92,7 @@ func (v *Verifier) observeImage(ctx context.Context, label, image, format string
 // readbacks to omit an unasserted whole-device hash. Captures retain both hashes.
 func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (*schema.Observation, error) {
 	t := &fixture.Transcript{}
-	if disk, ok := v.Disk.(fixture.TranscriptUser); ok {
-		disk.SetTranscript(t)
-	}
+	v.setTranscript(t)
 	raw := strings.HasSuffix(image, ".raw")
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: raw, Password: password})
 	if err != nil {
