@@ -95,7 +95,11 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 			}
 			ids[v.UUID] = true
 		}
-		volume := &volumeLayout{reader: v.Reader, options: v, time: o.Time, budget: &p.metadataBytes, nextID: 16, grouped: members[i]}
+		reader, err := filesystem.PrepareCloneStreams(ctx, v.Reader)
+		if err != nil {
+			return nil, err
+		}
+		volume := &volumeLayout{reader: reader, options: v, time: o.Time, budget: &p.metadataBytes, nextID: 16, grouped: members[i]}
 		// Native grouped System roots/private directories keep reserved IDs 1–3.
 		// User objects and apfs_next_obj_id use SYSTEM_OBJ_ID_MARK, as observed
 		// in Apple-created volumes. UNIFIED_ID_SPACE_MARK is not an allocator

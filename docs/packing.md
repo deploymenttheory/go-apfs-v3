@@ -204,8 +204,10 @@ The output is a single-region UDIF without a partition map, with 4096-byte
 filesystem blocks. HFS+/HFSX is clean and nonjournaled. APFS contains one or more
 unencrypted, unsealed volumes and a complete initial checkpoint, object maps,
 filesystem/extent-reference trees, space manager and free queues. It is a fresh
-filesystem; source snapshots, clone sharing, physical allocation and native inode
-numbers are not carried into a rebuild. `--format UDZO` (default)
+filesystem; source snapshots, physical addresses and native inode
+numbers are not carried into a rebuild. Explicit whole-stream clone groups are
+materialized as shared APFS allocations with separate file metadata.
+`--format UDZO` (default)
 uses zlib compression; `UDRO` uses raw chunks. Both represent zero chunks without
 storing their bytes and include data, block and master CRC32 checksums. Compression
 of the DMG envelope is independent of compression of files inside the volume.
@@ -226,6 +228,25 @@ when representable. Symlinks retain literal targets. Regular-file aliases share
 one native inode through APFS sibling records or HFS's private-directory indirection. Native inode numbers
 and the physical extent layout are newly assigned. Link counts describe the aliases
 inside this build; references outside a captured subtree cannot exist in its output.
+
+APFS packing preserves explicit session clone intent and native complete shared
+stream maps. Data-clone inodes share one data stream with counted references.
+Independent resource-fork and attribute stream IDs can share physical extents;
+hard-link names do not increase those stream or physical counts. Every declared
+member is checked against its group's payload, and streaming rechecks every
+member even when the output stores only one physical copy. Equal independent
+files remain separate allocations. Payload memory stays bounded by streaming
+buffers, and plaintext construction remains deterministic.
+
+`pack.Report.Clones` and the corresponding container report describe actual
+storage outcomes per path and stream. `shared` means materialized physical
+sharing. `copied` supplies a reason: HFS+/HFSX cannot clone, small APFS attributes
+are embedded separately, and empty streams have no physical allocation to share.
+An explicit compression policy derives new representation groups only from
+existing lineage; it does not deduplicate independently equal contents.
+APFS construction refuses a captured partially shared stream before reading
+payloads or publishing output. Whole-stream replacement in a session removes
+only that stream's partial marker; metadata edits preserve it.
 
 HFS+/HFSX construction emits complete native hard-link chains, including the
 inode's head pointer and reciprocal alias pointers. The alias owner/group fields

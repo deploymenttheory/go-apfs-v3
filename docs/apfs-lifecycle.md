@@ -8,10 +8,10 @@ completed encryption/decryption conversion. Linux and Windows must be able to
 read every completed result immediately.
 
 Existing readers can open native clones, retained snapshots and admitted software
-encryption. Existing mutation deliberately refuses those profiles. Read-only storage
-accounting understands admitted plaintext clones and retained history. Ordinary
-mutation now uses the same accountant, with separate admission checks that keep
-shared/history writing unavailable until independently qualified.
+encryption. Existing mutation admits qualified plaintext clones and still refuses
+retained snapshot and encrypted-volume writes. Read-only storage accounting
+understands admitted plaintext clones and retained history. Ordinary mutation
+uses the same accountant, with separate admission checks for each writer profile.
 
 ## Dependencies and completion
 
@@ -213,6 +213,40 @@ deletion placeholders; the current ordinary writer admits no such extra views.
 This is file-backed scratch-copy recovery, not a claim of in-place power-loss
 atomicity or writable snapshot support. Existing plaintext clone editing uses
 the same scratch-copy transaction; see [clone editing](apfs-editing.md#editing-existing-clones).
+
+## Sessions and fresh clone construction
+
+Sessions record explicit clone lineage for each raw data stream and attribute,
+separately from inode identity, hard-link aliases and content-addressed blobs.
+Only the changed stream detaches during data, fork or attribute replacement.
+Metadata remains independent, and removing or renaming the original owner does
+not break surviving members. Private revision schema 2 retains those groups
+across reopen while continuing to read older sessions.
+
+Fresh APFS construction translates whole-stream groups into actual stream and
+physical reference records. Data clones share a stream ID; distinct attribute
+stream IDs can share physical extents. Hard-link aliases add no stream owner.
+All members are checked, including a member whose bytes are not separately
+written to the output. Independent equal bytes never create a group. New
+allocation addresses are deterministic construction choices rather than retained
+native physical addresses.
+
+Native session capture inventories exact physical mappings once per subtree.
+It uses actual stream descriptors, including the distinction between an owned
+data stream and a descriptor-less private-ID hint. Exact complete shared maps
+become opaque source-scoped identities. Differing maps with physical overlap are
+recorded as partially shared streams. APFS packing explicitly refuses those
+markers before payload reads or output; its current model does not represent
+shared subranges. Metadata edits preserve the marker, and replacing the complete
+marked stream removes only that marker.
+
+Packing reports actual shared storage, embedded/empty-stream copies and explicit
+HFS independent-copy fallback. Compression changes derive representation
+identities only from declared lineage. Snapshot preservation and software volume
+encryption retain their separate admission gates; a fresh image is not a retained
+history or encryption conversion. The `clone-copy` family supplies independent
+Apple copy and fallback states for reopened-session packing, followed by native
+checker, mounted readback and continued modification on all required kernels.
 
 Tree/mapping traversal is bounded by 16,000 object reads and 1,048,576 records,
 alongside the existing checkpoint, space-manager, 4,096-snapshot and 64 MiB

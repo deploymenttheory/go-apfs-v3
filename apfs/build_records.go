@@ -66,12 +66,19 @@ func buildInode(o *buildObject, documentID uint32) buildRecord {
 	b := make([]byte, 92)
 	a := o.aliases[0]
 	le.PutUint64(b, a.parent)
-	le.PutUint64(b[8:], o.id)
+	private := o.id
+	if o.data != nil {
+		private = o.data.id
+	}
+	le.PutUint64(b[8:], private)
 	for i, t := range []time.Time{m.BirthTime.Value, m.ModifyTime.Value, m.ChangeTime.Value, m.AccessTime.Value} {
 		ns, _ := buildTime(t)
 		le.PutUint64(b[16+8*i:], ns)
 	}
 	internal := uint64(0x8000)
+	if o.node.CloneStreams != nil {
+		internal |= 0x10 | 0x400 // INODE_WAS_CLONED / INODE_WAS_EVER_CLONED.
+	}
 	if o.node.Compression.State == filesystem.Present {
 		internal |= 0x40000 // INODE_HAS_UNCOMPRESSED_SIZE
 		le.PutUint64(b[84:], o.node.Size)
@@ -201,7 +208,7 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 	for _, s := range p.streams {
 		if s.attribute == "" {
 			v := make([]byte, 4)
-			le.PutUint32(v, 1)
+			le.PutUint32(v, max(1, s.references))
 			records = append(records, buildRecord{buildKey(s.id, 6, 0), v})
 		}
 		if s.blocks == 0 {
@@ -211,7 +218,11 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 		le.PutUint64(value, s.blocks*4096)
 		le.PutUint64(value[8:], s.start)
 		records = append(records, buildRecord{buildKey(s.id, 8, 8), value})
-		extents = append(extents, buildExtentReference(s.start, s.blocks, s.owner))
+		if s.backing == nil {
+			extent := buildExtentReference(s.start, s.blocks, s.owner)
+			le.PutUint32(extent.value[16:], max(1, s.physicalRefs))
+			extents = append(extents, extent)
+		}
 	}
 	sort.Slice(records, func(i, j int) bool { return p.recordLess(records[i].key, records[j].key) })
 	return records, extents, documentID
