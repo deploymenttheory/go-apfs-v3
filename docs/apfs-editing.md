@@ -45,7 +45,7 @@ contiguous checkpoint regions, inline CIB addresses and one internal-pool bitmap
 Every current and pending-free block must have validated ownership.
 
 Snapshot-bearing volumes, clone history/shared streams, System/Data roles,
-Fusion, encrypted image envelopes/volumes, pending reapers and
+Fusion, software-encrypted APFS volumes, pending reapers and
 unrecognized write profiles are refused before disk staging. Tracked directories
 retain their statistics and inheritance; protected filesystem-owned directories
 remain outside user mutation.
@@ -53,6 +53,12 @@ Immutable, append-only and protected target objects are refused. Symlinks can be
 moved or removed as entries; path traversal through symlinks is refused.
 These limits apply to existing-image editing, not to the broader readers or fresh
 construction capabilities.
+
+Encrypted DMG envelopes are supported independently of APFS volume encryption.
+Supply `--image-password-file FILE`; output retains the source AES strength and
+password by default, using fresh random keys and salt. See
+[encrypted image editing](encrypted-image-editing.md) for password replacement,
+removal, stdin and the separate APFS volume credential boundary.
 
 The larger and multiple-volume controls were independently qualified at
 [run 38337086450](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38337086450):

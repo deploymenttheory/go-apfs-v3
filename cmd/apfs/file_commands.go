@@ -42,11 +42,11 @@ func parseOctal(s string, max uint32) (uint32, error) {
 	return uint32(v), nil
 }
 
-func fileCommand(ctx context.Context, args []string, out, diagnostics io.Writer) (err error) {
-	return fileCommandWithEditor(ctx, args, out, diagnostics, nil, imageedit.Options{})
+func fileCommand(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
+	return fileCommandWithEditor(ctx, args, input, out, diagnostics, nil, imageedit.Options{})
 }
 
-func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics io.Writer, editor *imageedit.Editor, options imageedit.Options) (err error) {
+func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer, editor *imageedit.Editor, options imageedit.Options) (err error) {
 	verb := args[0]
 	f := flag.NewFlagSet(verb, flag.ContinueOnError)
 	f.SetOutput(diagnostics)
@@ -58,6 +58,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 	imageFormat := f.String("format", "UDZO", "output DMG encoding: UDRO or UDZO")
 	f.String("time", "", "image-edit modification time (RFC3339, whole seconds); default current UTC time")
 	f.String("uid", "", "logical image creator/writer UID, independent of host credentials")
+	addEditEncryptionFlags(f)
 	var walk *session.WalkOptions
 	var cp session.CopyOptions
 	var mkdir session.MkdirOptions
@@ -121,7 +122,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 	if editor != nil {
 		f.Visit(func(option *flag.Flag) {
 			switch option.Name {
-			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json":
+			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json", "image-password-file", "password-file", "output-password-file", "encryption":
 				err = fmt.Errorf("--%s belongs to the enclosing edit command", option.Name)
 			}
 		})
@@ -135,16 +136,17 @@ func fileCommandWithEditor(ctx context.Context, args []string, out, diagnostics 
 		if err := f.Set("time", options.Time.Format(time.RFC3339)); err != nil {
 			return err
 		}
-		return editImageCommandWithEditor(ctx, verb, f, common, "", "", options.Partition, options.Format, operands, out, editor)
+		return editImageCommandWithEditor(ctx, verb, f, common, "", "", options.Partition, options.Format, operands, input, out, editor)
 	}
 	if *imagePath != "" {
-		return editImageCommand(ctx, verb, f, common, *imagePath, *imageOutput, *imagePartition, *imageFormat, operands, out)
+		return editImageCommand(ctx, verb, f, common, *imagePath, *imageOutput, *imagePartition, *imageFormat, operands, input, out)
 	}
 	if *imageOutput != "" {
 		return fmt.Errorf("--output requires --image")
 	}
 	f.Visit(func(option *flag.Flag) {
-		if option.Name == "partition" || option.Name == "volume" || option.Name == "format" || option.Name == "time" || option.Name == "uid" {
+		switch option.Name {
+		case "partition", "volume", "format", "time", "uid", "image-password-file", "password-file", "output-password-file", "encryption":
 			err = fmt.Errorf("--%s requires --image", option.Name)
 		}
 	})

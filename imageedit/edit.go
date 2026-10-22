@@ -26,6 +26,19 @@ type Options struct {
 	Volume    string    // APFS UUID or HFS volume ID; required when ambiguous
 	Format    string    // UDRO or UDZO; default UDZO
 	Time      time.Time // whole seconds; required for the library API
+	// ImagePassword unlocks the source DMG envelope. Nil means no credential;
+	// a non-nil empty slice supplies an explicitly empty password. VolumePassword
+	// is a separate APFS credential. Software-encrypted APFS writes remain
+	// unsupported, including after successful volume authentication.
+	ImagePassword  []byte `json:"-"`
+	VolumePassword []byte `json:"-"`
+	// Encryption replaces the output envelope password and optionally its AES
+	// strength. KeyBits zero retains the encrypted source's strength. Without
+	// Encryption or Decrypt, source encryption and its password are preserved
+	// using fresh cryptographic randomness. Passwords are borrowed, not modified.
+	Encryption *diskimage.EncryptionOptions `json:"-"`
+	// Decrypt explicitly removes source envelope encryption from the output.
+	Decrypt bool
 }
 type Change = filesystem.Change
 
@@ -103,13 +116,19 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 		return report, err
 	}
 	defer func() { err = errors.Join(err, source.Close()) }()
-	image, err := diskimage.New(source)
+	var image *diskimage.Image
+	if o.ImagePassword != nil {
+		image, err = diskimage.NewWithPassword(ctx, source, o.ImagePassword)
+	} else {
+		image, err = diskimage.New(source)
+	}
 	if err != nil {
 		return report, err
 	}
 	defer func() { err = errors.Join(err, image.Close()) }()
-	if image.Encryption != nil {
-		return report, fmt.Errorf("encrypted image modification: %w", filesystem.ErrUnsupported)
+	encryption, err := o.outputEncryption(image.Encryption)
+	if err != nil {
+		return report, err
 	}
 	var partition *diskimage.Partition
 	for i := range image.Partitions {
@@ -142,9 +161,24 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 				if err != nil {
 					return err
 				}
-				if _, err = selectAPFSVolume(container, o.Volume); err != nil {
+				volume, err := selectAPFSVolume(container, o.Volume)
+				if err != nil {
 					return err
 				}
+				if o.VolumePassword != nil {
+					unlocked, err := volume.Unlock(ctx, o.VolumePassword)
+					if err != nil {
+						return err
+					}
+					if err := unlocked.Close(); err != nil {
+						return err
+					}
+				}
+				if volume.Encrypted {
+					return fmt.Errorf("software-encrypted APFS image editing: %w", filesystem.ErrUnsupported)
+				}
+			} else if o.VolumePassword != nil {
+				return fmt.Errorf("APFS volume password requires an encrypted APFS volume: %w", fs.ErrInvalid)
 			} else if o.Volume != "" {
 				volume, err := hfsplus.Open(s)
 				if err != nil {
@@ -169,7 +203,7 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	}
 	// Repack admission verifies source CRCs, complete sector coverage and the
 	// supported UDIF resource profile. This pass does not retain output bytes.
-	if _, err = diskimage.Repack(ctx, io.Discard, source, "UDRO"); err != nil {
+	if _, err = diskimage.RepackWithOptions(ctx, io.Discard, source, diskimage.RepackOptions{Format: "UDRO", SourcePassword: o.ImagePassword, Decrypt: true}); err != nil {
 		return report, err
 	}
 	disk, err := block.Stage(ctx, &decodedDisk{image}, "")
@@ -192,7 +226,8 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	}
 	err = completeoutput.Publish(ctx, destination, func(out io.Writer) error {
 		var e error
-		report.RepackReport, e = diskimage.Repack(ctx, out, disk, o.Format)
+		report.RepackReport, e = diskimage.RepackWithOptions(ctx, out, disk, diskimage.RepackOptions{Format: o.Format, Encryption: encryption})
+		report.SourceEncryption = image.Encryption
 		return e
 	})
 	var outcome *filesystem.PublishedOutputError

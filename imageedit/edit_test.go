@@ -32,7 +32,14 @@ func fixture(t *testing.T, formats ...string) string {
 	if len(formats) != 0 {
 		format = formats[0]
 	}
-	s, e := session.Create(ctx, filepath.Join(root, "session"), session.Options{Names: filesystem.NameRules{Format: format, NormalizationInsensitive: true}, Time: &clock})
+	names := filesystem.NameRules{Format: format, NormalizationInsensitive: true}
+	switch format {
+	case "HFSX":
+		names.Format, names.CaseSensitive = "HFS+", true
+	case "APFSX":
+		names.Format, names.CaseSensitive = "APFS", true
+	}
+	s, e := session.Create(ctx, filepath.Join(root, "session"), session.Options{Names: names, Time: &clock})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -45,7 +52,7 @@ func fixture(t *testing.T, formats ...string) string {
 		t.Fatal(e)
 	}
 	source := filepath.Join(root, "source.dmg")
-	if _, e = pack.Create(ctx, source, s, pack.Options{Volume: pack.VolumeOptions{Name: "Keep", Time: clock, Capacity: 16 << 20}}); e != nil {
+	if _, e = pack.Create(ctx, source, s, pack.Options{Volume: pack.VolumeOptions{Name: "Keep", Time: clock, Capacity: 16 << 20, CaseSensitive: names.CaseSensitive}}); e != nil {
 		t.Fatal(e)
 	}
 	return source

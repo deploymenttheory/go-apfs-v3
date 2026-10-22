@@ -30,16 +30,16 @@ func imageActor(f *flag.FlagSet) (filesystem.Observation[uint32], error) {
 	return filesystem.Observed(uint32(value)), nil
 }
 
-func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer) (err error) {
-	return editImageCommandWithEditor(ctx, verb, f, common, source, destination, partition, format, operands, out, nil)
+func editImageCommand(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, input io.Reader, out io.Writer) (err error) {
+	return editImageCommandWithEditor(ctx, verb, f, common, source, destination, partition, format, operands, input, out, nil)
 }
 
-func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, out io.Writer, editor *imageedit.Editor) (err error) {
+func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSet, common *sessionFlags, source, destination string, partition int, format string, operands []string, input io.Reader, out io.Writer, editor *imageedit.Editor) (err error) {
 	if verb == "xattr" && f.Lookup("w").Value.String() != "true" && f.Lookup("d").Value.String() != "true" {
 		if editor != nil {
 			return fmt.Errorf("edit batches require mutation commands: %w", fs.ErrInvalid)
 		}
-		return readImageAttributes(ctx, f, common, source, partition, operands, out)
+		return readImageAttributes(ctx, f, common, source, partition, operands, input, out)
 	}
 	if verb != "cp" && verb != "chmod" && verb != "mkdir" && verb != "mv" && verb != "rm" && verb != "chown" && verb != "chflags" && verb != "touch" && verb != "xattr" && verb != "ln" {
 		return fmt.Errorf("existing-image %s: %w", verb, filesystem.ErrUnsupported)
@@ -48,6 +48,9 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 		return fmt.Errorf("image editing requires --image and --output, with no --session: %w", fs.ErrInvalid)
 	}
 	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "uid": true, "json": true}
+	for _, name := range []string{"image-password-file", "password-file", "output-password-file", "encryption"} {
+		allowed[name] = true
+	}
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
@@ -108,6 +111,13 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 		return err
 	}
 	options := imageedit.Options{Partition: partition, Volume: f.Lookup("volume").Value.String(), Format: format, Time: clock, ActorUID: actor}
+	if editor == nil {
+		options, err = editEncryptionOptions(f, input, options)
+		if err != nil {
+			return err
+		}
+		defer clearEditPasswords(options)
+	}
 	switch verb {
 	case "ln":
 		if len(operands) != 2 {

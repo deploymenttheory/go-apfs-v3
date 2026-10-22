@@ -9,6 +9,11 @@ This capability changes the original filesystem records in a new output image.
 It retains volume identity, catalog file IDs, hard-link relationships, geometry,
 unrelated metadata and unrelated disk sectors. It does not reformat the volume.
 
+AES-128 and AES-256 encrypted DMG sources use the same commands with
+`--image-password-file FILE`. Encryption is preserved by default; explicit
+password replacement and removal are described in
+[encrypted image editing](encrypted-image-editing.md).
+
 ```sh
 apfs cp --image Original.dmg --output Edited.dmg --from-host ./replacement.bin /Payload/file
 apfs chmod --image Edited.dmg --output Executable.dmg 0755 /Payload/file
