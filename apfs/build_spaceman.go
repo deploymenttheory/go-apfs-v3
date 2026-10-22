@@ -20,6 +20,14 @@ func buildMainQueueLimit(blocks uint64) uint16 {
 	}
 	return n
 }
+
+func buildIPQueueLimit(chunks uint64) uint16 {
+	n := uint16(3*(chunks+751)/1127 - 1)
+	if n == 2 {
+		n = 3
+	}
+	return n
+}
 func markBuildBits(b []byte, start, end uint64) {
 	for i := start; i < end; i++ {
 		b[i/8] |= 1 << uint(i%8)
@@ -63,11 +71,7 @@ func (p *Layout) addSpaceManager(g buildGeometry, reserved, reserveAllocated uin
 		}
 		le.PutUint16(sm[uint64(g.bitmapFreeOffset)+2*i:], next)
 	}
-	ipLimit := uint16(3*(g.chunks+751)/1127 - 1)
-	if ipLimit == 2 {
-		ipLimit = 3
-	}
-	for i, q := range [][2]uint64{{buildIPQueueOID, uint64(ipLimit)}, {buildMainQueueOID, uint64(buildMainQueueLimit(g.blocks))}} {
+	for i, q := range [][2]uint64{{buildIPQueueOID, uint64(buildIPQueueLimit(g.chunks))}, {buildMainQueueOID, uint64(buildMainQueueLimit(g.blocks))}} {
 		fq := sm[0xc8+i*40:]
 		le.PutUint64(fq[8:], q[0])
 		le.PutUint16(fq[24:], uint16(q[1]))
