@@ -392,9 +392,12 @@ func (m *mutation) createEntryKind(parent uint64, name string, kind uint32, perm
 	if m.actor.State == filesystem.Present {
 		uid = m.actor.Value
 	}
-	security, e := m.inheritSecurity(parent, kind == 0040000)
-	if e != nil {
-		return nil, e
+	var security []byte
+	if kind != 0120000 {
+		security, e = m.inheritSecurity(parent, kind == 0040000)
+		if e != nil {
+			return nil, e
+		}
 	}
 	clock := filesystem.Observed(time.Unix(0, int64(stamp)).UTC())
 	raw := buildInode(&buildObject{id: id, aliases: []buildAlias{{parent: parent, name: name}}, node: filesystem.Node{Metadata: filesystem.Metadata{

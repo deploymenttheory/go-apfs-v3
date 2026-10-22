@@ -4,18 +4,23 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 func cloneImageReader(t *testing.T, name, kind string) filesystem.Reader {
@@ -235,5 +240,73 @@ func TestFailedClonePublicationDoesNotReportPublishedSharing(t *testing.T) {
 	after, err := os.ReadFile(source)
 	if err != nil || !bytes.Equal(after, original) {
 		t.Fatal("failed edit changed original", err)
+	}
+}
+
+func TestImageSymlinkCreationDoesNotInheritRegularFileACL(t *testing.T) {
+	ctx := context.Background()
+	for _, kind := range []string{"APFS", "HFS+"} {
+		t.Run(kind, func(t *testing.T) {
+			prepared := filepath.Join(t.TempDir(), "prepared.dmg")
+			options := imageedit.Options{Time: clock, ActorUID: filesystem.Observed(uint32(0))}
+			_, err := imageedit.Apply(ctx, fixture(t, kind), prepared, options, []imageedit.Change{
+				{Operation: "mkdir", Path: "/destination"}, {Operation: "mkdir", Path: "/tree"},
+				{Path: "/tree/leaf", Data: bytes.NewReader([]byte("leaf"))},
+				{Operation: "ln", Symbolic: true, Path: "leaf", Destination: "/tree/link"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := cloneImageReader(t, prepared, kind)
+			id, err := filesystem.Lookup(ctx, r, "/destination")
+			if err != nil {
+				t.Fatal(err)
+			}
+			node, err := r.Stat(ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			metadata := node.Metadata
+			metadata.ChangeTime = filesystem.Observation[time.Time]{}
+			acl := make([]byte, 68)
+			binary.BigEndian.PutUint32(acl, filesec.Magic)
+			binary.BigEndian.PutUint32(acl[36:], 1)
+			binary.BigEndian.PutUint32(acl[60:], 1|filesec.File|filesec.Directory)
+			binary.BigEndian.PutUint32(acl[64:], 0x000a82)
+			withACL := filepath.Join(t.TempDir(), "parent-acl.dmg")
+			if _, err := imageedit.Apply(ctx, prepared, withACL, options, []imageedit.Change{{Operation: "copy-metadata", Path: "/destination", Metadata: &metadata, Attributes: map[string]block.Source{filesec.Attribute: bytes.NewReader(acl)}}}); err != nil {
+				t.Fatal(err)
+			}
+			output := filepath.Join(t.TempDir(), "copied.dmg")
+			if _, err := imageedit.Edit(ctx, withACL, output, options, func(editor *imageedit.Editor) error {
+				if _, err := editor.Copy([]imageedit.CopyCommand{{Sources: []string{"/tree"}, Destination: "/destination/copied", Options: imageedit.CopyOptions{Clone: true, Recursive: true}}}); err != nil {
+					return err
+				}
+				_, err := editor.Apply([]imageedit.Change{{Operation: "ln", Symbolic: true, Path: "copied/leaf", Destination: "/destination/direct-link"}})
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			r = cloneImageReader(t, output, kind)
+			for _, name := range []string{"/destination/copied/link", "/destination/direct-link", "/destination/copied/leaf", "/destination/copied"} {
+				id, err := filesystem.LookupExact(ctx, r, name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				value, err := r.OpenAttribute(ctx, id, filesec.Attribute)
+				if strings.HasSuffix(name, "link") {
+					if !errors.Is(err, fs.ErrNotExist) {
+						t.Error("new symlink inherited an ACL", name, err)
+					}
+				} else if err != nil {
+					t.Fatal("regular file/directory lost inherited ACL", name, err)
+				}
+				if value != nil {
+					if err := value.Close(); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		})
 	}
 }

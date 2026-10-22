@@ -694,7 +694,9 @@ func (r *Tree) create(ctx context.Context, parent uint64, name string, c Change)
 		attrs[name] = value
 	}
 
-	if attrs[filesec.Attribute] == nil {
+	// Darwin creates symlinks without inheriting the directory's file ACL.
+	// Explicit source ACL copying remains a separate operation.
+	if attrs[filesec.Attribute] == nil && c.Op != CreateSymlink {
 		security, err := filesec.Read(ctx, r, parent)
 		if err != nil {
 			return err

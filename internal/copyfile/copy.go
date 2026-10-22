@@ -499,6 +499,12 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 				return literalErr
 			}
 			dst = literal.path
+			// Unlink changes the old inode even when another alias survives.
+			// The logical tree must retain that clock independently of the new
+			// clone which replaces the destination's directory entry.
+			if err := c.changeTime(ctx, literal.id); err != nil {
+				return err
+			}
 			if err := c.backend.Apply(ctx, edit.Change{Op: edit.RemoveEntry, Path: dst}); err != nil {
 				return err
 			}
