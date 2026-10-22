@@ -16,77 +16,83 @@ import (
 // containerWrites exercises independent peer writes and the native quota and
 // reservation policies on disposable writable copies. Pressure is bounded by
 // the declared small container; it never fills the runner's host filesystem.
-func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment, out schema.Output) error {
-	var reservedProof *fixture.AttachedVolume
-	var proofData []byte
+func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment, out schema.Output, raw string) (*fixture.Attachment, error) {
 	for _, volume := range att.Volumes {
 		if volume.Mount == "" {
-			return fmt.Errorf("peer %q is not mounted", volume.Name)
+			return att, fmt.Errorf("peer %q is not mounted", volume.Name)
 		}
 		directory := filepath.Join(volume.Mount, "container-continuation")
 		if err := v.writableDirectory(ctx, directory); err != nil {
-			return fmt.Errorf("volume %q create continuation directory %q: %w", volume.Name, directory, err)
+			return att, fmt.Errorf("volume %q create continuation directory %q: %w", volume.Name, directory, err)
 		}
 	}
 	if out.Source.Recipe == "container-volumes" {
-		limited, reserved := att.Volume("Limited"), att.Volume("Reserved")
-		if limited == nil || reserved == nil || len(out.Expect.Container.EmptyVolumes) != 1 {
-			return fmt.Errorf("missing quota, reserved or empty volume")
+		if err := v.containerPressure(ctx, att, out); err != nil {
+			return att, err
 		}
-		empty := att.Volume(out.Expect.Container.EmptyVolumes[0])
-		if empty == nil {
-			return fmt.Errorf("missing empty pressure volume")
+		var err error
+		att, err = v.remountAfterContainerPressure(ctx, att, out, raw)
+		if err != nil {
+			return att, err
 		}
-		if err := v.pressureVolume(ctx, limited, 16<<20); err != nil {
-			return fmt.Errorf("quota on volume %q: %w", limited.Name, err)
-		}
-		// The unreserved peer must run out before consuming the reserved
-		// allocation. Keep the pressure file until the reserved write is synced.
-		pressure := filepath.Join(empty.Mount, "container-continuation", "pressure")
-		if err := v.fillVolume(ctx, pressure, 256<<20); err != nil {
-			return fmt.Errorf("reservation pressure on volume %q: %w", empty.Name, err)
-		}
-		proof := filepath.Join(reserved.Mount, filepath.FromSlash(reservationProofPath))
-		proofData = reservationProofData()
-		if err := v.Vol.WriteFile(proof, proofData, true); err != nil {
-			return fmt.Errorf("volume %q write protected allocation %q: %w", reserved.Name, proof, err)
-		}
-		if err := v.Vol.Fullfsync(proof); err != nil {
-			return fmt.Errorf("volume %q sync protected allocation %q: %w", reserved.Name, proof, err)
-		}
-		if err := v.checkReservedAllocation(reserved, proofData); err != nil {
-			return err
-		}
-		if err := v.releasePressure(pressure); err != nil {
-			return fmt.Errorf("volume %q release reservation pressure: %w", empty.Name, err)
-		}
-		// This allocation is the proof, not disposable pressure. Retain it
-		// through peer writes, the Go edit and final native allocation, whose
-		// exact whole-volume comparisons must preserve its bytes and identity.
-		// Retiring it here can also increase the unused reservation before
-		// APFS has reclaimed its checkpoint-protected blocks.
-		reservedProof = reserved
 	}
 	for _, volume := range att.Volumes {
 		if volume.Mount == "" {
-			return fmt.Errorf("peer %q is not mounted", volume.Name)
+			return att, fmt.Errorf("peer %q is not mounted", volume.Name)
 		}
 		// Identical names hold distinct contents on each volume, so an
 		// accidental selection or cross-volume alias cannot pass readback.
 		filename := filepath.Join(volume.Mount, "container-continuation", "peer")
 		if err := v.Vol.WriteFile(filename, []byte(volume.Name+"\n"), true); err != nil {
-			return fmt.Errorf("volume %q write peer %q: %w", volume.Name, filename, err)
+			return att, fmt.Errorf("volume %q write peer %q: %w", volume.Name, filename, err)
 		}
 		if err := v.Vol.Fullfsync(filename); err != nil {
-			return fmt.Errorf("volume %q sync peer %q: %w", volume.Name, filename, err)
+			return att, fmt.Errorf("volume %q sync peer %q: %w", volume.Name, filename, err)
 		}
 		if err := v.checkNativePayload(filename, []byte(volume.Name+"\n")); err != nil {
-			return fmt.Errorf("volume %q peer readback: %w", volume.Name, err)
+			return att, fmt.Errorf("volume %q peer readback: %w", volume.Name, err)
 		}
 	}
-	if reservedProof != nil {
-		return v.checkReservedAllocation(reservedProof, proofData)
+	if out.Source.Recipe == "container-volumes" {
+		return att, v.checkReservedAllocation(att.Volume("Reserved"), reservationProofData())
 	}
+	return att, nil
+}
+
+func (v *Verifier) containerPressure(ctx context.Context, att *fixture.Attachment, out schema.Output) error {
+	limited, reserved := att.Volume("Limited"), att.Volume("Reserved")
+	if limited == nil || reserved == nil || out.Expect.Container == nil || len(out.Expect.Container.EmptyVolumes) != 1 {
+		return fmt.Errorf("missing quota, reserved or empty volume")
+	}
+	empty := att.Volume(out.Expect.Container.EmptyVolumes[0])
+	if empty == nil {
+		return fmt.Errorf("missing empty pressure volume")
+	}
+	if err := v.pressureVolume(ctx, limited, 16<<20); err != nil {
+		return fmt.Errorf("quota on volume %q: %w", limited.Name, err)
+	}
+	// The unreserved peer must run out before consuming the reserved
+	// allocation. Keep the pressure file until the reserved write is synced.
+	pressure := filepath.Join(empty.Mount, "container-continuation", "pressure")
+	if err := v.fillVolume(ctx, pressure, 256<<20); err != nil {
+		return fmt.Errorf("reservation pressure on volume %q: %w", empty.Name, err)
+	}
+	proof := filepath.Join(reserved.Mount, filepath.FromSlash(reservationProofPath))
+	data := reservationProofData()
+	if err := v.Vol.WriteFile(proof, data, true); err != nil {
+		return fmt.Errorf("volume %q write protected allocation %q: %w", reserved.Name, proof, err)
+	}
+	if err := v.Vol.Fullfsync(proof); err != nil {
+		return fmt.Errorf("volume %q sync protected allocation %q: %w", reserved.Name, proof, err)
+	}
+	if err := v.checkReservedAllocation(reserved, data); err != nil {
+		return err
+	}
+	if err := v.releasePressure(pressure); err != nil {
+		return fmt.Errorf("volume %q release reservation pressure: %w", empty.Name, err)
+	}
+	// The proof persists through remount, peer writes, the Go edit and final
+	// native allocation. Exact whole-volume comparisons preserve its identity.
 	return nil
 }
 
@@ -133,11 +139,10 @@ func (v *Verifier) pressureVolume(ctx context.Context, volume *fixture.AttachedV
 	return v.releasePressure(filename)
 }
 
-// releasePressure commits the deallocation while its inode still exists.
-// Removing the last name alone can leave APFS's transaction pending; immediately
-// allocating another file can then encounter the pressure this test just made.
-// The sync need not empty APFS's pending-free queue: subsequent allocations and
-// readback establish usable headroom while older checkpoints may retain blocks.
+// releasePressure commits truncation while its inode still exists, then unlinks
+// the file. A successful sync does not prove that its physical extents have been
+// released. The later clean boundary, absence check and actual allocations
+// establish durable removal and usable headroom.
 // Every syscall is required once: no failed allocation or sync is retried.
 func (v *Verifier) releasePressure(filename string) error {
 	if err := v.Vol.Truncate(filename, 0); err != nil {

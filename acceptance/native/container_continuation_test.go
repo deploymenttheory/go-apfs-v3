@@ -113,10 +113,9 @@ func TestNativePressureRequiresTheBoundedAllocationOutcome(t *testing.T) {
 	}
 }
 
-// pressureProtocolVolume models committed allocation separately from dirty
-// truncation. Unlinking a pressured inode succeeds, but a later peer fsync fails
-// while its released blocks have not been committed. This reproduces the
-// ordering failure without mounting a filesystem on the developer host.
+// pressureProtocolVolume separates uncommitted truncations from ownership that
+// persists for the pressure phase's mount lifetime. Syncing and unlinking alone
+// cannot enable peers; they require the complete clean lifecycle boundary.
 type pressureProtocolVolume struct {
 	fixture.Volume
 	// pending models uncommitted truncations, not APFS's pending-free queue.
@@ -129,6 +128,10 @@ type pressureProtocolVolume struct {
 	unallocatedProof              bool
 	retiredProof                  bool
 	damageProofAfterPeers         string
+	boundaryComplete              bool
+	remountedProofChecked         bool
+	remountedPressureChecked      map[string]bool
+	peerWrites                    int
 }
 
 func (v *pressureProtocolVolume) fault(operation, filename string) error {
@@ -145,6 +148,15 @@ func (v *pressureProtocolVolume) WriteFile(filename string, data []byte, exclusi
 	}
 	if filepath.Base(filename) == "reservation-proof" && !v.pressureReached {
 		return fmt.Errorf("reserved allocation was tested before unreserved exhaustion")
+	}
+	if filepath.Base(filename) == "peer" && v.pressureReached {
+		if !v.boundaryComplete {
+			return syscall.ENOSPC
+		}
+		if !v.remountedProofChecked || len(v.remountedPressureChecked) != 2 {
+			return fmt.Errorf("peer write preceded remounted proof and pressure checks")
+		}
+		v.peerWrites++
 	}
 	if filepath.Base(filename) == v.corrupt && len(data) != 0 {
 		data = append([]byte(nil), data...)
@@ -242,10 +254,21 @@ func (v *pressureProtocolVolume) Remove(filename string) error {
 
 func (v *pressureProtocolVolume) Lstat(filename string) (fixture.Stat, error) {
 	stat, err := v.Volume.Lstat(filename)
+	if v.boundaryComplete && filepath.Base(filename) == "pressure" && errors.Is(err, syscall.ENOENT) {
+		v.remountedPressureChecked[filename] = true
+	}
 	if v.unallocatedProof && filepath.Base(filename) == "reservation-proof" {
 		stat.Allocated = 0
 	}
 	return stat, err
+}
+
+func (v *pressureProtocolVolume) Hash(filename string) (string, int64, error) {
+	hash, size, err := v.Volume.Hash(filename)
+	if v.boundaryComplete && filepath.Base(filename) == "reservation-proof" && err == nil {
+		v.remountedProofChecked = true
+	}
+	return hash, size, err
 }
 
 func containerPressureProtocol(t *testing.T) (*Verifier, *fixture.Attachment, schema.Output, *pressureProtocolVolume) {
@@ -260,19 +283,25 @@ func containerPressureProtocol(t *testing.T) (*Verifier, *fixture.Attachment, sc
 		if err := memory.WriteFile(filepath.Join(mount, "original"), []byte("original "+name), true); err != nil {
 			t.Fatal(err)
 		}
-		att.Volumes = append(att.Volumes, &fixture.AttachedVolume{Name: name, Mount: mount, FS: "apfs"})
+		att.Volumes = append(att.Volumes, &fixture.AttachedVolume{Name: name, Mount: mount, FS: "apfs", UUID: "uuid-" + name})
 	}
-	volume := &pressureProtocolVolume{Volume: memory, pending: map[string]bool{}}
+	volume := &pressureProtocolVolume{Volume: memory, pending: map[string]bool{}, remountedPressureChecked: map[string]bool{}}
 	out := schema.Output{Source: schema.CaseRef{Recipe: "container-volumes"}, Expect: schema.Expectation{Container: &schema.ContainerExpectation{EmptyVolumes: []string{"Fresh Empty"}}}}
-	return &Verifier{Vol: volume}, att, out, volume
+	disk := newContainerPressureDisk(att, volume)
+	return &Verifier{Vol: volume, Disk: disk}, att, out, volume
 }
 
-func TestContainerPressureCommitsDeallocationBeforePeerWrites(t *testing.T) {
+func TestContainerPressureCrossesCleanBoundaryBeforePeerWrites(t *testing.T) {
 	v, att, out, volume := containerPressureProtocol(t)
-	if err := v.containerWrites(context.Background(), att, out); err != nil {
+	original := att
+	att, err := v.containerWrites(context.Background(), att, out, "writable.raw")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !volume.quotaReached || !volume.pressureReached || !volume.protectedSynced || len(volume.pending) != 0 || volume.retiredProof {
+	if att == original || att.Volume("Reserved") == original.Volume("Reserved") || att.Volumes[0].Name == original.Volumes[0].Name {
+		t.Fatal("continuation reused stale attachment, volume or discovery order")
+	}
+	if !volume.quotaReached || !volume.pressureReached || !volume.protectedSynced || len(volume.pending) != 0 || volume.retiredProof || !volume.boundaryComplete || volume.peerWrites != len(att.Volumes) {
 		t.Fatal("quota, exhaustion, protected allocation or durable release was not verified")
 	}
 	for _, peer := range att.Volumes {
@@ -307,7 +336,7 @@ func TestContainerPressureReportsFailedOperationsWithoutRetries(t *testing.T) {
 			v, att, out, volume := containerPressureProtocol(t)
 			filename := filepath.Join("/container", tc.volume, "container-continuation", tc.file)
 			volume.fail = tc.operation + ":" + filename
-			err := v.containerWrites(context.Background(), att, out)
+			_, err := v.containerWrites(context.Background(), att, out, "writable.raw")
 			if !errors.Is(err, syscall.EIO) || !strings.Contains(err.Error(), tc.context) || !strings.Contains(err.Error(), fmt.Sprintf("%q", filename)) || !strings.Contains(err.Error(), tc.volume) || volume.failCalls != 1 {
 				t.Fatalf("operation must fail once with exact stage and path: %v, calls=%d", err, volume.failCalls)
 			}
@@ -329,7 +358,7 @@ func TestContainerPressureRequiresAllocatedProofAndExactPeerContents(t *testing.
 			default:
 				volume.corrupt = change
 			}
-			if err := v.containerWrites(context.Background(), att, out); err == nil {
+			if _, err := v.containerWrites(context.Background(), att, out, "writable.raw"); err == nil {
 				t.Fatal("allocation or readback corruption passed the native protocol")
 			}
 		})
