@@ -136,9 +136,23 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
-	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, schema.ObserveSpec{}, k.recipe)
+	nativeSpec := schema.ObserveSpec{}
+	if out.Source.Recipe == "apfs-clones" {
+		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
+	}
+	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, nativeSpec, k.recipe)
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
+	}
+	var cloneBefore schema.View
+	if out.Source.Recipe == "apfs-clones" {
+		cloneBefore, err = onlyLiveView(before)
+		if err == nil {
+			err = requireRetainedPartialClone(cloneBefore)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("continuation %s: native partial clone input: %w", out.Name, err)
+		}
 	}
 	// The product edits the natively modified volume into a new image.
 	editSource, imageArgs, err := v.prepareEncryptedContinuation(ctx, envelope, raw, work)
@@ -188,13 +202,23 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.checkContinuationEnvelope(ctx, envelope, edited); err != nil {
 		return nil, fmt.Errorf("continuation %s: %w", out.Name, err)
 	}
-	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
+	spec := nativeSpec
+	spec.Checks, spec.Codesign = []string{"verify", "fsck"}, out.Expect.Codesign
 	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", envelope.password, spec, k.recipe)
 	if err != nil {
 		return nil, err
 	}
 	if err := compareContinuedContainer(before, obs, volume.Name); err != nil {
 		return obs, fmt.Errorf("continuation %s: %w", out.Name, err)
+	}
+	if out.Source.Recipe == "apfs-clones" {
+		differences, err := cloneOutputDifferences(obs, cloneBefore)
+		if err != nil {
+			return obs, fmt.Errorf("continuation %s: continued clone sharing: %w", out.Name, err)
+		}
+		if len(differences) != 0 {
+			return obs, fmt.Errorf("continuation %s: continued clone sharing differs: %v", out.Name, differences)
+		}
 	}
 	paths := map[string]bool{}
 	for _, vw := range obs.Views {

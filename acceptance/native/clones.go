@@ -21,6 +21,8 @@ import (
 
 var cloneEditStages = []string{"shared", "data-replaced", "data-truncated", "fork-replaced", "attribute-replaced", "metadata-changed", "compressed-replaced", "sparse-replaced", "source-removed", "clones-removed", "final-owner-removed", "allocation-reused"}
 
+const retainedPartialClone = "native-clone-continuation/partial"
+
 // cloneExtentPaths selects the ordinary dense controls supported by Apple's
 // F_LOG2PHYS_EXT. The default observer still records every compressed and sparse
 // file's content, forks, attributes, compression and holes. Keep this collection
@@ -98,7 +100,7 @@ func clonePhysicalForks(view schema.View) (map[string][][3]int64, error) {
 		}
 		seen[entry.Path] = true
 		ids[entry.Path] = entry.ID
-		if entry.Kind != "file" || !strings.HasPrefix(entry.Path, "Fixture/") || strings.HasPrefix(entry.Path, "Fixture/compressed-") || strings.HasPrefix(entry.Path, "Fixture/sparse-") {
+		if entry.Kind != "file" || entry.Path != retainedPartialClone && (!strings.HasPrefix(entry.Path, "Fixture/") || strings.HasPrefix(entry.Path, "Fixture/compressed-") || strings.HasPrefix(entry.Path, "Fixture/sparse-")) {
 			continue
 		}
 		if entry.Extents == nil {
@@ -130,6 +132,36 @@ func clonePhysicalForks(view schema.View) (map[string][][3]int64, error) {
 		}
 	}
 	return forks, nil
+}
+
+// requireRetainedPartialClone proves that the subsequent Go admission sees an
+// independently identified native clone with both private and shared physical
+// ranges in its data and resource streams.
+func requireRetainedPartialClone(view schema.View) error {
+	forks, err := clonePhysicalForks(view)
+	if err != nil {
+		return err
+	}
+	var source, partial schema.Entry
+	for _, entry := range view.Entries {
+		if entry.Path == "Fixture/untouched-source" {
+			source = entry
+		}
+		if entry.Path == retainedPartialClone {
+			partial = entry
+		}
+	}
+	if partial.ID == 0 || partial.ID == source.ID || partial.Links != 1 || partial.Size != source.Size {
+		return fmt.Errorf("retained partial clone lacks independent native identity/size")
+	}
+	for _, fork := range []string{"data", "resource"} {
+		a, b := forks[retainedPartialClone+"/"+fork], forks["Fixture/untouched-source/"+fork]
+		shared := sharedPhysicalBytes(a, b)
+		if physicalBytes(a) != physicalBytes(b) || shared <= 0 || shared >= physicalBytes(b) {
+			return fmt.Errorf("retained partial clone lacks private and shared native %s ranges", fork)
+		}
+	}
+	return nil
 }
 
 // CheckCloneEditingControl requires genuine native sharing in the plaintext
@@ -404,6 +436,38 @@ func (v *Verifier) continueCloneWrites(ctx context.Context, mount, stage string)
 	want := sha256.Sum256(payload)
 	if err != nil || size != int64(len(payload)) || digest != hex.EncodeToString(want[:]) {
 		return errors.Join(fmt.Errorf("native post-clone allocation readback differs"), err)
+	}
+	// Keep a separate partial clone for the full unmount/fsck/Go-edit/native
+	// readback sequence. The retirement checks above remain independent.
+	retained := filepath.Join(mount, retainedPartialClone)
+	if err := run("clone", []string{source, retained}, func() error { return v.Vol.Clone(source, retained) }); err != nil {
+		return err
+	}
+	for _, fork := range []string{"data", "resource"} {
+		path := retained
+		if fork == "resource" {
+			path = filepath.Join(retained, "..namedfork", "rsrc")
+		}
+		if err := run("pwrite "+fork, []string{path, "4095"}, func() error { return v.Vol.Pwrite(path, 4095, private) }); err != nil {
+			return err
+		}
+	}
+	if err := run("fullfsync", []string{retained}, func() error { return v.Vol.Fullfsync(retained) }); err != nil {
+		return err
+	}
+	partial, err := v.cloneNativeState(retained)
+	if err != nil {
+		return err
+	}
+	states["retained/partial"] = partial
+	if partial.Stat.Ino == 0 || partial.Stat.Ino == initial.Stat.Ino || partial.Stat.Nlink != 1 || partial.Stat.Size != initial.Stat.Size || partial.Data != hex.EncodeToString(wantData[:]) || !bytes.Equal(partial.Attrs["com.apple.ResourceFork"], expectedFork) {
+		return fmt.Errorf("retained native partial clone identity/data/fork differs")
+	}
+	for _, pair := range [][2][][3]int64{{partial.DataRuns, initial.DataRuns}, {partial.ForkRuns, initial.ForkRuns}} {
+		shared := sharedPhysicalBytes(pair[0], pair[1])
+		if physicalBytes(pair[0]) != physicalBytes(pair[1]) || shared <= 0 || shared >= physicalBytes(pair[1]) {
+			return fmt.Errorf("retained native partial clone lacks private and shared physical ranges")
+		}
 	}
 	for name, path := range map[string]string{"source": source, "sibling": sibling} {
 		s, err := v.cloneNativeState(path)

@@ -91,6 +91,52 @@ func TestClonePhysicalComparisonRequiresNativeSharingAndSeparation(t *testing.T)
 	}
 }
 
+func partialCloneEvidenceView() schema.View {
+	view := cloneEvidenceView()
+	partial := view.Entries[0]
+	partial.Path, partial.ID, partial.Links = retainedPartialClone, 4, 1
+	partial.Extents = &schema.Extents{
+		Data:     [][3]int64{{0, 10000, 4096}, {4096, 60000, 4097}},
+		Resource: [][3]int64{{0, 30000, 4096}, {4096, 80000, 1}},
+	}
+	view.Entries = append(view.Entries, partial)
+	return view
+}
+
+func TestContinuedClonePhysicalComparisonRequiresRetainedPartialRanges(t *testing.T) {
+	want := partialCloneEvidenceView()
+	if err := requireRetainedPartialClone(want); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(*schema.View){
+		func(v *schema.View) { v.Entries = v.Entries[:3] },
+		func(v *schema.View) { v.Entries[3].ID = v.Entries[0].ID },
+		func(v *schema.View) { v.Entries[3].Extents = nil },
+		func(v *schema.View) { v.Entries[3].Size-- },
+		func(v *schema.View) { v.Entries[3].Extents.Data = v.Entries[0].Extents.Data },
+		func(v *schema.View) { v.Entries[3].Extents.Resource = [][3]int64{{0, 100000, 4097}} },
+	} {
+		invalid := partialCloneEvidenceView()
+		change(&invalid)
+		if err := requireRetainedPartialClone(invalid); err == nil {
+			t.Fatal("unqualified retained partial-clone input accepted")
+		}
+	}
+	// Keeping the bytes and some sharing is insufficient: the Go edit must
+	// preserve exactly the relations measured on its native partial input.
+	got := partialCloneEvidenceView()
+	got.Entries[3].Extents.Data = [][3]int64{{0, 10000, 2048}, {2048, 60000, 6145}}
+	if err := requireRetainedPartialClone(got); err != nil {
+		t.Fatal("test must retain a valid partial clone", err)
+	}
+	if differences, err := cloneOutputDifferences(&schema.Observation{Views: []schema.View{got}}, want); err != nil || len(differences) == 0 {
+		t.Fatal("changed partial sharing passed unchanged-view comparison", differences, err)
+	}
+	if differences, err := cloneOutputDifferences(&schema.Observation{Views: []schema.View{partialCloneEvidenceView()}}, want); err != nil || len(differences) != 0 {
+		t.Fatal("unchanged partial sharing failed", differences, err)
+	}
+}
+
 func cloneOutputMatrix() ([]Paired, map[string]corpus.Case) {
 	cases := map[string]corpus.Case{}
 	var pairs []Paired
