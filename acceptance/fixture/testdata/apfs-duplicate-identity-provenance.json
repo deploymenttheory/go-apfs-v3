@@ -1,0 +1,15 @@
+{
+  "sourceRun": 39847486239,
+  "sourceHead": "fcabe5369029e0d135360ae03f2ad981b2eda36b",
+  "sourceJob": 120064560484,
+  "sourceArtifact": 12464098427,
+  "sourceArtifactBytes": 63955415,
+  "sourceArtifactSHA256": "7f3fd63259a431a42fbd6a108a8c2879a38c83ad38606de461b7703b680ec39e",
+  "originalArchiveMember": "observe/macos-26.encrypted-image-edits.apfsx.before-aes128.edit.rekey.UDRO.dmg/observation.json",
+  "originalBytes": 103884,
+  "originalSHA256": "190690e1419dfe1530885d5c1009bb761d5acdc25e301dd774ca4fb03ce7a196",
+  "storedFile": "apfs-duplicate-identity-observation.json.gz",
+  "storedSHA256": "60c57dbe062cd033e45ed3888027b9c62aa070a0e1006fc666e44d6605a5f229",
+  "projection": "Only the enclosing filename is projected. Gzip expands to the exact original JSON bytes, including unchanged command stdout, original command digests, observation and native paths. No disk bytes or passwords are included.",
+  "scope": "This later observation attached, mounted, read, verified, checked and detached successfully. It retains both the uniquely bound disk8 container and the stale same-UUID disk13 container. It does not establish a holder or fix the earlier disk9 detach failure."
+}
