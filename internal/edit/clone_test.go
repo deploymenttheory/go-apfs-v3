@@ -3,11 +3,13 @@ package edit
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"io"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/block"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/internal/filesec"
 )
 
 func TestCloneKeepsIndependentInodesAndDetachesOnlyChangedStreams(t *testing.T) {
@@ -67,6 +69,59 @@ func TestCloneKeepsIndependentInodesAndDetachesOnlyChangedStreams(t *testing.T) 
 	}
 	if id("/Small/alias") != cloneID {
 		t.Fatal("hardlink identity changed")
+	}
+}
+
+func TestCloneInheritsDestinationACLWithoutChangingSourceACLLineage(t *testing.T) {
+	for _, partial := range []bool{false, true} {
+		ctx := context.Background()
+		base := newCountingVolume(0)
+		tree, err := New(ctx, base, DefaultLimits())
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := base.nodes[smallDir].Metadata
+		m.Mode = filesystem.Observed(uint32(0100640))
+		acl := make([]byte, 44)
+		binary.BigEndian.PutUint32(acl, filesec.Magic)
+		for _, name := range []string{"/Small/source", "/Small/peer"} {
+			if err := tree.ApplyCommand(ctx, Change{Op: CreateFile, Path: name, Metadata: &m, Data: bytes.NewReader([]byte("shared data")), Attributes: map[string]block.Source{filesec.Attribute: bytes.NewReader(acl)}}); err != nil {
+				t.Fatal(err)
+			}
+			id, err := filesystem.Lookup(ctx, tree, name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sharing := &filesystem.CloneStreams{Data: "captured-data", Attributes: map[string]string{}}
+			if partial {
+				sharing.Partial = []string{filesec.Attribute}
+			} else {
+				sharing.Attributes[filesec.Attribute] = "captured-acl"
+			}
+			tree.nodes[id].node.CloneStreams = sharing
+			if !ValidNode(tree.nodes[id].node) {
+				t.Fatal("invalid source setup")
+			}
+		}
+		if err := tree.ApplyCommand(ctx, Change{Op: CloneFile, Path: "/Small/source", To: "/Small/new-clone", Metadata: &m, CloneNamespace: "revision"}); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"/Small/source", "/Small/peer"} {
+			id, _ := filesystem.Lookup(ctx, tree, name)
+			node, _ := tree.Stat(ctx, id)
+			if partial {
+				if len(node.CloneStreams.Partial) != 1 || node.CloneStreams.Partial[0] != filesec.Attribute {
+					t.Fatal("untouched source partial ACL sharing was removed", name)
+				}
+			} else if node.CloneStreams.Attributes[filesec.Attribute] != "captured-acl" {
+				t.Fatal("untouched source ACL lineage was removed", name)
+			}
+		}
+		id, _ := filesystem.Lookup(ctx, tree, "/Small/new-clone")
+		node, _ := tree.Stat(ctx, id)
+		if node.CloneStreams.Attributes[filesec.Attribute] != "" || len(node.CloneStreams.Partial) != 0 {
+			t.Fatal("destination inherited source ACL lineage")
+		}
 	}
 }
 

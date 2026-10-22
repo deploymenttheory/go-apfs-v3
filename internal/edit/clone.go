@@ -135,10 +135,11 @@ func (r *Tree) cloneFile(ctx context.Context, c Change) error {
 			sharing.Attributes[name] = cloneLineage(c.CloneNamespace, source.node.Identity, next, name)
 		}
 	}
-	delete(sharing.Attributes, filesec.Attribute)
-	sharing.Partial = slices.DeleteFunc(sharing.Partial, func(name string) bool { return name == filesec.Attribute })
 	source.node.CloneStreams = sharing
 	cloned.node.CloneStreams = copyNode(source.node).CloneStreams
+	// ACL inheritance changes only the destination stream. Existing source
+	// and peer ACL sharing remains an untouched captured relationship.
+	cloned.detachCloneStream(filesec.Attribute)
 	cloned.node.Identity = filesystem.Identity{Object: next}
 	cloned.node.Created, cloned.node.DataModified, cloned.node.LinksModified = true, true, false
 	cloned.node.Links = filesystem.Observed(uint32(1))
