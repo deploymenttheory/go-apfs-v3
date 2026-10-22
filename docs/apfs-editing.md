@@ -81,7 +81,7 @@ and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
 chmod preserves ACLs. Set-ID writes require the explicit logical UID described
 below; these metadata effects do not emulate process authorization.
 
-## Editing existing clones
+## Creating and editing clones
 
 Whole-file replacement and truncation detach only the edited clone's data stream.
 Resource-fork and attribute changes preserve unaffected shared streams; metadata
@@ -94,10 +94,20 @@ can retain a private stream ID without a data-stream descriptor. That ID alone
 does not own storage: replacement creates a new stream, and unlink cannot
 release a different inode's data through the retained ID.
 
-This edits clones already present in an admitted image. The image commands do not
-create new APFS clones. Snapshot and encrypted-volume mutation have separate
-admission limits. Independent qualification requires the plaintext `apfs-clones`
-controls, Apple checks and subsequent native clone writes on macOS 15/26/27.
+`cp -c`, `imageedit.CopyOptions{Clone: true}` and the ordered editor create new
+clone inodes in an admitted APFS image. A data stream retains its descriptor and
+increments its inode-reference count. Fork and attribute streams receive
+independent stream identities sharing the same physical ranges; physical
+reference counts remain separate from data-stream descriptor counts. Clone
+flags and a matching private stream ID never establish ownership by themselves.
+An occupied destination entry is replaced, while its other hard-link aliases
+retain the old inode. See [copy policy and fallback reports](image-copy.md).
+
+Snapshot and encrypted-volume mutation retain separate admission limits.
+Independent qualification requires the plaintext `apfs-clones` and `clone-copy`
+controls, physical-sharing observations, Apple checks and subsequent native
+clone writes on macOS 15/26/27. New native controls and generated outputs must
+pass the required gates before the new copy path is considered qualified.
 
 ## File and directory operations
 

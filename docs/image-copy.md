@@ -11,6 +11,7 @@ apfs cp --image Apps.dmg --output Framework.dmg -a /Staging/Example.framework /L
 apfs cp --image Original.dmg --output Imported.dmg --from-host -RX ./payload /Payload
 apfs cp --image Original.dmg --output Linked.dmg -a --preserve-links /Staging /Copied
 apfs cp --image Original.dmg --output Replaced.dmg -p /Staging/file /Payload/existing
+apfs cp --image Original.dmg --output Cloned.dmg --uid 0 -c /Payload/file /Payload/clone
 ```
 
 | Option | Behavior |
@@ -18,6 +19,7 @@ apfs cp --image Original.dmg --output Replaced.dmg -p /Staging/file /Payload/exi
 | `-R` | Recurse into directories; retain literal source symlinks by default |
 | `-p` | Preserve observed mode, numeric ownership, supported BSD flags and access/modification times |
 | `-a` | Apple's `-RpP`; regular files copied from hard-link aliases become independent files |
+| `-c` | Request distinct APFS clone inodes sharing stored streams; report ordinary-copy fallback where cloning is unavailable |
 | `--preserve-links` | Preserve regular-file alias groups within one copy command, independently of the source group |
 | `-n` | Refuse an existing file; the whole command publishes no output |
 | `-X` | Skip source attributes/forks and retain existing independent destination attributes/forks |
@@ -26,8 +28,31 @@ apfs cp --image Original.dmg --output Replaced.dmg -p /Staging/file /Payload/exi
 An existing directory destination receives the source basename. A directory
 source ending in `/` merges its contents into the named destination. Multiple
 source operands require an existing destination directory. Existing regular-file
-overwrites retain the destination inode and all its aliases. New file copies have
+overwrites without `-c` retain the destination inode and all its aliases. New file copies have
 new identities; existing source identities and image bytes remain intact.
+
+`cp -c` follows Apple's clone policy. For a regular file it replaces an occupied
+destination entry with a new inode, leaving other aliases of the old destination
+intact. It replaces a destination symlink itself and follows a command-line
+source symlink. `-cR` retains recursive source symlinks and copies regular-file
+aliases as separate clone inodes; `--preserve-links` explicitly retains their
+alias group. `-n` refuses an occupied destination, and `-cX` is invalid.
+
+An APFS clone retains source birth, modification and access times, flags, stored
+compression, forks and ordinary attributes. Its change time is the command
+clock. Set-ID bits are cleared, ownership follows the explicit logical actor,
+and its ACL inherits from the destination directory. The source ACL and its
+existing sharing remain unchanged. `-p` does not replace this clonefile ACL
+policy. Changes to a clone's data, fork or attribute detach only that stream;
+metadata and hard-link aliases retain their distinct relationships.
+
+HFS+/HFSX destinations and host imports use ordinary copy policy when a clone
+cannot be made. JSON `clones` entries and plain diagnostics report each requested
+regular-file clone with source, destination, `cloned` and a fallback reason where
+applicable. Equal contents never establish sharing. These results describe the
+completed output; unpublished failures return no successful clone outcomes.
+`Editor.Copy` inside an `imageedit.Edit` callback reports its private scratch
+operation, while the enclosing result reports final publication.
 
 Ordinary copying reads logical decompressed contents. Compression-owned storage
 is removed from the copy; ordinary attributes and independent forks transfer as
