@@ -24,9 +24,11 @@ type CloneOutcome struct {
 
 func cloneOutcomes(ctx context.Context, reader filesystem.Reader, verify bool) ([]CloneOutcome, error) {
 	type member struct {
-		path, name string
-		copied     string
-		object     uint64
+		path, name  string
+		copied      string
+		object      uint64
+		logical     uint64
+		compression filesystem.Observation[filesystem.Compression]
 	}
 	groups := map[string][]member{}
 	var outcomes []CloneOutcome
@@ -75,7 +77,7 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader, verify bool) (
 				if err := value.Close(); err != nil {
 					return err
 				}
-				groups[clones.Data] = append(groups[clones.Data], member{path: path, copied: copied, object: id})
+				groups[clones.Data] = append(groups[clones.Data], member{path: path, copied: copied, object: id, logical: node.Size, compression: node.Compression})
 			}
 			for name, token := range clones.Attributes {
 				metadataBytes += 512 + len(name) + len(token)
@@ -132,7 +134,7 @@ func cloneOutcomes(ctx context.Context, reader filesystem.Reader, verify bool) (
 			var first [32]byte
 			var size int64
 			for i, member := range members {
-				if member.name != members[0].name {
+				if member.name != members[0].name || member.logical != members[0].logical || member.compression != members[0].compression {
 					return nil, fmt.Errorf("incompatible declared clone stream kind: %w", filesystem.ErrCorrupt)
 				}
 				digest, bytes, err := cloneValueDigest(ctx, reader, member.object, member.name, &verifiedBytes)
