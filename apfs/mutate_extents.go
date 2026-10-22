@@ -1,10 +1,24 @@
 package apfs
 
+import (
+	"math"
+
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+)
+
 // releaseExtent releases one stream's reference to a physical interval. A
 // clone's independent fork/attribute stream can share all or part of another
 // stream's allocation. Preserve every surviving reference and the original
 // owning_obj_id hint, including when that original inode no longer exists.
 func (m *mutation) releaseExtent(address, blocks uint64) error {
+	return m.changeExtentReferences(address, blocks, -1)
+}
+
+func (m *mutation) retainExtent(address, blocks uint64) error {
+	return m.changeExtentReferences(address, blocks, 1)
+}
+
+func (m *mutation) changeExtentReferences(address, blocks uint64, delta int64) error {
 	if blocks == 0 || address >= m.c.BlockCount || blocks > m.c.BlockCount-address {
 		return corrupt("released extent range", 0)
 	}
@@ -21,11 +35,14 @@ func (m *mutation) releaseExtent(address, blocks uint64) error {
 			return corrupt("released extent coverage", 0)
 		}
 		stop := min(end, start+length)
+		if int64(refs)+delta > math.MaxInt32 {
+			return filesystem.ErrLimit
+		}
 		owner := le.Uint64(r.value[8:])
 		if err := m.extents.put(r.key, nil); err != nil {
 			return err
 		}
-		for _, keep := range [][3]uint64{{start, at - start, uint64(refs)}, {at, stop - at, uint64(refs - 1)}, {stop, start + length - stop, uint64(refs)}} {
+		for _, keep := range [][3]uint64{{start, at - start, uint64(refs)}, {at, stop - at, uint64(int64(refs) + delta)}, {stop, start + length - stop, uint64(refs)}} {
 			if keep[1] == 0 {
 				continue
 			}

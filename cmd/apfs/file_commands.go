@@ -71,6 +71,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, 
 	case "chmod", "chown", "chflags":
 		walk = walkFlags(f)
 	case "cp":
+		f.BoolVar(&cp.Clone, "c", false, "clone files where supported; report ordinary-copy fallback")
 		f.BoolVar(&cp.FromHost, "from-host", false, "copy from host paths into the filesystem")
 		f.BoolVar(&cp.Recursive, "R", false, "copy directories recursively")
 		f.BoolVar(&cp.Preserve, "p", false, "preserve available source metadata")
@@ -209,7 +210,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, 
 			return fs.ErrInvalid
 		}
 		if fork {
-			if len(operands) != 2 || !cp.FromHost || cp.Recursive || cp.Archive || cp.Preserve || cp.NoAttributes || cp.PreserveLinks || cp.NoClobber || cp.Follow != "" {
+			if len(operands) != 2 || !cp.FromHost || cp.Clone || cp.Recursive || cp.Archive || cp.Preserve || cp.NoAttributes || cp.PreserveLinks || cp.NoClobber || cp.Follow != "" {
 				return fs.ErrInvalid
 			}
 			data, e := block.Open(operands[0])
@@ -272,6 +273,11 @@ func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, 
 	}
 	if !common.json {
 		if err = copyOmissions(diagnostics, report.OmittedAttributes); err != nil {
+			return err
+		}
+	}
+	if verb == "cp" && !common.json {
+		if err := copyCloneResults(out, report.Clones); err != nil {
 			return err
 		}
 	}

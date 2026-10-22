@@ -488,6 +488,9 @@ func (m *mutation) applyChange(c Change, stamp uint64) (uint64, error) {
 		return 0, err
 	}
 	m.actor = c.ActorUID
+	if c.Operation == "clone" {
+		return m.cloneFile(c, stamp)
+	}
 	if c.Operation == "copy-metadata" {
 		return m.copyMetadata(c, stamp)
 	}

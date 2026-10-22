@@ -86,6 +86,9 @@ func editCommands(ctx context.Context, args []string, input io.Reader, out, diag
 	if *jsonOutput {
 		return json.NewEncoder(out).Encode(report)
 	}
+	if err := copyCloneResults(diagnostics, report.Clones); err != nil {
+		return err
+	}
 	_, err = fmt.Fprintf(out, "Applied %d command(s) in volume %s; published %s (%s)\n", len(commands), report.VolumeID, *destination, report.Format)
 	return err
 }

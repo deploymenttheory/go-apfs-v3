@@ -54,7 +54,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 	if verb == "cp" {
 		allowed["from-host"] = true
 		allowed["resource-fork"] = true
-		for _, option := range []string{"R", "p", "a", "n", "X", "H", "L", "P", "preserve-links"} {
+		for _, option := range []string{"c", "R", "p", "a", "n", "X", "H", "L", "P", "preserve-links"} {
 			allowed[option] = true
 		}
 	}
@@ -162,7 +162,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 		if len(operands) < 2 {
 			return fs.ErrInvalid
 		}
-		copyOptions := imageedit.CopyOptions{FromHost: f.Lookup("from-host").Value.String() == "true", Recursive: f.Lookup("R").Value.String() == "true", Preserve: f.Lookup("p").Value.String() == "true", Archive: f.Lookup("a").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true", NoAttributes: f.Lookup("X").Value.String() == "true", PreserveLinks: f.Lookup("preserve-links").Value.String() == "true", Follow: f.Lookup("P").Value.String()}
+		copyOptions := imageedit.CopyOptions{Clone: f.Lookup("c").Value.String() == "true", FromHost: f.Lookup("from-host").Value.String() == "true", Recursive: f.Lookup("R").Value.String() == "true", Preserve: f.Lookup("p").Value.String() == "true", Archive: f.Lookup("a").Value.String() == "true", NoClobber: f.Lookup("n").Value.String() == "true", NoAttributes: f.Lookup("X").Value.String() == "true", PreserveLinks: f.Lookup("preserve-links").Value.String() == "true", Follow: f.Lookup("P").Value.String()}
 		if f.Lookup("resource-fork").Value.String() != "true" {
 			var report imageedit.CopyReport
 			if editor != nil {
@@ -176,16 +176,19 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 			if common.json {
 				return json.NewEncoder(out).Encode(report)
 			}
-			if err = copyOmissions(f.Output(), report.OmittedAttributes); err != nil {
-				return err
-			}
 			if editor != nil {
 				return nil
+			}
+			if err = copyCloneResults(f.Output(), report.Clones); err != nil {
+				return err
+			}
+			if err = copyOmissions(f.Output(), report.OmittedAttributes); err != nil {
+				return err
 			}
 			_, err = fmt.Fprintf(out, "Copied %d path(s) in volume %s; published %s (%s); %d free allocation blocks\n", report.Copied, report.VolumeID, destination, report.Format, report.FreeBlocks)
 			return err
 		}
-		if len(operands) != 2 || !copyOptions.FromHost || copyOptions.Recursive || copyOptions.Preserve || copyOptions.Archive || copyOptions.NoAttributes || copyOptions.PreserveLinks || copyOptions.Follow != "" {
+		if len(operands) != 2 || !copyOptions.FromHost || copyOptions.Clone || copyOptions.Recursive || copyOptions.Preserve || copyOptions.Archive || copyOptions.NoAttributes || copyOptions.PreserveLinks || copyOptions.Follow != "" {
 			return fs.ErrInvalid
 		}
 		data, e := block.Open(operands[0])
@@ -218,6 +221,21 @@ func copyOmissions(out io.Writer, omissions []copyfile.Omission) error {
 	for _, value := range omissions {
 		if _, err := fmt.Fprintf(out, "Copy %s to %s omitted %s: %s\n", value.Source, value.Destination, value.Attribute, value.Reason); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func copyCloneResults(out io.Writer, results []copyfile.CloneResult) error {
+	for _, result := range results {
+		if result.Cloned {
+			if _, err := fmt.Fprintf(out, "Cloned %s to %s\n", result.Source, result.Destination); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fmt.Fprintf(out, "Copied %s to %s (clone fallback: %s)\n", result.Source, result.Destination, result.Fallback); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

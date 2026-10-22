@@ -3,6 +3,7 @@ package imageedit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -22,6 +23,7 @@ import (
 
 type CopyOptions = copyfile.Options
 type CopyOmission = copyfile.Omission
+type CopyCloneResult = copyfile.CloneResult
 
 // CopyCommand is an ordered library operation; the CLI supplies one command.
 // A batch shares managed scratch and publishes one completed image.
@@ -58,6 +60,7 @@ func CopyBatch(ctx context.Context, sourcePath, destination string, o Options, c
 	result.Report, err = Edit(ctx, sourcePath, destination, o, func(editor *Editor) error {
 		copied, e := editor.Copy(commands)
 		result.Copied, result.Defaulted = copied.Copied, copied.Defaulted
+		result.Clones = copied.Clones
 		result.AttributesUnavailable, result.OmittedAttributes = copied.AttributesUnavailable, copied.OmittedAttributes
 		return e
 	})
@@ -94,9 +97,13 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	if e != nil {
 		return result, e
 	}
-	plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits}
+	plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits, cloned: map[uint64]bool{}, synced: map[uint64]bool{}}
+	root, err := tree.Stat(ctx, tree.Root())
+	if err != nil {
+		return result, err
+	}
 	defer func() { err = errors.Join(err, plan.close()) }()
-	backend := copyfile.Backend{Tree: tree, Time: o.Time, ActorUID: o.ActorUID, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
+	backend := copyfile.Backend{CloneNamespace: fmt.Sprintf("%s:%d:%d", root.Identity.Volume, root.Identity.View, o.Time.UnixNano()), CloneResult: func(value copyfile.CloneResult) { result.Clones = append(result.Clones, value) }, Tree: tree, Time: o.Time, ActorUID: o.ActorUID, Umask: 022, Limits: limits, Apply: plan.apply, Own: plan.own,
 		CreateMetadata: func(ctx context.Context, dst string, kind uint32) (filesystem.Metadata, error) {
 			id, _, err := copyfile.Resolve(ctx, tree, path.Dir(dst), true)
 			if err != nil {
@@ -142,6 +149,8 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 }
 
 type copyPlan struct {
+	cloned  map[uint64]bool
+	synced  map[uint64]bool
 	tree    *edit.Tree
 	changes []Change
 	changed map[string]bool
@@ -206,9 +215,33 @@ func (p *copyPlan) apply(ctx context.Context, change edit.Change) error {
 	}
 	c := Change{Path: change.Path}
 	switch change.Op {
+	case edit.CloneFile:
+		sourceID, canonical, err := copyfile.Resolve(ctx, p.tree, change.Path, false)
+		if err != nil {
+			return err
+		}
+		// A prior ordinary copy can have deferred metadata/attributes. Materialize
+		// them before cloning, and do not rewrite those same streams afterward.
+		if p.changed[canonical] && !p.cloned[sourceID] && !p.synced[sourceID] {
+			if err := p.appendMetadata(ctx, sourceID, canonical); err != nil {
+				return err
+			}
+		}
+		id, _, err := copyfile.Resolve(ctx, p.tree, change.To, false)
+		if err != nil {
+			return err
+		}
+		p.cloned[id] = true
+		c = Change{Operation: "clone", Path: change.Path, Destination: change.To}
 	case edit.CreateDirectory:
 		c.Operation = "mkdir"
 	case edit.CreateFile, edit.ReplaceFileData:
+		id, _, err := copyfile.Resolve(ctx, p.tree, change.Path, false)
+		if err != nil {
+			return err
+		}
+		delete(p.cloned, id)
+		delete(p.synced, id)
 		c.Operation, c.Data = "cp", change.Data
 	case edit.CreateSymlink:
 		c = Change{Operation: "ln", Path: change.Target, Destination: change.Path, Symbolic: true}
@@ -217,6 +250,11 @@ func (p *copyPlan) apply(ctx context.Context, change edit.Change) error {
 	case edit.RemoveEntry:
 		c.Operation = "rm"
 	case edit.SetMetadata, edit.RemoveAttribute:
+		id, _, err := copyfile.Resolve(ctx, p.tree, change.Path, false)
+		if err != nil {
+			return err
+		}
+		delete(p.synced, id)
 		// Final values are coalesced below after directory traversal, so
 		// parent clocks and copied directory metadata cannot overwrite each other.
 		p.changed[change.Path] = true
@@ -261,28 +299,43 @@ func (p *copyPlan) finish(ctx context.Context, report *CopyReport) error {
 			continue
 		}
 		seen[id] = true
-		metadata := node.Metadata
-		metadata.ChangeTime = filesystem.Observation[time.Time]{}
-		c := Change{Operation: "copy-metadata", Path: canonical, Metadata: &metadata, NoFollow: true, Attributes: map[string]block.Source{}}
-		for _, name := range node.AttributesModified {
-			if strings.HasPrefix(name, "com.apple.fs.") {
-				continue
-			}
-			value, err := p.tree.OpenAttribute(ctx, id, name)
-			if errors.Is(err, fs.ErrNotExist) {
-				c.RemoveAttributes = append(c.RemoveAttributes, name)
-				continue
-			}
-			if err != nil {
-				return err
-			}
-			// A tree value may wrap an owned payload. Borrow that immutable
-			// source rather than creating another scratch copy.
-			c.Attributes[name] = value
-			p.values = append(p.values, value)
+		if p.cloned[id] || p.synced[id] {
+			continue
 		}
-		p.changes = append(p.changes, c)
+		if err := p.appendMetadata(ctx, id, canonical); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func (p *copyPlan) appendMetadata(ctx context.Context, id uint64, canonical string) error {
+	node, err := p.tree.Stat(ctx, id)
+	if err != nil {
+		return err
+	}
+	metadata := node.Metadata
+	metadata.ChangeTime = filesystem.Observation[time.Time]{}
+	c := Change{Operation: "copy-metadata", Path: canonical, Metadata: &metadata, NoFollow: true, Attributes: map[string]block.Source{}}
+	for _, name := range node.AttributesModified {
+		if strings.HasPrefix(name, "com.apple.fs.") {
+			continue
+		}
+		value, err := p.tree.OpenAttribute(ctx, id, name)
+		if errors.Is(err, fs.ErrNotExist) {
+			c.RemoveAttributes = append(c.RemoveAttributes, name)
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		// A tree value may wrap an owned payload. Borrow that immutable
+		// source rather than creating another scratch copy.
+		c.Attributes[name] = value
+		p.values = append(p.values, value)
+	}
+	p.changes = append(p.changes, c)
+	p.synced[id] = true
 	return nil
 }
 

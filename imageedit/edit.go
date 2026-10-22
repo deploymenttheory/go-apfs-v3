@@ -43,6 +43,7 @@ type Options struct {
 type Change = filesystem.Change
 
 type Report struct {
+	Clones      []CopyCloneResult              `json:"clones,omitempty"`
 	VolumeID    string                         `json:"volumeId"`
 	Changed     []uint64                       `json:"changed"`
 	FreeBlocks  uint64                         `json:"freeBlocks"`
