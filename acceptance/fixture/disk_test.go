@@ -51,6 +51,51 @@ func TestCreateImageDoesNotRetryOtherFailures(t *testing.T) {
 	}
 }
 
+func TestUnmountPathRetriesOnlyTransientBusySnapshot(t *testing.T) {
+	instantWaits(t)
+	path := "/tmp/fixture-snapshot"
+	busy := Result{Status: 1, Stderr: []byte("umount: Resource busy -- try 'diskutil unmount'")}
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {busy, {Status: 0}}}}
+	d := &HostDisk{C: cmd, T: &Transcript{}}
+	if err := d.UnmountPath(context.Background(), path); err != nil {
+		t.Fatal(err)
+	}
+	if len(cmd.calls) != 2 || len(d.T.Commands) != 3 ||
+		d.T.Commands[0].Status != "1" ||
+		d.T.Commands[1].Label != "wait:snapshot-unmount-busy" ||
+		d.T.Commands[2].Status != "0" {
+		t.Fatalf("busy unmount attempts were not retained: calls=%v transcript=%+v", cmd.calls, d.T.Commands)
+	}
+}
+
+func TestUnmountPathStopsAtNonBusyFailure(t *testing.T) {
+	instantWaits(t)
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {
+		{Status: 1, Stderr: []byte("umount: permission denied")}, {Status: 0},
+	}}}
+	d := &HostDisk{C: cmd, T: &Transcript{}}
+	if err := d.UnmountPath(context.Background(), "/tmp/fixture-snapshot"); err == nil ||
+		len(cmd.calls) != 1 {
+		t.Fatalf("non-busy unmount should fail once: %v, calls=%v", err, cmd.calls)
+	}
+}
+
+func TestUnmountPathStopsAfterBusyBudget(t *testing.T) {
+	instantWaits(t)
+	busy := Result{Status: 1, Stderr: []byte("umount: Resource busy")}
+	queue := make([]Result, BusyWait.Attempts)
+	for i := range queue {
+		queue[i] = busy
+	}
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": queue}}
+	d := &HostDisk{C: cmd, T: &Transcript{}}
+	err := d.UnmountPath(context.Background(), "/tmp/fixture-snapshot")
+	if err == nil || !strings.Contains(err.Error(), "Resource busy") ||
+		len(cmd.calls) != BusyWait.Attempts {
+		t.Fatalf("busy unmount exceeded its retry budget: %v, calls=%v", err, cmd.calls)
+	}
+}
+
 func TestWholeDiskIsTheImagesPartitionedDisk(t *testing.T) {
 	gpt, store := "GUID_partition_scheme", "EF57347C-0000-11AA-AA11-00306543ECAC"
 	for _, tc := range []struct {

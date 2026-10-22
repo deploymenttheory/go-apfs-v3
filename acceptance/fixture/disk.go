@@ -591,8 +591,20 @@ func (d *HostDisk) MountSnapshot(ctx context.Context, name, mount, pin string) e
 }
 
 func (d *HostDisk) UnmountPath(ctx context.Context, path string) error {
-	_, err := d.run(ctx, "umount", false, nil, "/sbin/umount", path)
-	return err
+	// Snapshot readers may release their last vnode just after observation
+	// closes it. Retry only the transient busy outcome; every attempt and wait
+	// remains in the native transcript.
+	return Settle(ctx, d.T, "snapshot-unmount-busy", BusyWait, func() (bool, string, error) {
+		_, err := d.run(ctx, "umount", false, nil, "/sbin/umount", path)
+		switch {
+		case err == nil:
+			return true, "", nil
+		case strings.Contains(err.Error(), "Resource busy"):
+			return false, err.Error(), nil
+		default:
+			return false, "", err
+		}
+	})
 }
 
 func (d *HostDisk) Verify(ctx context.Context, image string, password []byte) error {
