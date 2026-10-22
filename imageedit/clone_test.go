@@ -1,0 +1,192 @@
+package imageedit_test
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"errors"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
+	"github.com/deploymenttheory/go-apfs-v3/hfsplus"
+	"github.com/deploymenttheory/go-apfs-v3/imageedit"
+)
+
+func cloneImageReader(t *testing.T, name, kind string) filesystem.Reader {
+	t.Helper()
+	image, err := diskimage.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := image.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	part, err := image.Partition(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kind == "APFS" || kind == "APFSX" {
+		c, err := apfs.Open(part)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &c.Volumes[0]
+	}
+	v, err := hfsplus.Open(part)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func cloneImageValue(t *testing.T, r filesystem.Reader, p, attribute string) []byte {
+	t.Helper()
+	ctx := context.Background()
+	id, err := filesystem.Lookup(ctx, r, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var value filesystem.Value
+	if attribute == "" {
+		value, err = r.OpenData(ctx, id)
+	} else {
+		value, err = r.OpenAttribute(ctx, id, attribute)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(io.NewSectionReader(value, 0, value.Size()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := value.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func TestImageCloneCopyReportsStorageChoiceAndReplacesOnlyNamedDestination(t *testing.T) {
+	ctx := context.Background()
+	for _, kind := range []string{"APFS", "APFSX", "HFS+", "HFSX"} {
+		t.Run(kind, func(t *testing.T) {
+			source := fixture(t, kind)
+			prepared := filepath.Join(t.TempDir(), "prepared.dmg")
+			_, err := imageedit.Apply(ctx, source, prepared, imageedit.Options{Time: clock, ActorUID: filesystem.Observed(uint32(0))}, []imageedit.Change{{Path: "/file", ResourceFork: true, Data: bytes.NewReader([]byte("source fork"))}, {Operation: "xattr", Path: "/file", Attribute: "org.go-apfs.attr", Data: bytes.NewReader(bytes.Repeat([]byte("attribute"), 600))}, {Path: "/target", Data: bytes.NewReader([]byte("old destination"))}, {Operation: "ln", Path: "/target", Destination: "/old-alias"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(prepared)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, format := range []string{"UDRO", "UDZO"} {
+				t.Run(format, func(t *testing.T) {
+					output := filepath.Join(t.TempDir(), "cloned.dmg")
+					report, err := imageedit.Copy(ctx, prepared, output, imageedit.Options{Time: clock, Format: format, ActorUID: filesystem.Observed(uint32(0))}, []string{"/file"}, "/target", imageedit.CopyOptions{Clone: true, Preserve: true})
+					if err != nil {
+						t.Fatal(err)
+					}
+					cloned := kind == "APFS" || kind == "APFSX"
+					if len(report.Clones) != 1 || report.Clones[0].Cloned != cloned || (report.Clones[0].Fallback != "") == cloned {
+						t.Fatal("copy storage choice was not reported", report.Clones)
+					}
+					r := cloneImageReader(t, output, kind)
+					fileID, _ := filesystem.Lookup(ctx, r, "/file")
+					targetID, _ := filesystem.Lookup(ctx, r, "/target")
+					oldID, _ := filesystem.Lookup(ctx, r, "/old-alias")
+					if fileID == targetID || targetID == oldID || fileID == 0 || targetID == 0 || oldID == 0 {
+						t.Fatal("clone/fallback reused source or overwritten hardlink inode")
+					}
+					if got := cloneImageValue(t, r, "/target", ""); string(got) != "existing" {
+						t.Fatal(string(got))
+					}
+					if got := cloneImageValue(t, r, "/old-alias", ""); string(got) != "old destination" {
+						t.Fatal("copy altered another destination hardlink", string(got))
+					}
+					if got := cloneImageValue(t, r, "/target", filesystem.ResourceFork); string(got) != "source fork" {
+						t.Fatal("fork", string(got))
+					}
+					if got := cloneImageValue(t, r, "/target", "org.go-apfs.attr"); !bytes.Equal(got, bytes.Repeat([]byte("attribute"), 600)) {
+						t.Fatal("attribute mismatch")
+					}
+					after, err := os.ReadFile(prepared)
+					if err != nil || sha256.Sum256(after) != sha256.Sum256(before) {
+						t.Fatal("copy changed original image", err)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestImageCloneCopyFailuresPublishNothingAndPreserveSource(t *testing.T) {
+	ctx := context.Background()
+	base := fixture(t, "APFS")
+	source := filepath.Join(t.TempDir(), "source.dmg")
+	if _, err := imageedit.Apply(ctx, base, source, imageedit.Options{Time: clock}, []imageedit.Change{{Path: "/occupied", Data: bytes.NewReader([]byte("keep destination"))}}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, to string
+		options  imageedit.CopyOptions
+		want     error
+	}{
+		{"self", "/file", imageedit.CopyOptions{Clone: true}, filesystem.ErrConflict},
+		{"no-clobber", "/occupied", imageedit.CopyOptions{Clone: true, NoClobber: true}, fs.ErrExist},
+		{"no-attributes", "/new", imageedit.CopyOptions{Clone: true, NoAttributes: true}, fs.ErrInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "absent.dmg")
+			_, err := imageedit.Copy(ctx, source, out, imageedit.Options{Time: clock}, []string{"/file"}, tc.to, tc.options)
+			if !errors.Is(err, tc.want) {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(out); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal("failed clone published output", err)
+			}
+		})
+	}
+	after, err := os.ReadFile(source)
+	if err != nil || !bytes.Equal(after, before) {
+		t.Fatal("failed clone changed original", err)
+	}
+}
+
+func TestOrderedCopyBatchMaterializesSourceAttributesBeforeCloning(t *testing.T) {
+	ctx := context.Background()
+	base := fixture(t, "APFS")
+	source := filepath.Join(t.TempDir(), "source.dmg")
+	if _, err := imageedit.Apply(ctx, base, source, imageedit.Options{Time: clock}, []imageedit.Change{{Path: "/file", ResourceFork: true, Data: bytes.NewReader([]byte("pending copied fork"))}, {Operation: "xattr", Path: "/file", Attribute: "org.go-apfs.pending", Data: bytes.NewReader([]byte("pending copied attribute"))}}); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "batch.dmg")
+	report, err := imageedit.CopyBatch(ctx, source, output, imageedit.Options{Time: clock}, []imageedit.CopyCommand{{Sources: []string{"/file"}, Destination: "/copied", Options: imageedit.CopyOptions{Preserve: true}}, {Sources: []string{"/copied"}, Destination: "/cloned", Options: imageedit.CopyOptions{Clone: true}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Clones) != 1 || !report.Clones[0].Cloned {
+		t.Fatal(report.Clones)
+	}
+	r := cloneImageReader(t, output, "APFS")
+	if got := cloneImageValue(t, r, "/cloned", ""); string(got) != "existing" {
+		t.Fatal(string(got))
+	}
+	if got := cloneImageValue(t, r, "/cloned", filesystem.ResourceFork); string(got) != "pending copied fork" {
+		t.Fatal("clone preceded source fork materialization", string(got))
+	}
+	if got := cloneImageValue(t, r, "/cloned", "org.go-apfs.pending"); string(got) != "pending copied attribute" {
+		t.Fatal("clone preceded source attribute materialization", string(got))
+	}
+}

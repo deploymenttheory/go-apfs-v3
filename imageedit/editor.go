@@ -53,6 +53,7 @@ func (e *Editor) ready() error {
 }
 
 func (e *Editor) collect(r Report) {
+	e.report.Clones = append(e.report.Clones, r.Clones...)
 	e.report.VolumeID, e.report.FreeBlocks, e.report.Transaction = r.VolumeID, r.FreeBlocks, r.Transaction
 	e.report.Changed = append(e.report.Changed, r.Changed...)
 }
