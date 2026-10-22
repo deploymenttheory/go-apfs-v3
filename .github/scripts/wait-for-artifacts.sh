@@ -7,7 +7,7 @@
 set -euo pipefail
 prefix=$1
 shift
-deadline=$((SECONDS + 2400))
+deadline=$((SECONDS + 3600))
 api="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 while :; do
   names=" $(gh api "$api/artifacts?per_page=100" --jq '[.artifacts[].name] | join(" ")') "
@@ -27,7 +27,7 @@ while :; do
     exit 1
   fi
   if [ "$SECONDS" -ge "$deadline" ]; then
-    echo "::error::${missing[*]} did not appear within 40 minutes"
+    echo "::error::${missing[*]} did not appear within 60 minutes"
     exit 1
   fi
   sleep 20
