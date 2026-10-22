@@ -85,8 +85,9 @@ func (v *MemoryVolume) charge(delta int64) error {
 	return nil
 }
 
-// forkPath splits a ..namedfork/rsrc suffix.
+// forkPath splits a host-native ..namedfork/rsrc suffix.
 func forkPath(p string) (string, bool) {
+	p = filepath.ToSlash(p)
 	if strings.HasSuffix(p, "/..namedfork/rsrc") {
 		return strings.TrimSuffix(p, "/..namedfork/rsrc"), true
 	}
