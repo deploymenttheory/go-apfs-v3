@@ -2,6 +2,7 @@ package imageedit
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
@@ -25,7 +26,8 @@ type Editor struct {
 // nor a failed callback publish any intermediate output.
 func Edit(ctx context.Context, source, destination string, options Options, commands func(*Editor) error) (report Report, err error) {
 	defer func() {
-		if err != nil {
+		var published *filesystem.PublishedOutputError
+		if err != nil && !errors.As(err, &published) {
 			report.Clones = nil
 		}
 	}()
