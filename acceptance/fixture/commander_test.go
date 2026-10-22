@@ -72,3 +72,33 @@ func TestTranscriptBoundsAPFSInventoryTextWithoutChangingDigests(t *testing.T) {
 		})
 	}
 }
+
+func TestTranscriptRetainsBoundedImageOwnershipInventories(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		argv []string
+		data []byte
+		keep bool
+	}{
+		{"large-native-inventory", []string{"hdiutil", "info", "-plist"}, bytes.Repeat([]byte("x"), 17<<10), true},
+		{"absolute-program", []string{"/usr/bin/hdiutil", "info", "-plist"}, bytes.Repeat([]byte("x"), 17<<10), true},
+		{"ordinary-command", []string{"hdiutil", "imageinfo", "-plist"}, bytes.Repeat([]byte("x"), 17<<10), false},
+		{"extra-argument", []string{"hdiutil", "info", "-plist", "other"}, bytes.Repeat([]byte("x"), 17<<10), false},
+		{"exact-bound", []string{"hdiutil", "info", "-plist"}, bytes.Repeat([]byte("x"), 8<<20), true},
+		{"oversized", []string{"hdiutil", "info", "-plist"}, bytes.Repeat([]byte("x"), (8<<20)+1), false},
+		{"invalid-utf8", []string{"hdiutil", "info", "-plist"}, append(bytes.Repeat([]byte("x"), 17<<10), 0xff), false},
+		{"binary-nul", []string{"hdiutil", "info", "-plist"}, append(bytes.Repeat([]byte("x"), 17<<10), 0), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var transcript Transcript
+			if err := transcript.Record(Command{Argv: tc.argv, Expected: "0"}, Result{Stdout: tc.data}); err != nil {
+				t.Fatal(err)
+			}
+			entry := transcript.Commands[0]
+			sum := sha256.Sum256(tc.data)
+			if entry.StdoutSHA256 != fmt.Sprintf("%x", sum) || (entry.StdoutText != "") != tc.keep || tc.keep && entry.StdoutText != string(tc.data) {
+				t.Fatal("image ownership inventory lost bounded text or its original digest")
+			}
+		})
+	}
+}

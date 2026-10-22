@@ -139,6 +139,9 @@ func (t *Transcript) Record(cmd Command, result Result) error {
 	if isAPFSListPlist(cmd.Argv) {
 		stdoutLimit = retainedAPFSListingTextLimit
 	}
+	if isImageInventoryPlist(cmd.Argv) {
+		stdoutLimit = retainedImageInventoryTextLimit
+	}
 	entry.StdoutSHA256, entry.StdoutText = digestAndTextLimit(result.Stdout, stdoutLimit)
 	entry.StderrSHA256, entry.StderrText = digestAndText(result.Stderr)
 	t.Commands = append(t.Commands, entry)
@@ -191,6 +194,14 @@ const retainedTextLimit = 16 << 10
 // verdict evidence after the command returns. Keep their complete bounded text;
 // truncation would leave a digest that no inventory reader could interpret.
 const retainedAPFSListingTextLimit = 8 << 20
+
+// Busy-detach ownership evidence must remain interpretable even when parallel
+// native lanes make hdiutil's global image inventory larger than ordinary logs.
+const retainedImageInventoryTextLimit = 8 << 20
+
+func isImageInventoryPlist(argv []string) bool {
+	return len(argv) == 3 && filepath.Base(argv[0]) == "hdiutil" && argv[1] == "info" && argv[2] == "-plist"
+}
 
 func isAPFSListPlist(argv []string) bool {
 	return (len(argv) == 4 || len(argv) == 5) && filepath.Base(argv[0]) == "diskutil" && argv[1] == "apfs" && argv[2] == "list" && argv[3] == "-plist"
