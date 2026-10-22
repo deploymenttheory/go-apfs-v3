@@ -73,12 +73,30 @@ func ProjectEditedViewClocks(source, target schema.View, steps []schema.Step, pr
 			}
 		case step.Tool != nil && step.FS == nil && step.Host == nil && step.Control == nil:
 			command := step.Tool
-			if command.Program != "cp" || len(command.Args) != 3 || len(command.Stdin) != 0 || command.StdinBytes != "" {
+			if command.Program == "dd" && index > 0 && steps[index-1].Host != nil {
+				var write schema.FSStep
+				write, err = CloneCopyWriteStep(*steps[index-1].Host, *command)
+				if err == nil {
+					rel, _ := editedClockPath(write.Path)
+					rel = strings.TrimSuffix(rel, "/..namedfork/rsrc")
+					if node := state.paths[rel]; node == nil || node.kind != "file" {
+						err = fmt.Errorf("clone-copy native write lacks an existing regular inode")
+					} else {
+						err = state.apply(write)
+					}
+				}
+			} else if command.Program != "cp" || len(command.Args) != 3 || len(command.Stdin) != 0 || command.StdinBytes != "" {
 				err = fmt.Errorf("unqualified edited clock tool command")
 			} else if command.Args[0] == "-a" && command.Expect == "0" {
 				err = state.archive(command.Args[1], command.Args[2])
 			} else {
 				err = state.cloneCopy(*command)
+			}
+		case step.Host != nil && step.FS == nil && step.Tool == nil && step.Control == nil:
+			if index+1 >= len(steps) || steps[index+1].Tool == nil || !slices.Equal(step.Only, steps[index+1].Only) {
+				err = fmt.Errorf("clone-copy staged payload lacks its immediately following native write")
+			} else {
+				_, err = CloneCopyWriteStep(*step.Host, *steps[index+1].Tool)
 			}
 		default:
 			err = fmt.Errorf("unqualified edited clock step")

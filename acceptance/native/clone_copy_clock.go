@@ -20,6 +20,24 @@ func CloneCopyReference(before, after schema.View, steps []schema.Step, profile 
 	return ProjectEditedViewClocks(before, after, steps, profile, clockNS)
 }
 
+// CloneCopyWriteStep binds one generated staging payload to the immediately
+// following privileged native dd. Both generators use the same deterministic
+// sequence, byte length and label; dd truncates the existing data/fork stream.
+// It changes neither the inode identity nor ownership, mode or ACL policy.
+func CloneCopyWriteStep(host schema.HostStep, tool schema.ToolStep) (schema.FSStep, error) {
+	if host.Path == "" || path.Clean(host.Path) != host.Path || strings.HasPrefix(host.Path, "/") || host.Path == "." || host.Path == ".." || strings.HasPrefix(host.Path, "../") || host.Pattern != "sequence" || host.Bytes < 1 || host.Bytes > 1<<20 || host.Label == "" || host.Seed != 0 || host.Content != "" || host.Payload != "" || host.Count != 0 || host.Prefix != "" || host.Mode != 0 {
+		return schema.FSStep{}, fmt.Errorf("unqualified clone-copy staging payload")
+	}
+	if tool.Program != "dd" || !tool.Sudo || tool.Expect != "0" || len(tool.Args) != 3 || tool.Args[0] != "if=$STAGE/"+host.Path || !strings.HasPrefix(tool.Args[1], "of=$MOUNT/") || tool.Args[2] != "bs=131072" || len(tool.Stdin) != 0 || tool.StdinBytes != "" {
+		return schema.FSStep{}, fmt.Errorf("unqualified clone-copy privileged truncate/write")
+	}
+	destination := strings.TrimPrefix(tool.Args[1], "of=")
+	if _, err := editedClockPath(destination); err != nil {
+		return schema.FSStep{}, err
+	}
+	return schema.FSStep{Op: "write", Path: destination, Bytes: host.Bytes, Pattern: host.Pattern, Label: host.Label}, nil
+}
+
 func (s *editedClockState) resolveCloneSource(name string) (string, error) {
 	for range 32 {
 		node := s.paths[name]

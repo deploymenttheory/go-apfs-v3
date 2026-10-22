@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
@@ -115,6 +116,68 @@ func TestRejectedCloneCommandsPreserveEveryClockAndRequireProvenRefusals(t *test
 	for _, invalid := range []schema.Step{cloneClockTool("-cn", "Fixture/file", "Fixture/missing", "1"), cloneClockTool("-c", "Fixture/file", "Fixture/occupied", "1"), cloneClockTool("-cR", "Fixture/file", "Fixture/new", "0"), cloneClockTool("-cX", "Fixture/file", "Fixture/new", "0")} {
 		if _, err := CloneCopyReference(before, before, []schema.Step{invalid}, "apfs", editedTestClock); err == nil {
 			t.Fatal("unproved clone command accepted", invalid.Tool)
+		}
+	}
+}
+
+func TestPrivilegedCloneCopyWritesRetainInodesOwnershipAndAliasClocks(t *testing.T) {
+	before := schema.View{Entries: []schema.Entry{editedClockEntry("Fixture", "dir", 1), editedClockEntry("Fixture/clone", "file", 2), editedClockEntry("Fixture/alias", "file", 2), editedClockEntry("Fixture/untouched", "file", 3)}}
+	before.Entries[1].UID, before.Entries[2].UID = 0, 0
+	before.Entries[1].Mode, before.Entries[2].Mode = 0740, 0740
+	before.Entries[1].ACL, before.Entries[2].ACL = "native-inherited-read-only", "native-inherited-read-only"
+	host := schema.HostStep{Path: "clone-data.payload", Pattern: "sequence", Bytes: 65537, Label: "private-clone-data"}
+	tool := schema.ToolStep{Program: "dd", Args: []string{"if=$STAGE/clone-data.payload", "of=$MOUNT/Fixture/clone", "bs=131072"}, Sudo: true, Expect: "0"}
+	for _, fork := range []bool{false, true} {
+		if fork {
+			tool.Args[1] += "/..namedfork/rsrc"
+		}
+		steps := []schema.Step{{Host: &host}, {Tool: &tool}}
+		got, err := CloneCopyReference(before, before, steps, "hfsplus", editedTestClock)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, entry := range got.Entries {
+			want := before.Entries[i]
+			if i == 1 || i == 2 {
+				want.Times.Modify, want.Times.Change = editedTestClock, editedTestClock
+			}
+			if !reflect.DeepEqual(entry, want) {
+				t.Fatal("privileged truncate/write changed inode policy or missed aliases", fork, entry, want)
+			}
+		}
+		write, err := CloneCopyWriteStep(host, tool)
+		if err != nil || write.Pattern != "sequence" || write.Bytes != 65537 || write.Label != "private-clone-data" || write.Path != strings.TrimPrefix(tool.Args[1], "of=") {
+			t.Fatal("staged native payload differs from portable generator", err, write)
+		}
+	}
+}
+
+func TestCloneCopyWritesRejectUnpairedOrChangedNativeProcedure(t *testing.T) {
+	host := schema.HostStep{Path: "payload", Pattern: "sequence", Bytes: 10, Label: "same-native-bytes"}
+	tool := schema.ToolStep{Program: "dd", Args: []string{"if=$STAGE/payload", "of=$MOUNT/Fixture/clone", "bs=131072"}, Sudo: true, Expect: "0"}
+	for name, mutate := range map[string]func(*schema.HostStep, *schema.ToolStep){
+		"unprivileged":              func(_ *schema.HostStep, tool *schema.ToolStep) { tool.Sudo = false },
+		"different input":           func(_ *schema.HostStep, tool *schema.ToolStep) { tool.Args[0] = "if=$STAGE/other" },
+		"nontruncating write":       func(_ *schema.HostStep, tool *schema.ToolStep) { tool.Args = append(tool.Args, "conv=notrunc") },
+		"escaping output":           func(_ *schema.HostStep, tool *schema.ToolStep) { tool.Args[1] = "of=$MOUNT/../other" },
+		"escaping host path":        func(host *schema.HostStep, _ *schema.ToolStep) { host.Path = "../payload" },
+		"unbounded payload":         func(host *schema.HostStep, _ *schema.ToolStep) { host.Bytes = 1<<20 + 1 },
+		"different generator":       func(host *schema.HostStep, _ *schema.ToolStep) { host.Pattern = "zeros" },
+		"input stream substitution": func(_ *schema.HostStep, tool *schema.ToolStep) { tool.StdinBytes = "other" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			h, command := host, tool
+			command.Args = slices.Clone(tool.Args)
+			mutate(&h, &command)
+			if _, err := CloneCopyWriteStep(h, command); err == nil {
+				t.Fatal("changed native staging/write contract accepted")
+			}
+		})
+	}
+	before := schema.View{Entries: []schema.Entry{editedClockEntry("Fixture", "dir", 1), editedClockEntry("Fixture/clone", "file", 2)}}
+	for _, steps := range [][]schema.Step{{{Host: &host}}, {{Tool: &tool}}, {{Host: &host}, editedClockStep("chmod", "Fixture/clone"), {Tool: &tool}}} {
+		if _, err := CloneCopyReference(before, before, steps, "apfs", editedTestClock); err == nil {
+			t.Fatal("unpaired native write contract accepted")
 		}
 	}
 }

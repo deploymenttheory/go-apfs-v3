@@ -102,11 +102,30 @@ func TestCloneCopyEditsMatchAppleStates(t *testing.T) {
 
 func cloneCopyStage(ctx context.Context, source, destination string, options imageedit.Options, stage schema.Stage, profile string) (imageedit.Report, error) {
 	return imageedit.Edit(ctx, source, destination, options, func(editor *imageedit.Editor) error {
-		for _, step := range stage.Steps {
+		for index, step := range stage.Steps {
 			if len(step.Only) != 0 && !slices.Contains(step.Only, profile) {
 				continue
 			}
-			if step.Tool != nil {
+			if step.Host != nil {
+				if index+1 >= len(stage.Steps) || stage.Steps[index+1].Tool == nil {
+					return fmt.Errorf("clone-copy payload lacks native write")
+				}
+				if _, err := native.CloneCopyWriteStep(*step.Host, *stage.Steps[index+1].Tool); err != nil {
+					return err
+				}
+				continue
+			}
+			fsStep := step.FS
+			if step.Tool != nil && step.Tool.Program == "dd" {
+				if index == 0 || stage.Steps[index-1].Host == nil {
+					return fmt.Errorf("clone-copy native write lacks payload")
+				}
+				write, err := native.CloneCopyWriteStep(*stage.Steps[index-1].Host, *step.Tool)
+				if err != nil {
+					return err
+				}
+				fsStep = &write
+			} else if step.Tool != nil {
 				tool := step.Tool
 				if tool.Program != "cp" || len(tool.Args) != 3 {
 					return fmt.Errorf("unqualified clone-copy tool")
@@ -119,12 +138,14 @@ func cloneCopyStage(ctx context.Context, source, destination string, options ima
 				if err != nil {
 					return err
 				}
-			} else if step.FS != nil {
-				if step.FS.Expect != "" && step.FS.Expect != "0" {
+				continue
+			}
+			if fsStep != nil {
+				if fsStep.Expect != "" && fsStep.Expect != "0" {
 					continue
 				}
 				touched := &touchedPaths{paths: map[string]bool{}, pinnedModify: map[string]bool{}}
-				_, changes, err := translateFSStep(step.FS, touched)
+				_, changes, err := translateFSStep(fsStep, touched)
 				if err != nil {
 					return err
 				}
