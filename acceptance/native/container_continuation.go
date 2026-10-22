@@ -72,9 +72,10 @@ func (v *Verifier) containerPressure(ctx context.Context, att *fixture.Attachmen
 		return fmt.Errorf("quota on volume %q: %w", limited.Name, err)
 	}
 	// The unreserved peer must run out before consuming the reserved
-	// allocation. Keep the pressure file until the reserved write is synced.
+	// allocation. Keep every pressure file until the reserved write is synced.
 	pressure := filepath.Join(empty.Mount, "container-continuation", "pressure")
-	if err := v.fillVolume(ctx, pressure, 256<<20); err != nil {
+	files, err := v.fillUnreservedPressure(ctx, pressure)
+	if err != nil {
 		return fmt.Errorf("reservation pressure on volume %q: %w", empty.Name, err)
 	}
 	proof := filepath.Join(reserved.Mount, filepath.FromSlash(reservationProofPath))
@@ -88,7 +89,7 @@ func (v *Verifier) containerPressure(ctx context.Context, att *fixture.Attachmen
 	if err := v.checkReservedAllocation(reserved, data); err != nil {
 		return err
 	}
-	if err := v.releasePressure(pressure); err != nil {
+	if err := v.releaseUnreservedPressure(pressure, files); err != nil {
 		return fmt.Errorf("volume %q release reservation pressure: %w", empty.Name, err)
 	}
 	// The proof persists through remount, peer writes, the Go edit and final

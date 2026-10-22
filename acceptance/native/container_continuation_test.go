@@ -132,6 +132,13 @@ type pressureProtocolVolume struct {
 	remountedProofChecked         bool
 	remountedPressureChecked      map[string]bool
 	peerWrites                    int
+	pressureOutcome               string
+	pressureAttempts              int
+	unlinkedPressure              []string
+}
+
+func unreservedPressureFile(filename string) bool {
+	return strings.HasPrefix(filename, filepath.Join("/container", "Fresh Empty", "container-continuation", "pressure")+string(filepath.Separator))
 }
 
 func (v *pressureProtocolVolume) fault(operation, filename string) error {
@@ -145,6 +152,21 @@ func (v *pressureProtocolVolume) fault(operation, filename string) error {
 func (v *pressureProtocolVolume) WriteFile(filename string, data []byte, exclusive bool) error {
 	if err := v.fault("write", filename); err != nil {
 		return err
+	}
+	if unreservedPressureFile(filename) {
+		if !exclusive || len(data) != unreservedPressureChunk {
+			return fmt.Errorf("pressure did not use independent exclusive 512 KiB files")
+		}
+		v.pressureAttempts++
+		if v.pressureAttempts == 3 && v.pressureOutcome != "sync" {
+			v.pressureReached = true
+			if v.pressureOutcome == "partial" {
+				if err := v.Volume.WriteFile(filename, data[:len(data)/2], true); err != nil {
+					return err
+				}
+			}
+			return syscall.ENOSPC
+		}
 	}
 	if filepath.Base(filename) == "reservation-proof" && !v.pressureReached {
 		return fmt.Errorf("reserved allocation was tested before unreserved exhaustion")
@@ -177,6 +199,9 @@ func (v *pressureProtocolVolume) WriteFile(filename string, data []byte, exclusi
 }
 
 func (v *pressureProtocolVolume) AppendFile(filename string, data []byte) error {
+	if unreservedPressureFile(filename) {
+		return fmt.Errorf("unreserved pressure appended to an existing file")
+	}
 	stat, err := v.Volume.Lstat(filename)
 	if err != nil {
 		return err
@@ -187,16 +212,14 @@ func (v *pressureProtocolVolume) AppendFile(filename string, data []byte) error 
 			v.quotaReached = true
 			return syscall.EDQUOT
 		}
-	case "Fresh Empty":
-		if stat.Size >= 1<<20 {
-			v.pressureReached = true
-			return syscall.ENOSPC
-		}
 	}
 	return v.Volume.AppendFile(filename, data)
 }
 
 func (v *pressureProtocolVolume) Truncate(filename string, size int64) error {
+	if unreservedPressureFile(filename) {
+		return fmt.Errorf("unreserved pressure introduced a truncate-to-zero transition")
+	}
 	if err := v.fault("truncate", filename); err != nil {
 		return err
 	}
@@ -213,6 +236,10 @@ func (v *pressureProtocolVolume) Truncate(filename string, size int64) error {
 }
 
 func (v *pressureProtocolVolume) Fullfsync(filename string) error {
+	if unreservedPressureFile(filename) && filepath.Base(filename) == "00002" && v.pressureOutcome == "sync" {
+		v.pressureReached = true
+		return syscall.ENOSPC
+	}
 	if v.pending[filename] {
 		// Native APFS can increase the unused reservation before the old
 		// proof's checkpoint-protected blocks have retired. Its cleanup sync
@@ -249,7 +276,17 @@ func (v *pressureProtocolVolume) Remove(filename string) error {
 	if strings.Contains(filename, "Fresh Empty") && !v.protectedSynced {
 		return fmt.Errorf("unreserved pressure was removed before the protected write committed")
 	}
+	if unreservedPressureFile(filename) {
+		v.unlinkedPressure = append(v.unlinkedPressure, filename)
+	}
 	return v.Volume.Remove(filename)
+}
+
+func (v *pressureProtocolVolume) Rmdir(filename string) error {
+	if err := v.fault("rmdir", filename); err != nil {
+		return err
+	}
+	return v.Volume.Rmdir(filename)
 }
 
 func (v *pressureProtocolVolume) Lstat(filename string) (fixture.Stat, error) {
@@ -330,9 +367,10 @@ func TestContainerPressureReportsFailedOperationsWithoutRetries(t *testing.T) {
 		{"quota-release", "release-sync", "Limited", "pressure", "quota on volume"},
 		{"reservation-write", "write", "Reserved", "reservation-proof", "write protected allocation"},
 		{"reservation-sync", "sync", "Reserved", "reservation-proof", "sync protected allocation"},
-		{"pressure-truncate", "truncate", "Fresh Empty", "pressure", "release reservation pressure"},
-		{"pressure-release", "release-sync", "Fresh Empty", "pressure", "sync released pressure"},
-		{"pressure-unlink", "unlink", "Fresh Empty", "pressure", "unlink released pressure"},
+		{"pressure-write", "write", "Fresh Empty", "pressure/00001", "write pressure file"},
+		{"pressure-sync", "sync", "Fresh Empty", "pressure/00001", "sync pressure file"},
+		{"pressure-unlink", "unlink", "Fresh Empty", "pressure/00000", "unlink pressure file"},
+		{"pressure-directory", "rmdir", "Fresh Empty", "pressure", "remove pressure directory"},
 		{"peer-write", "write", "Limited", "peer", "write peer"},
 		{"peer-sync", "sync", "Reserved", "peer", "sync peer"},
 	} {
@@ -364,6 +402,9 @@ func TestContainerPressureRequiresAllocatedProofAndExactPeerContents(t *testing.
 			}
 			if _, err := v.containerWrites(context.Background(), att, out, "writable.raw"); err == nil {
 				t.Fatal("allocation or readback corruption passed the native protocol")
+			}
+			if (change == "unallocated proof" || change == "reservation-proof") && len(volume.unlinkedPressure) != 0 {
+				t.Fatal("pressure was released before protected proof hash and physical allocation verification")
 			}
 		})
 	}
