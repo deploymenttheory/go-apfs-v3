@@ -316,14 +316,12 @@ decrypt to the same device, then judges each output:
 
 The constructed container's continuation independently writes every peer,
 exhausts the limited volume's quota, reuses released quota, fills an unreserved
-peer and proves the reserved volume remains writable. Its synced, hashed and
-physically allocated proof remains present through the Go edit and final native
-allocation; both complete readbacks require its preservation. Unreserved pressure
-is truncated, synced and unlinked before a required clean unmount, checker and
-remount of the same writable disk. The complete volume identities, absence of pressure files
-and retained proof are checked again before normal continuation writes. This
-fixed phase boundary does not retry a failed write or claim that APFS has no
-pending frees; subsequent native allocations must succeed. The System/Data output
+peer and proves the reserved volume remains writable. After syncing the reserved
+proof, it truncates and removes the unreserved pressure file, deletes the proof,
+then writes and syncs distinct contents on every peer in the same mount session.
+Subsequent native bulk writes, clean unmount, filesystem checks, the Go edit and
+final native allocation must all succeed. Pressure failures remain acceptance
+failures; alternative cleanup sequences do not qualify this behavior. The System/Data output
 requires native bulk allocation on System and checker acceptance. Go currently
 refuses mutation of any role-bearing volume; that exact refusal must leave its
 input unchanged and publish no destination. It is recorded explicitly rather

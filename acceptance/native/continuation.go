@@ -103,20 +103,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, fmt.Errorf("continuation %s: volume %s is not mounted", out.Name, volume.Name)
 	}
 	if out.Expect.Container != nil {
-		name, uuid := volume.Name, volume.UUID
-		att, err = v.containerWrites(ctx, att, out, raw)
-		if err != nil {
-			if att != nil {
-				_ = v.Disk.Detach(ctx, att)
-			}
-			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
-		}
-		// A pressure boundary creates fresh device and volume objects. Keep
-		// the selected identity while using only the new attachment thereafter.
-		volume = att.Volume(name)
-		if volume == nil || volume.UUID != uuid || volume.Mount == "" {
+		if err := v.containerWrites(ctx, att, out); err != nil {
 			_ = v.Disk.Detach(ctx, att)
-			return nil, fmt.Errorf("continuation %s: selected volume %q (%s) changed across container writes", out.Name, name, uuid)
+			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
 		}
 	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {

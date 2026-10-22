@@ -210,6 +210,13 @@ uses zlib compression; `UDRO` uses raw chunks. Both represent zero chunks withou
 storing their bytes and include data, block and master CRC32 checksums. Compression
 of the DMG envelope is independent of compression of files inside the volume.
 
+APFS checkpoint data and descriptor areas reserve capacity for four checkpoint
+generations, including growth of the declared free queues and per-volume
+ephemeral structures. This lets ordinary deletion and subsequent allocation
+publish larger checkpoints without exhausting metadata space while file-data
+capacity remains free. The growth allowance is builder policy; native continued
+allocation remains a separate acceptance requirement.
+
 Names use the pinned native comparison rules: APFS retains spelling and compares
 with normalization, while HFS uses its frozen decomposition. Case policy belongs
 to the source session. Data,
