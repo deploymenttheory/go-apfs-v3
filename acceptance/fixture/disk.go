@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -120,7 +119,10 @@ func (d *HostDisk) run(ctx context.Context, label string, sudo bool, stdin []byt
 func (d *HostDisk) plist(ctx context.Context, data []byte) (map[string]any, error) {
 	cmd := Command{Label: "plutil", Argv: []string{"plutil", "-convert", "json", "-o", "-", "-"}, Stdin: data, Expected: "0"}
 	result := d.C.Run(ctx, cmd)
-	if result.Err != nil || result.Status != 0 {
+	if result.Err != nil {
+		return nil, fmt.Errorf("plutil: %w", result.Err)
+	}
+	if result.Status != 0 {
 		return nil, fmt.Errorf("plutil: %s", strings.TrimSpace(string(result.Stderr)))
 	}
 	var out map[string]any
@@ -401,60 +403,6 @@ func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
 	// No volume is legitimate right after attaching an unformatted raw
 	// disk; callers that need one check for it.
 	return nil
-}
-
-func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
-	checks := 0
-	return Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
-		checks++
-		if checks > 1 {
-			// A busy report can follow a detach that completed; by now the
-			// device number may belong to another image, which a blind
-			// retry would detach from under its owner.
-			if owned, err := d.attachedTo(ctx, a); err == nil && !owned {
-				return true, "", nil
-			}
-		}
-		cmd := Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}, Expected: "record"}
-		result := d.C.Run(ctx, cmd)
-		_ = d.T.Record(cmd, result)
-		err := fmt.Errorf("hdiutil detach %s: exit %d: %s", a.Dev, result.Status, strings.TrimSpace(string(result.Stderr)))
-		switch {
-		case result.Err == nil && result.Status == 0:
-			return true, "", nil
-		case result.Err == nil && result.Status == 16: // EBUSY
-			return false, err.Error(), nil
-		default:
-			return false, "", err
-		}
-	})
-}
-
-// attachedTo reports whether hdiutil still lists the attachment's device
-// under the attachment's image.
-func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) {
-	cmd := Command{Label: "hdiutil-info", Argv: []string{"hdiutil", "info", "-plist"}, Expected: "0"}
-	result := d.C.Run(ctx, cmd)
-	if result.Err != nil || result.Status != 0 {
-		return false, fmt.Errorf("hdiutil info: exit %d", result.Status)
-	}
-	info, err := d.plist(ctx, result.Stdout)
-	if err != nil {
-		return false, err
-	}
-	images, _ := info["images"].([]any)
-	for _, img := range images {
-		image, _ := img.(map[string]any)
-		path, _ := image["image-path"].(string)
-		entities, _ := image["system-entities"].([]any)
-		for _, e := range entities {
-			entity, _ := e.(map[string]any)
-			if dev, _ := entity["dev-entry"].(string); dev == a.Dev {
-				return filepath.Base(path) == filepath.Base(a.Image), nil
-			}
-		}
-	}
-	return false, nil
 }
 
 // Mount mounts a volume at dir, or where diskutil chooses when dir is
