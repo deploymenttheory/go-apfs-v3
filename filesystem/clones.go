@@ -2,6 +2,8 @@ package filesystem
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -26,6 +28,47 @@ type CloneStreams struct {
 // Only independently established storage identity may produce native groups.
 type CloneSource interface {
 	CloneStreams(context.Context, uint64) (map[uint64]CloneStreams, error)
+}
+
+type cloneReader struct {
+	Reader
+	streams map[uint64]CloneStreams
+}
+
+func (r cloneReader) Stat(ctx context.Context, id uint64) (Node, error) {
+	node, err := r.Reader.Stat(ctx, id)
+	if err == nil {
+		if streams, exists := r.streams[id]; exists {
+			streams.Attributes = maps.Clone(streams.Attributes)
+			streams.Partial = slices.Clone(streams.Partial)
+			node.CloneStreams = &streams
+		}
+	}
+	return node, err
+}
+
+// PrepareCloneStreams captures optional native storage identity once. Existing
+// logical clone declarations pass through without deriving new groups from data.
+func PrepareCloneStreams(ctx context.Context, reader Reader) (Reader, error) {
+	if reader == nil {
+		return nil, ErrCorrupt
+	}
+	if source, ok := reader.(CloneSource); ok {
+		streams, err := source.CloneStreams(ctx, reader.Root())
+		if err != nil {
+			return nil, err
+		}
+		if len(streams) > 100000 {
+			return nil, ErrLimit
+		}
+		for _, clone := range streams {
+			if err := ValidateCloneStreams(&clone); err != nil {
+				return nil, err
+			}
+		}
+		return cloneReader{Reader: reader, streams: streams}, nil
+	}
+	return reader, ctx.Err()
 }
 
 // ValidateCloneStreams bounds portable lineage metadata. It validates identity
