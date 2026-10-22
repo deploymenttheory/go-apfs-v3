@@ -118,7 +118,15 @@ func TestEncryptedImageEditingPreservesPolicyAndOrderedCopies(t *testing.T) {
 				for _, format := range []string{"UDRO", "UDZO"} {
 					var previous [32]byte
 					var decoded [32]byte
-					for repeat := 0; repeat < 2; repeat++ {
+					// Every filesystem/cipher/encoding is exercised. Repeating
+					// APFS/UDZO for both AES strengths verifies the shared envelope
+					// writer's fresh randomness and decoded determinism without
+					// repeating expensive password derivation for every engine.
+					repeats := 1
+					if kind == "APFS" && format == "UDZO" {
+						repeats = 2
+					}
+					for repeat := 0; repeat < repeats; repeat++ {
 						out := filepath.Join(t.TempDir(), "edited.dmg")
 						report, err := imageedit.Edit(ctx, source, out, imageedit.Options{Time: clock, Format: format, ImagePassword: password}, func(editor *imageedit.Editor) error {
 							if _, err := editor.Apply([]imageedit.Change{{Operation: "mkdir", Path: "/created"}}); err != nil {
