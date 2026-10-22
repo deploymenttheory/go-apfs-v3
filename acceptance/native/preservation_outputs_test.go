@@ -39,4 +39,8 @@ func TestReopenedAndHistoricalPreservationOutputsCannotDisappear(t *testing.T) {
 	if expectationsEqual(schema.Expectation{Snapshot: "first"}, schema.Expectation{Snapshot: "second"}) {
 		t.Fatal("different historical views paired across hosts")
 	}
+	if expectationsEqual(schema.Expectation{CommandClockNS: 1_000_000_000}, schema.Expectation{CommandClockNS: 2_000_000_000}) ||
+		expectationsEqual(schema.Expectation{}, schema.Expectation{CommandClockNS: 1_000_000_000}) {
+		t.Fatal("different declared command clocks paired across hosts")
+	}
 }

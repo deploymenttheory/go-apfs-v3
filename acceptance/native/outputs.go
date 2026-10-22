@@ -263,7 +263,7 @@ func expectationsEqual(a, b schema.Expectation) bool {
 	if !reflect.DeepEqual(a.Workspace, b.Workspace) {
 		return false
 	}
-	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Snapshot != b.Snapshot || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
+	if a.SelectedXID != b.SelectedXID || a.View != b.View || a.Snapshot != b.Snapshot || a.Volume != b.Volume || a.DiskSHA256 != b.DiskSHA256 || a.Subtree != b.Subtree || a.CommandClockNS != b.CommandClockNS || a.Continuation != b.Continuation || a.SystemMember != b.SystemMember || a.FileCompression != b.FileCompression || a.NewIdentities != b.NewIdentities || a.ContinuationRefusal != b.ContinuationRefusal {
 		return false
 	}
 	if len(a.Codesign) != len(b.Codesign) || len(a.IgnoreTimes) != len(b.IgnoreTimes) {

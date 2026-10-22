@@ -77,6 +77,10 @@ type Expectation struct {
 	// that are not expected to match, for example change times that an
 	// editor assigns from its own clock.
 	IgnoreTimes []string `json:"ignoreTimes,omitempty"`
+	// CommandClockNS is the explicit public edit clock for declared command
+	// replay. The verifier binds it to the independent native stage inventory;
+	// it never changes which clocks the declared operations affect.
+	CommandClockNS int64 `json:"commandClockNs,omitempty"`
 	// Volume selects the observed volume by name for multi-volume images.
 	Volume string `json:"volume,omitempty"`
 	// DiskSHA256 requires the attached raw device to hash to this value
