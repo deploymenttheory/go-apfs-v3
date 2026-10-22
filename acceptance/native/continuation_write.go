@@ -59,12 +59,21 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("checker after final native allocation: %w", err)
 	}
-	after, err := v.observeImage(ctx, out.Name+".native-after-go", raw, "raw", nil, schema.ObserveSpec{}, recipe)
+	spec := schema.ObserveSpec{}
+	if usesCloneCopyContinuation(out) {
+		spec.Extents, spec.Samples = append(cloneCopyExtentPaths(out.Expect.Subtree), retainedPartialClone), 12
+	}
+	after, err := v.observeImage(ctx, out.Name+".native-after-go", raw, "raw", nil, spec, recipe)
 	if err != nil {
 		return nil, err
 	}
 	if err := compareFinalNativeWrite(before, after, selected, data); err != nil {
 		return after, err
+	}
+	if usesCloneCopyContinuation(out) {
+		if err := compareCloneCopyContinuation(after, before, out); err != nil {
+			return after, fmt.Errorf("final native allocation changed clone-copy sharing: %w", err)
+		}
 	}
 	return after, nil
 }

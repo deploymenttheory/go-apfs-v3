@@ -491,6 +491,24 @@ reclamation states. Portable edits must preserve untouched physical sharing;
 native verification compares the sharing graph and requires further native clone
 writes followed by the ordinary Go/native continuation.
 
+The `clone-copy` family covers ordinary `cp -c` and reopened-session packing on
+APFS, APFSX, HFS+ and HFSX. Every native transition has both UDRO and UDZO
+existing-image edits and a fresh session-built UDZO image. The closed native
+inventory requires all 72 outputs per producer, even if every portable host
+omits the same output. It binds each output to the original or immediately prior
+native source, exact target state and explicit command clock. New inode numbers
+retain exact hard-link equivalence, and unchanged inode identities remain exact
+for existing-image edits. Native data/resource-fork extent relations distinguish
+sharing from independent equal bytes. Final edit and session outputs require
+further native and product modifications. Compressed and sparse controls retain
+complete logical/raw bytes and metadata; their extent collection stays within
+the native observer's supported dense-fork measurement scope.
+
+The `lzfse-images` family captures Apple ULFO images for all four plaintext
+filesystem profiles. The existing read-parity and repack families compare every
+file and decoded device digest. Synthetic decoder controls and the bounded
+[public-image opening proof](lzfse-images.md) supplement those native controls.
+
 The `encrypted-image-edits` family supplies native before/after states for APFS,
 APFSX, HFS+ and HFSX and AES-128/AES-256 envelopes. Every producer emits both UDRO
 and UDZO outputs with preserved, replaced or removed envelope credentials. Native
