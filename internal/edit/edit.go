@@ -24,6 +24,7 @@ const (
 	CreateDirectory     Operation = "mkdir"
 	CreateSymlink       Operation = "symlink"
 	CreateHardLink      Operation = "link"
+	CloneFile           Operation = "clone"
 	RenameEntry         Operation = "rename"
 	RemoveEntry         Operation = "remove"
 	ReplaceFileData     Operation = "replace"
@@ -41,12 +42,15 @@ const (
 // SetMetadata uses Present fields as assignments and Uncaptured fields as omissions.
 // Fields unrelated to the operation must be zero; directory removal is empty-only.
 type Change struct {
-	Op       Operation            `json:"op"`
-	Path     string               `json:"path"`
-	To       string               `json:"to,omitempty"`
-	Target   string               `json:"target,omitempty"`
-	Metadata *filesystem.Metadata `json:"metadata,omitempty"`
-	Data     block.Source         `json:"-"`
+	// CloneNamespace scopes explicit stream lineage to an immutable input
+	// revision. CloneFile uses Path as source and To as absent destination.
+	CloneNamespace string               `json:"cloneNamespace,omitempty"`
+	Op             Operation            `json:"op"`
+	Path           string               `json:"path"`
+	To             string               `json:"to,omitempty"`
+	Target         string               `json:"target,omitempty"`
+	Metadata       *filesystem.Metadata `json:"metadata,omitempty"`
+	Data           block.Source         `json:"-"`
 	// Attributes are explicit initial values for a new object, including forks.
 	Attributes map[string]block.Source `json:"-"`
 	// Attribute names a setxattr/removexattr value. Resource forks use the
