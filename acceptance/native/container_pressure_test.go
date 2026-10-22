@@ -27,10 +27,11 @@ type containerPressureDisk struct {
 	changeAttachment func(*fixture.Attachment)
 	changeRemount    func() error
 	mounted          int
+	ownerClosed      bool
 }
 
 var containerPressureLifecycle = []string{
-	"unmount Reserved", "unmount Limited", "unmount Empty", "unmount Fresh Empty",
+	"unmount Fresh Empty", "unmount Reserved", "unmount Limited", "unmount Empty",
 	"detach writable", "attach read-only", "fsck", "detach read-only", "attach writable",
 	"mount Fresh Empty", "mount Empty", "mount Limited", "mount Reserved",
 }
@@ -60,8 +61,17 @@ func (d *containerPressureDisk) Unmount(_ context.Context, vol *fixture.Attached
 	if !d.volume.quotaReached || !d.volume.pressureReached || !d.volume.protectedSynced || len(d.volume.pending) != 0 {
 		return fmt.Errorf("clean boundary preceded required pressure and truncation checks")
 	}
+	// The pressure owner still holds the space peers need for their close.
+	// Completing its clean close first is the protocol under test; a peer
+	// refusal must remain fatal rather than trigger another close order.
+	if vol.Name != "Fresh Empty" && !d.ownerClosed {
+		return syscall.ENOSPC
+	}
 	if err := d.step("unmount " + vol.Name); err != nil {
 		return err
+	}
+	if vol.Name == "Fresh Empty" {
+		d.ownerClosed = true
 	}
 	vol.Mount = ""
 	return nil

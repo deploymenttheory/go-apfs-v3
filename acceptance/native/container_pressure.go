@@ -27,7 +27,18 @@ func (v *Verifier) remountAfterContainerPressure(ctx context.Context, att *fixtu
 	if err != nil {
 		return att, fmt.Errorf("pressure boundary stat protected allocation %q: %w", proof, err)
 	}
+	// Close the volume whose pressure inode was just unlinked before asking
+	// any peer to flush. Its clean close must complete its own removal first;
+	// a peer close can otherwise need headroom that this inode still owns.
+	// This fixed order is required once, never selected after a failed close.
+	pressureOwner := att.Volume(out.Expect.Container.EmptyVolumes[0])
+	closeOrder := []*fixture.AttachedVolume{pressureOwner}
 	for _, volume := range att.Volumes {
+		if volume != pressureOwner {
+			closeOrder = append(closeOrder, volume)
+		}
+	}
+	for _, volume := range closeOrder {
 		if err := v.Disk.Unmount(ctx, volume); err != nil {
 			return att, fmt.Errorf("pressure boundary unmount volume %q: %w", volume.Name, err)
 		}
