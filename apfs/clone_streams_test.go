@@ -183,3 +183,25 @@ func TestAPFSCaptureNeverTreatsDescriptorlessPrivateIDAsSharedData(t *testing.T)
 		}
 	}
 }
+
+func TestAPFSCapturePreservesExplicitOwnedEmptyStreamIdentity(t *testing.T) {
+	ctx := context.Background()
+	data := builtContainer(t, func(ctx context.Context, s *session.Session) {
+		if _, err := s.Touch(ctx, []string{"/source"}, session.TouchOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Copy(ctx, []string{"/source"}, "/clone", session.CopyOptions{Clone: true}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	volume := &openBuilt(t, data).Volumes[0]
+	groups, err := volume.CloneStreams(ctx, volume.Root())
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, _ := filesystem.LookupExact(ctx, volume, "/source")
+	clone, _ := filesystem.LookupExact(ctx, volume, "/clone")
+	if groups[source].Data == "" || groups[source].Data != groups[clone].Data {
+		t.Fatal("explicit empty descriptor ownership was lost", groups)
+	}
+}
