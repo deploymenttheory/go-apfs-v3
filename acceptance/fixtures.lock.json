@@ -1,28 +1,28 @@
 {
   "schema": 1,
-  "release": "fixtures/2026.10.22-39768238838",
-  "recipesSHA256": "c25a6714ff2696c33b31598b85e99f70dbaa79e1e9b9cc849ea46928f16413f4",
+  "release": "fixtures/2026.10.22-39822750233",
+  "recipesSHA256": "8a670975f622d7c63c6a8541c9a15643f0194679a278126a76e19d9069f0abc6",
   "bundles": {
     "macos-15": {
-      "asset": "fixtures-macos-15-c9623cd56b4d5b1b.tar.gz",
-      "sha256": "c9623cd56b4d5b1b165251f1e48d96503f6ba7faeb8416de4adfad031ca5cd15",
-      "bytes": 128020139,
+      "asset": "fixtures-macos-15-7be1c25f3313ece3.tar.gz",
+      "sha256": "7be1c25f3313ece39043fe6634026dc70018900b4d8bab92dde07f55ce5c4c04",
+      "bytes": 128713643,
       "build": "24G830",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39768238838"
+      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39822750233"
     },
     "macos-26": {
-      "asset": "fixtures-macos-26-326c89ec8fcf9b1e.tar.gz",
-      "sha256": "326c89ec8fcf9b1e8ecef9bbbbdd2f960019499cfc594b37d8d65991c4748e64",
-      "bytes": 128675544,
+      "asset": "fixtures-macos-26-c2dcbc13cfa28af6.tar.gz",
+      "sha256": "c2dcbc13cfa28af61dbbfef0ac34a29953af58e006db6c045cee188ce439a736",
+      "bytes": 129461169,
       "build": "25G83",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39768238838"
+      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39822750233"
     },
     "macos-27": {
-      "asset": "fixtures-macos-27-1552b3b62b86b7db.tar.gz",
-      "sha256": "1552b3b62b86b7db60a69743645508eee985082977a5010aa0c818ed2432ad7e",
-      "bytes": 128213072,
+      "asset": "fixtures-macos-27-6418bac63cd97116.tar.gz",
+      "sha256": "6418bac63cd97116a9fb5bc2ffa068d1637f20258ae05b9491417192f4250ceb",
+      "bytes": 129062727,
       "build": "26A434",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39768238838"
+      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39822750233"
     }
   }
 }
