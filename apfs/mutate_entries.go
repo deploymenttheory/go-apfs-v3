@@ -670,13 +670,8 @@ func (m *mutation) removeEntry(entry *mutationEntry, recursive bool, stamp uint6
 	// Only the last link retires streams. The old checkpoint retains its extents
 	// until the existing space-manager deferred-free rules make them reusable.
 	stream := le.Uint64(r.value[8:])
-	if e = m.removeStream(stream); e != nil {
+	if e = m.releaseStreamReference(stream); e != nil {
 		return e
-	}
-	if _, ok := m.fs.get(buildKey(stream, 6, 0)); ok {
-		if e = m.fs.put(buildKey(stream, 6, 0), nil); e != nil {
-			return e
-		}
 	}
 	for _, record := range m.fs.records(entry.id, 4) {
 		if e = m.removeAttributeStream(record); e != nil {

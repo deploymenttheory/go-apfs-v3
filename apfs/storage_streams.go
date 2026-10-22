@@ -12,7 +12,6 @@ type storageStream struct {
 	size, allocated, sparse uint64
 	owners                  uint32
 	attribute               bool
-	owner                   uint64
 }
 
 type streamInventory struct {
@@ -20,11 +19,9 @@ type streamInventory struct {
 	references map[uint64]uint32
 	inodes     map[uint64]buildRecord
 	extents    []storageExtent
-	owners     []ownedRange
-	cloned     bool
 }
 
-func (s *streamInventory) add(id, owner uint64, data []byte, attribute bool, sparse uint64) error {
+func (s *streamInventory) add(id uint64, data []byte, attribute bool, sparse uint64) error {
 	if id == 0 || id > objectMask || len(data) != 40 {
 		return corrupt("storage stream descriptor", 0)
 	}
@@ -36,7 +33,7 @@ func (s *streamInventory) add(id, owner uint64, data []byte, attribute bool, spa
 	}
 	// Native sparse inodes include hole bytes in alloced_size. Their separate
 	// INO_EXT_TYPE_SPARSE_BYTES field removes those bytes from physical usage.
-	stream := storageStream{size: le.Uint64(data), allocated: (le.Uint64(data[8:]) - sparse) / 4096, sparse: sparse, owners: 1, attribute: attribute, owner: owner}
+	stream := storageStream{size: le.Uint64(data), allocated: (le.Uint64(data[8:]) - sparse) / 4096, sparse: sparse, owners: 1, attribute: attribute}
 	if previous, exists := s.streams[id]; exists {
 		if previous.size != stream.size || previous.allocated != stream.allocated || previous.sparse != sparse || previous.attribute != attribute || previous.owners == math.MaxUint32 {
 			return corrupt("conflicting shared stream descriptors", 0)
@@ -76,7 +73,6 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 			if flags&^uint64(0x7fffff) != 0 || flags&(0x80|0x800|0x400000) != 0 {
 				return nil, fmt.Errorf("unfinished/exempt inode storage flags %#x: %w", flags, filesystem.ErrUnsupported)
 			}
-			s.cloned = s.cloned || flags&(0x10|0x400) != 0
 			switch le.Uint16(r.value[80:]) & 0170000 {
 			case 0100000:
 				files++
@@ -114,7 +110,7 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 			}
 			if descriptor != nil {
 				id := le.Uint64(r.value[8:])
-				if err := s.add(id, id, descriptor, false, sparse); err != nil {
+				if err := s.add(id, descriptor, false, sparse); err != nil {
 					return nil, err
 				}
 			}
@@ -134,7 +130,7 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 					return nil, corrupt("attribute stream descriptor", 0)
 				}
 				id := le.Uint64(r.value[4:])
-				if err := s.add(id, attributeExtentOwner(p.id, id, flags), r.value[12:], true, 0); err != nil {
+				if err := s.add(id, r.value[12:], true, 0); err != nil {
 					return nil, err
 				}
 			}
@@ -179,7 +175,7 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 		if len(r.key) != 16 || len(r.value) != 24 {
 			return nil, corrupt("storage file extent record", 0)
 		}
-		stream, exists := s.streams[p.id]
+		_, exists := s.streams[p.id]
 		if !exists {
 			return nil, corrupt("file extent without stream owner", 0)
 		}
@@ -201,7 +197,6 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 		}
 		allocated[p.id] += count
 		s.extents = append(s.extents, storageExtent{address, address + count, 1})
-		s.owners = append(s.owners, ownedRange{address, address + count, stream.owner})
 	}
 	for id, stream := range s.streams {
 		if allocated[id] != stream.allocated {
