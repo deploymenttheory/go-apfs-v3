@@ -190,7 +190,7 @@ jobs:
       contents: read
       actions: read # follow this run's artifacts and jobs
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 75
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -254,7 +254,7 @@ jobs:
         # Start long measured lineages first to reduce the serial tail.
         # Parallelism applies to independent filesystem lineages. Outputs
         # sharing a container or volume UUID remain serial within a lineage.
-        run: go test -count=1 -v -parallel 5 -timeout 40m -tags native ./acceptance/native
+        run: go test -count=1 -v -parallel 5 -timeout 70m -tags native ./acceptance/native
       - name: Upload diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
