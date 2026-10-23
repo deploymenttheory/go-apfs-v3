@@ -22,7 +22,7 @@ func TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors(t *testing.T) {
 		seen[k.Producer] = true
 		t.Run(fmt.Sprintf("macos-%d", k.Producer), func(t *testing.T) {
 			t.Parallel()
-			source := k.Image()
+			source := fixtureImage(t, k)
 			digest := packingFileDigest(t, source)
 			for _, control := range []struct {
 				name, volume string

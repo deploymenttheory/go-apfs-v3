@@ -182,7 +182,7 @@ func openCommandSession(t *testing.T, before corpus.Case, clock time.Time) *comm
 	t.Helper()
 	uid, gid := nativeActor(t, before)
 	s := &commandSession{scratch: filepath.Join(t.TempDir(), "scratch"), actor: uid, group: gid, clock: clock, host: t.TempDir()}
-	s.run(t, false, "session", "open", "--image", before.Image(), "--path", "Fixture", "--uid", fmt.Sprint(uid), "--gid", fmt.Sprint(gid), "--time", clock.Format(time.RFC3339Nano), "build")
+	s.run(t, false, "session", "open", "--image", fixtureImage(t, before), "--path", "Fixture", "--uid", fmt.Sprint(uid), "--gid", fmt.Sprint(gid), "--time", clock.Format(time.RFC3339Nano), "build")
 	return s
 }
 
@@ -287,7 +287,7 @@ func TestFileCommandSessionsMatchAppleJourney(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s", before.Producer, before.Profile), func(t *testing.T) {
 			t.Parallel()
-			sum, err := schema.FileDigest(before.Image())
+			sum, err := schema.FileDigest(fixtureImage(t, before))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -305,7 +305,7 @@ func TestFileCommandSessionsMatchAppleJourney(t *testing.T) {
 			}
 			s.run(t, false, "session", "verify", "build")
 			s.export(t, before, after)
-			if got, err := schema.FileDigest(before.Image()); err != nil || got != sum {
+			if got, err := schema.FileDigest(fixtureImage(t, before)); err != nil || got != sum {
 				t.Fatal("commands changed the source image", err)
 			}
 			s.run(t, false, "session", "remove", "build")

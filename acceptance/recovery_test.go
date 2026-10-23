@@ -45,11 +45,13 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				t.Fatalf("missing independent recovery expectation %s", recovery.ExpectedStage)
 			}
 			ctx := context.Background()
-			source, err := block.Open(k.Image())
+			sourcePath := fixtureImage(t, k)
+			source, err := block.Open(sourcePath)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer source.Close()
+			trackFixturePath(t, source, sourcePath)
+			defer closeFixture(t, source)
 			before, err := recoveryDiskDigest(source, source.Size())
 			if err != nil {
 				t.Fatal(err)
@@ -59,7 +61,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				if !ok {
 					t.Fatal("damage control has no original parent")
 				}
-				assertDeclaredRecoveryDamage(t, source, parent.Image(), recovery.Damage)
+				assertDeclaredRecoveryDamage(t, source, fixtureImage(t, parent), recovery.Damage)
 			}
 			var replay block.Source
 			var closeReplay func() error
@@ -109,7 +111,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer scratch.Close()
+				defer closeFixture(t, scratch)
 				report, err := hfsplus.ReplayJournal(ctx, scratch)
 				if err != nil || report.Transactions == 0 || report.Sectors == 0 {
 					t.Fatalf("journal replay: %+v %v", report, err)
@@ -139,7 +141,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 			for _, format := range []string{"UDRO", "UDZO"} {
 				name := outputName(k, "recover."+format+".dmg")
 				path := produceTwice(t, name, true, func(path string) error {
-					_, err := recoverImage(ctx, k.Image(), path, recovery.Kind, format)
+					_, err := recoverImage(ctx, fixtureImage(t, k), path, recovery.Kind, format)
 					return err
 				})
 				image, err := diskimage.Open(path)
@@ -148,11 +150,11 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 				}
 				report, err := inspect.Image(ctx, image)
 				if err != nil {
-					_ = image.Close()
+					closeFixture(t, image)
 					t.Fatal(err)
 				}
 				if len(report.Partitions) != 1 {
-					_ = image.Close()
+					closeFixture(t, image)
 					t.Fatal("recovery changed the partition inventory")
 				}
 				var reader filesystem.Reader
@@ -162,7 +164,7 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 					reader = &report.Partitions[0].APFS.Volumes[0]
 				}
 				if reader == nil {
-					_ = image.Close()
+					closeFixture(t, image)
 					t.Fatal("recovered output has no single filesystem")
 				}
 				for _, view := range expected.Observation.Views {
@@ -189,13 +191,13 @@ func TestRecoveryMatchesAppleStates(t *testing.T) {
 			failed := filepath.Join(t.TempDir(), "canceled.dmg")
 			canceled, cancel := context.WithCancel(ctx)
 			cancel()
-			if _, err := recoverImage(canceled, k.Image(), failed, recovery.Kind, "UDZO"); !errors.Is(err, context.Canceled) {
+			if _, err := recoverImage(canceled, fixtureImage(t, k), failed, recovery.Kind, "UDZO"); !errors.Is(err, context.Canceled) {
 				t.Fatalf("canceled recovery: %v", err)
 			}
 			if _, err := os.Lstat(failed); !errors.Is(err, fs.ErrNotExist) {
 				t.Fatal("canceled recovery published an output", err)
 			}
-			if _, err := recoverImage(ctx, k.Image(), k.Image(), recovery.Kind, "UDRO"); !errors.Is(err, fs.ErrExist) {
+			if _, err := recoverImage(ctx, fixtureImage(t, k), fixtureImage(t, k), recovery.Kind, "UDRO"); !errors.Is(err, fs.ErrExist) {
 				t.Fatal("source overwrite admitted", err)
 			}
 			if after, err := recoveryDiskDigest(source, source.Size()); err != nil || after != before {
@@ -257,7 +259,7 @@ func TestRecoveryCopyInterruptedBeforePublication(t *testing.T) {
 			t.Fatal("interruption fixture lacks recovery evidence")
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s", k.Producer, k.Recipe), func(t *testing.T) {
-			source := k.Image()
+			source := fixtureImage(t, k)
 			before, err := schema.FileDigest(source)
 			if err != nil {
 				t.Fatal(err)
@@ -343,7 +345,8 @@ func assertDeclaredRecoveryDamage(t *testing.T, source block.Source, parentPath 
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer parent.Close()
+	trackFixturePath(t, parent, parentPath)
+	defer closeFixture(t, parent)
 	if digest, err := recoveryDiskDigest(parent, parent.Size()); err != nil || digest != damage.ParentSHA256 {
 		t.Fatal("damage parent digest differs", err)
 	}

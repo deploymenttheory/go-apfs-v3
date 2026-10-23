@@ -106,14 +106,34 @@ APFS_OUTPUT_DIR=/tmp/out go test ./acceptance/...            # retain outputs
 go test -tags slow -run 'TestGoEditsReproduceAppleStageStates/.*/hfs-catalog-map-growth' ./acceptance   # the slow bucket
 ```
 
-The corpus cache is `os.UserCacheDir()/go-apfs-v3/fixtures/<digest>` or
-`APFS_FIXTURE_CACHE`. Gzip-compressed raw images are expanded sparsely under
-`os.TempDir()/go-apfs-v3-fixtures` or `APFS_FIXTURE_EXPAND`: zero runs are
-never written, so an expanded corpus costs its data blocks (a few hundred
-megabytes), not the images' nominal sizes, and the CI cache never carries
-expansions. Each expansion is keyed by its image digest, so a refreshed capture
-cannot reuse an older raw image with the same name. Concurrent expansion uses
-independent temporary files and publishes only completed copies.
+The compressed corpus cache is `os.UserCacheDir()/go-apfs-v3/fixtures/<digest>`
+or `APFS_FIXTURE_CACHE`. Original captures and their digests are retained.
+`Corpus.AcquireImage` returns an explicit lease. Gzip-compressed raw inputs are
+expanded sparsely in a unique run-owned child of `APFS_FIXTURE_EXPAND` or the
+default temporary scratch parent. Only that child belongs to the run; the
+configured parent, earlier runs and local captures remain outside cleanup.
+Zero runs are left unwritten, expansions bind both the absolute source path and
+image digest, and concurrent readers of that source receive only completely
+published copies. Distinct source files retain separate backing paths even when
+their bytes match.
+
+Close borrowed values, readers and native attachments before calling
+`lease.Release(cleanupErr)`. A confirmed last release removes the derived raw
+file. An uncertain reader close or native attachment cleanup retains the same
+absolute backing path and reports the cause. `Corpus.Close`, called by each
+test binary's `TestMain`, reports outstanding leases and retained paths rather
+than deleting them. Native fixture scratch defaults under `APFS_NATIVE_WORK`
+so retained failures enter the existing diagnostic artifact. The original
+compressed files and uncompressed original captures are never deleted by a
+lease. An assertion or product-operation failure with healthy cleanup still
+allows release.
+
+Portable leases normally span one leaf test and native leases span one checked
+operation. A later leaf can therefore expand the same input again. This trades
+repeated decompression for lower retained disk use; hosted runs must measure
+peak storage and runtime with the existing deadlines before making performance
+claims. Interrupted processes can leave explicitly owned scratch children;
+subsequent runs do not infer that those backing paths are safe to remove.
 `cmd/apfs-fixture capture` refuses to run outside a
 disposable VM: a development Mac once panicked under these tests
 ([native-testing-incident.md](native-testing-incident.md)). Inside one, set
@@ -358,6 +378,27 @@ uses macOS syntax; resolving the expected host file and symlink identity is a
 separate step. The [retained platform captures](../acceptance/fixture/testdata/native-image-ownership/README.md)
 preserve the original command bytes and document the portable replay projection.
 
+Every portable, catalog-growth and native verification job first executes all
+untagged acceptance helper tests. A closed inventory requires the evidence,
+path, ownership-state, cleanup-error and failure-retention contracts to actually
+run and pass. A missing or skipped contract, failed package, incomplete event
+stream or nonzero test exit stops that job before corpus restoration and
+filesystem verification. Windows executes these helpers; cross-compilation is
+not runtime qualification. Tests use `-count=1` with both cold and warm build
+caches, so an earlier test result cannot stand in for the current invocation.
+
+Each macOS verification job also executes the live ownership contract before
+building the continuation CLI. Its original schema-2 packet must bind all seven
+owned, crossed, alias and post-close claims to that job's checkout, run attempt,
+architecture and expected kernel major. Complete original command streams are
+checked against their retained sizes and digests. The existing native ownership
+artifact keeps those bytes and adds gate event logs and receipts in `gate-events/`;
+portable jobs retain separate small contract artifacts. Uploads run on failure
+as well as success, and upload failure blocks dependent verification. These are
+local prerequisites within the existing jobs: all filesystem phases, matrices
+and the final required gate remain mandatory and independent jobs do not wait
+for another job's contract verdict.
+
 Preservation exports receive a separate independent verdict. The verifier reads
 their JSON and archive format without importing the product. It checks source
 and creation identities, link groups, original byte names and portable name
@@ -432,6 +473,44 @@ metadata or silently exempted from deterministic image checks.
 The performance changes preserve the required gate and eleven-job workflow.
 Issue #134 remains open until three consecutive warm runs of the complete
 combined workload record at most twelve jobs and forty-five minutes wall clock.
+
+### Reproducing reliability qualification
+
+Check the adapters and evidence validator without downloading or expanding the
+real corpus:
+
+```sh
+go test -count=1 ./acceptance/fixture ./acceptance/native ./acceptance/corpus ./acceptance/schema ./.github/scripts/platform-contracts
+go test -count=1 ./acceptance -run '^TestFixtureAndVerifierPackagesDoNotImportTheProduct$'
+```
+
+Then run the complete required CI matrix on the candidate revision. Retain its
+checkout revision, run and attempt, platform/tool identities, contract receipts,
+output manifests, case outcomes and elapsed times. Derive required case counts
+from the pinned recipes, corpus and current output manifests; reconcile every
+producer and verifier rather than copying counts from an older run. A failed,
+missing or unfinished phase cannot qualify the change. Compare the original
+fixture and expectation digests and review assertion changes independently.
+
+The live ownership contract checks two blank raw images, their distinct full
+paths, a real alias, crossed devices and completed cleanup. The retained native
+captures demonstrate legacy CFData ownership and a successful empty modern-class
+query. They do not establish filesystem health or a positive modern URL backend.
+Those claims require their own native evidence and the applicable filesystem
+verdicts. Capture new platform evidence on a disposable VM before changing its
+interpretation; preserve original command bytes, collector source and digests,
+and replay malformed and ambiguous controls alongside positive cases.
+
+For storage qualification, exercise concurrent readers, cancellation, failed
+cleanup and repeated runs. Each test binary checks `Corpus.Close`; an outstanding
+lease, retained uncertain backing or failed run-directory deletion fails the
+binary. The native fixture, slow and main invocations each own and close their
+scratch child while retaining the compressed corpus. Record real working
+footprint and runtime before making storage or speed comparisons; synthetic
+lifetime checks alone do not supply those measurements. Never remove or move a
+backing path whose release is uncertain. Document unresolved causes explicitly
+and assess the integrated reliability outcome separately from product capability
+and performance qualification.
 
 ## Diagnosing a failure
 

@@ -38,8 +38,9 @@ type Producer struct {
 type Corpus struct {
 	Lock      *schema.Lock
 	Producers []Producer
-	// ExpandDir holds expanded raw images, outside the bundle cache.
+	// ExpandDir is the parent of this run's private raw-image directory.
 	ExpandDir string
+	images    imageLifetimes
 }
 
 // Options control resolution. Zero values mean: lock at
@@ -51,10 +52,8 @@ type Options struct {
 	CacheDir   string
 	Repository string // owner/name for release downloads
 	Client     *http.Client
-	// ExpandDir receives expanded raw images (APFS_FIXTURE_EXPAND); the
-	// default is under the system temporary directory, so a CI cache of
-	// the bundles never carries them. Expansion is sparse: zero runs are
-	// not written, so an expanded image costs only its data blocks.
+	// ExpandDir is the scratch parent (APFS_FIXTURE_EXPAND). This corpus owns
+	// only a unique child, never this parent or any pre-existing expansion.
 	ExpandDir string
 	// LocalDir points tests at a local capture output (APFS_FIXTURE_DIR);
 	// it must contain macos-<major>/manifest.json directories.
@@ -278,7 +277,6 @@ type Case struct {
 	Dir         string
 	Observation *schema.Observation
 	Files       map[string]string // bundle-relative path -> absolute path
-	expandDir   string
 }
 
 // Cases decodes every observation across producers, sorted by producer,
@@ -299,7 +297,7 @@ func (c *Corpus) Cases() ([]Case, error) {
 			for _, f := range cf.Files {
 				files[f.Path] = filepath.Join(p.Dir, filepath.FromSlash(f.Path))
 			}
-			cases = append(cases, Case{Producer: p.Major, Recipe: cf.Recipe, Profile: cf.Profile, Stage: cf.Stage, Dir: filepath.Join(p.Dir, filepath.Dir(filepath.FromSlash(cf.Observation))), Observation: &obs, Files: files, expandDir: c.ExpandDir})
+			cases = append(cases, Case{Producer: p.Major, Recipe: cf.Recipe, Profile: cf.Profile, Stage: cf.Stage, Dir: filepath.Join(p.Dir, filepath.Dir(filepath.FromSlash(cf.Observation))), Observation: &obs, Files: files})
 		}
 	}
 	sort.Slice(cases, func(i, j int) bool {
@@ -318,39 +316,18 @@ func (c *Corpus) Cases() ([]Case, error) {
 	return cases, nil
 }
 
-// Image returns the absolute path of the case's retained image. A
-// gzip-compressed raw image is expanded once, sparsely, under the corpus
-// expansion directory, so callers always receive a file the product can
-// open directly.
-func (k Case) Image() string {
-	path := filepath.Join(k.Dir, k.Observation.Image.File)
-	if !strings.HasSuffix(path, ".raw.gz") {
-		return path
-	}
-	if !schema.ValidDigest(k.Observation.Image.SHA256) {
-		return path + ": raw image has no valid content digest"
-	}
-	// Producer/name identifies a case across captures, not its bytes. Bind
-	// expansions to the retained image digest so a corpus refresh cannot read
-	// an older capture from the same expansion cache.
-	expanded := filepath.Join(k.expandDir, "macos-"+strconv.Itoa(k.Producer), k.Recipe, k.Observation.Image.SHA256, strings.TrimSuffix(k.Observation.Image.File, ".gz"))
-	// Wait for an in-process publisher's rename handle to close before
-	// handing the path to a reader that may not share Windows delete access.
-	expansionPublication.Lock()
-	_, statErr := os.Stat(expanded)
-	expansionPublication.Unlock()
-	if statErr == nil {
-		return expanded
-	}
-	if err := ExpandGzip(path, expanded); err != nil {
-		return path + ": " + err.Error()
-	}
-	return expanded
-}
-
 // ExpandGzip expands a gzip-compressed raw image to dst sparsely: zero runs
 // are not written, so the file costs only its data blocks.
 func ExpandGzip(src, dst string) error {
+	return ExpandGzipContext(context.Background(), src, dst)
+}
+
+// ExpandGzipContext publishes only a completed sparse expansion. Cancellation
+// stops decompression before publication; original gzip bytes are never changed.
+func ExpandGzipContext(ctx context.Context, src, dst string) (resultErr error) {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -358,36 +335,55 @@ func ExpandGzip(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = in.Close() }()
+	defer func() { resultErr = errors.Join(resultErr, in.Close()) }()
 	gz, err := gzip.NewReader(in)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = gz.Close() }()
+	defer func() { resultErr = errors.Join(resultErr, gz.Close()) }()
+	return expandSparse(ctx, gz, dst)
+}
+
+func expandSparse(ctx context.Context, input io.Reader, dst string) (resultErr error) {
 	out, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".partial-*")
 	if err != nil {
 		return err
 	}
 	tmp := out.Name()
-	defer func() { _ = os.Remove(tmp) }()
+	defer func() {
+		if err := os.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove incomplete expansion %s: %w", tmp, err))
+		}
+	}()
 	if err := markSparse(out); err != nil {
-		_ = out.Close()
-		_ = os.Remove(tmp)
-		return err
+		return errors.Join(err, out.Close())
 	}
-	size, err := copySparse(out, gz)
+	size, err := copySparse(out, &expansionContext{ctx: ctx, Reader: input})
 	if err == nil {
 		err = out.Truncate(size)
 	}
 	if err != nil {
-		_ = out.Close()
-		_ = os.Remove(tmp)
-		return err
+		return errors.Join(err, out.Close())
 	}
 	if err := out.Close(); err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return publishExpansion(tmp, dst, size)
+}
+
+type expansionContext struct {
+	ctx context.Context
+	io.Reader
+}
+
+func (r *expansionContext) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.Reader.Read(p)
 }
 
 // sparseBlock is the granularity at which zero runs are left unwritten.

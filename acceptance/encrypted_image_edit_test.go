@@ -50,7 +50,7 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 			}
 			password := []byte(recipe.Passwords["image"])
 			partition := encryptedEditPartition(t, ctx, before, password)
-			sourceHash, err := schema.FileDigest(before.Image())
+			sourceHash, err := schema.FileDigest(fixtureImage(t, before))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -71,9 +71,9 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 						var report imageedit.Report
 						var err error
 						if policy == "rekey" {
-							report, err = editEncryptedNativeTreeCLI(t, ctx, before.Image(), path, options)
+							report, err = editEncryptedNativeTreeCLI(t, ctx, fixtureImage(t, before), path, options)
 						} else {
-							report, err = editEncryptedNativeTree(ctx, before.Image(), path, options)
+							report, err = editEncryptedNativeTree(ctx, fixtureImage(t, before), path, options)
 						}
 						if err == nil && (report.SourceEncryption == nil || report.SourceEncryption.KeyBits != bits || (report.Encryption == nil) != (policy == "remove") || report.Encryption != nil && report.Encryption.KeyBits != bits) {
 							return fmt.Errorf("output encryption policy changed: %+v", report)
@@ -83,7 +83,7 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 					checkEncryptedEditedTree(t, ctx, path, outputPasswordBytes, before, after, recipe)
 					if policy != "preserve" {
 						if opened, err := diskimage.OpenWithPassword(ctx, path, password); err == nil {
-							opened.Close()
+							closeFixture(t, opened)
 							t.Fatal("replaced/removed envelope still accepts original password")
 						}
 					}
@@ -92,7 +92,7 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 			}
 			for _, invalid := range [][]byte{nil, {}, []byte(recipe.Passwords["wrong"])} {
 				out := filepath.Join(t.TempDir(), "refused.dmg")
-				_, err := imageedit.Edit(ctx, before.Image(), out, imageedit.Options{Time: fixedClock, ImagePassword: invalid}, func(*imageedit.Editor) error { t.Fatal("invalid image password reached command callback"); return nil })
+				_, err := imageedit.Edit(ctx, fixtureImage(t, before), out, imageedit.Options{Time: fixedClock, ImagePassword: invalid}, func(*imageedit.Editor) error { t.Fatal("invalid image password reached command callback"); return nil })
 				if !errors.Is(err, filesystem.ErrAuthentication) {
 					t.Fatal("wrong image credential refusal", err)
 				}
@@ -100,7 +100,7 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 					t.Fatal("wrong credential published output", err)
 				}
 			}
-			if actual, err := schema.FileDigest(before.Image()); err != nil || actual != sourceHash {
+			if actual, err := schema.FileDigest(fixtureImage(t, before)); err != nil || actual != sourceHash {
 				t.Fatal("encrypted native source changed", err)
 			}
 		})
@@ -186,7 +186,7 @@ func checkEncryptedEditedTree(t *testing.T, ctx context.Context, path string, pa
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer image.Close()
+	defer closeFixture(t, image)
 	if password != nil && (image.Encryption == nil || fmt.Sprintf("AES-%d", image.Encryption.KeyBits) != before.Observation.Image.Encryption.Cipher) {
 		t.Fatal("source AES strength changed", image.Encryption)
 	}
@@ -197,7 +197,7 @@ func checkEncryptedEditedTree(t *testing.T, ctx context.Context, path string, pa
 	if len(before.Observation.Views) != 1 || len(after.Observation.Views) != 1 || len(after.Observation.Volumes) != 1 {
 		t.Fatal("encrypted edit oracle must have exactly one live volume")
 	}
-	reader, close := openVolume(t, ctx, report, after.Observation.Volumes[0], volumeName(after.Observation.Volumes[0]), recipe)
+	reader, close := openVolume(t, ctx, report, after.Observation.Volumes[0], volumeName(after.Observation.Volumes[0]), recipe, image)
 	if close != nil {
 		defer close()
 	}
@@ -227,7 +227,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 		t.Run(fmt.Sprintf("macos-%d", k.Producer), func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			hash, err := schema.FileDigest(k.Image())
+			hash, err := schema.FileDigest(fixtureImage(t, k))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -246,7 +246,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 				{"both-correct", imagePassword, volumePassword, filesystem.ErrUnsupported, "software-encrypted APFS image editing: unsupported feature"},
 			} {
 				out := filepath.Join(t.TempDir(), "refused.dmg")
-				_, err := imageedit.Edit(ctx, k.Image(), out, imageedit.Options{Partition: partition, Time: fixedClock, ImagePassword: tc.image, VolumePassword: tc.volume}, func(*imageedit.Editor) error { t.Fatal("encrypted APFS write reached callback"); return nil })
+				_, err := imageedit.Edit(ctx, fixtureImage(t, k), out, imageedit.Options{Partition: partition, Time: fixedClock, ImagePassword: tc.image, VolumePassword: tc.volume}, func(*imageedit.Editor) error { t.Fatal("encrypted APFS write reached callback"); return nil })
 				if !errors.Is(err, tc.want) || tc.exact != "" && err.Error() != tc.exact {
 					t.Fatalf("%s: wrong refusal: %v", tc.name, err)
 				}
@@ -270,7 +270,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 					t.Fatal(err)
 				}
 				out := filepath.Join(t.TempDir(), "refused.dmg")
-				command := exec.CommandContext(ctx, portableCommandBinary(t), "chmod", "--image", k.Image(), "--output", out, "--partition", strconv.Itoa(partition), "--image-password-file", imagePasswordPath, "--password-file", volumePasswordPath, "0600", "/Fixture/example.txt")
+				command := exec.CommandContext(ctx, portableCommandBinary(t), "chmod", "--image", fixtureImage(t, k), "--output", out, "--partition", strconv.Itoa(partition), "--image-password-file", imagePasswordPath, "--password-file", volumePasswordPath, "0600", "/Fixture/example.txt")
 				var stdout, diagnostics bytes.Buffer
 				command.Stdout, command.Stderr = &stdout, &diagnostics
 				err := command.Run()
@@ -285,7 +285,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 					t.Fatal("nested CLI refusal published output", err)
 				}
 			}
-			if actual, err := schema.FileDigest(k.Image()); err != nil || actual != hash {
+			if actual, err := schema.FileDigest(fixtureImage(t, k)); err != nil || actual != hash {
 				t.Fatal("nested admission changed source", err)
 			}
 		})
@@ -299,11 +299,11 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 
 func encryptedEditPartition(t *testing.T, ctx context.Context, k corpus.Case, password []byte) int {
 	t.Helper()
-	image, err := diskimage.OpenWithPassword(ctx, k.Image(), password)
+	image, err := diskimage.OpenWithPassword(ctx, fixtureImage(t, k), password)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer image.Close()
+	defer closeFixture(t, image)
 	index := -1
 	for _, part := range image.Partitions {
 		if part.Type == diskimage.APFSType || part.Type == diskimage.HFSType {

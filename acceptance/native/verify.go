@@ -90,7 +90,14 @@ func (v *Verifier) observeImage(ctx context.Context, label, image, format string
 
 // observeImageWithDigest keeps complete file hashes while allowing transient
 // readbacks to omit an unasserted whole-device hash. Captures retain both hashes.
-func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (observed *schema.Observation, resultErr error) {
+func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (*schema.Observation, error) {
+	observed, _, err := v.observeImageWithCleanup(ctx, label, image, format, password, spec, recipe, deviceDigest)
+	return observed, err
+}
+
+// observeImageWithCleanup distinguishes a failed observation from uncertainty
+// about releasing its backing image. A failed attach cannot establish release.
+func (v *Verifier) observeImageWithCleanup(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (observed *schema.Observation, cleanupErr, resultErr error) {
 	t := &fixture.Transcript{}
 	v.setTranscript(t)
 	work := filepath.Join(v.Work, "observe", sanitize(label))
@@ -100,15 +107,17 @@ func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, for
 	raw := strings.HasSuffix(image, ".raw")
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: raw, Password: password})
 	if err != nil {
-		return nil, err
+		return nil, err, err
 	}
 	if len(att.Volumes) == 0 {
-		return nil, errors.Join(fmt.Errorf("%s: no volume discovered on the attached image", label), v.Disk.Detach(ctx, att))
+		cleanupErr = v.Disk.Detach(ctx, att)
+		return nil, cleanupErr, errors.Join(fmt.Errorf("%s: no volume discovered on the attached image", label), cleanupErr)
 	}
 	_ = os.RemoveAll(work)
 	vars := &fixture.Vars{Passwords: recipe.Passwords}
 	obs, err := fixture.Observe(ctx, fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "output"}, Stage: label, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: v.Disk, Vol: v.Vol, Vars: vars, T: t, Work: work, Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(label), Producer: v.Producer, OmitDeviceDigest: !deviceDigest})
-	err = errors.Join(err, v.Disk.Detach(ctx, att))
+	cleanupErr = v.Disk.Detach(ctx, att)
+	err = errors.Join(err, cleanupErr)
 	if obs != nil {
 		obs.Commands = t.Commands
 		data, writeErr := json.MarshalIndent(obs, "", "  ")
@@ -121,9 +130,18 @@ func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, for
 		err = errors.Join(err, writeErr)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", label, err)
+		return nil, cleanupErr, fmt.Errorf("%s: %w", label, err)
 	}
-	return obs, nil
+	return obs, cleanupErr, nil
+}
+
+func (v *Verifier) observeFixture(ctx context.Context, k corpus.Case, label string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe) (*schema.Observation, error) {
+	lease, err := v.Corpus.AcquireImage(ctx, k)
+	if err != nil {
+		return nil, err
+	}
+	observed, cleanupErr, err := v.observeImageWithCleanup(ctx, label, lease.Path(), k.Observation.Image.Format, password, spec, recipe, false)
+	return observed, errors.Join(err, lease.Release(cleanupErr))
 }
 
 // VerifyOutput checks one paired output with Apple tools and returns the
@@ -343,7 +361,7 @@ func (v *Verifier) locateDifference(ctx context.Context, out schema.Output, imag
 	if err != nil {
 		return " (output blocks: " + err.Error() + ")"
 	}
-	want, err := v.blockDigests(ctx, k.Image(), sourcePassword)
+	want, err := v.fixtureBlockDigests(ctx, k, sourcePassword)
 	if err != nil {
 		return " (source blocks: " + err.Error() + ")"
 	}
@@ -361,17 +379,34 @@ func (v *Verifier) locateDifference(ctx context.Context, out schema.Output, imag
 
 // blockDigests attaches an image read-only and hashes its device in 1 MiB
 // blocks.
-func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) (result [][32]byte, resultErr error) {
+func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) ([][32]byte, error) {
+	blocks, _, err := v.blockDigestsWithCleanup(ctx, image, password)
+	return blocks, err
+}
+
+func (v *Verifier) fixtureBlockDigests(ctx context.Context, k corpus.Case, password []byte) ([][32]byte, error) {
+	lease, err := v.Corpus.AcquireImage(ctx, k)
+	if err != nil {
+		return nil, err
+	}
+	blocks, cleanupErr, err := v.blockDigestsWithCleanup(ctx, lease.Path(), password)
+	return blocks, errors.Join(err, lease.Release(cleanupErr))
+}
+
+func (v *Verifier) blockDigestsWithCleanup(ctx context.Context, image string, password []byte) (result [][32]byte, cleanupErr, resultErr error) {
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: strings.HasSuffix(image, ".raw"), Password: password, NoInventory: true})
 	if err != nil {
-		return nil, err
+		return nil, err, err
 	}
-	defer func() { resultErr = errors.Join(resultErr, v.Disk.Detach(ctx, att)) }()
+	defer func() {
+		cleanupErr = errors.Join(cleanupErr, v.Disk.Detach(ctx, att))
+		resultErr = errors.Join(resultErr, cleanupErr)
+	}()
 	f, err := os.Open(att.RDev)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer func() { resultErr = errors.Join(resultErr, f.Close()) }()
+	defer func() { cleanupErr = errors.Join(cleanupErr, f.Close()) }()
 	var blocks [][32]byte
 	buf := make([]byte, 1<<20)
 	for {
@@ -381,9 +416,9 @@ func (v *Verifier) blockDigests(ctx context.Context, image string, password []by
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-				return blocks, nil
+				return blocks, nil, nil
 			}
-			return blocks, err
+			return blocks, nil, err
 		}
 	}
 }
@@ -402,8 +437,7 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 		spec.Snapshots = spec.Snapshots || view.Snapshot != ""
 	}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
-	image := k.Image()
-	obs, err := v.observeImage(ctx, fmt.Sprintf("drift-%d-%s-%s-%s", k.Producer, k.Recipe, k.Profile, k.Stage), image, k.Observation.Image.Format, password, spec, recipe)
+	obs, err := v.observeFixture(ctx, k, fmt.Sprintf("drift-%d-%s-%s-%s", k.Producer, k.Recipe, k.Profile, k.Stage), password, spec, recipe)
 	if err != nil {
 		return nil, nil, err
 	}

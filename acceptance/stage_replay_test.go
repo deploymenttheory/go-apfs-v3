@@ -113,7 +113,7 @@ func TestGoEditsReproduceAppleStageStates(t *testing.T) {
 				t.Fatalf("stage has no steps to replay")
 			}
 			ctx := context.Background()
-			current := source.Image()
+			current := fixtureImage(t, source)
 			name := outputName(k, "replay.UDZO.dmg")
 			var final string
 			for i, g := range groups {
@@ -507,7 +507,7 @@ func checkReplayedImage(t *testing.T, ctx context.Context, output string, source
 	if err != nil {
 		t.Fatalf("%s: %v", output, err)
 	}
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatalf("%s: inspect: %v", output, err)
@@ -515,7 +515,7 @@ func checkReplayedImage(t *testing.T, ctx context.Context, output string, source
 	label := filepath.Base(output)
 	for _, vol := range target.Observation.Volumes {
 		name := volumeName(vol)
-		reader, closer := openVolume(t, ctx, report, vol, name, recipe)
+		reader, closer := openVolume(t, ctx, report, vol, name, recipe, img)
 		if closer != nil {
 			defer closer()
 		}

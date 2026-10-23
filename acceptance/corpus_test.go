@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sort"
 	"sync"
@@ -25,11 +26,14 @@ func loadCorpus(t *testing.T) ([]corpus.Case, *corpus.Corpus) {
 		c, err := corpus.Resolve(context.Background(), corpus.Options{Root: ".."})
 		if err != nil {
 			corpusLoadEr = err
+			if c != nil {
+				corpusLoadEr = errors.Join(corpusLoadEr, c.Close())
+			}
 			return
 		}
 		cases, err := c.Cases()
 		if err != nil {
-			corpusLoadEr = err
+			corpusLoadEr = errors.Join(err, c.Close())
 			return
 		}
 		corpusValue, corpusCases = c, cases

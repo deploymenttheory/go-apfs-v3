@@ -41,7 +41,7 @@ func TestAPFSCloneControlsRetainNativeSharingAndAdmitMutation(t *testing.T) {
 			storageImageUnchanged(t, k)
 			ctx := context.Background()
 			img := openImage(t, ctx, k, recipes[k.Recipe])
-			defer func() { _ = img.Close() }()
+			defer func() { closeFixture(t, img) }()
 			part, _ := storagePartition(t, img)
 			trace := &physicalReads{Source: part}
 			container, err := apfs.Open(trace)
@@ -182,7 +182,7 @@ func TestAPFSCloneEditFailuresNeverPublishOrAlterSource(t *testing.T) {
 			continue
 		}
 		t.Run(native.CaseKey(caseRef(k)), func(t *testing.T) {
-			source := k.Image()
+			source := fixtureImage(t, k)
 			sourceSHA := k.Observation.Image.SHA256
 			if strings.HasSuffix(k.Observation.Image.File, ".raw.gz") {
 				// Image() expands the retained gzip. Bind the editor's actual

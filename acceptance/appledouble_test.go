@@ -50,7 +50,7 @@ func TestAppleDoubleMatchesNativeExports(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer func() { _ = file.Close() }()
+				defer func() { closeFixture(t, file) }()
 				decoded, err := appledouble.Decode(ctx, file)
 				if err != nil {
 					t.Fatal(err)

@@ -31,10 +31,16 @@ import (
 // agree on every output, and only outputs derived from this macOS
 // version's fixtures are kept.
 // TestMain reports, after every test in this phase, how often each kind
-// of wait for macOS disk state had to retry. A rising count warns that the
-// runners' DiskArbitration is lagging before it causes failures.
+// of wait for macOS disk state had to retry. Counts record unsettled state;
+// the retained commands and observations are needed to identify its cause.
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if shared != nil && shared.Corpus != nil {
+		if err := shared.Corpus.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "release native fixture images: %v\n", err)
+			code = 1
+		}
+	}
 	counts := fixture.WaitCounts()
 	phase := os.Getenv("APFS_NATIVE_GROUPS")
 	if phase == "" {
@@ -123,7 +129,7 @@ var (
 	sharedErr  error
 )
 
-func buildVerifier() (*Verifier, error) {
+func buildVerifier() (verifier *Verifier, resultErr error) {
 	if err := fixture.RequireDisposableHost(); err != nil {
 		return nil, err
 	}
@@ -140,6 +146,11 @@ func buildVerifier() (*Verifier, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if resultErr != nil {
+			resultErr = errors.Join(resultErr, c.Close())
+		}
+	}()
 	cases, err := c.Cases()
 	if err != nil {
 		return nil, err
@@ -171,6 +182,9 @@ func buildVerifier() (*Verifier, error) {
 		}
 	} else if err := os.MkdirAll(work, 0o755); err != nil {
 		return nil, err
+	}
+	if os.Getenv("APFS_FIXTURE_EXPAND") == "" {
+		c.ExpandDir = filepath.Join(work, "fixture-images")
 	}
 	var unpacker string
 	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" {
