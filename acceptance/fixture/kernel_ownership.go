@@ -112,19 +112,7 @@ func (d *HostDisk) registryInventory(ctx context.Context, label string, argv []s
 	if len(result.Stdout) == 0 || len(result.Stdout) > retainedRegistryTextLimit {
 		return nil, errors.New("kernel registry archive size outside bounds")
 	}
-	// plutil handles native opaque property types; only the ownership fields
-	// and tree shape are interpreted here. The original archive remains in
-	// the transcript independently of this conversion.
-	var roots []map[string]any
-	err := d.plistInto(ctx, result.Stdout, &roots)
-	if err == nil && roots == nil {
-		err = errors.New("kernel registry archive is not an array")
-	}
-	for _, root := range roots {
-		if root == nil {
-			err = errors.Join(err, errors.New("kernel registry root is not a dictionary"))
-		}
-	}
+	roots, err := decodeRegistryOwnership(result.Stdout)
 	return roots, errors.Join(err, ctx.Err())
 }
 

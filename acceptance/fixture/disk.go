@@ -131,26 +131,19 @@ func (d *HostDisk) run(ctx context.Context, label string, sudo bool, stdin []byt
 
 // plist converts plist output to a Go map through plutil.
 func (d *HostDisk) plist(ctx context.Context, data []byte) (map[string]any, error) {
-	var out map[string]any
-	err := d.plistInto(ctx, data, &out)
-	return out, err
-}
-
-// plistInto also permits native array-root inventories without interpreting
-// their opaque plist property types in Go.
-func (d *HostDisk) plistInto(ctx context.Context, data []byte, out any) error {
 	cmd := Command{Label: "plutil", Argv: []string{"plutil", "-convert", "json", "-o", "-", "-"}, Stdin: data, Expected: "0"}
 	result := d.C.Run(ctx, cmd)
 	if result.Err != nil {
-		return fmt.Errorf("plutil: %w", result.Err)
+		return nil, fmt.Errorf("plutil: %w", result.Err)
 	}
 	if result.Status != 0 {
-		return fmt.Errorf("plutil: %s", strings.TrimSpace(string(result.Stderr)))
+		return nil, fmt.Errorf("plutil: %s", strings.TrimSpace(string(result.Stderr)))
 	}
-	if err := json.Unmarshal(result.Stdout, out); err != nil {
-		return fmt.Errorf("plutil json: %w", err)
+	var out map[string]any
+	if err := json.Unmarshal(result.Stdout, &out); err != nil {
+		return nil, fmt.Errorf("plutil json: %w", err)
 	}
-	return nil
+	return out, nil
 }
 
 func (d *HostDisk) CreateImage(ctx context.Context, path, size, layout, fs, fsargs, volname string) error {

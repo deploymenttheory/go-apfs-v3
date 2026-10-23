@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -43,14 +42,15 @@ func registryImage(imageURL, media string) string {
 func imageFileURL(path string) string { return (&url.URL{Scheme: "file", Path: path}).String() }
 
 type kernelOwnershipCommander struct {
-	calls          []Command
-	global         []byte
-	images         []byte
-	media          []byte
-	registryErr    error
-	registryStatus int
-	busy           bool
-	cancel         context.CancelFunc
+	calls                     []Command
+	global                    []byte
+	images                    []byte
+	media                     []byte
+	registryErr               error
+	registryStatus            int
+	registryConversionFailure *Result
+	busy                      bool
+	cancel                    context.CancelFunc
 }
 
 func (c *kernelOwnershipCommander) Run(_ context.Context, cmd Command) Result {
@@ -59,13 +59,15 @@ func (c *kernelOwnershipCommander) Run(_ context.Context, cmd Command) Result {
 	case "hdiutil-info":
 		return Result{Stdout: c.global}
 	case "plutil":
-		var root registryTestXML
-		if err := xml.Unmarshal(cmd.Stdin, &root); err != nil || len(root.Children) != 1 {
-			return Result{Status: 1, Stderr: []byte("invalid plist")}
+		if bytes.Equal(cmd.Stdin, c.images) && c.registryConversionFailure != nil {
+			return *c.registryConversionFailure
 		}
-		value, err := root.Children[0].nativeJSON()
+		value, err := readInventoryPlist(string(cmd.Stdin))
 		if err != nil {
 			return Result{Status: 1, Err: err}
+		}
+		if images, ok := value["images"].([]any); ok && images == nil {
+			value["images"] = []any{}
 		}
 		data, err := json.Marshal(value)
 		return Result{Stdout: data, Err: err}
@@ -314,57 +316,5 @@ func TestKernelRegistryReceiptsKeepBoundedOriginalTextAndDigests(t *testing.T) {
 				t.Fatal("oversized registry proof reached conversion or was admitted")
 			}
 		}
-	}
-}
-
-// Only the fake Commander translates these synthetic plists. Production uses
-// native plutil and does not decode driver-specific scalar types itself.
-type registryTestXML struct {
-	XMLName  xml.Name
-	Text     string            `xml:",chardata"`
-	Children []registryTestXML `xml:",any"`
-}
-
-func (n registryTestXML) nativeJSON() (any, error) {
-	switch n.XMLName.Local {
-	case "array":
-		a := make([]any, 0, len(n.Children))
-		for _, child := range n.Children {
-			v, err := child.nativeJSON()
-			if err != nil {
-				return nil, err
-			}
-			a = append(a, v)
-		}
-		return a, nil
-	case "dict":
-		if len(n.Children)%2 != 0 {
-			return nil, errors.New("malformed synthetic dictionary")
-		}
-		m := map[string]any{}
-		for i := 0; i < len(n.Children); i += 2 {
-			if n.Children[i].XMLName.Local != "key" {
-				return nil, errors.New("invalid synthetic key")
-			}
-			v, err := n.Children[i+1].nativeJSON()
-			if err != nil {
-				return nil, err
-			}
-			m[n.Children[i].Text] = v
-		}
-		return m, nil
-	case "integer":
-		if _, err := strconv.ParseUint(strings.TrimSpace(n.Text), 10, 64); err != nil {
-			return nil, err
-		}
-		return json.Number(strings.TrimSpace(n.Text)), nil
-	case "true":
-		return true, nil
-	case "false":
-		return false, nil
-	case "string", "data", "date", "real":
-		return n.Text, nil
-	default:
-		return nil, fmt.Errorf("unsupported synthetic plist type %q", n.XMLName.Local)
 	}
 }

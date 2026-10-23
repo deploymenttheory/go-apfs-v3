@@ -173,7 +173,6 @@ func TestDetachRequiresKernelCorroborationBeforeAcceptingFrameworkDeviceAbsence(
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
 	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, "/dev/disk43")}})
 	commander.sequence["/usr/sbin/ioreg"] = []Result{{Stdout: registryArchive()}, {Stdout: registryArchive(registryMedia("disk0"), registryMedia("disk43"))}}
-	commander.sequence["plutil"] = []Result{commander.results["plutil"], {Stdout: []byte(`[]`)}, {Stdout: []byte(`[{"IOObjectClass":"IOMedia","BSD Name":"disk0"},{"IOObjectClass":"IOMedia","BSD Name":"disk43"}]`)}}
 	disk := &HostDisk{C: commander, T: &Transcript{}}
 	if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 0 {
 		t.Fatalf("corroborated absence caused a detach: %v, calls=%v", err, commander.calls)
