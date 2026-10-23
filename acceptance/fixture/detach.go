@@ -10,7 +10,7 @@ import (
 
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 	checks := 0
-	return Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
+	err := Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
 		if err := ctx.Err(); err != nil {
 			return false, "", err
 		}
@@ -52,6 +52,11 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 			return false, "", err
 		}
 	})
+	var unsettled *NotSettledError
+	if errors.As(err, &unsettled) {
+		return errors.Join(err, d.recordBusyDetachEvidence(ctx, a))
+	}
+	return err
 }
 
 // attachedTo reports whether hdiutil still lists the attachment's device under

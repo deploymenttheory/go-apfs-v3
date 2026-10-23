@@ -47,7 +47,7 @@ func decode(kind uint32, dst, src []byte) error {
 	var err error
 	switch kind {
 	case 3, 4:
-		n, err = inflate(dst, src)
+		n, err = inflate(dst, src, kind == 4)
 	case 7, 8:
 		n, err = lzfse.DecodeLZVN(dst, src)
 	case 11, 12:
@@ -69,9 +69,10 @@ func decode(kind uint32, dst, src []byte) error {
 }
 
 // Native decmpfs zlib blocks can omit the Adler-32 trailer. A present trailer
-// must match. bytes.Reader implements ReadByte so flate cannot read ahead into
-// the trailer; the bounded destination detects excess output independently.
-func inflate(dst, src []byte) (int, error) {
+// must match. Type-4 resource descriptors can include opaque bytes after that
+// trailer; inline type-3 storage cannot. bytes.Reader implements ReadByte so
+// flate cannot read ahead into the trailer. The destination bounds output.
+func inflate(dst, src []byte, resource bool) (int, error) {
 	if len(src) < 2 || src[0]&15 != 8 || src[0]>>4 > 7 || binary.BigEndian.Uint16(src[:2])%31 != 0 || src[1]&32 != 0 {
 		return 0, bad("zlib header")
 	}
@@ -86,8 +87,10 @@ func inflate(dst, src []byte) (int, error) {
 	if count, err := r.Read(extra[:]); count != 0 || err != io.EOF {
 		return n, bad("deflate size or terminator")
 	}
-	if input.Len() != 0 {
-		if input.Len() != 4 || binary.BigEndian.Uint32(src[len(src)-4:]) != adler32.Checksum(dst) {
+	remaining := input.Len()
+	if remaining != 0 {
+		if remaining < 4 || (!resource && remaining != 4) ||
+			binary.BigEndian.Uint32(src[len(src)-remaining:]) != adler32.Checksum(dst) {
 			return n, bad("zlib checksum or trailing bytes")
 		}
 	}

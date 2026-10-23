@@ -112,6 +112,9 @@ type TranscriptUser interface {
 type HostDisk struct {
 	C Commander
 	T *Transcript
+	// Tests replace this per instance; snapshot cleanup never needs a global
+	// probe override or a real host mount to exercise ownership decisions.
+	mountProbe func(string) (mountIdentity, error)
 }
 
 // SetTranscript records subsequent programs into t.
@@ -612,8 +615,56 @@ func (d *HostDisk) MountSnapshot(ctx context.Context, name, mount, pin string) e
 }
 
 func (d *HostDisk) UnmountPath(ctx context.Context, path string) error {
-	_, err := d.run(ctx, "umount", false, nil, "/sbin/umount", path)
-	return err
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Keep the actual argv bound to this canonical pin even if an input alias
+	// is retargeted while the normal unmount settles.
+	pin, err := canonicalMountPath(path)
+	if err != nil {
+		return d.T.RecordFS("snapshot-mount-path", []string{"canonicalize", path}, err, "0")
+	}
+	identity, _, err := d.snapshotMountIdentity(ctx, pin, nil)
+	if err != nil {
+		return err
+	}
+	var previousBusy error
+	// Only an actual busy unmount result permits bounded cleanup settling.
+	// Keep every failed command and wait; never retry a checker or observation.
+	return Settle(ctx, d.T, "snapshot-unmount-busy", BusyWait, func() (bool, string, error) {
+		if err := ctx.Err(); err != nil {
+			return false, "", errors.Join(previousBusy, err)
+		}
+		if previousBusy != nil {
+			_, gone, err := d.snapshotMountIdentity(ctx, pin, &identity)
+			if err != nil {
+				return false, "", errors.Join(previousBusy, err)
+			}
+			if gone {
+				return true, "", nil
+			}
+		}
+		if err := ctx.Err(); err != nil {
+			return false, "", errors.Join(previousBusy, err)
+		}
+		cmd := Command{Label: "umount", Argv: []string{"/sbin/umount", pin}, Expected: "0"}
+		result := d.C.Run(ctx, cmd)
+		err := d.T.Record(cmd, result)
+		if ctx.Err() != nil {
+			return false, "", errors.Join(err, ctx.Err())
+		}
+		switch {
+		case result.Err != nil:
+			return false, "", err
+		case err == nil:
+			return true, "", nil
+		case result.Status == 1 && strings.Contains(string(result.Stderr), "Resource busy"):
+			previousBusy = err
+			return false, err.Error(), nil
+		default:
+			return false, "", err
+		}
+	})
 }
 
 func (d *HostDisk) Verify(ctx context.Context, image string, password []byte) error {

@@ -2,6 +2,8 @@ package fixture
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,6 +50,91 @@ func TestCreateImageDoesNotRetryOtherFailures(t *testing.T) {
 	}
 	if len(cmd.calls) != 1 {
 		t.Fatalf("expected one attempt, got %d", len(cmd.calls))
+	}
+}
+
+func TestUnmountPathRetriesOnlyTransientBusySnapshot(t *testing.T) {
+	instantWaits(t)
+	busy := Result{Status: 1, Stderr: []byte("umount: Resource busy -- try 'diskutil unmount'")}
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {busy, {Status: 0}}}}
+	d, path, _ := snapshotUnmountDisk(t, cmd)
+	if err := d.UnmountPath(context.Background(), path); err != nil {
+		t.Fatal(err)
+	}
+	if len(cmd.calls) != 2 || len(d.T.Commands) != 5 ||
+		d.T.Commands[0].Label != "snapshot-mount-identity" ||
+		d.T.Commands[1].Status != "1" ||
+		d.T.Commands[2].Label != "wait:snapshot-unmount-busy" ||
+		d.T.Commands[3].Label != "snapshot-mount-identity" ||
+		d.T.Commands[4].Status != "0" {
+		t.Fatalf("busy unmount attempts were not retained: calls=%v transcript=%+v", cmd.calls, d.T.Commands)
+	}
+}
+
+func TestUnmountPathStopsAtNonBusyFailure(t *testing.T) {
+	instantWaits(t)
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {
+		{Status: 1, Stderr: []byte("umount: permission denied")}, {Status: 0},
+	}}}
+	d, path, _ := snapshotUnmountDisk(t, cmd)
+	if err := d.UnmountPath(context.Background(), path); err == nil ||
+		len(cmd.calls) != 1 {
+		t.Fatalf("non-busy unmount should fail once: %v, calls=%v", err, cmd.calls)
+	}
+}
+
+func TestUnmountPathDoesNotRetryCommandFailuresMentioningBusy(t *testing.T) {
+	for _, status := range []int{-1, 1} {
+		t.Run(fmt.Sprintf("status-%d", status), func(t *testing.T) {
+			instantWaits(t)
+			cause := errors.New("launch failed: Resource busy")
+			cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": {
+				{Status: status, Err: cause, Stderr: []byte("Resource busy")}, {Status: 0},
+			}}}
+			d, path, _ := snapshotUnmountDisk(t, cmd)
+			err := d.UnmountPath(context.Background(), path)
+			if !errors.Is(err, cause) || len(cmd.calls) != 1 || len(d.T.Commands) != 2 {
+				t.Fatalf("command failure was retried or lost: %v, calls=%v, transcript=%+v", err, cmd.calls, d.T.Commands)
+			}
+		})
+	}
+}
+
+func TestUnmountPathDoesNotRunAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	cmd := &fakeCommander{}
+	d := &HostDisk{C: cmd, T: &Transcript{}}
+	if err := d.UnmountPath(ctx, "/tmp/fixture-snapshot"); !errors.Is(err, context.Canceled) || len(cmd.calls) != 0 {
+		t.Fatalf("cancelled unmount ran a command or lost cancellation: %v, calls=%v", err, cmd.calls)
+	}
+}
+
+func TestUnmountPathStopsAfterBusyBudget(t *testing.T) {
+	instantWaits(t)
+	busy := Result{Status: 1, Stderr: []byte("umount: Resource busy")}
+	queue := make([]Result, BusyWait.Attempts)
+	for i := range queue {
+		queue[i] = busy
+	}
+	cmd := &fakeCommander{sequence: map[string][]Result{"/sbin/umount": queue}}
+	d, path, _ := snapshotUnmountDisk(t, cmd)
+	err := d.UnmountPath(context.Background(), path)
+	if err == nil || !strings.Contains(err.Error(), "Resource busy") ||
+		len(cmd.calls) != BusyWait.Attempts {
+		t.Fatalf("busy unmount exceeded its retry budget: %v, calls=%v", err, cmd.calls)
+	}
+	probes, waits := 0, 0
+	for _, command := range d.T.Commands {
+		if command.Label == "snapshot-mount-identity" {
+			probes++
+		}
+		if command.Label == "wait:snapshot-unmount-busy" {
+			waits++
+		}
+	}
+	if probes != BusyWait.Attempts || waits != BusyWait.Attempts-1 {
+		t.Fatalf("ownership checks changed the existing attempt/wait budget: probes=%d waits=%d", probes, waits)
 	}
 }
 

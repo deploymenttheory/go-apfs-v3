@@ -2,6 +2,7 @@ package decmpfs
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -158,6 +159,93 @@ func TestDeflateChecksTrailerAndOutputLength(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func zlibBlock(t *testing.T, plain, suffix []byte) []byte {
+	t.Helper()
+	var b bytes.Buffer
+	w := zlib.NewWriter(&b)
+	if _, err := w.Write(plain); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return append(b.Bytes(), suffix...)
+}
+
+func type4Resource(blocks ...[]byte) []byte {
+	start := 264 + 8*len(blocks)
+	end := start
+	for _, b := range blocks {
+		end += len(b)
+	}
+	r := make([]byte, end+50)
+	be.PutUint32(r, 256)
+	be.PutUint32(r[4:], uint32(end))
+	be.PutUint32(r[8:], uint32(end-256))
+	be.PutUint32(r[12:], 50)
+	be.PutUint32(r[256:], uint32(end-260))
+	le.PutUint32(r[260:], uint32(len(blocks)))
+	offset := start
+	for i, b := range blocks {
+		le.PutUint32(r[264+i*8:], uint32(offset-260))
+		le.PutUint32(r[268+i*8:], uint32(len(b)))
+		copy(r[offset:], b)
+		offset += len(b)
+	}
+	return r
+}
+
+func TestType4ZlibResourceSuffix(t *testing.T) {
+	ctx := context.Background()
+	block := zlibBlock(t, []byte("abc"), []byte("nonzero resource suffix"))
+	read := func(encoded []byte, size uint64) ([]byte, error) {
+		v, err := Open(ctx, attributes(ctx, header(4, size, nil), type4Resource(encoded)))
+		if err != nil {
+			return nil, err
+		}
+		defer v.Close()
+		out := make([]byte, size)
+		_, err = v.ReadAt(out, 0)
+		return out, err
+	}
+	got, err := read(block, 3)
+	if err != nil || string(got) != "abc" {
+		t.Fatalf("valid resource block = %q, %v", got, err)
+	}
+	if err := decode(3, make([]byte, 3), block); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatalf("inline storage accepted suffix: %v", err)
+	}
+	badChecksum := bytes.Clone(block)
+	badChecksum[len(block)-len("nonzero resource suffix")-1] ^= 1
+	if _, err := read(badChecksum, 3); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatalf("bad Adler-32 accepted: %v", err)
+	}
+	if _, err := read(block[:len(block)-len("nonzero resource suffix")-1], 3); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatalf("truncated Adler-32 accepted: %v", err)
+	}
+	if _, err := read(block, 2); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatalf("decoded size mismatch accepted: %v", err)
+	}
+}
+
+func TestType4ZlibResourceSuffixAcrossBlocks(t *testing.T) {
+	ctx := context.Background()
+	first := bytes.Repeat([]byte("A"), blockSize)
+	resource := type4Resource(
+		zlibBlock(t, first, []byte("first suffix")),
+		zlibBlock(t, []byte("xyz"), []byte("second suffix")),
+	)
+	v, err := Open(ctx, attributes(ctx, header(4, blockSize+3, nil), resource))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer v.Close()
+	got := make([]byte, 5)
+	if _, err := v.ReadAt(got, blockSize-2); err != nil || string(got) != "AAxyz" {
+		t.Fatalf("cross-block read = %q, %v", got, err)
 	}
 }
 
