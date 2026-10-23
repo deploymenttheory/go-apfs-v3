@@ -31,6 +31,8 @@ func (d *HostDisk) kernelAttachmentOwnership(ctx context.Context, a *Attachment)
 	if err != nil {
 		return OwnershipUnknown, err
 	}
+	modernRoots := roots
+	var legacyRoots []map[string]any
 	var owners []map[string]any
 	for _, root := range roots {
 		if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), false, 0, &owners); err != nil {
@@ -46,6 +48,7 @@ func (d *HostDisk) kernelAttachmentOwnership(ctx context.Context, a *Attachment)
 		if err != nil {
 			return OwnershipUnknown, err
 		}
+		legacyRoots = roots
 		for _, root := range roots {
 			if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), true, 0, &owners); err != nil {
 				return OwnershipUnknown, err
@@ -64,6 +67,26 @@ func (d *HostDisk) kernelAttachmentOwnership(ctx context.Context, a *Attachment)
 			return OwnershipUnknown, fmt.Errorf("kernel owner of %s: %w", a.Dev, err)
 		}
 		return d.imageOwnership(actual, a.Image)
+	}
+	// A stale device handle can disappear while this same backing image
+	// remains attached elsewhere. Never retarget it or claim it was released.
+	for _, scope := range []struct {
+		roots  []map[string]any
+		legacy bool
+	}{{modernRoots, false}, {legacyRoots, true}} {
+		for _, root := range scope.roots {
+			class, _ := root["IOObjectClass"].(string)
+			if (scope.legacy && !legacyImageClass(class)) || (!scope.legacy && class != "AppleDiskImageDevice") {
+				return OwnershipUnknown, errors.New("kernel image scope has an unqualified root while proving release")
+			}
+			present, err := d.registryImagePresent(root, a.Image, scope.legacy, 0)
+			if err != nil {
+				return OwnershipUnknown, err
+			}
+			if present {
+				return OwnershipUnknown, fmt.Errorf("expected image remains in kernel ancestry without the requested device %s", a.Dev)
+			}
+		}
 	}
 
 	// Read the entire IOMedia class independently. An empty scoped image
@@ -104,6 +127,40 @@ func (d *HostDisk) kernelAttachmentOwnership(ctx context.Context, a *Attachment)
 		return OwnershipUnknown, errors.New("kernel IOMedia archive cannot corroborate device absence")
 	}
 	return OwnershipAbsent, nil
+}
+
+func (d *HostDisk) registryImagePresent(node map[string]any, expected string, legacy bool, depth int) (bool, error) {
+	if depth > 64 {
+		return false, errors.New("kernel image ancestry exceeds the qualified depth")
+	}
+	class, _ := node["IOObjectClass"].(string)
+	if class == "AppleDiskImageDevice" || legacyImageClass(class) {
+		actual, err := registryOwnerPath(node, legacy)
+		if err != nil {
+			return false, err
+		}
+		match, err := d.imagePathsMatch(actual, expected)
+		if err != nil || match {
+			return match, err
+		}
+	}
+	if raw, exists := node["IORegistryEntryChildren"]; exists {
+		children, ok := raw.([]any)
+		if !ok {
+			return false, errors.New("kernel image archive has malformed children")
+		}
+		for _, raw := range children {
+			child, ok := raw.(map[string]any)
+			if !ok {
+				return false, errors.New("kernel image archive has a non-dictionary child")
+			}
+			present, err := d.registryImagePresent(child, expected, legacy, depth+1)
+			if err != nil || present {
+				return present, err
+			}
+		}
+	}
+	return false, nil
 }
 
 func (d *HostDisk) registryInventory(ctx context.Context, label string, argv []string) ([]map[string]any, error) {

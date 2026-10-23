@@ -8,6 +8,7 @@ import (
 )
 
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
+	var busyErr error
 	err := Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
 		if err := ctx.Err(); err != nil {
 			return false, "", err
@@ -47,11 +48,15 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 		case 0:
 			return true, "", nil
 		case 16: // EBUSY.
+			busyErr = err
 			return false, err.Error(), nil
 		default:
 			return false, "", err
 		}
 	})
+	if err != nil {
+		err = errors.Join(err, busyErr)
+	}
 	var unsettled *NotSettledError
 	if errors.As(err, &unsettled) {
 		return errors.Join(err, d.recordBusyDetachEvidence(ctx, a))
@@ -105,7 +110,27 @@ func (d *HostDisk) attachmentOwnership(ctx context.Context, a *Attachment) (Atta
 		// A framework inventory omitted a raw attachment after successful
 		// unmounts in native CI. Its absence cannot mean detached. Require
 		// an independent kernel binding, or corroborated kernel-media absence.
-		return d.kernelAttachmentOwnership(ctx, a)
+		state, err := d.kernelAttachmentOwnership(ctx, a)
+		if err != nil || state != OwnershipAbsent {
+			return state, err
+		}
+		// A missing old BSD name cannot release an image which the same
+		// framework inventory still lists under a different device.
+		for _, raw := range images {
+			image, ok := raw.(map[string]any)
+			if !ok {
+				return OwnershipUnknown, errors.New("framework image identity is incomplete while proving release")
+			}
+			path, _ := image["image-path"].(string)
+			match, err := d.imagePathsMatch(path, a.Image)
+			if err != nil {
+				return OwnershipUnknown, err
+			}
+			if match {
+				return OwnershipUnknown, errors.New("expected image remains in the framework inventory under another or unknown device")
+			}
+		}
+		return OwnershipAbsent, nil
 	}
 	// Incomplete metadata for unrelated images cannot invalidate a positively
 	// identified device. Resolve only this owner's path and the expected image.

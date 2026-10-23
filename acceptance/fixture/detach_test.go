@@ -170,8 +170,9 @@ func TestAttachmentOwnershipDoesNotResolveUnrelatedIncompleteImages(t *testing.T
 func TestDetachRequiresKernelCorroborationBeforeAcceptingFrameworkDeviceAbsence(t *testing.T) {
 	instantWaits(t)
 	image := detachImage(t, t.TempDir())
+	foreign := detachImage(t, t.TempDir())
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
-	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, "/dev/disk43")}})
+	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(foreign, "/dev/disk43")}})
 	commander.sequence["/usr/sbin/ioreg"] = []Result{{Stdout: registryArchive()}, {Stdout: registryArchive()}, {Stdout: registryArchive(registryMedia("disk0"), registryMedia("disk43"))}}
 	disk := imageTestDisk(commander)
 	if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 0 {

@@ -2,9 +2,11 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +22,71 @@ func TestForeignAttachmentCleanupDoesNotClaimRelease(t *testing.T) {
 	}
 	if detachCalls(commander) != 0 {
 		t.Fatal("a foreign device was detached")
+	}
+}
+
+func TestCapturedLiveImageWithAStaleDeviceCannotBeReportedReleased(t *testing.T) {
+	for _, capture := range retainedNativePlatformCaptures(t) {
+		t.Run(fmt.Sprint(capture.Major), func(t *testing.T) {
+			commander := capture.commander(t, "after-attach-second")
+			disk := &HostDisk{C: commander, T: &Transcript{}, imagePathResolver: capture.resolveImage}
+			got, err := disk.kernelAttachmentOwnership(context.Background(), &Attachment{Image: capture.First.Image, Dev: "/dev/disk999"})
+			if got != OwnershipUnknown || err == nil || !strings.Contains(err.Error(), "expected image remains in kernel ancestry") {
+				t.Fatalf("visibly attached image with a stale device falsely classified as %s: %v", got, err)
+			}
+		})
+	}
+}
+
+func TestFrameworkImageAtAnotherDeviceCannotBeReportedReleased(t *testing.T) {
+	image := detachImage(t, t.TempDir())
+	att := &Attachment{Image: image, Dev: "/dev/disk42"}
+	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, "/dev/disk43")}})
+	commander.sequence["/usr/sbin/ioreg"] = []Result{{Stdout: registryArchive()}, {Stdout: registryArchive()}, {Stdout: registryArchive(registryMedia("disk0"), registryMedia("disk43"))}}
+	disk := imageTestDisk(commander)
+	err := disk.Detach(context.Background(), att)
+	var refusal *AttachmentOwnershipError
+	if !errors.As(err, &refusal) || refusal.State != OwnershipUnknown || !strings.Contains(err.Error(), "expected image remains in the framework inventory") {
+		t.Fatalf("expected image at another device falsely reported released: %v", err)
+	}
+	if detachCalls(commander) != 0 {
+		t.Fatal("stale handle retargeted a detach")
+	}
+}
+
+func TestBusyDetachRetainsItsFailureWhenLaterOwnershipProofRefusesCleanup(t *testing.T) {
+	for _, state := range []AttachmentOwnership{OwnershipForeign, OwnershipUnknown} {
+		t.Run(string(state), func(t *testing.T) {
+			instantWaits(t)
+			image := detachImage(t, filepath.Join(t.TempDir(), "expected"))
+			foreign := detachImage(t, filepath.Join(t.TempDir(), "foreign"))
+			att := &Attachment{Image: image, Dev: "/dev/disk42"}
+			commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, att.Dev)}})
+			owned, err := json.Marshal(map[string]any{"images": []any{attachedImage(image, att.Dev)}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			other, err := json.Marshal(map[string]any{"images": []any{attachedImage(foreign, att.Dev)}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			proof := Result{Stdout: other}
+			var failure error
+			if state == OwnershipUnknown {
+				failure = errors.New("ownership conversion failed")
+				proof = Result{Status: -1, Err: failure}
+			}
+			commander.sequence["plutil"] = []Result{{Stdout: owned}, proof}
+			disk := imageTestDisk(commander)
+			err = disk.Detach(context.Background(), att)
+			var refusal *AttachmentOwnershipError
+			if !errors.As(err, &refusal) || refusal.State != state || !strings.Contains(err.Error(), "exit 16: Resource busy") || (failure != nil && !errors.Is(err, failure)) {
+				t.Fatalf("later ownership refusal lost the earlier busy detach or proof cause: %v", err)
+			}
+			if detachCalls(commander) != 1 {
+				t.Fatal("failed ownership proof admitted another detach action")
+			}
+		})
 	}
 }
 

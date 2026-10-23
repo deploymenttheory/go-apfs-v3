@@ -349,7 +349,7 @@ each detach request. Capture and verification use the same adapter contract:
 | --- | --- |
 | Owned | The current device has the expected complete image path; normal detach is permitted. |
 | Foreign | The device belongs to another image; no device action is permitted and cleanup returns an unreleased-attachment error. |
-| Absent | Independent image scopes and the complete kernel media inventory corroborate that the device is gone; no detach is needed. |
+| Absent | Independent image scopes and the complete kernel media inventory corroborate that the device is gone, and the expected image is not still listed elsewhere; no detach is needed. |
 | Unknown | Identity or absence could not be proved; cleanup fails with the original cause and performs no device action. |
 
 A successful empty scoped `ioreg` query means that class had no matches. It
@@ -452,6 +452,13 @@ combined workload record at most twelve jobs and forty-five minutes wall clock.
 - **Capture**: the capture job prints each case; failures name the step
   index in the recipe. Diagnostics (transcripts, partial outputs) are
   uploaded on failure.
+
+Capture writes its failure receipt after the existing cleanup has finished, so
+the same report includes early format failures, cleanup commands and combined
+operation/cleanup errors. Failure to retain that report is returned alongside the
+original error. Native continuation transcripts likewise include commands across
+observer handoffs and final cleanup. A tracked product refusal cannot suppress an
+independent cleanup or evidence-retention failure.
 
 For an exhausted busy detach, find `busy-detach-evidence` in the retained
 command transcript. Its `StdoutText` is a JSON receipt containing the source
