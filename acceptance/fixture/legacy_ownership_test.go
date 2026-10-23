@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,10 +22,10 @@ func TestKernelOwnershipBindsLegacyFilesystemPathBytesForKnownImageClasses(t *te
 			c := &kernelOwnershipCommander{
 				global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`),
 				images: registryArchive(),
-				legacy: registryArchive(legacyRegistryImage(class, []byte(image), registryMedia("disk17"))),
+				legacy: registryArchive(legacyRegistryImage(class, []byte(projectedImagePath(image)), registryMedia("disk17"))),
 				media:  registryArchive(registryMedia("disk0"), registryMedia("disk17")),
 			}
-			disk := &HostDisk{C: c, T: &Transcript{}}
+			disk := imageTestDisk(c)
 			if err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err != nil {
 				t.Fatal(err)
 			}
@@ -40,19 +39,17 @@ func TestKernelOwnershipBindsLegacyFilesystemPathBytesForKnownImageClasses(t *te
 	}
 }
 
-func TestKernelLegacyOwnershipCanonicalizesActualFilesystemAliases(t *testing.T) {
+func TestKernelLegacyOwnershipCanonicalizesDeclaredFilesystemAliases(t *testing.T) {
 	root := t.TempDir()
 	image := detachImage(t, filepath.Join(root, "original"))
 	alias := filepath.Join(root, "alias")
-	if err := os.Symlink(filepath.Dir(image), alias); err != nil {
-		t.Skipf("directory symlinks unavailable: %v", err)
-	}
 	c := &kernelOwnershipCommander{
 		global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`),
 		images: registryArchive(),
-		legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(filepath.Join(alias, filepath.Base(image))), registryMedia("disk17"))),
+		legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(projectedImagePath(filepath.Join(alias, filepath.Base(image)))), registryMedia("disk17"))),
 	}
-	disk := &HostDisk{C: c, T: &Transcript{}}
+	disk := imageTestDisk(c)
+	disk.imagePathResolver = projectedImageResolver(map[string]string{filepath.Join(alias, filepath.Base(image)): image})
 	if err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err != nil || c.count("detach") != 1 {
 		t.Fatalf("exact canonical alias was not recognized: %v", err)
 	}
@@ -62,12 +59,12 @@ func TestKernelLegacyOwnershipLeavesForeignAndMalformedBindingsUntouched(t *test
 	for _, name := range []string{"foreign image", "unknown class", "unknown media class", "string path", "missing path", "empty path", "relative path", "URL path", "NUL path", "terminal NUL path", "non-UTF8 path", "oversized path", "invalid base64", "ambiguous owners", "mixed properties", "mixed ancestry"} {
 		t.Run(name, func(t *testing.T) {
 			image := detachImage(t, filepath.Join(t.TempDir(), "original"))
-			path := []byte(image)
+			path := []byte(projectedImagePath(image))
 			class := "IOHDIXHDDriveOutKernel"
 			media := registryMedia("disk17")
 			switch name {
 			case "foreign image":
-				path = []byte(detachImage(t, filepath.Join(t.TempDir(), "foreign")))
+				path = []byte(projectedImagePath(detachImage(t, filepath.Join(t.TempDir(), "foreign"))))
 			case "unknown class":
 				class = "IOHDIXUnknownDrive"
 			case "unknown media class":
@@ -107,7 +104,7 @@ func TestKernelLegacyOwnershipLeavesForeignAndMalformedBindingsUntouched(t *test
 				images: registryArchive(),
 				legacy: registryArchive(owner),
 			}
-			disk := &HostDisk{C: c, T: &Transcript{}}
+			disk := imageTestDisk(c)
 			err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 			if name == "foreign image" {
 				if err != nil {
@@ -127,14 +124,14 @@ func TestKernelOwnershipDoesNotReplaceAnInvalidModernProofWithLegacyEvidence(t *
 	image := detachImage(t, t.TempDir())
 	for _, owner := range []string{
 		strings.ReplaceAll(registryImage(imageFileURL(image), registryMedia("disk17")), "DiskImageURL", "unused-url"),
-		strings.TrimSuffix(registryImage(imageFileURL(image), registryMedia("disk17")), "</dict>") + "<key>image-path</key><data>" + base64.StdEncoding.EncodeToString([]byte(image)) + "</data></dict>",
+		strings.TrimSuffix(registryImage(imageFileURL(image), registryMedia("disk17")), "</dict>") + "<key>image-path</key><data>" + base64.StdEncoding.EncodeToString([]byte(projectedImagePath(image))) + "</data></dict>",
 	} {
 		c := &kernelOwnershipCommander{
 			global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`),
 			images: registryArchive(owner),
-			legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(image), registryMedia("disk17"))),
+			legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(projectedImagePath(image)), registryMedia("disk17"))),
 		}
-		disk := &HostDisk{C: c, T: &Transcript{}}
+		disk := imageTestDisk(c)
 		if err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err == nil || c.count("detach") != 0 || c.count("ioreg-legacy-image-ownership") != 0 {
 			t.Fatalf("an invalid selected modern proof fell through to another backend: %v", err)
 		}
@@ -152,7 +149,7 @@ func TestKernelLegacyOwnershipKeepsFailedProbeAndCancellationCauses(t *testing.T
 		legacyErr:    cause,
 		cancelLegacy: cancel,
 	}
-	disk := &HostDisk{C: c, T: &Transcript{}}
+	disk := imageTestDisk(c)
 	err := disk.Detach(ctx, &Attachment{Image: image, Dev: "/dev/disk17"})
 	if !errors.Is(err, cause) || !errors.Is(err, context.Canceled) || c.count("detach") != 0 || c.count("ioreg-media-absence") != 0 {
 		t.Fatalf("legacy proof lost cancellation/original cause or allowed action: %v", err)
@@ -165,10 +162,10 @@ func TestKernelLegacyOwnershipPreservesTheFatalSixAttemptDetachBudget(t *testing
 	c := &kernelOwnershipCommander{
 		global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`),
 		images: registryArchive(),
-		legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(image), registryMedia("disk17"))),
+		legacy: registryArchive(legacyRegistryImage("IOHDIXHDDriveOutKernel", []byte(projectedImagePath(image)), registryMedia("disk17"))),
 		busy:   true,
 	}
-	disk := &HostDisk{C: c, T: &Transcript{}}
+	disk := imageTestDisk(c)
 	err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 	var spent *NotSettledError
 	if !errors.As(err, &spent) || spent.Checks != 6 || c.count("detach") != 6 {

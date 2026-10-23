@@ -39,7 +39,9 @@ func registryImage(imageURL, media string) string {
 	return `<dict><key>IOObjectClass</key><string>AppleDiskImageDevice</string><key>DiskImageURL</key>` + registryString(imageURL) + `<key>IORegistryEntryChildren</key><array>` + media + `</array><key>opaque-driver-data</key><data>AAEC</data><key>IORegistryEntryID</key><integer>18446744073709551615</integer></dict>`
 }
 
-func imageFileURL(path string) string { return (&url.URL{Scheme: "file", Path: path}).String() }
+func imageFileURL(path string) string {
+	return (&url.URL{Scheme: "file", Path: projectedImagePath(path)}).String()
+}
 
 type kernelOwnershipCommander struct {
 	calls                     []Command
@@ -147,7 +149,7 @@ func TestDetachUsesKernelOwnershipWhenTheNativeFrameworkInventoryOmitsItsImage(t
 		global: []byte(commands[28].StdoutText),
 		images: registryArchive(registryImage(imageFileURL(image), registryMedia("disk17"))),
 	}
-	d := &HostDisk{C: c, T: &Transcript{}}
+	d := imageTestDisk(c)
 	if err := d.Detach(context.Background(), att); err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +225,7 @@ func TestKernelOwnershipLeavesForeignImagesAndUnknownDevicesUntouched(t *testing
 			if name == "truncated archive" {
 				c.images = c.images[:len(c.images)-10]
 			}
-			d := &HostDisk{C: c, T: &Transcript{}}
+			d := imageTestDisk(c)
 			err := d.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 			if name == "foreign image" {
 				if err != nil {
@@ -242,7 +244,7 @@ func TestKernelOwnershipLeavesForeignImagesAndUnknownDevicesUntouched(t *testing
 func TestKernelMediaAbsenceRequiresACompleteIndependentInventory(t *testing.T) {
 	image := detachImage(t, t.TempDir())
 	c := &kernelOwnershipCommander{global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`), images: registryArchive(), media: registryArchive(registryMedia("disk0"), registryMedia("disk0s1"))}
-	d := &HostDisk{C: c, T: &Transcript{}}
+	d := imageTestDisk(c)
 	if err := d.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err != nil {
 		t.Fatal(err)
 	}
@@ -257,22 +259,20 @@ func TestKernelOwnershipCanBindTheTargetMissingFromIncompleteFrameworkRows(t *te
 		global: []byte(`<plist><dict><key>images</key><array><dict><key>image-path</key><string>/unrelated/incomplete.raw</string></dict><dict><key>system-entities</key><array><dict/></array></dict></array></dict></plist>`),
 		images: registryArchive(registryImage(imageFileURL(image), registryMedia("disk17"))),
 	}
-	disk := &HostDisk{C: c, T: &Transcript{}}
+	disk := imageTestDisk(c)
 	if err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err != nil || c.count("detach") != 1 || c.count("ioreg-image-ownership") != 1 {
 		t.Fatalf("unbound framework rows prevented an independent exact kernel proof: %v", err)
 	}
 }
 
-func TestKernelOwnershipResolvesEscapedLocalURLsAndSymlinkAliases(t *testing.T) {
+func TestKernelOwnershipResolvesEscapedLocalURLsAndDeclaredAliases(t *testing.T) {
 	root := t.TempDir()
 	image := detachImage(t, filepath.Join(root, "actual space"))
 	alias := filepath.Join(root, "alias")
-	if err := os.Symlink(filepath.Dir(image), alias); err != nil {
-		t.Skipf("symlinks unavailable: %v", err)
-	}
 	for _, expected := range []string{image, filepath.Join(alias, filepath.Base(image))} {
 		c := &kernelOwnershipCommander{global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`), images: registryArchive(registryImage(imageFileURL(image), registryMedia("disk17")))}
-		d := &HostDisk{C: c, T: &Transcript{}}
+		d := imageTestDisk(c)
+		d.imagePathResolver = projectedImageResolver(map[string]string{filepath.Join(alias, filepath.Base(image)): image})
 		if err := d.Detach(context.Background(), &Attachment{Image: expected, Dev: "/dev/disk17"}); err != nil || c.count("detach") != 1 {
 			t.Fatalf("qualified alias did not establish ownership: %v", err)
 		}
@@ -290,7 +290,7 @@ func TestKernelOwnershipKeepsProbeErrorsAndCancellationBeforeAnyAction(t *testin
 			if cancelProbe {
 				c.cancel = cancel
 			}
-			d := &HostDisk{C: c, T: &Transcript{}}
+			d := imageTestDisk(c)
 			err := d.Detach(ctx, &Attachment{Image: image, Dev: "/dev/disk17"})
 			if !errors.Is(err, cause) || cancelProbe && !errors.Is(err, context.Canceled) || c.count("detach") != 0 {
 				t.Fatalf("failed/cancelled kernel proof lost its cause or allowed action: %v", err)
@@ -303,7 +303,7 @@ func TestKernelOwnershipCannotIncreaseTheDetachBudget(t *testing.T) {
 	instantWaits(t)
 	image := detachImage(t, t.TempDir())
 	c := &kernelOwnershipCommander{global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`), images: registryArchive(registryImage(imageFileURL(image), registryMedia("disk17"))), busy: true}
-	d := &HostDisk{C: c, T: &Transcript{}}
+	d := imageTestDisk(c)
 	err := d.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 	var spent *NotSettledError
 	if !errors.As(err, &spent) || spent.Checks != 6 || c.count("detach") != 6 {
@@ -326,7 +326,7 @@ func TestKernelRegistryReceiptsKeepBoundedOriginalTextAndDigests(t *testing.T) {
 			}
 			if size > retainedRegistryTextLimit {
 				c := &kernelOwnershipCommander{images: raw}
-				disk := &HostDisk{C: c, T: &Transcript{}}
+				disk := imageTestDisk(c)
 				if _, err := disk.registryInventory(context.Background(), "ioreg-image-ownership", argv); err == nil || c.count("plutil") != 0 {
 					t.Fatal("oversized registry proof reached conversion or was admitted")
 				}

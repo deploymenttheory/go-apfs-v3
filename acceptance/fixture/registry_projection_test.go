@@ -50,7 +50,7 @@ func TestRegistryOwnershipProjectsTheOpaqueDataArchiveRejectedByNativeJSONConver
 					Stderr: files[result.Case+".stderr"],
 				},
 			}
-			disk := &HostDisk{C: c, T: &Transcript{}}
+			disk := imageTestDisk(c)
 			roots, err := disk.registryInventory(context.Background(), "ioreg-image-ownership", imageRegistryArgs)
 			if err != nil || len(roots) != 1 || len(roots[0]) != 1 || roots[0]["IOObjectClass"] != "AppleDiskImageDevice" {
 				t.Fatalf("opaque native properties blocked the ownership projection: %v %v", roots, err)
@@ -78,7 +78,7 @@ func TestKernelOwnershipSkipsOpaqueDataRealDateAndNestedProperties(t *testing.T)
 				global: []byte(`<plist><dict><key>images</key><array/></dict></plist>`),
 				images: registryArchive(owner),
 			}
-			disk := &HostDisk{C: c, T: &Transcript{}}
+			disk := imageTestDisk(c)
 			if err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"}); err != nil || c.count("detach") != 1 || c.count("plutil") != 1 {
 				t.Fatalf("an opaque property changed exact ownership or caused registry conversion: %v", err)
 			}

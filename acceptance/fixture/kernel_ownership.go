@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"path/filepath"
 	"slices"
 	"strings"
-	"unicode/utf8"
 )
 
 const retainedRegistryTextLimit = 8 << 20
@@ -66,11 +63,7 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 		if err != nil {
 			return false, fmt.Errorf("kernel owner of %s: %w", a.Dev, err)
 		}
-		expected, err := canonicalImagePath(a.Image)
-		if err != nil {
-			return false, fmt.Errorf("resolve expected image %q: %w", a.Image, err)
-		}
-		return actual == expected, nil
+		return d.imagePathsMatch(actual, a.Image)
 	}
 
 	// Read the entire IOMedia class independently. An empty scoped image
@@ -185,10 +178,7 @@ func registryOwnerPath(owner map[string]any, legacy bool) (string, error) {
 		}
 		// The reference copies the complete CFData bytes, adding its own C++
 		// string terminator. Never trim a NUL or guess a URL/text encoding here.
-		if len(path) == 0 || !utf8.Valid(path) || strings.ContainsRune(string(path), 0) || !filepath.IsAbs(string(path)) {
-			return "", errors.New("kernel image-path is not an absolute NUL-free UTF-8 path")
-		}
-		return canonicalImagePath(string(path))
+		return parseNativeImagePath(string(path))
 	}
 	if _, mixed := owner["image-path"]; mixed {
 		return "", errors.New("kernel image owner has mixed URL and filesystem-path bindings")
@@ -197,7 +187,7 @@ func registryOwnerPath(owner map[string]any, legacy bool) (string, error) {
 	if !ok {
 		return "", errors.New("kernel image owner has no string DiskImageURL")
 	}
-	return localImageURL(url)
+	return parseNativeImageURL(url)
 }
 
 func registryBSDName(name string) bool {
@@ -214,12 +204,4 @@ func registryBSDName(name string) bool {
 		}
 	}
 	return true
-}
-
-func localImageURL(raw string) (string, error) {
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "file" || u.Opaque != "" || u.User != nil || u.Host != "" && !strings.EqualFold(u.Host, "localhost") || u.RawQuery != "" || u.ForceQuery || strings.Contains(raw, "#") || !filepath.IsAbs(u.Path) || strings.ContainsRune(u.Path, 0) || strings.ContainsAny(raw, " \t\r\n") {
-		return "", fmt.Errorf("invalid local-file DiskImageURL %q", raw)
-	}
-	return canonicalImagePath(u.Path)
 }

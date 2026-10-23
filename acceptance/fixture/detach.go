@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -106,26 +105,5 @@ func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) 
 	// Incomplete metadata for unrelated images cannot invalidate a positively
 	// identified device. Resolve only this owner's path and the expected image.
 	path, _ := owners[0]["image-path"].(string)
-	actual, err := canonicalImagePath(path)
-	if err != nil {
-		return false, fmt.Errorf("resolve image owning %s: %w", a.Dev, err)
-	}
-	expected, err := canonicalImagePath(a.Image)
-	if err != nil {
-		return false, fmt.Errorf("resolve expected image %q: %w", a.Image, err)
-	}
-	return actual == expected, nil
-}
-
-func canonicalImagePath(path string) (string, error) {
-	if path == "" {
-		return "", errors.New("missing image path")
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", err
-	}
-	// This preserves legitimate /var versus /private/var aliases on macOS
-	// without guessing that different complete paths identify the same image.
-	return filepath.EvalSymlinks(abs)
+	return d.imagePathsMatch(path, a.Image)
 }

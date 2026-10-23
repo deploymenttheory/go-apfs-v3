@@ -22,7 +22,7 @@ func TestDetachLeavesReassignedDeviceUntouchedOnFirstCall(t *testing.T) {
 		"hdiutil": {Stdout: []byte("native image inventory")},
 		"plutil":  {Stdout: inventory},
 	}}
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	if err := disk.Detach(context.Background(), att); err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestAttachFailureClosesOnlyItsOwnedImageAndRetainsTheFailure(t *testing.T) 
 			if scenario == "native list failure" {
 				commander.refresh = Result{Status: 1, Stdout: []byte(`{"Error":true,"ErrorMessage":"Could not find disk for /dev/disk42","ExitCode":1}`)}
 			}
-			disk := &HostDisk{C: commander, T: &Transcript{}}
+			disk := imageTestDisk(commander)
 			attachment, err := disk.Attach(ctx, image, AttachOptions{ReadOnly: true})
 			if attachment != nil || err == nil || scenario != "native list failure" && !errors.Is(err, cause) {
 				t.Fatalf("discovery failure was lost or admitted: attachment=%v, err=%v", attachment, err)
@@ -162,7 +162,7 @@ func TestDetachStopsIfItsOwnerProbeIsCancelled(t *testing.T) {
 		t.Fatal(err)
 	}
 	commander := &attachmentLifetimeCommander{inventory: data, cancel: cancel, cancelAt: "hdiutil-info"}
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	if err := disk.Detach(ctx, &Attachment{Image: image, Dev: "/dev/disk42"}); !errors.Is(err, context.Canceled) {
 		t.Fatal("owner probe lost cancellation", err)
 	}

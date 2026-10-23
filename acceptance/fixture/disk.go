@@ -115,6 +115,10 @@ type HostDisk struct {
 	// Tests replace this per instance; private mount cleanup never needs a global
 	// probe override or a real host mount to exercise ownership decisions.
 	mountProbe func(string) (mountIdentity, error)
+	// Resolves validated native image paths and caller host paths to complete
+	// comparable identities. Nil uses the actual host filesystem; portable
+	// tests inject explicit native-to-host or virtual identity mappings.
+	imagePathResolver func(string) (string, error)
 }
 
 // SetTranscript records subsequent programs into t.

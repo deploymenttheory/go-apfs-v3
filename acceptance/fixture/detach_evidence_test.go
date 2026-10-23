@@ -29,7 +29,7 @@ func TestExhaustedDetachRetainsScopedEvidenceWithoutAnotherClose(t *testing.T) {
 	instantWaits(t)
 	att := &Attachment{Image: detachImage(t, t.TempDir()), Dev: "/dev/disk42", RDev: "/dev/rdisk42"}
 	commander := busyDetachCommander(t, att)
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	err := disk.Detach(context.Background(), att)
 	var failed *NotSettledError
 	if !errors.As(err, &failed) || failed.Checks != BusyWait.Attempts || detachCalls(commander) != BusyWait.Attempts {
@@ -54,7 +54,7 @@ func TestBusyDetachEvidencePreservesDiagnosticAndOriginalFailures(t *testing.T) 
 	commander := busyDetachCommander(t, att)
 	cause := errors.New("holder query unavailable")
 	commander.results["/usr/sbin/lsof"] = Result{Status: -1, Err: cause}
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	err := disk.Detach(context.Background(), att)
 	var failed *NotSettledError
 	if !errors.As(err, &failed) || !errors.Is(err, cause) || detachCalls(commander) != BusyWait.Attempts {
@@ -77,7 +77,7 @@ func TestBusyDetachEvidenceLeavesReassignedDeviceAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	commander.sequence["plutil"] = append(inventory, Result{Stdout: changed})
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	err = disk.Detach(context.Background(), att)
 	var failed *NotSettledError
 	if !errors.As(err, &failed) || detachCalls(commander) != BusyWait.Attempts {
