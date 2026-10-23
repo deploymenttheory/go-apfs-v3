@@ -443,11 +443,12 @@ combined workload record at most twelve jobs and forty-five minutes wall clock.
   confirmation, a container appearing in `diskutil apfs list`, a busy
   `hdiutil`) goes through one bounded, jittered helper in
   `acceptance/fixture/settle.go`, is recorded in the case transcript, and
-  is counted in the summary's wait table; a rising count is the first sign
-  of a runner problem. Verdicts are never retried.
-  Diagnostics are uploaded on failure. A difference on one verifier only is
-  Apple version behaviour; record it in `known-drift.json` with a reason if
-  it is legitimate.
+  is counted in the summary's wait table. A rising count records unsettled
+  native state without identifying its cause. Verdicts are never retried.
+  Diagnostics are uploaded on failure. A difference on one verifier identifies
+  where it was observed; investigate the commands and observations before
+  classifying it as an adapter, environment or product failure. Add verified
+  legitimate version differences to `known-drift.json` with their evidence.
 - **Capture**: the capture job prints each case; failures name the step
   index in the recipe. Diagnostics (transcripts, partial outputs) are
   uploaded on failure.
