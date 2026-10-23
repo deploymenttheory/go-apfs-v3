@@ -48,8 +48,7 @@ func (v *Verifier) recordNativeCommands(work, filename, failure string, createWo
 	v.continuationLog = commands
 	return func(resultErr *error) {
 		v.continuationLog = previous
-		var limit KnownLimit
-		if *resultErr == nil || errors.As(*resultErr, &limit) {
+		if *resultErr == nil || onlyKnownLimit(*resultErr) {
 			return
 		}
 		commands.flush()

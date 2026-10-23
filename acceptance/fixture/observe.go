@@ -121,7 +121,7 @@ func observeImage(ctx context.Context, in ObserveInput, obs *schema.Observation)
 	return nil
 }
 
-func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation, index int, vol *AttachedVolume) error {
+func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation, index int, vol *AttachedVolume) (resultErr error) {
 	info, err := in.Disk.Info(ctx, vol.Dev)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		return err
 	}
 	mount = vol.Mount
-	defer func() { _ = in.Disk.Unmount(ctx, vol) }()
+	defer func() { resultErr = errors.Join(resultErr, in.Disk.Unmount(ctx, vol)) }()
 	info, err = in.Disk.Info(ctx, vol.Dev)
 	if err != nil {
 		return err
@@ -331,12 +331,8 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 				return err
 			}
 			sv, err := observeView(ctx, in, index, s.Name, pin)
-			uerr := in.Disk.UnmountPath(ctx, pin)
-			if err != nil {
+			if err = errors.Join(err, in.Disk.UnmountPath(ctx, pin)); err != nil {
 				return err
-			}
-			if uerr != nil {
-				return uerr
 			}
 			obs.Views = append(obs.Views, *sv)
 		}

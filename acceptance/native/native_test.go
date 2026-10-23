@@ -310,7 +310,7 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 		k := v.Cases[CaseKey(p.Output.Source)]
 		var limit KnownLimit
 		switch _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); {
-		case errors.As(err, &limit):
+		case onlyKnownLimit(err) && errors.As(err, &limit):
 			t.Logf("native writes passed fsck; %v", limit)
 			verdict += ", native continuation ok, product edit refused by a tracked limit"
 		case err != nil:
