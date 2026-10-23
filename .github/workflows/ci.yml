@@ -286,6 +286,18 @@ jobs:
           key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
+      - name: Verify native image ownership paths
+        id: native_ownership
+        env:
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        run: go test -count=1 -v -timeout 5m -tags native ./acceptance/fixture -run '^TestKernelOwnershipMatchesNativeImagePaths$'
+      - name: Retain native image ownership evidence
+        if: always() && steps.native_ownership.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-image-ownership-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/native-work/kernel-image-ownership-contract/
+          if-no-files-found: error
       - name: Read the other versions' fixtures with this kernel
         env:
           APFS_NATIVE_GROUPS: fixtures
