@@ -40,7 +40,7 @@ func TestPackingReopenedPreservationSourcesMatchesNativeFiles(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			sourceDigest := packingFileDigest(t, k.Image())
+			sourceDigest := packingFileDigest(t, fixtureImage(t, k))
 			_, nativeReader, closeSource := openSingleVolume(t, ctx, k, recipes[k.Recipe])
 			defer closeSource()
 			root, err := filesystem.LookupExact(ctx, nativeReader, "Fixture")
@@ -69,7 +69,7 @@ func TestPackingReopenedPreservationSourcesMatchesNativeFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = w.Close() }()
+			defer func() { closeFixture(t, w) }()
 			packingSourceIdentity(t, ctx, w, nativeReader.NameRules(), nativeRoot.Identity)
 			compareViewWith(t, ctx, "reopened workspace", w, k.Observation.Views[0], compareOptions{subtree: "Fixture"})
 			fromWorkspace := filepath.Join(t.TempDir(), "workspace-reader.dmg")
@@ -88,7 +88,7 @@ func TestPackingReopenedPreservationSourcesMatchesNativeFiles(t *testing.T) {
 			}
 			packingSourceIdentity(t, ctx, s, nativeReader.NameRules(), nativeRoot.Identity)
 			if err := s.Verify(ctx); err != nil {
-				_ = s.Close()
+				closeFixture(t, s)
 				t.Fatal(err)
 			}
 			if err := s.Close(); err != nil {
@@ -122,7 +122,7 @@ func TestPackingReopenedPreservationSourcesMatchesNativeFiles(t *testing.T) {
 			if got := packingSourceInventory(t, sessionDir); !reflect.DeepEqual(got, sessionFiles) {
 				t.Fatal("packing changed the persisted session inventory or revision")
 			}
-			if got := packingFileDigest(t, k.Image()); got != sourceDigest {
+			if got := packingFileDigest(t, fixtureImage(t, k)); got != sourceDigest {
 				t.Fatal("packing changed the original native image")
 			}
 		})

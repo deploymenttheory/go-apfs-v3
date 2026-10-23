@@ -44,7 +44,7 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 			img := openImage(t, ctx, k, recipes[k.Recipe])
-			defer func() { _ = img.Close() }()
+			defer func() { closeFixture(t, img) }()
 			checkSource := func() {
 				t.Helper()
 				if got, n := hashReaderAt(img, img.Size()); got != k.Observation.Image.DiskSHA256 || n != k.Observation.Image.DiskBytes {
@@ -66,7 +66,7 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 			groups := map[string]apfs.VolumeGroupSpec{}
 			for i, observed := range inventory {
 				name := observed.Diskutil["VolumeName"].(string)
-				reader, closeReader := openVolume(t, ctx, report, observed, name, recipes[k.Recipe])
+				reader, closeReader := openVolume(t, ctx, report, observed, name, recipes[k.Recipe], img)
 				if closeReader != nil {
 					defer closeReader()
 				}
@@ -106,7 +106,7 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer func() { _ = empty.Close() }()
+				defer func() { closeFixture(t, empty) }()
 				volumes = append(volumes, apfs.VolumeSpec{Reader: empty, Name: "Fresh Empty"})
 				options.APFS.Capacity = 1600 << 20
 				expect.Container.CapacityBytes = options.APFS.Capacity
@@ -158,7 +158,7 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 					}
 					groupReport, err := inspect.Image(ctx, groupImage)
 					if err != nil {
-						_ = groupImage.Close()
+						closeFixture(t, groupImage)
 						t.Fatal(err)
 					}
 					var systemUUID string
@@ -216,7 +216,7 @@ func checkConstructedContainer(t *testing.T, ctx context.Context, path string, k
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatal(err)

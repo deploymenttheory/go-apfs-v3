@@ -48,7 +48,7 @@ func TestSnapshotSessionsRetainTheSelectedHistoricalView(t *testing.T) {
 			if len(volume.APFS.Snapshots) != 2 {
 				t.Fatal("snapshot-session source must retain both historical states")
 			}
-			sourceDigest := packingFileDigest(t, k.Image())
+			sourceDigest := packingFileDigest(t, fixtureImage(t, k))
 			live := snapshotSessionView(t, k, "")
 			for _, snapshot := range volume.APFS.Snapshots {
 				t.Run(fmt.Sprintf("xid-%d", snapshot.XID), func(t *testing.T) {
@@ -105,7 +105,7 @@ func TestSnapshotSessionsRetainTheSelectedHistoricalView(t *testing.T) {
 			} {
 				t.Run(control.name, func(t *testing.T) {
 					scratch := t.TempDir()
-					args := []string{"session", "open", "--scratch-dir", scratch, "--image", k.Image(), "--path", "Fixture"}
+					args := []string{"session", "open", "--scratch-dir", scratch, "--image", fixtureImage(t, k), "--path", "Fixture"}
 					args = append(args, control.args...)
 					args = append(args, "refused")
 					data, err := exec.Command(binary, args...).CombinedOutput()
@@ -118,7 +118,7 @@ func TestSnapshotSessionsRetainTheSelectedHistoricalView(t *testing.T) {
 					}
 				})
 			}
-			if got := packingFileDigest(t, k.Image()); got != sourceDigest {
+			if got := packingFileDigest(t, fixtureImage(t, k)); got != sourceDigest {
 				t.Fatal("historical session selection changed the original image")
 			}
 		})
@@ -162,7 +162,7 @@ func exportSnapshotSession(t *testing.T, binary string, k corpus.Case, view sche
 		}
 		return data
 	}
-	run("open", "--image", k.Image(), "--path", "Fixture", selector, value, "--time", fixedClock.Format(time.RFC3339), "history")
+	run("open", "--image", fixtureImage(t, k), "--path", "Fixture", selector, value, "--time", fixedClock.Format(time.RFC3339), "history")
 	run("verify", "history")
 	var report session.Report
 	if err := json.Unmarshal(run("status", "--json", "history"), &report); err != nil {
@@ -176,7 +176,7 @@ func exportSnapshotSession(t *testing.T, binary string, k corpus.Case, view sche
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = s.Close() }()
+	defer func() { closeFixture(t, s) }()
 	rules := filesystem.NameRules{Format: "APFS", CaseSensitive: k.Profile == "apfsx", NormalizationInsensitive: true}
 	packingSourceIdentity(t, ctx, s, rules, identity)
 	compareViewWith(t, ctx, "reopened historical session", s, view, compareOptions{subtree: "Fixture"})
@@ -193,7 +193,7 @@ func exportSnapshotSession(t *testing.T, binary string, k corpus.Case, view sche
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = w.Close() }()
+	defer func() { closeFixture(t, w) }()
 	packingSourceIdentity(t, ctx, w, rules, identity)
 	compareViewWith(t, ctx, "historical preservation export", w, view, compareOptions{subtree: "Fixture"})
 	if err := w.Close(); err != nil {

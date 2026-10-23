@@ -165,7 +165,7 @@ func TestCloneReadsUseNativeSharedExtents(t *testing.T) {
 			ctx := context.Background()
 			storageImageUnchanged(t, k)
 			img := openImage(t, ctx, k, recipes[k.Recipe])
-			defer func() { _ = img.Close() }()
+			defer func() { closeFixture(t, img) }()
 			part, _ := storagePartition(t, img)
 			trace := &physicalReads{Source: part}
 			container, err := apfs.Open(trace)
@@ -197,7 +197,7 @@ func TestCloneReadsUseNativeSharedExtents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = unlocked.Close() }()
+			defer func() { closeFixture(t, unlocked) }()
 			var view *schema.View
 			for i := range k.Observation.Views {
 				candidate := &k.Observation.Views[i]
@@ -221,7 +221,7 @@ func TestCloneReadsUseNativeSharedExtents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = other.Close() }()
+			defer func() { closeFixture(t, other) }()
 			cloneID, err := filesystem.LookupExact(ctx, other, "Fixture/clone")
 			if err != nil {
 				t.Fatal(err)
@@ -230,7 +230,7 @@ func TestCloneReadsUseNativeSharedExtents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { _ = borrowed.Close() }()
+			defer func() { closeFixture(t, borrowed) }()
 			if err = other.Close(); err != nil {
 				t.Fatal(err)
 			}
@@ -336,7 +336,7 @@ func TestStorageAccountingMatchesNativeAllocation(t *testing.T) {
 			ctx := context.Background()
 			storageImageUnchanged(t, k)
 			img := openImage(t, ctx, k, recipes[k.Recipe])
-			defer func() { _ = img.Close() }()
+			defer func() { closeFixture(t, img) }()
 			part, _ := storagePartition(t, img)
 			report, err := apfs.InspectStorage(ctx, part)
 			if err != nil {
@@ -496,7 +496,7 @@ func checkInterleavedHistory(t *testing.T, ctx context.Context, observed []schem
 			if err != nil || value.Size() != entry.Size {
 				t.Fatalf("%s/%s: open native size %d: %v", view.Snapshot, entry.Path, entry.Size, err)
 			}
-			t.Cleanup(func() { _ = value.Close() })
+			t.Cleanup(func() { closeFixture(t, value) })
 			values = append(values, opened{label: view.Snapshot + "/" + entry.Path, value: value, sum: entry.SHA256, h: sha256.New()})
 		}
 		for path := range allPaths {
@@ -561,7 +561,7 @@ func TestHistoryAndEncryptedWritersRefuseWithoutPublication(t *testing.T) {
 			ctx := context.Background()
 			storageImageUnchanged(t, k)
 			img := openImage(t, ctx, k, recipes[k.Recipe])
-			defer func() { _ = img.Close() }()
+			defer func() { closeFixture(t, img) }()
 			part, index := storagePartition(t, img)
 			source := &physicalReads{Source: part}
 			container, err := apfs.Open(source)
@@ -586,7 +586,7 @@ func TestHistoryAndEncryptedWritersRefuseWithoutPublication(t *testing.T) {
 			if k.Observation.Image.Encryption != nil {
 				wantRefusal = filesystem.ErrAuthentication
 			}
-			if _, err = imageedit.Apply(ctx, k.Image(), out, options, changes); !errors.Is(err, wantRefusal) {
+			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, wantRefusal) {
 				t.Errorf("public history/encryption edit did not refuse: %v", err)
 			}
 			if _, err = os.Lstat(out); !errors.Is(err, fs.ErrNotExist) {
@@ -599,7 +599,7 @@ func TestHistoryAndEncryptedWritersRefuseWithoutPublication(t *testing.T) {
 			if err = os.WriteFile(out, sentinel, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if _, err = imageedit.Apply(ctx, k.Image(), out, options, changes); !errors.Is(err, fs.ErrExist) {
+			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, fs.ErrExist) {
 				t.Errorf("existing destination was not rejected: %v", err)
 			}
 			if got, err := os.ReadFile(out); err != nil || !bytes.Equal(got, sentinel) {

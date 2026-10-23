@@ -69,7 +69,7 @@ func TestRecursiveHostImportsPreserveNativeLogicalTrees(t *testing.T) {
 					}
 					report, err := current.Copy(ctx, []string{host + string(filepath.Separator)}, "/", session.CopyOptions{FromHost: true, Archive: true, PreserveLinks: preserveLinks})
 					if err != nil {
-						_ = current.Close()
+						closeFixture(t, current)
 						t.Fatal(err)
 					}
 					checkImportedHostTree(t, ctx, current, entries, observed, preserveLinks)
@@ -84,7 +84,7 @@ func TestRecursiveHostImportsPreserveNativeLogicalTrees(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					defer func() { _ = current.Close() }()
+					defer func() { closeFixture(t, current) }()
 					checkImportedHostTree(t, ctx, current, entries, observed, preserveLinks)
 					checkHostInputUnchanged(t, host, entries, observed)
 				})
@@ -94,7 +94,7 @@ func TestRecursiveHostImportsPreserveNativeLogicalTrees(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer func() { _ = current.Close() }()
+				defer func() { closeFixture(t, current) }()
 				before := current.Report().Revision
 				if _, err := current.Copy(ctx, []string{host}, "/tree", session.CopyOptions{FromHost: true, PreserveLinks: true}); !errors.Is(err, fs.ErrInvalid) {
 					t.Fatalf("nonrecursive directory import: %v", err)
@@ -184,7 +184,7 @@ func materializeNativeHostTree(t *testing.T, ctx context.Context, host string, s
 			}
 			out, err := os.OpenFile(filename, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640)
 			if err != nil {
-				_ = value.Close()
+				closeFixture(t, value)
 				t.Fatal(err)
 			}
 			_, err = io.Copy(out, io.NewSectionReader(value, 0, value.Size()))

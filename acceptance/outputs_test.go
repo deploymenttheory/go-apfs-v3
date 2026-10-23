@@ -99,6 +99,12 @@ func recordOutput(t *testing.T, out schema.Output) {
 // TestMain writes outputs.json after every test has run.
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if corpusValue != nil {
+		if err := corpusValue.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "fixture images:", err)
+			code = 1
+		}
+	}
 	if dir := os.Getenv("APFS_OUTPUT_DIR"); dir != "" && len(outputsList) > 0 {
 		sort.Slice(outputsList, func(i, j int) bool { return outputsList[i].Name < outputsList[j].Name })
 		lock, _ := schema.FileDigest(filepath.Join("fixtures.lock.json"))
@@ -146,17 +152,17 @@ func openSingleVolume(t *testing.T, ctx context.Context, k corpus.Case, recipe s
 	img := openImage(t, ctx, k, recipe)
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
-		_ = img.Close()
+		closeFixture(t, img)
 		t.Fatalf("inspect: %v", err)
 	}
 	vol := k.Observation.Volumes[0]
 	name, _ := vol.Diskutil["VolumeName"].(string)
-	reader, closer := openVolume(t, ctx, report, vol, name, recipe)
+	reader, closer := openVolume(t, ctx, report, vol, name, recipe, img)
 	return img, reader, func() {
 		if closer != nil {
 			closer()
 		}
-		_ = img.Close()
+		closeFixture(t, img)
 	}
 }
 
@@ -267,7 +273,7 @@ func TestBuildFromFixtures(t *testing.T) {
 					if enc.Encryption == nil || enc.Encryption.KeyBits != bits {
 						t.Errorf("%s: encryption %+v", name, enc.Encryption)
 					}
-					_ = enc.Close()
+					closeFixture(t, enc)
 					recordOutput(t, schema.Output{Name: name, File: filepath.Base(path), Operation: "encrypt", Format: "UDZO", Encrypted: true, Password: "output", Source: caseRef(k), Expect: schema.Expectation{Subtree: "Fixture", Codesign: builtBundles(k)}})
 				}
 			}
@@ -295,7 +301,7 @@ func checkDecryptedDisk(t *testing.T, ctx context.Context, path, want string) {
 		t.Errorf("%s: open with the output password: %v", filepath.Base(path), err)
 		return
 	}
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	if got, _ := hashReaderAt(img, img.Size()); got != want {
 		t.Errorf("%s: decrypted disk %s, want %s", filepath.Base(path), got, want)
 	}
@@ -348,7 +354,7 @@ func checkBuiltImage(t *testing.T, ctx context.Context, path string, k corpus.Ca
 	if err != nil {
 		t.Fatalf("%s: %v", path, err)
 	}
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatalf("%s: inspect: %v", path, err)
@@ -385,7 +391,7 @@ func TestRepackPreservesEverySector(t *testing.T) {
 		t.Run(fmt.Sprintf("macos-%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			source := k.Image()
+			source := fixtureImage(t, k)
 			enc := k.Observation.Image.Encryption
 			view := ""
 			if recovery := k.Observation.Recovery; recovery != nil {
@@ -456,7 +462,7 @@ func TestRepackRefusesSignedAndLockedImages(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s", k.Producer, k.Profile), func(t *testing.T) {
 			dst := filepath.Join(t.TempDir(), "refused.dmg")
-			if _, err := pack.Repack(context.Background(), k.Image(), dst, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
+			if _, err := pack.Repack(context.Background(), fixtureImage(t, k), dst, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
 				t.Errorf("signed image repacked: %v", err)
 			}
 			if _, err := os.Stat(dst); err == nil {
@@ -471,7 +477,7 @@ func TestRepackRefusesSignedAndLockedImages(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("macos-%d/%s/%s/%s/locked", k.Producer, k.Recipe, k.Profile, k.Stage), func(t *testing.T) {
 			dst := filepath.Join(t.TempDir(), "refused.dmg")
-			if _, err := pack.Repack(context.Background(), k.Image(), dst, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
+			if _, err := pack.Repack(context.Background(), fixtureImage(t, k), dst, "UDZO"); !errors.Is(err, filesystem.ErrUnsupported) {
 				t.Errorf("encrypted image repacked without a credential: %v", err)
 			}
 			if _, err := os.Stat(dst); err == nil {
@@ -546,7 +552,7 @@ func TestExistingImageEditsMatchAppleStates(t *testing.T) {
 		t.Run(fmt.Sprintf("macos-%d/%s/%s", k.Producer, k.Recipe, k.Profile), func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			current := k.Image()
+			current := fixtureImage(t, k)
 			for _, phase := range []string{"peak", "final"} {
 				want, ok := byKey[fmt.Sprintf("%d/%s/%s/%s", k.Producer, k.Recipe, k.Profile, phase)]
 				if !ok {
@@ -575,7 +581,7 @@ func checkEditedImage(t *testing.T, ctx context.Context, path string, want corpu
 	if err != nil {
 		t.Fatalf("%s: %v", path, err)
 	}
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatalf("%s: inspect: %v", path, err)

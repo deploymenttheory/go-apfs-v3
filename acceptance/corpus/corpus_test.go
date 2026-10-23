@@ -82,7 +82,7 @@ func TestResolveDownloadsVerifiesExtractsAndCaches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 3 || cases[0].Producer != 15 || cases[0].Image() == "" {
+	if len(cases) != 3 || cases[0].Producer != 15 || cases[0].Observation.Image.File == "" {
 		t.Fatalf("cases %+v", cases)
 	}
 	if _, err := Resolve(context.Background(), opts); err != nil || hits != 3 {

@@ -43,7 +43,7 @@ func TestWorkspaceOperationsMatchAppleStates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			sourceHash, err := schema.FileDigest(before.Image())
+			sourceHash, err := schema.FileDigest(fixtureImage(t, before))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -51,7 +51,7 @@ func TestWorkspaceOperationsMatchAppleStates(t *testing.T) {
 				_, err := workspace.Extract(ctx, reader, root, dir, workspace.Limits{})
 				return err
 			})
-			defer func() { _ = current.Close() }()
+			defer func() { closeFixture(t, current) }()
 			parentOutput := outputName(before, "workspace.extract.tar.gz")
 			for _, stage := range recipe.Stages[1:] {
 				after := indexed[stageKey(before.Producer, before.Recipe, before.Profile, stage.Name)]
@@ -90,7 +90,7 @@ func TestWorkspaceOperationsMatchAppleStates(t *testing.T) {
 				}
 				parentOutput = outputName(after, "workspace."+operation+".tar.gz")
 			}
-			if sum, err := schema.FileDigest(before.Image()); err != nil || sum != sourceHash {
+			if sum, err := schema.FileDigest(fixtureImage(t, before)); err != nil || sum != sourceHash {
 				t.Fatal("workspace operations changed the native source", err)
 			}
 		})
@@ -500,6 +500,6 @@ func TestCorpusContainsEveryWorkspaceAndCommandStage(t *testing.T) {
 }
 
 func readValue(v filesystem.Value) ([]byte, error) {
-	defer func() { _ = v.Close() }()
-	return io.ReadAll(io.NewSectionReader(v, 0, v.Size()))
+	data, err := io.ReadAll(io.NewSectionReader(v, 0, v.Size()))
+	return data, errors.Join(err, v.Close())
 }

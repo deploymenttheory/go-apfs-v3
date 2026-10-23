@@ -3,6 +3,7 @@ package corpus
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -85,11 +86,26 @@ func TestRawExpansionRetainsCompletedBytesAndOpenReaders(t *testing.T) {
 
 func TestRawExpansionsDoNotReuseAnotherCapturesBytes(t *testing.T) {
 	cache := t.TempDir()
+	c := &Corpus{ExpandDir: cache}
+	t.Cleanup(func() {
+		if err := c.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	var paths []string
 	for _, data := range [][]byte{[]byte("original Apple capture"), []byte("refreshed Apple capture")} {
 		path, sum := compressedRaw(t, data)
-		k := Case{Producer: 15, Recipe: "checkpoint-recovery", Dir: filepath.Dir(path), expandDir: cache, Observation: &schema.Observation{Image: schema.Image{File: filepath.Base(path), SHA256: sum}}}
-		expanded := k.Image()
+		k := Case{Producer: 15, Recipe: "checkpoint-recovery", Dir: filepath.Dir(path), Observation: &schema.Observation{Image: schema.Image{File: filepath.Base(path), SHA256: sum}}}
+		lease, err := c.AcquireImage(context.Background(), k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := lease.Release(nil); err != nil {
+				t.Error(err)
+			}
+		})
+		expanded := lease.Path()
 		paths = append(paths, expanded)
 		got, err := os.ReadFile(expanded)
 		if err != nil || !bytes.Equal(got, data) {

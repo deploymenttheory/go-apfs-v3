@@ -106,14 +106,34 @@ APFS_OUTPUT_DIR=/tmp/out go test ./acceptance/...            # retain outputs
 go test -tags slow -run 'TestGoEditsReproduceAppleStageStates/.*/hfs-catalog-map-growth' ./acceptance   # the slow bucket
 ```
 
-The corpus cache is `os.UserCacheDir()/go-apfs-v3/fixtures/<digest>` or
-`APFS_FIXTURE_CACHE`. Gzip-compressed raw images are expanded sparsely under
-`os.TempDir()/go-apfs-v3-fixtures` or `APFS_FIXTURE_EXPAND`: zero runs are
-never written, so an expanded corpus costs its data blocks (a few hundred
-megabytes), not the images' nominal sizes, and the CI cache never carries
-expansions. Each expansion is keyed by its image digest, so a refreshed capture
-cannot reuse an older raw image with the same name. Concurrent expansion uses
-independent temporary files and publishes only completed copies.
+The compressed corpus cache is `os.UserCacheDir()/go-apfs-v3/fixtures/<digest>`
+or `APFS_FIXTURE_CACHE`. Original captures and their digests are retained.
+`Corpus.AcquireImage` returns an explicit lease. Gzip-compressed raw inputs are
+expanded sparsely in a unique run-owned child of `APFS_FIXTURE_EXPAND` or the
+default temporary scratch parent. Only that child belongs to the run; the
+configured parent, earlier runs and local captures remain outside cleanup.
+Zero runs are left unwritten, expansions bind both the absolute source path and
+image digest, and concurrent readers of that source receive only completely
+published copies. Distinct source files retain separate backing paths even when
+their bytes match.
+
+Close borrowed values, readers and native attachments before calling
+`lease.Release(cleanupErr)`. A confirmed last release removes the derived raw
+file. An uncertain reader close or native attachment cleanup retains the same
+absolute backing path and reports the cause. `Corpus.Close`, called by each
+test binary's `TestMain`, reports outstanding leases and retained paths rather
+than deleting them. Native fixture scratch defaults under `APFS_NATIVE_WORK`
+so retained failures enter the existing diagnostic artifact. The original
+compressed files and uncompressed original captures are never deleted by a
+lease. An assertion or product-operation failure with healthy cleanup still
+allows release.
+
+Portable leases normally span one leaf test and native leases span one checked
+operation. A later leaf can therefore expand the same input again. This trades
+repeated decompression for lower retained disk use; hosted runs must measure
+peak storage and runtime with the existing deadlines before making performance
+claims. Interrupted processes can leave explicitly owned scratch children;
+subsequent runs do not infer that those backing paths are safe to remove.
 `cmd/apfs-fixture capture` refuses to run outside a
 disposable VM: a development Mac once panicked under these tests
 ([native-testing-incident.md](native-testing-incident.md)). Inside one, set

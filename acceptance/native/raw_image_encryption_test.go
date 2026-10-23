@@ -116,7 +116,16 @@ func (v *Verifier) proveRawImageEncryption(ctx context.Context, k corpus.Case, c
 	if err != nil || proof.SourceSHA256 != k.Observation.Image.SHA256 {
 		return fmt.Errorf("original native image differs from its retained digest: %v", err)
 	}
-	digest, size, err := v.closedImageDeviceDigest(ctx, k.Image(), fixture.AttachOptions{ReadOnly: true, Raw: k.Observation.Image.Format == "raw", NoInventory: true}, raw+".gz")
+	lease, err := v.Corpus.AcquireImage(ctx, k)
+	if err != nil {
+		return err
+	}
+	att, err := v.Disk.Attach(ctx, lease.Path(), fixture.AttachOptions{ReadOnly: true, Raw: k.Observation.Image.Format == "raw", NoInventory: true})
+	if err != nil {
+		return errors.Join(err, lease.Release(err))
+	}
+	digest, size, readErr := v.Disk.DeviceDigest(ctx, att.RDev, raw+".gz")
+	err = errors.Join(readErr, lease.Release(v.Disk.Detach(ctx, att)))
 	if err != nil {
 		return fmt.Errorf("copy native plaintext device: %w", err)
 	}

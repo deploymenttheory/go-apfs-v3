@@ -57,11 +57,13 @@ func TestReadParity(t *testing.T) {
 				// the primary header unmounted. Ordinary reading must still refuse
 				// this state; explicit recovery adds the qualified marking and is
 				// compared with this case's native view by the recovery consumer.
-				source, err := block.Open(k.Image())
+				sourcePath := fixtureImage(t, k)
+				source, err := block.Open(sourcePath)
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer source.Close()
+				trackFixturePath(t, source, sourcePath)
+				defer closeFixture(t, source)
 				r, err := hfsplus.Open(source)
 				if err != nil {
 					t.Fatal(err)
@@ -97,14 +99,14 @@ func compareCase(t *testing.T, k corpus.Case, recipe schema.Recipe) {
 	ctx := context.Background()
 	obs := k.Observation
 	img := openImage(t, ctx, k, recipe)
-	defer func() { _ = img.Close() }()
+	defer func() { closeFixture(t, img) }()
 	report, err := inspect.Image(ctx, img)
 	if err != nil {
 		t.Fatalf("inspect: %v", err)
 	}
 	for _, vol := range obs.Volumes {
 		name, _ := vol.Diskutil["VolumeName"].(string)
-		reader, closer := openVolume(t, ctx, report, vol, name, recipe)
+		reader, closer := openVolume(t, ctx, report, vol, name, recipe, img)
 		if closer != nil {
 			defer closer()
 		}
@@ -139,7 +141,7 @@ func compareCase(t *testing.T, k corpus.Case, recipe schema.Recipe) {
 
 func openImage(t *testing.T, ctx context.Context, k corpus.Case, recipe schema.Recipe) *diskimage.Image {
 	t.Helper()
-	path := k.Image()
+	path := fixtureImage(t, k)
 	if strings.HasSuffix(path, ".raw.gz") {
 		t.Fatalf("raw images are expanded by the corpus resolver before use: %s", path)
 	}
@@ -149,17 +151,28 @@ func openImage(t *testing.T, ctx context.Context, k corpus.Case, recipe schema.R
 		if err != nil {
 			t.Fatalf("open %s: %v", path, err)
 		}
+		trackFixturePath(t, img, path)
 		return img
 	}
-	if _, err := diskimage.Open(path); !errors.Is(err, filesystem.ErrAuthentication) {
-		t.Errorf("encrypted image opened without a password: %v", err)
+	opened, openErr := diskimage.Open(path)
+	if opened != nil {
+		trackFixturePath(t, opened, path)
+		closeFixture(t, opened)
+	}
+	if !errors.Is(openErr, filesystem.ErrAuthentication) {
+		t.Errorf("encrypted image opened without a password: %v", openErr)
 	}
 	for _, ref := range enc.Rejected {
 		bad, ok := recipe.Passwords[ref]
 		if !ok {
 			t.Fatalf("recipe %s has no password %q", recipe.Name, ref)
 		}
-		if _, err := diskimage.OpenWithPassword(ctx, path, []byte(bad)); !errors.Is(err, filesystem.ErrAuthentication) {
+		opened, err := diskimage.OpenWithPassword(ctx, path, []byte(bad))
+		if opened != nil {
+			trackFixturePath(t, opened, path)
+			closeFixture(t, opened)
+		}
+		if !errors.Is(err, filesystem.ErrAuthentication) {
 			t.Errorf("rejected image password %q was accepted: %v", ref, err)
 		}
 	}
@@ -174,12 +187,13 @@ func openImage(t *testing.T, ctx context.Context, k corpus.Case, recipe schema.R
 	if img.Encryption == nil || img.Encryption.Version != 2 {
 		t.Errorf("encrypted image reported %+v", img.Encryption)
 	}
+	trackFixturePath(t, img, path)
 	return img
 }
 
 // openVolume finds the product volume matching an observed volume by name
 // and checks the volume-level facts before returning its reader.
-func openVolume(t *testing.T, ctx context.Context, report *inspect.Report, vol schema.Volume, name string, recipe schema.Recipe) (filesystem.Reader, func()) {
+func openVolume(t *testing.T, ctx context.Context, report *inspect.Report, vol schema.Volume, name string, recipe schema.Recipe, backing io.Closer) (filesystem.Reader, func()) {
 	t.Helper()
 	blockSize := uint32(number(vol.Diskutil["VolumeAllocationBlockSize"]))
 	for i := range report.Partitions {
@@ -222,7 +236,12 @@ func openVolume(t *testing.T, ctx context.Context, report *inspect.Report, vol s
 						if !ok {
 							t.Fatalf("recipe %s has no password %q", recipe.Name, ref)
 						}
-						if _, err := v.Unlock(ctx, []byte(bad)); !errors.Is(err, filesystem.ErrAuthentication) {
+						rejected, err := v.Unlock(ctx, []byte(bad))
+						if rejected != nil {
+							trackFixtureBorrower(t, rejected, backing)
+							closeFixture(t, rejected)
+						}
+						if !errors.Is(err, filesystem.ErrAuthentication) {
 							t.Errorf("volume %s: rejected password %q was accepted: %v", name, ref, err)
 						}
 					}
@@ -235,7 +254,8 @@ func openVolume(t *testing.T, ctx context.Context, report *inspect.Report, vol s
 						t.Fatalf("volume %s: unlock: %v", name, err)
 					}
 					reader = unlocked
-					closer = func() { _ = unlocked.Close() }
+					trackFixtureBorrower(t, unlocked, backing)
+					closer = func() { closeFixture(t, unlocked) }
 					v = unlocked
 				}
 				compareSnapshots(t, ctx, name, v, vol.APFS.Snapshots)
@@ -514,7 +534,7 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 			continue
 		}
 		sum, n := hashReaderAt(value, value.Size())
-		_ = value.Close()
+		closeFixture(t, value)
 		if n != x.Bytes || sum != x.SHA256 {
 			t.Errorf("%s: attribute %q %s (%d bytes), native %s (%d bytes)", where, x.Name, sum, n, x.SHA256, x.Bytes)
 		}
@@ -526,7 +546,7 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 			t.Errorf("%s: native ACL present but the product has no security attribute: %v", where, err)
 		case err == nil:
 			sum, n := hashReaderAt(value, value.Size())
-			_ = value.Close()
+			closeFixture(t, value)
 			acl, _ := hex.DecodeString(e.ACL)
 			want := sha256.Sum256(filesecDiskOrder(acl))
 			if e.ACL == "" {
@@ -550,7 +570,7 @@ func compareEntryWith(t *testing.T, ctx context.Context, label string, r filesys
 		value, err := r.OpenAttribute(ctx, id, name)
 		if err == nil {
 			size := value.Size()
-			_ = value.Close()
+			closeFixture(t, value)
 			if size == 0 {
 				continue // an empty retained record the kernel hides
 			}
@@ -564,9 +584,8 @@ func hashValue(ctx context.Context, r filesystem.Reader, id uint64) (string, int
 	if err != nil {
 		return "", 0, err
 	}
-	defer func() { _ = value.Close() }()
 	sum, n := hashReaderAt(value, value.Size())
-	return sum, n, nil
+	return sum, n, value.Close()
 }
 
 func hashReaderAt(v io.ReaderAt, size int64) (string, int64) {

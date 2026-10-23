@@ -39,7 +39,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	// remain available in the native diagnostics artifact.
 	defer func() {
 		if resultErr == nil || onlyKnownLimit(resultErr) {
-			_ = os.RemoveAll(work)
+			if err := os.RemoveAll(work); err != nil {
+				resultErr = errors.Join(resultErr, fmt.Errorf("release completed continuation scratch %s: %w", work, err))
+			}
 			return
 		}
 		commands, err := json.MarshalIndent(initialCommands.Commands, "", "  ")
