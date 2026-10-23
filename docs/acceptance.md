@@ -474,6 +474,44 @@ The performance changes preserve the required gate and eleven-job workflow.
 Issue #134 remains open until three consecutive warm runs of the complete
 combined workload record at most twelve jobs and forty-five minutes wall clock.
 
+### Reproducing reliability qualification
+
+Check the adapters and evidence validator without downloading or expanding the
+real corpus:
+
+```sh
+go test -count=1 ./acceptance/fixture ./acceptance/native ./acceptance/corpus ./acceptance/schema ./.github/scripts/platform-contracts
+go test -count=1 ./acceptance -run '^TestFixtureAndVerifierPackagesDoNotImportTheProduct$'
+```
+
+Then run the complete required CI matrix on the candidate revision. Retain its
+checkout revision, run and attempt, platform/tool identities, contract receipts,
+output manifests, case outcomes and elapsed times. Derive required case counts
+from the pinned recipes, corpus and current output manifests; reconcile every
+producer and verifier rather than copying counts from an older run. A failed,
+missing or unfinished phase cannot qualify the change. Compare the original
+fixture and expectation digests and review assertion changes independently.
+
+The live ownership contract checks two blank raw images, their distinct full
+paths, a real alias, crossed devices and completed cleanup. The retained native
+captures demonstrate legacy CFData ownership and a successful empty modern-class
+query. They do not establish filesystem health or a positive modern URL backend.
+Those claims require their own native evidence and the applicable filesystem
+verdicts. Capture new platform evidence on a disposable VM before changing its
+interpretation; preserve original command bytes, collector source and digests,
+and replay malformed and ambiguous controls alongside positive cases.
+
+For storage qualification, exercise concurrent readers, cancellation, failed
+cleanup and repeated runs. Each test binary checks `Corpus.Close`; an outstanding
+lease, retained uncertain backing or failed run-directory deletion fails the
+binary. The native fixture, slow and main invocations each own and close their
+scratch child while retaining the compressed corpus. Record real working
+footprint and runtime before making storage or speed comparisons; synthetic
+lifetime checks alone do not supply those measurements. Never remove or move a
+backing path whose release is uncertain. Document unresolved causes explicitly
+and assess the integrated reliability outcome separately from product capability
+and performance qualification.
+
 ## Diagnosing a failure
 
 - **Portable**: the test name carries producer, recipe, profile and stage.
