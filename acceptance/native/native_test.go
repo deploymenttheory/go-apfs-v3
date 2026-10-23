@@ -254,6 +254,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireCloneCopyOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireCloneForkMappingInput(pairs, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -343,6 +346,17 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 	}
 	if p.Output.Expect.Continuation && len(diffs) == 0 {
 		k := v.Cases[CaseKey(p.Output.Source)]
+		if p.Name == cloneForkMappingInputName(v.Major) {
+			// The pair is separate evidence. Its failure must not suppress the
+			// original continuation or replace that continuation's predicates.
+			if !t.Run("fork-mapping-pair", func(t *testing.T) {
+				if err := v.cloneForkMappingPair(ctx, p, v.Recipes[k.Recipe]); err != nil {
+					t.Error(err)
+				}
+			}) {
+				verdict += ", fork-mapping diagnostic failed"
+			}
+		}
 		var limit KnownLimit
 		switch _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); {
 		case onlyKnownLimit(err) && errors.As(err, &limit):

@@ -292,6 +292,12 @@ func (v *Verifier) continueCloneWrites(ctx context.Context, mount, stage string)
 }
 
 func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, sourcePath, siblingPath string) (resultErr error) {
+	return v.continueCloneWritesObserved(ctx, mount, stage, sourcePath, siblingPath, nil)
+}
+
+// The nil observer is the normal acceptance procedure. The bounded paired
+// diagnostic can measure its retained clone without replacing its verdict.
+func (v *Verifier) continueCloneWritesObserved(ctx context.Context, mount, stage, sourcePath, siblingPath string, checkpoint cloneForkCheckpoint) (resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -344,7 +350,9 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 	if err := run("link", []string{first, alias}, func() error { return v.Vol.Link(first, alias) }); err != nil {
 		return err
 	}
-	for name, path := range map[string]string{"source": source, "sibling": sibling, "first": first, "second": second} {
+	beforePaths := map[string]string{"source": source, "sibling": sibling, "first": first, "second": second}
+	for _, name := range cloneStateReadOrder(checkpoint, beforePaths, "source", "sibling", "first", "second") {
+		path := beforePaths[name]
 		s, err := v.cloneNativeState(path)
 		if err != nil {
 			return err
@@ -401,7 +409,9 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 			return fmt.Errorf("native partial clone write did not preserve untouched sharing and privatize affected blocks")
 		}
 	}
-	for name, path := range map[string]string{"source": source, "sibling": sibling, "second": second} {
+	peerPaths := map[string]string{"source": source, "sibling": sibling, "second": second}
+	for _, name := range cloneStateReadOrder(checkpoint, peerPaths, "source", "sibling", "second") {
+		path := peerPaths[name]
 		s, err := v.cloneNativeState(path)
 		if err != nil || !reflect.DeepEqual(s, states["before/"+name]) {
 			return errors.Join(fmt.Errorf("native private clone write changed %s", name), err)
@@ -447,6 +457,9 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 	if err := run("clone", []string{source, retained}, func() error { return v.Vol.Clone(source, retained) }); err != nil {
 		return err
 	}
+	if err := checkpoint.record("retained-created", nil, nil); err != nil {
+		return err
+	}
 	for _, fork := range []string{"data", "resource"} {
 		path := retained
 		if fork == "resource" {
@@ -455,8 +468,14 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 		if err := run("pwrite "+fork, []string{path, "4095"}, func() error { return v.Vol.Pwrite(path, 4095, private) }); err != nil {
 			return err
 		}
+		if err := checkpoint.record("retained-"+fork+"-written", nil, nil); err != nil {
+			return err
+		}
 	}
 	if err := run("fullfsync", []string{retained}, func() error { return v.Vol.Fullfsync(retained) }); err != nil {
+		return err
+	}
+	if err := checkpoint.record("retained-original-data-synced", nil, nil); err != nil {
 		return err
 	}
 	partial, err := v.cloneNativeState(retained)
@@ -464,7 +483,29 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 		return err
 	}
 	states["retained/partial"] = partial
-	if partial.Stat.Ino == 0 || partial.Stat.Ino == initial.Stat.Ino || partial.Stat.Nlink != 1 || partial.Stat.Size != initial.Stat.Size || partial.Data != hex.EncodeToString(wantData[:]) || !bytes.Equal(partial.Attrs["com.apple.ResourceFork"], expectedFork) {
+	verdict := retainedCloneWriteVerdict(partial, initial, hex.EncodeToString(wantData[:]), expectedFork)
+	// Persist the original state and verdict before an observer can issue its
+	// extra flush. Later measurements can never make this failed verdict pass.
+	if err := checkpoint.record("retained-original-verdict", &partial, verdict); err != nil {
+		return errors.Join(verdict, err)
+	}
+	if verdict != nil {
+		return verdict
+	}
+	afterPaths := map[string]string{"source": source, "sibling": sibling}
+	for _, name := range cloneStateReadOrder(checkpoint, afterPaths, "source", "sibling") {
+		path := afterPaths[name]
+		s, err := v.cloneNativeState(path)
+		if err != nil || !reflect.DeepEqual(s, states["before/"+name]) {
+			return errors.Join(fmt.Errorf("native clone retirement/reuse changed %s", name), err)
+		}
+		states["after/"+name] = s
+	}
+	return nil
+}
+
+func retainedCloneWriteVerdict(partial, initial nativeCloneState, wantData string, expectedFork []byte) error {
+	if partial.Stat.Ino == 0 || partial.Stat.Ino == initial.Stat.Ino || partial.Stat.Nlink != 1 || partial.Stat.Size != initial.Stat.Size || partial.Data != wantData || !bytes.Equal(partial.Attrs["com.apple.ResourceFork"], expectedFork) {
 		return fmt.Errorf("retained native partial clone identity/data/fork differs")
 	}
 	for _, pair := range [][2][][3]int64{{partial.DataRuns, initial.DataRuns}, {partial.ForkRuns, initial.ForkRuns}} {
@@ -472,13 +513,6 @@ func (v *Verifier) continueCloneWritesFrom(ctx context.Context, mount, stage, so
 		if physicalBytes(pair[0]) != physicalBytes(pair[1]) || shared <= 0 || shared >= physicalBytes(pair[1]) {
 			return fmt.Errorf("retained native partial clone lacks private and shared physical ranges")
 		}
-	}
-	for name, path := range map[string]string{"source": source, "sibling": sibling} {
-		s, err := v.cloneNativeState(path)
-		if err != nil || !reflect.DeepEqual(s, states["before/"+name]) {
-			return errors.Join(fmt.Errorf("native clone retirement/reuse changed %s", name), err)
-		}
-		states["after/"+name] = s
 	}
 	return nil
 }

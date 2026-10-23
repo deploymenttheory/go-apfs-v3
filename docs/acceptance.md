@@ -504,6 +504,23 @@ further native and product modifications. Compressed and sparse controls retain
 complete logical/raw bytes and metadata; their extent collection stays within
 the native observer's supported dense-fork measurement scope.
 
+The macOS 26 APFS refused-copy continuation also retains one bounded diagnostic
+pair from two fresh, byte-identical copies of the manifest-bound input. Both arms
+execute the complete clone writer and fixed-order observations; one additional
+`F_FULLFSYNC` targets the data descriptor in the control and the resource-fork
+descriptor in the other arm. The original physical-sharing state and verdict
+are retained before that operation. A later observation cannot change a failed
+original verdict, and the normal continuation still runs.
+
+The pair records descriptor identities, bytes, the exact packed 20-byte
+`F_LOG2PHYS_EXT` inputs/outputs, syscall errors and timings, normal cleanup and
+read-only reopen observations. Its closed raw images remain available for an
+independent selected-checkpoint/catalog walk. The existing native diagnostics
+artifact retains this bounded pair on success as well as failure. A transition
+before the additional flush, convergence in both arms, or failure to reproduce
+the discrepancy is inconclusive; one pair cannot establish general APFS flush
+semantics or replace the required filesystem verdicts.
+
 The `lzfse-images` family captures Apple ULFO images for all four plaintext
 filesystem profiles. The existing read-parity and repack families compare every
 file and decoded device digest. Synthetic decoder controls and the bounded
