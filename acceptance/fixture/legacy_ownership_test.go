@@ -107,8 +107,9 @@ func TestKernelLegacyOwnershipLeavesForeignAndMalformedBindingsUntouched(t *test
 			disk := imageTestDisk(c)
 			err := disk.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 			if name == "foreign image" {
-				if err != nil {
-					t.Fatal(err)
+				var refusal *AttachmentOwnershipError
+				if !errors.As(err, &refusal) || refusal.State != OwnershipForeign {
+					t.Fatal("foreign legacy image was reported as released:", err)
 				}
 			} else if err == nil {
 				t.Fatal("unknown legacy ownership was accepted")

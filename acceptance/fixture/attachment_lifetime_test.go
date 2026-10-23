@@ -23,8 +23,10 @@ func TestDetachLeavesReassignedDeviceUntouchedOnFirstCall(t *testing.T) {
 		"plutil":  {Stdout: inventory},
 	}}
 	disk := imageTestDisk(commander)
-	if err := disk.Detach(context.Background(), att); err != nil {
-		t.Fatal(err)
+	err = disk.Detach(context.Background(), att)
+	var refusal *AttachmentOwnershipError
+	if !errors.As(err, &refusal) || refusal.State != OwnershipForeign {
+		t.Fatalf("foreign device was not reported as an unreleased attachment: %v", err)
 	}
 	if detachCalls(commander) != 0 {
 		t.Fatalf("stale attachment detached another image on its first cleanup call: %v", commander.calls)

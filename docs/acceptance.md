@@ -342,6 +342,22 @@ They omit whole-device hashing when no assertion consumes it. Repack/recovery
 disk-digest checks and fresh-container measured sizes remain required; fixture
 capture continues recording both file and device digests.
 
+Native attachment cleanup classifies the complete backing-image identity before
+each detach request. Capture and verification use the same adapter contract:
+
+| Ownership state | Evidence and cleanup result |
+| --- | --- |
+| Owned | The current device has the expected complete image path; normal detach is permitted. |
+| Foreign | The device belongs to another image; no device action is permitted and cleanup returns an unreleased-attachment error. |
+| Absent | Independent image scopes and the complete kernel media inventory corroborate that the device is gone; no detach is needed. |
+| Unknown | Identity or absence could not be proved; cleanup fails with the original cause and performs no device action. |
+
+A successful empty scoped `ioreg` query means that class had no matches. It
+permits another independent query, but does not establish absence. Path parsing
+uses macOS syntax; resolving the expected host file and symlink identity is a
+separate step. The [retained platform captures](../acceptance/fixture/testdata/native-image-ownership/README.md)
+preserve the original command bytes and document the portable replay projection.
+
 Preservation exports receive a separate independent verdict. The verifier reads
 their JSON and archive format without importing the product. It checks source
 and creation identities, link groups, original byte names and portable name
@@ -435,6 +451,26 @@ combined workload record at most twelve jobs and forty-five minutes wall clock.
 - **Capture**: the capture job prints each case; failures name the step
   index in the recipe. Diagnostics (transcripts, partial outputs) are
   uploaded on failure.
+
+For an exhausted busy detach, find `busy-detach-evidence` in the retained
+command transcript. Its `StdoutText` is a JSON receipt containing the source
+revision, workflow run and attempt, requested image/device, independent framework
+and registry scopes, fresh related-device probes and mount source/FSID observations.
+The expected image backend holding its own backing file is an observation; it
+does not identify an ejection blocker. Missing or inconclusive observations leave
+the cause unknown, and the original exhausted detach remains fatal.
+
+To reconstruct the receipt, verify its `StdoutSHA256` against the UTF-8 bytes of
+`StdoutText`, then parse that JSON. Each probe's `Command` is its original
+transcript ordinal. In a merged continuation transcript, add the receipt's actual
+ordinal minus `ReceiptCommand` to each probe ordinal. Read argv, exit status and
+duration from the corresponding command. Base64-decode `Stdout.Data` and
+`Stderr.Data`, verify each `StoredSHA256`, and compare the decoded length with
+`Bytes`. Equal lengths also require the original `SHA256` to match. A shorter
+retained stream or receipt error identifies incomplete evidence; it cannot support
+a complete-output claim. Mount observations carry their own time and identity.
+These probes have bounded time, target count and output retention and perform
+no additional cleanup requests.
 
 ## History
 

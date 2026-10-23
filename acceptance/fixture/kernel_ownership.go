@@ -18,23 +18,23 @@ func isRegistryInventory(argv []string) bool {
 	return slices.Equal(argv, imageRegistryArgs) || slices.Equal(argv, legacyRegistryArgs) || slices.Equal(argv, mediaRegistryArgs)
 }
 
-// kernelImageOwnership uses the live IOService ancestry independently of the
+// kernelAttachmentOwnership uses the live IOService ancestry independently of the
 // DiskImages framework's image list. Chromium's public-IOKit implementation uses
 // IOMedia -> AppleDiskImageDevice -> DiskImageURL for this same association:
 // https://github.com/chromium/chromium/blob/main/chrome/browser/mac/install_from_dmg.mm
 // A scoped-class miss cannot establish that a BSD device has disappeared.
-func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (bool, error) {
+func (d *HostDisk) kernelAttachmentOwnership(ctx context.Context, a *Attachment) (AttachmentOwnership, error) {
 	if !strings.HasPrefix(a.Dev, "/dev/disk") || !inventoryReference(a.Dev) {
-		return false, fmt.Errorf("invalid whole BSD device %q", a.Dev)
+		return OwnershipUnknown, fmt.Errorf("invalid whole BSD device %q", a.Dev)
 	}
 	roots, err := d.registryInventory(ctx, "ioreg-image-ownership", imageRegistryArgs)
 	if err != nil {
-		return false, err
+		return OwnershipUnknown, err
 	}
 	var owners []map[string]any
 	for _, root := range roots {
 		if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), false, 0, &owners); err != nil {
-			return false, err
+			return OwnershipUnknown, err
 		}
 	}
 	legacy := len(owners) == 0
@@ -44,26 +44,26 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 		// https://github.com/chromium/chromium/blob/4a8573cb240df29b0e4d9820303538fb28e31d84/chrome/browser/mac/install_from_dmg.mm
 		roots, err = d.registryInventory(ctx, "ioreg-legacy-image-ownership", legacyRegistryArgs)
 		if err != nil {
-			return false, err
+			return OwnershipUnknown, err
 		}
 		for _, root := range roots {
 			if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), true, 0, &owners); err != nil {
-				return false, err
+				return OwnershipUnknown, err
 			}
 		}
 	}
 	if len(owners) > 1 {
-		return false, fmt.Errorf("kernel registry has ambiguous image owners for %s", a.Dev)
+		return OwnershipUnknown, fmt.Errorf("kernel registry has ambiguous image owners for %s", a.Dev)
 	}
 	if len(owners) == 1 {
 		if owners[0] == nil {
-			return false, fmt.Errorf("kernel media %s has no qualified image ancestor", a.Dev)
+			return OwnershipUnknown, fmt.Errorf("kernel media %s has no qualified image ancestor", a.Dev)
 		}
 		actual, err := registryOwnerPath(owners[0], legacy)
 		if err != nil {
-			return false, fmt.Errorf("kernel owner of %s: %w", a.Dev, err)
+			return OwnershipUnknown, fmt.Errorf("kernel owner of %s: %w", a.Dev, err)
 		}
-		return d.imagePathsMatch(actual, a.Image)
+		return d.imageOwnership(actual, a.Image)
 	}
 
 	// Read the entire IOMedia class independently. An empty scoped image
@@ -71,19 +71,19 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 	// unknown ownership, never permission to detach or report success.
 	media, err := d.registryInventory(ctx, "ioreg-media-absence", mediaRegistryArgs)
 	if err != nil {
-		return false, err
+		return OwnershipUnknown, err
 	}
 	identified := 0
 	seen := map[string]bool{}
 	for _, node := range media {
 		class, ok := node["IOObjectClass"].(string)
-		if !ok || class != "IOMedia" {
-			return false, errors.New("kernel IOMedia archive has an unidentified class")
+		if !ok || !qualifiedMediaRegistryClass(class) {
+			return OwnershipUnknown, errors.New("kernel IOMedia archive has an unidentified class")
 		}
 		if children, present := node["IORegistryEntryChildren"]; present {
 			items, ok := children.([]any)
 			if !ok || len(items) != 0 {
-				return false, errors.New("kernel IOMedia root-only archive has unexpected children")
+				return OwnershipUnknown, errors.New("kernel IOMedia root-only archive has unexpected children")
 			}
 		}
 		raw, present := node["BSD Name"]
@@ -92,18 +92,18 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 		}
 		name, ok := raw.(string)
 		if !ok || !registryBSDName(name) || seen[name] {
-			return false, errors.New("kernel IOMedia archive has invalid or duplicate BSD identities")
+			return OwnershipUnknown, errors.New("kernel IOMedia archive has invalid or duplicate BSD identities")
 		}
 		seen[name] = true
 		identified++
 		if name == strings.TrimPrefix(a.Dev, "/dev/") {
-			return false, fmt.Errorf("kernel media %s still exists without a proven image owner", a.Dev)
+			return OwnershipUnknown, fmt.Errorf("kernel media %s still exists without a proven image owner", a.Dev)
 		}
 	}
 	if identified == 0 {
-		return false, errors.New("kernel IOMedia archive cannot corroborate device absence")
+		return OwnershipUnknown, errors.New("kernel IOMedia archive cannot corroborate device absence")
 	}
-	return false, nil
+	return OwnershipAbsent, nil
 }
 
 func (d *HostDisk) registryInventory(ctx context.Context, label string, argv []string) ([]map[string]any, error) {
@@ -115,7 +115,16 @@ func (d *HostDisk) registryInventory(ctx context.Context, label string, argv []s
 	if err := errors.Join(d.T.Record(cmd, result), ctx.Err()); err != nil {
 		return nil, err
 	}
-	if len(result.Stdout) == 0 || len(result.Stdout) > retainedRegistryTextLimit {
+	if len(result.Stdout) == 0 {
+		// A successful scoped class search emits no plist when it has no
+		// matches. All three native captures in run 39941597269 record this
+		// exact result. It permits another independent proof, never absence.
+		if slices.Equal(argv, imageRegistryArgs) || slices.Equal(argv, legacyRegistryArgs) {
+			return nil, nil
+		}
+		return nil, errors.New("kernel media inventory is empty; absence is not established")
+	}
+	if len(result.Stdout) > retainedRegistryTextLimit {
 		return nil, errors.New("kernel registry archive size outside bounds")
 	}
 	roots, err := decodeRegistryOwnership(result.Stdout)
@@ -204,4 +213,16 @@ func registryBSDName(name string) bool {
 		}
 	}
 	return true
+}
+
+// These actual roots were retained from the complete IOMedia class query on
+// macOS 15, 26 and 27 in run 39941597269. ioreg class matching includes native
+// subclasses; a new unqualified class still cannot establish device absence.
+func qualifiedMediaRegistryClass(class string) bool {
+	switch class {
+	case "IOMedia", "AppleAPFSMedia", "AppleAPFSVolume", "AppleAPFSSnapshot":
+		return true
+	default:
+		return false
+	}
 }

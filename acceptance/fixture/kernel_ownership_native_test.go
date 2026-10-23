@@ -45,6 +45,8 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 		Kind, Image, Device string
 		ExpectedOwned       bool
 		Owned               bool
+		ExpectedState       AttachmentOwnership
+		State               AttachmentOwnership
 		Error               string `json:",omitempty"`
 	}
 	evidence := struct {
@@ -64,7 +66,7 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 		CommandResults []ownershipCommandEvidence
 		ContractError  string `json:",omitempty"`
 		RetentionError string `json:",omitempty"`
-	}{Schema: 1, Architecture: runtime.GOARCH, Commit: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), RawBytes: 2 << 20, RawSHA256: map[string]string{}, ToolsSHA256: map[string]string{}}
+	}{Schema: 2, Architecture: runtime.GOARCH, Commit: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), RawBytes: 2 << 20, RawSHA256: map[string]string{}, ToolsSHA256: map[string]string{}}
 	type attachedImage struct {
 		name       string
 		attachment *Attachment
@@ -75,16 +77,16 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 		recorder.Phase = phase
 		contractErr = errors.Join(contractErr, collectOwnershipInventories(ctx, disk))
 	}
-	checkClaim := func(kind string, att *Attachment, expected bool) {
+	checkClaim := func(kind string, att *Attachment, expected AttachmentOwnership) {
 		recorder.Phase = kind
-		owned, err := disk.kernelImageOwnership(ctx, att)
-		row := claim{Kind: kind, Image: att.Image, Device: att.Dev, ExpectedOwned: expected, Owned: owned}
+		state, err := disk.kernelAttachmentOwnership(ctx, att)
+		row := claim{Kind: kind, Image: att.Image, Device: att.Dev, ExpectedOwned: expected == OwnershipOwned, Owned: state == OwnershipOwned, ExpectedState: expected, State: state}
 		if err != nil {
 			row.Error = err.Error()
 		}
 		evidence.Claims = append(evidence.Claims, row)
-		if err != nil || owned != expected {
-			contractErr = errors.Join(contractErr, fmt.Errorf("%s: native kernel binding %s to %s: owned=%t, expected=%t", kind, att.Dev, att.Image, owned, expected), err)
+		if err != nil || state != expected {
+			contractErr = errors.Join(contractErr, fmt.Errorf("%s: native kernel binding %s to %s: state=%s, expected=%s", kind, att.Dev, att.Image, state, expected), err)
 		}
 	}
 	// Cleanup happens once per successful attachment. Errors remain fatal, and
@@ -97,7 +99,7 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 				contractErr = errors.Join(contractErr, fmt.Errorf("owned native cleanup %s: %w", item.attachment.Image, err))
 			}
 			collect("after-detach-" + item.name)
-			checkClaim("post-detach-"+item.name, item.attachment, false)
+			checkClaim("post-detach-"+item.name, item.attachment, OwnershipAbsent)
 		}
 		for image, before := range evidence.RawSHA256 {
 			if after, err := schema.FileDigest(image); err != nil || after != before {
@@ -180,7 +182,7 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 	// Collect both image states before interpreting any registry output. A
 	// failed adapter assertion remains fatal after complete evidence retention.
 	for _, item := range attachments {
-		checkClaim("positive-"+item.name, item.attachment, true)
+		checkClaim("positive-"+item.name, item.attachment, OwnershipOwned)
 	}
 	if len(attachments) != 2 {
 		contractErr = errors.Join(contractErr, errors.New("two successful native attachments are required for crossed full-path controls"))
@@ -197,16 +199,18 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 		contractErr = errors.Join(contractErr, fmt.Errorf("retain native image alias target: %w", err))
 	} else {
 		evidence.SymlinkAliases = map[string]string{alias: target}
-		checkClaim("positive-symlink-alias", &Attachment{Image: alias, Dev: first.Dev, RDev: first.RDev}, true)
+		checkClaim("positive-symlink-alias", &Attachment{Image: alias, Dev: first.Dev, RDev: first.RDev}, OwnershipOwned)
 	}
 	for i, pair := range [][2]*Attachment{{first, second}, {second, first}} {
 		crossed := &Attachment{Image: pair[0].Image, Dev: pair[1].Dev, RDev: pair[1].RDev}
 		phase := fmt.Sprintf("crossed-%d", i+1)
 		collect(phase)
-		checkClaim(phase, crossed, false)
+		checkClaim(phase, crossed, OwnershipForeign)
 		start := len(transcript.Commands)
-		if err := disk.Detach(ctx, crossed); err != nil {
-			contractErr = errors.Join(contractErr, fmt.Errorf("leave positively bound foreign image alone: %w", err))
+		refusalErr := disk.Detach(ctx, crossed)
+		var refusal *AttachmentOwnershipError
+		if !errors.As(refusalErr, &refusal) || refusal.State != OwnershipForeign {
+			contractErr = errors.Join(contractErr, fmt.Errorf("foreign device was not refused as unreleased: %v", refusalErr))
 		}
 		for _, command := range transcript.Commands[start:] {
 			if len(command.Argv) > 1 && filepath.Base(command.Argv[0]) == "hdiutil" && command.Argv[1] == "detach" {

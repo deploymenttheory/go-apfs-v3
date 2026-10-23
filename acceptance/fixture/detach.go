@@ -15,15 +15,20 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 		// A device number can be reused before the first cleanup call as
 		// well as after a busy report. Bind every action to this image's
 		// exact full path; unknown ownership never permits a detach.
-		owned, err := d.attachedTo(ctx, a)
+		ownership, err := d.attachmentOwnership(ctx, a)
 		if err != nil {
-			return false, "", errors.Join(fmt.Errorf("confirm attachment ownership before detaching %s: %w", a.Dev, err), ctx.Err())
+			return false, "", &AttachmentOwnershipError{State: OwnershipUnknown, Device: a.Dev, Image: a.Image, Cause: errors.Join(fmt.Errorf("confirm attachment ownership before detaching %s: %w", a.Dev, err), ctx.Err())}
 		}
 		if err := ctx.Err(); err != nil {
 			return false, "", err
 		}
-		if !owned {
+		switch ownership {
+		case OwnershipAbsent:
 			return true, "", nil
+		case OwnershipOwned:
+			// The exact owner permits this normal detach request.
+		default:
+			return false, "", &AttachmentOwnershipError{State: ownership, Device: a.Dev, Image: a.Image}
 		}
 		if err := ctx.Err(); err != nil {
 			return false, "", err
@@ -54,23 +59,23 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 	return err
 }
 
-// attachedTo binds the device to the complete image path, using an independent
+// attachmentOwnership binds the device to the complete image path, using an independent
 // kernel association when the framework inventory has no usable target binding.
 // Distinct continuation directories all use writable.raw, so a basename cannot
 // establish ownership.
-func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) {
+func (d *HostDisk) attachmentOwnership(ctx context.Context, a *Attachment) (AttachmentOwnership, error) {
 	cmd := Command{Label: "hdiutil-info", Argv: []string{"hdiutil", "info", "-plist"}, Expected: "0"}
 	result := d.C.Run(ctx, cmd)
 	if err := d.T.Record(cmd, result); err != nil {
-		return false, err
+		return OwnershipUnknown, err
 	}
 	info, err := d.plist(ctx, result.Stdout)
 	if err != nil {
-		return false, err
+		return OwnershipUnknown, err
 	}
 	images, ok := info["images"].([]any)
 	if !ok {
-		return false, errors.New("hdiutil inventory has no valid image list")
+		return OwnershipUnknown, errors.New("hdiutil inventory has no valid image list")
 	}
 	var owners []map[string]any
 	for _, img := range images {
@@ -94,16 +99,16 @@ func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) 
 		}
 	}
 	if len(owners) > 1 {
-		return false, fmt.Errorf("hdiutil inventory has ambiguous owners for %s", a.Dev)
+		return OwnershipUnknown, fmt.Errorf("hdiutil inventory has ambiguous owners for %s", a.Dev)
 	}
 	if len(owners) == 0 {
 		// A framework inventory omitted a raw attachment after successful
 		// unmounts in native CI. Its absence cannot mean detached. Require
 		// an independent kernel binding, or corroborated kernel-media absence.
-		return d.kernelImageOwnership(ctx, a)
+		return d.kernelAttachmentOwnership(ctx, a)
 	}
 	// Incomplete metadata for unrelated images cannot invalidate a positively
 	// identified device. Resolve only this owner's path and the expected image.
 	path, _ := owners[0]["image-path"].(string)
-	return d.imagePathsMatch(path, a.Image)
+	return d.imageOwnership(path, a.Image)
 }

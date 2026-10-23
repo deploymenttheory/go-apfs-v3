@@ -228,8 +228,9 @@ func TestKernelOwnershipLeavesForeignImagesAndUnknownDevicesUntouched(t *testing
 			d := imageTestDisk(c)
 			err := d.Detach(context.Background(), &Attachment{Image: image, Dev: "/dev/disk17"})
 			if name == "foreign image" {
-				if err != nil {
-					t.Fatal("positively identified foreign image was not left alone:", err)
+				var refusal *AttachmentOwnershipError
+				if !errors.As(err, &refusal) || refusal.State != OwnershipForeign {
+					t.Fatal("foreign image was reported as released instead of refused:", err)
 				}
 			} else if err == nil {
 				t.Fatal("unproven ownership was reported as completed cleanup")

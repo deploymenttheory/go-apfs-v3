@@ -82,8 +82,10 @@ func TestDetachLeavesReusedDeviceWithSameBasenameInAnotherDirectoryAlone(t *test
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
 	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(other, att.Dev)}})
 	disk := imageTestDisk(commander)
-	if err := disk.Detach(context.Background(), att); err != nil {
-		t.Fatal(err)
+	err := disk.Detach(context.Background(), att)
+	var refusal *AttachmentOwnershipError
+	if !errors.As(err, &refusal) || refusal.State != OwnershipForeign {
+		t.Fatalf("foreign device was not reported as an unreleased attachment: %v", err)
 	}
 	if detachCalls(commander) != 0 {
 		t.Fatalf("another lineage's writable.raw was detached after the original device disappeared: %v", commander.calls)
