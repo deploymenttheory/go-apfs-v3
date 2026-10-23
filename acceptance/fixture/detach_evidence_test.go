@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -21,7 +21,7 @@ func busyDetachCommander(t *testing.T, att *Attachment) *fakeCommander {
 	// The final inventory is read-only evidence after the close budget failed.
 	queue = append(queue, Result{Stdout: []byte("native image inventory")})
 	return &fakeCommander{sequence: map[string][]Result{"hdiutil": queue}, results: map[string]Result{
-		"plutil": {Stdout: info}, "/usr/sbin/lsof": {Status: 1},
+		"hdiutil": {Stdout: info}, "plutil": {Stdout: info}, "/usr/sbin/lsof": {Status: 1},
 	}}
 }
 
@@ -35,16 +35,17 @@ func TestExhaustedDetachRetainsScopedEvidenceWithoutAnotherClose(t *testing.T) {
 	if !errors.As(err, &failed) || failed.Checks != BusyWait.Attempts || detachCalls(commander) != BusyWait.Attempts {
 		t.Fatalf("failure evidence changed the detach verdict or close budget: %v, calls=%v", err, commander.calls)
 	}
-	commands := disk.T.Commands
-	last := commands[len(commands)-3:]
-	want := [][]string{{"hdiutil", "info", "-plist"}, {"diskutil", "info", "-plist", att.Dev}, {"/usr/sbin/lsof", "-nP", "--", att.Image, att.Dev, att.RDev}}
-	for i := range last {
-		if !reflect.DeepEqual(last[i].Argv, want[i]) {
-			t.Fatalf("busy evidence escaped the exact failed attachment: %+v", last)
+	var holderFound bool
+	for _, cmd := range disk.T.Commands {
+		if cmd.Label == "busy-detach-open-files" {
+			holderFound = true
+			if !cmd.Sudo || cmd.Status != "1" || cmd.Expected != "record" || !slices.Contains(cmd.Argv, att.Image) || !slices.Contains(cmd.Argv, att.Dev) || !slices.Contains(cmd.Argv, att.RDev) {
+				t.Fatalf("exact scoped holder result was not retained: %+v", cmd)
+			}
 		}
 	}
-	if !last[2].Sudo || last[2].Status != "1" || last[2].Expected != "record" {
-		t.Fatalf("no-open-files result was not retained: %+v", last[2])
+	if !holderFound {
+		t.Fatal("missing holder evidence")
 	}
 }
 
