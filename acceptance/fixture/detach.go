@@ -9,33 +9,29 @@ import (
 )
 
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
-	checks := 0
 	err := Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
 		if err := ctx.Err(); err != nil {
 			return false, "", err
 		}
-		checks++
-		if checks > 1 {
-			// A busy report can follow a detach that completed; by now the
-			// device number may belong to another image. Unknown ownership
-			// must never permit another detach of that device.
-			owned, err := d.attachedTo(ctx, a)
-			if err != nil {
-				return false, "", fmt.Errorf("confirm attachment ownership before detaching %s again: %w", a.Dev, err)
-			}
-			if err := ctx.Err(); err != nil {
-				return false, "", err
-			}
-			if !owned {
-				return true, "", nil
-			}
+		// A device number can be reused before the first cleanup call as
+		// well as after a busy report. Bind every action to this image's
+		// exact full path; unknown ownership never permits a detach.
+		owned, err := d.attachedTo(ctx, a)
+		if err != nil {
+			return false, "", errors.Join(fmt.Errorf("confirm attachment ownership before detaching %s: %w", a.Dev, err), ctx.Err())
+		}
+		if err := ctx.Err(); err != nil {
+			return false, "", err
+		}
+		if !owned {
+			return true, "", nil
 		}
 		if err := ctx.Err(); err != nil {
 			return false, "", err
 		}
 		cmd := Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}, Expected: "record"}
 		result := d.C.Run(ctx, cmd)
-		err := d.T.Record(cmd, result)
+		err = d.T.Record(cmd, result)
 		if ctx.Err() != nil {
 			return false, "", errors.Join(err, ctx.Err())
 		}

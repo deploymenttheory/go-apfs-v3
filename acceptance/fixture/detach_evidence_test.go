@@ -15,11 +15,8 @@ func busyDetachCommander(t *testing.T, att *Attachment) *fakeCommander {
 		t.Fatal(err)
 	}
 	var queue []Result
-	for i := range BusyWait.Attempts {
-		queue = append(queue, Result{Status: 16, Stderr: []byte("Resource busy")})
-		if i+1 < BusyWait.Attempts {
-			queue = append(queue, Result{Stdout: []byte("native image inventory")})
-		}
+	for range BusyWait.Attempts {
+		queue = append(queue, Result{Stdout: []byte("native image inventory")}, Result{Status: 16, Stderr: []byte("Resource busy")})
 	}
 	// The final inventory is read-only evidence after the close budget failed.
 	queue = append(queue, Result{Stdout: []byte("native image inventory")})
@@ -71,7 +68,7 @@ func TestBusyDetachEvidenceLeavesReassignedDeviceAlone(t *testing.T) {
 	commander := busyDetachCommander(t, att)
 	original := commander.results["plutil"]
 	var inventory []Result
-	for range BusyWait.Attempts - 1 {
+	for range BusyWait.Attempts {
 		inventory = append(inventory, original)
 	}
 	other := detachImage(t, t.TempDir())

@@ -180,7 +180,7 @@ func (d *HostDisk) CreateRaw(_ context.Context, path string, bytes int64) error 
 	return f.Close()
 }
 
-func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) (*Attachment, error) {
+func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) (attachment *Attachment, resultErr error) {
 	argv := []string{"hdiutil", "attach", "-plist", "-nobrowse", "-noautoopen", "-owners", "on"}
 	if !opts.Mount {
 		argv = append(argv, "-nomount")
@@ -231,6 +231,14 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	a.Dev = whole
 	a.RDev = strings.Replace(a.Dev, "/dev/disk", "/dev/rdisk", 1)
+	// Once the native attachment identifies its whole device, do not lose
+	// its handle if later discovery fails. Detach verifies exact current
+	// ownership before any action; failure and cancellation remain fatal.
+	defer func() {
+		if resultErr != nil {
+			resultErr = errors.Join(resultErr, d.Detach(ctx, a))
+		}
+	}()
 	for _, e := range devEntries {
 		if e.dev == whole && isPartitionScheme(e.contentHint) {
 			a.partitioned = true
