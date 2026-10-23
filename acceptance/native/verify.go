@@ -32,6 +32,7 @@ type Verifier struct {
 	C                 fixture.Commander
 	Producer          schema.Producer
 	AppleDoubleUnpack string // guarded public copyfile(3) adapter, built once
+	continuationLog   *continuationCommands
 }
 
 // ForSubtest returns a copy of the verifier with its own disk transcript,
@@ -89,27 +90,25 @@ func (v *Verifier) observeImage(ctx context.Context, label, image, format string
 
 // observeImageWithDigest keeps complete file hashes while allowing transient
 // readbacks to omit an unasserted whole-device hash. Captures retain both hashes.
-func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (*schema.Observation, error) {
+func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, format string, password []byte, spec schema.ObserveSpec, recipe schema.Recipe, deviceDigest bool) (observed *schema.Observation, resultErr error) {
 	t := &fixture.Transcript{}
-	if disk, ok := v.Disk.(fixture.TranscriptUser); ok {
-		disk.SetTranscript(t)
-	}
+	v.setTranscript(t)
+	work := filepath.Join(v.Work, "observe", sanitize(label))
+	defer func() {
+		resultErr = retainFailedObservationCommands(work, t, resultErr)
+	}()
 	raw := strings.HasSuffix(image, ".raw")
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: raw, Password: password})
 	if err != nil {
 		return nil, err
 	}
 	if len(att.Volumes) == 0 {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, fmt.Errorf("%s: no volume discovered on the attached image", label)
+		return nil, errors.Join(fmt.Errorf("%s: no volume discovered on the attached image", label), v.Disk.Detach(ctx, att))
 	}
-	work := filepath.Join(v.Work, "observe", sanitize(label))
 	_ = os.RemoveAll(work)
 	vars := &fixture.Vars{Passwords: recipe.Passwords}
 	obs, err := fixture.Observe(ctx, fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "output"}, Stage: label, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: v.Disk, Vol: v.Vol, Vars: vars, T: t, Work: work, Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(label), Producer: v.Producer, OmitDeviceDigest: !deviceDigest})
-	if derr := v.Disk.Detach(ctx, att); err == nil {
-		err = derr
-	}
+	err = errors.Join(err, v.Disk.Detach(ctx, att))
 	if obs != nil {
 		obs.Commands = t.Commands
 		data, writeErr := json.MarshalIndent(obs, "", "  ")
@@ -119,9 +118,7 @@ func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, for
 		if writeErr == nil {
 			writeErr = os.WriteFile(filepath.Join(work, "observation.json"), append(data, '\n'), 0o644)
 		}
-		if err == nil {
-			err = writeErr
-		}
+		err = errors.Join(err, writeErr)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", label, err)
