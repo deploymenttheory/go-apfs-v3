@@ -8,15 +8,17 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 const retainedRegistryTextLimit = 8 << 20
 
 var imageRegistryArgs = []string{"/usr/sbin/ioreg", "-a", "-l", "-r", "-c", "AppleDiskImageDevice"}
+var legacyRegistryArgs = []string{"/usr/sbin/ioreg", "-a", "-l", "-r", "-c", "IOHDIXHDDrive"}
 var mediaRegistryArgs = []string{"/usr/sbin/ioreg", "-a", "-l", "-r", "-c", "IOMedia", "-d", "1"}
 
 func isRegistryInventory(argv []string) bool {
-	return slices.Equal(argv, imageRegistryArgs) || slices.Equal(argv, mediaRegistryArgs)
+	return slices.Equal(argv, imageRegistryArgs) || slices.Equal(argv, legacyRegistryArgs) || slices.Equal(argv, mediaRegistryArgs)
 }
 
 // kernelImageOwnership uses the live IOService ancestry independently of the
@@ -34,8 +36,23 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 	}
 	var owners []map[string]any
 	for _, root := range roots {
-		if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), 0, &owners); err != nil {
+		if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), false, 0, &owners); err != nil {
 			return false, err
+		}
+	}
+	legacy := len(owners) == 0
+	if legacy {
+		// Older IOHDIX backends expose an exact CFData filesystem path instead
+		// of a URL. This is a separate ancestry proof, not an attach retry:
+		// https://github.com/chromium/chromium/blob/4a8573cb240df29b0e4d9820303538fb28e31d84/chrome/browser/mac/install_from_dmg.mm
+		roots, err = d.registryInventory(ctx, "ioreg-legacy-image-ownership", legacyRegistryArgs)
+		if err != nil {
+			return false, err
+		}
+		for _, root := range roots {
+			if err := walkRegistry(root, nil, strings.TrimPrefix(a.Dev, "/dev/"), true, 0, &owners); err != nil {
+				return false, err
+			}
 		}
 	}
 	if len(owners) > 1 {
@@ -43,13 +60,9 @@ func (d *HostDisk) kernelImageOwnership(ctx context.Context, a *Attachment) (boo
 	}
 	if len(owners) == 1 {
 		if owners[0] == nil {
-			return false, fmt.Errorf("kernel media %s has no qualified AppleDiskImageDevice ancestor", a.Dev)
+			return false, fmt.Errorf("kernel media %s has no qualified image ancestor", a.Dev)
 		}
-		raw, ok := owners[0]["DiskImageURL"].(string)
-		if !ok {
-			return false, fmt.Errorf("kernel owner of %s has no string DiskImageURL", a.Dev)
-		}
-		actual, err := localImageURL(raw)
+		actual, err := registryOwnerPath(owners[0], legacy)
 		if err != nil {
 			return false, fmt.Errorf("kernel owner of %s: %w", a.Dev, err)
 		}
@@ -116,11 +129,15 @@ func (d *HostDisk) registryInventory(ctx context.Context, label string, argv []s
 	return roots, errors.Join(err, ctx.Err())
 }
 
-func walkRegistry(node, owner map[string]any, target string, depth int, matches *[]map[string]any) error {
+func walkRegistry(node, owner map[string]any, target string, legacy bool, depth int, matches *[]map[string]any) error {
 	if depth > 64 {
 		return errors.New("kernel image ancestry exceeds the qualified depth")
 	}
-	if class, _ := node["IOObjectClass"].(string); class == "AppleDiskImageDevice" {
+	class, _ := node["IOObjectClass"].(string)
+	if class == "AppleDiskImageDevice" || legacyImageClass(class) {
+		if legacyImageClass(class) != legacy {
+			return errors.New("kernel registry has mixed image backend ancestry")
+		}
 		owner = node
 	}
 	if raw, present := node["BSD Name"]; present {
@@ -145,12 +162,42 @@ func walkRegistry(node, owner map[string]any, target string, depth int, matches 
 			if !ok {
 				return errors.New("kernel image archive has a non-dictionary child")
 			}
-			if err := walkRegistry(child, owner, target, depth+1, matches); err != nil {
+			if err := walkRegistry(child, owner, target, legacy, depth+1, matches); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+func legacyImageClass(class string) bool {
+	return class == "IOHDIXHDDrive" || class == "IOHDIXHDDriveInKernel" || class == "IOHDIXHDDriveOutKernel"
+}
+
+func registryOwnerPath(owner map[string]any, legacy bool) (string, error) {
+	if legacy {
+		if _, mixed := owner["DiskImageURL"]; mixed {
+			return "", errors.New("kernel image owner has mixed URL and filesystem-path bindings")
+		}
+		path, ok := owner["image-path"].(registryPathData)
+		if !ok {
+			return "", errors.New("kernel image owner has no CFData image-path")
+		}
+		// The reference copies the complete CFData bytes, adding its own C++
+		// string terminator. Never trim a NUL or guess a URL/text encoding here.
+		if len(path) == 0 || !utf8.Valid(path) || strings.ContainsRune(string(path), 0) || !filepath.IsAbs(string(path)) {
+			return "", errors.New("kernel image-path is not an absolute NUL-free UTF-8 path")
+		}
+		return canonicalImagePath(string(path))
+	}
+	if _, mixed := owner["image-path"]; mixed {
+		return "", errors.New("kernel image owner has mixed URL and filesystem-path bindings")
+	}
+	url, ok := owner["DiskImageURL"].(string)
+	if !ok {
+		return "", errors.New("kernel image owner has no string DiskImageURL")
+	}
+	return localImageURL(url)
 }
 
 func registryBSDName(name string) bool {

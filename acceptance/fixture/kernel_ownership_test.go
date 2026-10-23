@@ -46,11 +46,14 @@ type kernelOwnershipCommander struct {
 	global                    []byte
 	images                    []byte
 	media                     []byte
+	legacy                    []byte
+	legacyErr                 error
 	registryErr               error
 	registryStatus            int
 	registryConversionFailure *Result
 	busy                      bool
 	cancel                    context.CancelFunc
+	cancelLegacy              context.CancelFunc
 }
 
 func (c *kernelOwnershipCommander) Run(_ context.Context, cmd Command) Result {
@@ -78,6 +81,17 @@ func (c *kernelOwnershipCommander) Run(_ context.Context, cmd Command) Result {
 		return Result{Stdout: c.images, Status: c.registryStatus, Err: c.registryErr}
 	case "ioreg-media-absence":
 		return Result{Stdout: c.media}
+	case "ioreg-legacy-image-ownership":
+		if c.cancelLegacy != nil {
+			c.cancelLegacy()
+		}
+		if c.legacyErr != nil {
+			return Result{Status: -1, Err: c.legacyErr}
+		}
+		if c.legacy == nil {
+			return Result{Stdout: registryArchive()}
+		}
+		return Result{Stdout: c.legacy}
 	case "detach":
 		if c.busy {
 			return Result{Status: 16, Stderr: []byte("Resource busy")}
@@ -298,22 +312,24 @@ func TestKernelOwnershipCannotIncreaseTheDetachBudget(t *testing.T) {
 }
 
 func TestKernelRegistryReceiptsKeepBoundedOriginalTextAndDigests(t *testing.T) {
-	for _, size := range []int{retainedTextLimit + 1, retainedRegistryTextLimit, retainedRegistryTextLimit + 1} {
-		raw := bytes.Repeat([]byte("x"), size)
-		transcript := &Transcript{}
-		cmd := Command{Label: "ioreg-image-ownership", Argv: imageRegistryArgs, Expected: "0"}
-		if err := transcript.Record(cmd, Result{Stdout: raw}); err != nil {
-			t.Fatal(err)
-		}
-		got := transcript.Commands[0]
-		if got.StdoutSHA256 != fmt.Sprintf("%x", sha256.Sum256(raw)) || (got.StdoutText != "") != (size <= retainedRegistryTextLimit) {
-			t.Fatal("registry evidence was truncated without its original digest")
-		}
-		if size > retainedRegistryTextLimit {
-			c := &kernelOwnershipCommander{images: raw}
-			disk := &HostDisk{C: c, T: &Transcript{}}
-			if _, err := disk.registryInventory(context.Background(), "ioreg-image-ownership", imageRegistryArgs); err == nil || c.count("plutil") != 0 {
-				t.Fatal("oversized registry proof reached conversion or was admitted")
+	for _, argv := range [][]string{imageRegistryArgs, legacyRegistryArgs, mediaRegistryArgs} {
+		for _, size := range []int{retainedTextLimit + 1, retainedRegistryTextLimit, retainedRegistryTextLimit + 1} {
+			raw := bytes.Repeat([]byte("x"), size)
+			transcript := &Transcript{}
+			cmd := Command{Label: "registry-receipt", Argv: argv, Expected: "0"}
+			if err := transcript.Record(cmd, Result{Stdout: raw}); err != nil {
+				t.Fatal(err)
+			}
+			got := transcript.Commands[0]
+			if got.StdoutSHA256 != fmt.Sprintf("%x", sha256.Sum256(raw)) || (got.StdoutText != "") != (size <= retainedRegistryTextLimit) {
+				t.Fatal("registry evidence was truncated without its original digest")
+			}
+			if size > retainedRegistryTextLimit {
+				c := &kernelOwnershipCommander{images: raw}
+				disk := &HostDisk{C: c, T: &Transcript{}}
+				if _, err := disk.registryInventory(context.Background(), "ioreg-image-ownership", argv); err == nil || c.count("plutil") != 0 {
+					t.Fatal("oversized registry proof reached conversion or was admitted")
+				}
 			}
 		}
 	}

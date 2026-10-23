@@ -2,12 +2,17 @@ package fixture
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
 )
+
+const retainedRegistryPathLimit = 16 << 10
+
+type registryPathData []byte
 
 // IORegistry contains opaque data and other values that plutil cannot always
 // convert to JSON. Project only the ownership keys from the original archive;
@@ -160,6 +165,24 @@ func (p *registryProjection) node() (map[string]any, error) {
 				return nil, errors.New("kernel registry children is not an array")
 			}
 			node[key], err = p.nodes()
+		case "image-path":
+			if !registryStart(token, "data") {
+				return nil, errors.New("kernel image-path is not CFData")
+			}
+			var text string
+			text, err = p.text("data")
+			if err == nil {
+				text = strings.Join(strings.Fields(text), "")
+				if len(text) > base64.StdEncoding.EncodedLen(retainedRegistryPathLimit) {
+					return nil, errors.New("kernel image-path exceeds its bounded length")
+				}
+				var path []byte
+				path, err = base64.StdEncoding.Strict().DecodeString(text)
+				if len(path) > retainedRegistryPathLimit {
+					return nil, errors.New("kernel image-path exceeds its bounded length")
+				}
+				node[key] = registryPathData(path)
+			}
 		default:
 			if _, ok := token.(xml.StartElement); !ok {
 				return nil, errors.New("kernel registry property has no XML value")
