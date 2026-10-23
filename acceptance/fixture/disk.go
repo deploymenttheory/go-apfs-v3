@@ -112,7 +112,7 @@ type TranscriptUser interface {
 type HostDisk struct {
 	C Commander
 	T *Transcript
-	// Tests replace this per instance; snapshot cleanup never needs a global
+	// Tests replace this per instance; private mount cleanup never needs a global
 	// probe override or a real host mount to exercise ownership decisions.
 	mountProbe func(string) (mountIdentity, error)
 }
@@ -491,14 +491,6 @@ func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir st
 		return fmt.Errorf("mount %s: %w", v.Dev, err)
 	}
 	return nil
-}
-
-func (d *HostDisk) Unmount(ctx context.Context, v *AttachedVolume) error {
-	_, err := d.run(ctx, "unmount", false, nil, "diskutil", "unmount", v.Dev)
-	if err == nil {
-		v.Mount = ""
-	}
-	return err
 }
 
 func (d *HostDisk) Convert(ctx context.Context, src, format, out string, opts ConvertOptions) error {
