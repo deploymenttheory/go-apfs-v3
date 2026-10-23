@@ -128,8 +128,11 @@ func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, for
 
 // VerifyOutput checks one paired output with Apple tools and returns the
 // differences from its expectation; integrity failures are errors.
-func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, error) {
+func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Difference, resultErr error) {
 	out := p.Output
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
+	defer finish(&resultErr)
+	v.setTranscript(&fixture.Transcript{})
 	k, want, err := v.expectedView(out)
 	if err != nil {
 		return nil, err
