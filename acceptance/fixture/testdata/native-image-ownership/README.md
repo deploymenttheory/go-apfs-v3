@@ -27,6 +27,14 @@ in provenance describe the native inventory facts to test. Post-detach records
 describe observed membership; they do not silently classify a foreign device
 as absent or replace the lifecycle policy.
 
+The resolver also declares the exact additional owner paths actually captured:
+the PKI Trust Store image on all three hosts and the Siri Understanding image
+on macOS 26. Each complete path has a distinct foreign identity. This is an
+explicit replay projection of those original observations, not a rule for
+`/System` prefixes, basenames or unknown files. Every undeclared input remains
+unresolved, and only the one recorded symlink alias shares the first control's
+identity. Tests bind these declarations back to every original legacy scope.
+
 `retainedNativePlatformCaptures` verifies the provider ZIP digests, every member
 digest and every original command stream before exposing replay. The scoped
 `-text` Git policy and read-only checkout-filter regression protect these bytes

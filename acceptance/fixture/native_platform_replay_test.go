@@ -49,6 +49,7 @@ type nativePlatformCapture struct {
 	Major              int
 	First, Second      Attachment
 	Alias, AliasTarget string
+	ForeignImages      []string
 	OriginalClaims     []nativePlatformClaim
 	Original           nativePlatformOriginal
 	Relations          []nativePlatformRelation
@@ -62,6 +63,11 @@ func (c nativePlatformCapture) resolveImage(input string) (string, error) {
 	case c.Second.Image:
 		return fmt.Sprintf("native-platform/%d/second", c.Major), nil
 	default:
+		for i, native := range c.ForeignImages {
+			if input == native {
+				return fmt.Sprintf("native-platform/%d/foreign/%d", c.Major, i), nil
+			}
+		}
 		return "", fs.ErrNotExist
 	}
 }
@@ -118,7 +124,8 @@ func retainedNativePlatformCaptures(t *testing.T) []nativePlatformCapture {
 				Name, SHA256 string
 				Bytes        int64
 			}
-			Relations []nativePlatformRelation
+			Relations     []nativePlatformRelation
+			ForeignImages []string
 		}
 	}
 	b, err := os.ReadFile(nativePlatformData + "provenance.json")
@@ -208,7 +215,7 @@ func retainedNativePlatformCaptures(t *testing.T) []nativePlatformCapture {
 		if original.Schema != 1 || original.Commit != provenance.CheckoutCommit || original.RunID != "39941597269" || original.RetentionError != "" || !strings.HasPrefix(original.KernelVersion, fmt.Sprint(source.Major)+".") {
 			t.Fatal("native capture provenance or complete-retention status changed")
 		}
-		capture := nativePlatformCapture{Major: source.Major, Original: original, OriginalClaims: original.Claims, Relations: source.Relations, Phases: map[string][]nativePlatformScope{}}
+		capture := nativePlatformCapture{Major: source.Major, Original: original, OriginalClaims: original.Claims, Relations: source.Relations, ForeignImages: source.ForeignImages, Phases: map[string][]nativePlatformScope{}}
 		for _, claim := range original.Claims {
 			switch claim.Kind {
 			case "positive-first":

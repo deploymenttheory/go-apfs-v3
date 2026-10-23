@@ -596,6 +596,9 @@
           "device": "second",
           "relation": "post-detach"
         }
+      ],
+      "foreignImages": [
+        "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg"
       ]
     },
     {
@@ -1188,6 +1191,10 @@
           "device": "second",
           "relation": "post-detach"
         }
+      ],
+      "foreignImages": [
+        "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg",
+        "/System/Library/AssetsV2/com_apple_MobileAsset_UAF_Siri_Understanding/purpose_auto/c10eb90af2d4996616c3cd0f6bac0833eb4925fa.asset/AssetData/Restore/UC_SIRI_ASR_ASSISTANT_EN_US_EN_US_MACVM_Cryptex.dmg"
       ]
     },
     {
@@ -1780,6 +1787,9 @@
           "device": "second",
           "relation": "post-detach"
         }
+      ],
+      "foreignImages": [
+        "/System/Library/AssetsV2/com_apple_MobileAsset_PKITrustStore/purpose_auto/6dd55b0d06633a00de6f57ccb910a66a5ba2409a.asset/AssetData/Restore/SECUREPKITRUSTSTOREASSETS_SECUREPKITRUSTSTORE_Cryptex.dmg"
       ]
     }
   ],

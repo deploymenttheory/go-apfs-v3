@@ -2,7 +2,10 @@ package fixture
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -96,6 +99,63 @@ func TestNativePlatformReplayBindsOriginalPathsAliasesForeignImagesAndPostDetach
 				if err != nil || same != (relation.Relation == "owned") {
 					t.Fatal("original full-path relation changed", relation, err)
 				}
+			}
+		})
+	}
+}
+
+func TestNativePlatformReplayProjectsOnlyAdditionalOwnerPathsActuallyCaptured(t *testing.T) {
+	for _, capture := range retainedNativePlatformCaptures(t) {
+		t.Run(fmt.Sprint(capture.Major), func(t *testing.T) {
+			observed := map[string]bool{}
+			for phase := range capture.Phases {
+				commander := capture.commander(t, phase)
+				result := commander.Run(context.Background(), Command{Argv: legacyRegistryArgs})
+				roots, err := decodeRegistryOwnership(result.Stdout)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, root := range roots {
+					native, err := registryOwnerPath(root, true)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if native != capture.First.Image && native != capture.Second.Image {
+						observed[native] = true
+					}
+				}
+			}
+			declared := map[string]bool{}
+			identities := map[string]bool{}
+			for _, native := range append([]string{capture.First.Image, capture.Second.Image}, capture.ForeignImages...) {
+				identity, err := capture.resolveImage(native)
+				if err != nil || identities[identity] {
+					t.Fatal("distinct complete native paths collapsed", native, err)
+				}
+				identities[identity] = true
+			}
+			for _, native := range capture.ForeignImages {
+				if declared[native] {
+					t.Fatal("duplicate declared foreign path")
+				}
+				declared[native] = true
+				disk := &HostDisk{imagePathResolver: capture.resolveImage}
+				for _, expected := range []string{capture.First.Image, capture.Second.Image, capture.Alias} {
+					if same, err := disk.imagePathsMatch(native, expected); err != nil || same {
+						t.Fatal("captured system image matched a private control", err)
+					}
+				}
+				if _, err := capture.resolveImage(native + ".not-recorded"); !errors.Is(err, fs.ErrNotExist) {
+					t.Fatal("an undeclared native path was projected", err)
+				}
+			}
+			if len(declared) == 0 || !maps.Equal(observed, declared) {
+				t.Fatal("projection does not match exact additional captured owners")
+			}
+			first, err := capture.resolveImage(capture.First.Image)
+			alias, aliasErr := capture.resolveImage(capture.Alias)
+			if err != nil || aliasErr != nil || first != alias {
+				t.Fatal("the one explicitly recorded alias changed")
 			}
 		})
 	}
