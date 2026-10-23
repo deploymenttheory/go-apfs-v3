@@ -378,6 +378,27 @@ uses macOS syntax; resolving the expected host file and symlink identity is a
 separate step. The [retained platform captures](../acceptance/fixture/testdata/native-image-ownership/README.md)
 preserve the original command bytes and document the portable replay projection.
 
+Every portable, catalog-growth and native verification job first executes all
+untagged acceptance helper tests. A closed inventory requires the evidence,
+path, ownership-state, cleanup-error and failure-retention contracts to actually
+run and pass. A missing or skipped contract, failed package, incomplete event
+stream or nonzero test exit stops that job before corpus restoration and
+filesystem verification. Windows executes these helpers; cross-compilation is
+not runtime qualification. Tests use `-count=1` with both cold and warm build
+caches, so an earlier test result cannot stand in for the current invocation.
+
+Each macOS verification job also executes the live ownership contract before
+building the continuation CLI. Its original schema-2 packet must bind all seven
+owned, crossed, alias and post-close claims to that job's checkout, run attempt,
+architecture and expected kernel major. Complete original command streams are
+checked against their retained sizes and digests. The existing native ownership
+artifact keeps those bytes and adds gate event logs and receipts in `gate-events/`;
+portable jobs retain separate small contract artifacts. Uploads run on failure
+as well as success, and upload failure blocks dependent verification. These are
+local prerequisites within the existing jobs: all filesystem phases, matrices
+and the final required gate remain mandatory and independent jobs do not wait
+for another job's contract verdict.
+
 Preservation exports receive a separate independent verdict. The verifier reads
 their JSON and archive format without importing the product. It checks source
 and creation identities, link groups, original byte names and portable name

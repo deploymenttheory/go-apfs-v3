@@ -46,7 +46,10 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0
-      - run: go vet ./...
+          args: ./... ./.github/scripts/platform-contracts
+      - run: go vet ./... ./.github/scripts/platform-contracts
+      - name: Test platform contract evidence validation
+        run: go test -count=1 -timeout 2m ./.github/scripts/platform-contracts
       - name: Vet and build the darwin-only capture tool and native verifier
         run: |
           GOOS=darwin GOARCH=arm64 go vet -tags fixture ./acceptance/... ./cmd/apfs-fixture
@@ -96,6 +99,30 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Verify portable platform contracts
+        shell: bash
+        run: |
+          evidence="$RUNNER_TEMP/platform-contracts"
+          mkdir -p "$evidence"
+          acceptance_package="$(go list ./acceptance)"
+          all_packages="$(go list ./acceptance/...)"
+          helper_packages=()
+          while IFS= read -r package; do
+            if [[ "$package" != "$acceptance_package" ]]; then
+              helper_packages+=("$package")
+            fi
+          done <<< "$all_packages"
+          test_status=0
+          go test -json -count=1 -timeout 25m "${helper_packages[@]}" > "$evidence/helpers.jsonl" 2> "$evidence/helpers.stderr" || test_status=$?
+          cat "$evidence/helpers.jsonl" "$evidence/helpers.stderr"
+          go run ./.github/scripts/platform-contracts -events "$evidence/helpers.jsonl" -test-exit "$test_status" -receipt "$evidence/helpers-receipt.json"
+      - name: Retain portable platform contract evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: platform-contracts-portable-${{ matrix.host }}
+          path: ${{ runner.temp }}/platform-contracts/
+          if-no-files-found: error
       - name: Restore the pinned fixture corpus
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -107,16 +134,6 @@ jobs:
           APFS_OUTPUT_DIR: ${{ runner.temp }}/outputs
         run: |
           acceptance_package="$(go list ./acceptance)"
-          all_packages="$(go list ./acceptance/...)"
-          helper_packages=()
-          while IFS= read -r package; do
-            if [[ "$package" != "$acceptance_package" ]]; then
-              helper_packages+=("$package")
-            fi
-          done <<< "$all_packages"
-          if (( ${#helper_packages[@]} > 0 )); then
-            go test -count=1 -timeout 25m "${helper_packages[@]}"
-          fi
           go test -count=1 -timeout 25m "$acceptance_package"
       # One artifact per producer: the native job for macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
@@ -162,6 +179,30 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Verify portable platform contracts
+        shell: bash
+        run: |
+          evidence="$RUNNER_TEMP/platform-contracts"
+          mkdir -p "$evidence"
+          acceptance_package="$(go list ./acceptance)"
+          all_packages="$(go list ./acceptance/...)"
+          helper_packages=()
+          while IFS= read -r package; do
+            if [[ "$package" != "$acceptance_package" ]]; then
+              helper_packages+=("$package")
+            fi
+          done <<< "$all_packages"
+          test_status=0
+          go test -json -count=1 -timeout 25m "${helper_packages[@]}" > "$evidence/helpers.jsonl" 2> "$evidence/helpers.stderr" || test_status=$?
+          cat "$evidence/helpers.jsonl" "$evidence/helpers.stderr"
+          go run ./.github/scripts/platform-contracts -events "$evidence/helpers.jsonl" -test-exit "$test_status" -receipt "$evidence/helpers-receipt.json"
+      - name: Retain portable platform contract evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: platform-contracts-catalog-growth-${{ matrix.host }}
+          path: ${{ runner.temp }}/platform-contracts/
+          if-no-files-found: error
       - name: Restore the pinned fixture corpus
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -212,6 +253,41 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Verify portable platform contracts
+        shell: bash
+        run: |
+          evidence="$RUNNER_TEMP/native-work/kernel-image-ownership-contract/gate-events"
+          mkdir -p "$evidence"
+          acceptance_package="$(go list ./acceptance)"
+          all_packages="$(go list ./acceptance/...)"
+          helper_packages=()
+          while IFS= read -r package; do
+            if [[ "$package" != "$acceptance_package" ]]; then
+              helper_packages+=("$package")
+            fi
+          done <<< "$all_packages"
+          test_status=0
+          go test -json -count=1 -timeout 25m "${helper_packages[@]}" > "$evidence/helpers.jsonl" 2> "$evidence/helpers.stderr" || test_status=$?
+          cat "$evidence/helpers.jsonl" "$evidence/helpers.stderr"
+          go run ./.github/scripts/platform-contracts -events "$evidence/helpers.jsonl" -test-exit "$test_status" -receipt "$evidence/helpers-receipt.json"
+      - name: Verify native image ownership paths
+        id: native_ownership
+        shell: bash
+        env:
+          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
+        run: |
+          evidence="$APFS_NATIVE_WORK/kernel-image-ownership-contract/gate-events"
+          test_status=0
+          go test -json -count=1 -v -timeout 5m -tags native ./acceptance/fixture -run '^TestKernelOwnershipMatchesNativeImagePaths$' > "$evidence/native.jsonl" 2> "$evidence/native.stderr" || test_status=$?
+          cat "$evidence/native.jsonl" "$evidence/native.stderr"
+          go run ./.github/scripts/platform-contracts -events "$evidence/native.jsonl" -test-exit "$test_status" -receipt "$evidence/native-receipt.json" -native-evidence "$APFS_NATIVE_WORK/kernel-image-ownership-contract" -major "$APFS_EXPECT_MAJOR"
+      - name: Retain native image ownership evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-image-ownership-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/native-work/kernel-image-ownership-contract/
+          if-no-files-found: error
       - name: Restore the pinned fixture corpus
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -219,18 +295,6 @@ jobs:
           key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
-      - name: Verify native image ownership paths
-        id: native_ownership
-        env:
-          APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
-        run: go test -count=1 -v -timeout 5m -tags native ./acceptance/fixture -run '^TestKernelOwnershipMatchesNativeImagePaths$'
-      - name: Retain native image ownership evidence
-        if: always() && steps.native_ownership.outcome != 'skipped'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: native-image-ownership-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/native-work/kernel-image-ownership-contract/
-          if-no-files-found: error
       - name: Read the other versions' fixtures with this kernel
         env:
           APFS_NATIVE_GROUPS: fixtures
