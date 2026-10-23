@@ -26,7 +26,7 @@ func mountedFrom(path string) (string, error) {
 
 func canonicalMountPath(path string) (string, error) {
 	if path == "" {
-		return "", errors.New("empty snapshot mount path")
+		return "", errors.New("empty mount path")
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -41,6 +41,12 @@ func canonicalMountPath(path string) (string, error) {
 // the exact pin is never eligible for a second unmount. This guards continuity
 // of a caller-owned private mount path, not global backing-image ownership.
 func (d *HostDisk) snapshotMountIdentity(ctx context.Context, pin string, expected *mountIdentity) (mountIdentity, bool, error) {
+	return d.privateMountIdentity(ctx, "snapshot", pin, expected)
+}
+
+// privateMountIdentity records continuity of an exact canonical mount pin.
+// It does not establish global backing-image ownership.
+func (d *HostDisk) privateMountIdentity(ctx context.Context, kind, pin string, expected *mountIdentity) (mountIdentity, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return mountIdentity{}, false, err
 	}
@@ -74,10 +80,10 @@ func (d *HostDisk) snapshotMountIdentity(ctx context.Context, pin string, expect
 			if expected != nil && relErr == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
 				gone, receipt.Outcome = true, "gone"
 			} else {
-				err = fmt.Errorf("snapshot mount identity does not name the exact pin %q: %q", pin, identity.MountPoint)
+				err = fmt.Errorf("%s mount identity does not name the exact pin %q: %q", kind, pin, identity.MountPoint)
 			}
 		case expected != nil && identity != *expected:
-			err = fmt.Errorf("snapshot mount identity changed at %q", pin)
+			err = fmt.Errorf("%s mount identity changed at %q", kind, pin)
 		case expected == nil:
 			receipt.Outcome = "captured"
 		default:
@@ -87,7 +93,7 @@ func (d *HostDisk) snapshotMountIdentity(ctx context.Context, pin string, expect
 	if ctx.Err() != nil {
 		err, gone, receipt.Outcome = errors.Join(err, ctx.Err()), false, "cancelled"
 	}
-	recordErr := d.T.RecordFS("snapshot-mount-identity", []string{"statfs", pin}, err, "0")
+	recordErr := d.T.RecordFS(kind+"-mount-identity", []string{"statfs", pin}, err, "0")
 	data, marshalErr := json.Marshal(receipt)
 	entry := &d.T.Commands[len(d.T.Commands)-1]
 	entry.StdoutSHA256, entry.StdoutText = digestAndText(data)

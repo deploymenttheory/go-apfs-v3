@@ -36,22 +36,31 @@ func (c *continuationCommands) flush() {
 // operations or changing their results. The returned function runs after the
 // continuation's existing cleanup and preserves the original failure.
 func (v *Verifier) recordContinuationCommands(work string) func(*error) {
+	return v.recordNativeCommands(work, "continuation-commands.json", "retain complete continuation commands", false)
+}
+
+// recordNativeCommands follows transcript handoffs without changing native
+// operations. Successful verdicts and the existing tracked-limit policy do not
+// create a failure receipt.
+func (v *Verifier) recordNativeCommands(work, filename, failure string, createWork bool) func(*error) {
 	previous := v.continuationLog
 	commands := &continuationCommands{positions: map[*fixture.Transcript]int{}}
 	v.continuationLog = commands
 	return func(resultErr *error) {
 		v.continuationLog = previous
-		var limit KnownLimit
-		if *resultErr == nil || errors.As(*resultErr, &limit) {
+		if *resultErr == nil || onlyKnownLimit(*resultErr) {
 			return
 		}
 		commands.flush()
 		data, err := json.MarshalIndent(commands.commands, "", "  ")
+		if err == nil && createWork {
+			err = os.MkdirAll(work, 0o755)
+		}
 		if err == nil {
-			err = os.WriteFile(filepath.Join(work, "continuation-commands.json"), append(data, '\n'), 0o644)
+			err = os.WriteFile(filepath.Join(work, filename), append(data, '\n'), 0o644)
 		}
 		if err != nil {
-			*resultErr = errors.Join(*resultErr, fmt.Errorf("retain complete continuation commands: %w", err))
+			*resultErr = errors.Join(*resultErr, fmt.Errorf("%s: %w", failure, err))
 		}
 	}
 }

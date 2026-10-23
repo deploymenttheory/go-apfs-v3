@@ -112,9 +112,13 @@ type TranscriptUser interface {
 type HostDisk struct {
 	C Commander
 	T *Transcript
-	// Tests replace this per instance; snapshot cleanup never needs a global
+	// Tests replace this per instance; private mount cleanup never needs a global
 	// probe override or a real host mount to exercise ownership decisions.
 	mountProbe func(string) (mountIdentity, error)
+	// Resolves validated native image paths and caller host paths to complete
+	// comparable identities. Nil uses the actual host filesystem; portable
+	// tests inject explicit native-to-host or virtual identity mappings.
+	imagePathResolver func(string) (string, error)
 }
 
 // SetTranscript records subsequent programs into t.
@@ -180,7 +184,7 @@ func (d *HostDisk) CreateRaw(_ context.Context, path string, bytes int64) error 
 	return f.Close()
 }
 
-func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) (*Attachment, error) {
+func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) (attachment *Attachment, resultErr error) {
 	argv := []string{"hdiutil", "attach", "-plist", "-nobrowse", "-noautoopen", "-owners", "on"}
 	if !opts.Mount {
 		argv = append(argv, "-nomount")
@@ -231,6 +235,14 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	a.Dev = whole
 	a.RDev = strings.Replace(a.Dev, "/dev/disk", "/dev/rdisk", 1)
+	// Once the native attachment identifies its whole device, do not lose
+	// its handle if later discovery fails. Detach verifies exact current
+	// ownership before any action; failure and cancellation remain fatal.
+	defer func() {
+		if resultErr != nil {
+			resultErr = errors.Join(resultErr, d.Detach(ctx, a))
+		}
+	}()
 	for _, e := range devEntries {
 		if e.dev == whole && isPartitionScheme(e.contentHint) {
 			a.partitioned = true
@@ -483,14 +495,6 @@ func (d *HostDisk) Mount(ctx context.Context, v *AttachedVolume, options, dir st
 		return fmt.Errorf("mount %s: %w", v.Dev, err)
 	}
 	return nil
-}
-
-func (d *HostDisk) Unmount(ctx context.Context, v *AttachedVolume) error {
-	_, err := d.run(ctx, "unmount", false, nil, "diskutil", "unmount", v.Dev)
-	if err == nil {
-		v.Mount = ""
-	}
-	return err
 }
 
 func (d *HostDisk) Convert(ctx context.Context, src, format, out string, opts ConvertOptions) error {

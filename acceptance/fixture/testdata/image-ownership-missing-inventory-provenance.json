@@ -1,0 +1,14 @@
+{
+  "sourceRun": 39878678239,
+  "sourceHead": "4454acbc56a65873834a6c114035f80027ebfecc",
+  "sourceArtifact": 12471189559,
+  "sourceArtifactBytes": 65859497,
+  "sourceArtifactSHA256": "52d1898b5c019cc9aaa724cee283310b5fec9db1395f9d3cdbdbe1db5f12cff0",
+  "originalArchiveMember": "continuation/macos-15.apfs-container-geometry.apfs.edited.replay.UDZO.dmg/continuation-commands.json",
+  "originalBytes": 92066,
+  "originalSHA256": "59b292e64a94b4ea16fbd0b07acfe60756b7299f3acb1843ad4637e41d7ac194",
+  "storedFile": "image-ownership-missing-inventory.json.gz",
+  "storedSHA256": "c1337090832531eb912e37ee32dfba51583b110f261b2b72ef54a3ef41b3e69a",
+  "projection": "Only the enclosing evidence filename is projected. Gzip expands to the exact original 30-command JSON bytes, retaining native paths, command stdout/stderr and their original digests. No image bytes were altered. New IORegistry test archives are explicitly synthetic public-API controls; this original run did not record IORegistry.",
+  "scope": "Native attach and both ordinary unmounts succeeded; the complete global framework inventory then omitted this raw attachment, so the old guard issued no detach and reported success. Subsequent raw read-only attach failed EAGAIN. Lock holder and omission actor remain unproven."
+}

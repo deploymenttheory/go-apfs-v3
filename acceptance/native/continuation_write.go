@@ -3,6 +3,7 @@ package native
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,9 +24,7 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 		return nil, err
 	}
 	_, _, err = v.Disk.DeviceDigest(ctx, att.RDev, raw+".gz")
-	if detachErr := v.Disk.Detach(ctx, att); err == nil {
-		err = detachErr
-	}
+	err = errors.Join(err, v.Disk.Detach(ctx, att))
 	if err != nil {
 		return nil, err
 	}
@@ -41,12 +40,10 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	}
 	volume := att.Volume(selected)
 	if volume == nil {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, fmt.Errorf("final native continuation lost selected volume %q", selected)
+		return nil, errors.Join(fmt.Errorf("final native continuation lost selected volume %q", selected), v.Disk.Detach(ctx, att))
 	}
 	if err := v.Disk.Mount(ctx, volume, "owners,noatime", filepath.Join(work, "native-after-go-mount"), false); err != nil {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, err
+		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
 	}
 	data := []byte(strings.Repeat("native allocation after the Go transaction\n", 4096))
 	filename := filepath.Join(volume.Mount, "native-continuation", "native-after-go")
@@ -54,12 +51,8 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	if err == nil {
 		err = v.Vol.Fullfsync(filename)
 	}
-	if unmountErr := v.Disk.Unmount(ctx, volume); err == nil {
-		err = unmountErr
-	}
-	if detachErr := v.Disk.Detach(ctx, att); err == nil {
-		err = detachErr
-	}
+	err = errors.Join(err, v.Disk.Unmount(ctx, volume))
+	err = errors.Join(err, v.Disk.Detach(ctx, att))
 	if err != nil {
 		return nil, fmt.Errorf("final native allocation on %q: %w", selected, err)
 	}

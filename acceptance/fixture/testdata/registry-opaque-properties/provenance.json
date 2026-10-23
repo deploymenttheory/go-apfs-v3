@@ -1,0 +1,5 @@
+{
+  "scope": "Synthetic in-memory property-list conversion only; no disk image, device, mount or filesystem checker operation. Raw inputs and utility stdout/stderr retained without edits.",
+  "originalReceiptSHA256": "5a5c3d31f68d8892ef3df006142d78186cde28842d1f21610337354172d82dcb",
+  "projection": "None. Original synthetic plist inputs, native plutil stdout/stderr, receipt and their original filenames are retained byte-for-byte. These are file-only conversion controls, not native IORegistry captures."
+}

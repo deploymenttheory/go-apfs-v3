@@ -25,7 +25,7 @@ func detachImage(t *testing.T, directory string) string {
 }
 
 func attachedImage(path, dev string) map[string]any {
-	return map[string]any{"image-path": path, "system-entities": []any{map[string]any{"dev-entry": dev}}}
+	return map[string]any{"image-path": projectedImagePath(path), "system-entities": []any{map[string]any{"dev-entry": dev}}}
 }
 
 func detachCommander(t *testing.T, inventory map[string]any) *fakeCommander {
@@ -36,6 +36,7 @@ func detachCommander(t *testing.T, inventory map[string]any) *fakeCommander {
 	}
 	return &fakeCommander{
 		sequence: map[string][]Result{"hdiutil": {
+			{Stdout: []byte("native image inventory")},
 			{Status: 16, Stderr: []byte("Resource busy")},
 			{Stdout: []byte("native image inventory")},
 			{},
@@ -59,16 +60,16 @@ func TestDetachConfirmsExactImageOwnershipBeforeRetryingBusyDevice(t *testing.T)
 	image := detachImage(t, t.TempDir())
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
 	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, att.Dev)}})
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	if err := disk.Detach(context.Background(), att); err != nil {
 		t.Fatal(err)
 	}
-	want := [][]string{{"hdiutil", "detach", att.Dev}, {"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}}
+	want := [][]string{{"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}, {"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}}
 	if !reflect.DeepEqual(commander.calls, want) {
 		t.Fatalf("busy detach did not verify ownership before its normal second attempt: %v", commander.calls)
 	}
 	commands := disk.T.Commands
-	if len(commands) != 4 || commands[0].Status != "16" || commands[1].Label != "wait:detach-busy" || commands[2].Label != "hdiutil-info" || commands[2].StdoutText != "native image inventory" || commands[2].StdoutSHA256 == "" || commands[3].Status != "0" {
+	if len(commands) != 5 || commands[0].Label != "hdiutil-info" || commands[1].Status != "16" || commands[2].Label != "wait:detach-busy" || commands[3].Label != "hdiutil-info" || commands[3].StdoutText != "native image inventory" || commands[3].StdoutSHA256 == "" || commands[4].Status != "0" {
 		t.Fatalf("detach, ownership probe and wait outcomes must all remain in the native transcript: %+v", commands)
 	}
 }
@@ -80,31 +81,31 @@ func TestDetachLeavesReusedDeviceWithSameBasenameInAnotherDirectoryAlone(t *test
 	other := detachImage(t, filepath.Join(root, "another-lineage"))
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
 	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(other, att.Dev)}})
-	disk := &HostDisk{C: commander, T: &Transcript{}}
-	if err := disk.Detach(context.Background(), att); err != nil {
-		t.Fatal(err)
+	disk := imageTestDisk(commander)
+	err := disk.Detach(context.Background(), att)
+	var refusal *AttachmentOwnershipError
+	if !errors.As(err, &refusal) || refusal.State != OwnershipForeign {
+		t.Fatalf("foreign device was not reported as an unreleased attachment: %v", err)
 	}
-	if detachCalls(commander) != 1 {
+	if detachCalls(commander) != 0 {
 		t.Fatalf("another lineage's writable.raw was detached after the original device disappeared: %v", commander.calls)
 	}
 }
 
-func TestAttachmentOwnershipResolvesActualSymlinkAliases(t *testing.T) {
+func TestAttachmentOwnershipResolvesDeclaredFilesystemAliases(t *testing.T) {
 	root := t.TempDir()
 	image := detachImage(t, filepath.Join(root, "physical"))
 	alias := filepath.Join(root, "alias")
-	if err := os.Symlink(filepath.Dir(image), alias); err != nil {
-		t.Skipf("directory symlinks unavailable on this host: %v", err)
-	}
 	linked := filepath.Join(alias, filepath.Base(image))
 	for _, paths := range [][2]string{{image, linked}, {linked, image}} {
 		t.Run(paths[0], func(t *testing.T) {
 			instantWaits(t)
 			att := &Attachment{Image: paths[0], Dev: "/dev/disk42"}
 			commander := detachCommander(t, map[string]any{"images": []any{attachedImage(paths[1], att.Dev)}})
-			disk := &HostDisk{C: commander, T: &Transcript{}}
+			disk := imageTestDisk(commander)
+			disk.imagePathResolver = projectedImageResolver(map[string]string{linked: image})
 			if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 2 {
-				t.Fatalf("complete symlink aliases did not establish the original image: %v, calls=%v", err, commander.calls)
+				t.Fatalf("complete declared aliases did not establish the original image: %v, calls=%v", err, commander.calls)
 			}
 		})
 	}
@@ -126,7 +127,7 @@ func TestAttachmentOwnershipRejectsUnknownOrAmbiguousTarget(t *testing.T) {
 			case "missing target path":
 				delete(owner, "image-path")
 			case "unresolvable target path":
-				owner["image-path"] = filepath.Join(t.TempDir(), "missing.raw")
+				owner["image-path"] = projectedImagePath(filepath.Join(t.TempDir(), "missing.raw"))
 			case "unresolvable expected path":
 				att.Image = filepath.Join(t.TempDir(), "missing.raw")
 			case "duplicate device owner":
@@ -137,10 +138,10 @@ func TestAttachmentOwnershipRejectsUnknownOrAmbiguousTarget(t *testing.T) {
 				inventory["images"] = []any{map[string]any{"image-path": image}}
 			}
 			commander := detachCommander(t, inventory)
-			disk := &HostDisk{C: commander, T: &Transcript{}}
+			disk := imageTestDisk(commander)
 			err := disk.Detach(context.Background(), att)
-			if err == nil || detachCalls(commander) != 1 {
-				t.Fatalf("unknown ownership permitted another detach: %v, calls=%v", err, commander.calls)
+			if err == nil || detachCalls(commander) != 0 {
+				t.Fatalf("unknown ownership permitted a detach: %v, calls=%v", err, commander.calls)
 			}
 			if strings.HasPrefix(scenario, "unresolvable") && !errors.Is(err, fs.ErrNotExist) {
 				t.Fatalf("canonical path failure lost its original cause: %v", err)
@@ -160,20 +161,22 @@ func TestAttachmentOwnershipDoesNotResolveUnrelatedIncompleteImages(t *testing.T
 		attachedImage("", "/dev/disk44"),
 	}}
 	commander := detachCommander(t, inventory)
-	disk := &HostDisk{C: commander, T: &Transcript{}}
+	disk := imageTestDisk(commander)
 	if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 2 {
 		t.Fatalf("unrelated incomplete metadata invalidated a positively identified target: %v, calls=%v", err, commander.calls)
 	}
 }
 
-func TestDetachDoesNotRetryWhenCompleteInventoryShowsOriginalDeviceAbsent(t *testing.T) {
+func TestDetachRequiresKernelCorroborationBeforeAcceptingFrameworkDeviceAbsence(t *testing.T) {
 	instantWaits(t)
 	image := detachImage(t, t.TempDir())
+	foreign := detachImage(t, t.TempDir())
 	att := &Attachment{Image: image, Dev: "/dev/disk42"}
-	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(image, "/dev/disk43")}})
-	disk := &HostDisk{C: commander, T: &Transcript{}}
-	if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 1 {
-		t.Fatalf("absence of the original device caused another detach: %v, calls=%v", err, commander.calls)
+	commander := detachCommander(t, map[string]any{"images": []any{attachedImage(foreign, "/dev/disk43")}})
+	commander.sequence["/usr/sbin/ioreg"] = []Result{{Stdout: registryArchive()}, {Stdout: registryArchive()}, {Stdout: registryArchive(registryMedia("disk0"), registryMedia("disk43"))}}
+	disk := imageTestDisk(commander)
+	if err := disk.Detach(context.Background(), att); err != nil || detachCalls(commander) != 0 {
+		t.Fatalf("corroborated absence caused a detach: %v, calls=%v", err, commander.calls)
 	}
 }
 
@@ -188,13 +191,13 @@ func TestDetachStopsOnFailedOwnershipProbeAndRetainsNativeCause(t *testing.T) {
 			var expected error
 			switch failure {
 			case "inventory exit":
-				commander.sequence["hdiutil"][1] = Result{Status: 1, Stderr: []byte(cause.Error())}
+				commander.sequence["hdiutil"][0] = Result{Status: 1, Stderr: []byte(cause.Error())}
 			case "inventory deadline":
 				expected = context.DeadlineExceeded
-				commander.sequence["hdiutil"][1] = Result{Status: -1, Err: expected}
+				commander.sequence["hdiutil"][0] = Result{Status: -1, Err: expected}
 			case "inventory launch":
 				expected = cause
-				commander.sequence["hdiutil"][1] = Result{Status: -1, Err: expected}
+				commander.sequence["hdiutil"][0] = Result{Status: -1, Err: expected}
 			case "conversion exit":
 				commander.results["plutil"] = Result{Status: 1, Stderr: []byte(cause.Error())}
 			case "conversion launch":
@@ -203,10 +206,10 @@ func TestDetachStopsOnFailedOwnershipProbeAndRetainsNativeCause(t *testing.T) {
 			case "invalid inventory JSON":
 				commander.results["plutil"] = Result{Stdout: []byte("{not JSON}")}
 			}
-			disk := &HostDisk{C: commander, T: &Transcript{}}
+			disk := imageTestDisk(commander)
 			err := disk.Detach(context.Background(), att)
-			if err == nil || detachCalls(commander) != 1 || expected != nil && !errors.Is(err, expected) {
-				t.Fatalf("failed probe permitted another detach or lost its native cause: %v, calls=%v", err, commander.calls)
+			if err == nil || detachCalls(commander) != 0 || expected != nil && !errors.Is(err, expected) {
+				t.Fatalf("failed probe permitted a detach or lost its native cause: %v, calls=%v", err, commander.calls)
 			}
 			if failure == "invalid inventory JSON" {
 				var syntax *json.SyntaxError
@@ -215,7 +218,7 @@ func TestDetachStopsOnFailedOwnershipProbeAndRetainsNativeCause(t *testing.T) {
 				}
 			}
 			commands := disk.T.Commands
-			if len(commands) != 3 || commands[2].Label != "hdiutil-info" {
+			if len(commands) != 1 || commands[0].Label != "hdiutil-info" {
 				t.Fatalf("failed ownership probe was not retained: %+v", commands)
 			}
 		})

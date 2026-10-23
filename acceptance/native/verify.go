@@ -128,8 +128,11 @@ func (v *Verifier) observeImageWithDigest(ctx context.Context, label, image, for
 
 // VerifyOutput checks one paired output with Apple tools and returns the
 // differences from its expectation; integrity failures are errors.
-func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, error) {
+func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Difference, resultErr error) {
 	out := p.Output
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
+	defer finish(&resultErr)
+	v.setTranscript(&fixture.Transcript{})
 	k, want, err := v.expectedView(out)
 	if err != nil {
 		return nil, err
@@ -198,9 +201,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) ([]Difference, er
 			}
 			d, _, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
 			digests = append(digests, d)
-			if derr := v.Disk.Detach(ctx, att); err == nil {
-				err = derr
-			}
+			err = errors.Join(err, v.Disk.Detach(ctx, att))
 			if err != nil {
 				return nil, fmt.Errorf("output %s on %s: %w", out.Name, host, err)
 			}
@@ -312,9 +313,7 @@ func (v *Verifier) verifyContainer(ctx context.Context, out schema.Output, image
 		d, n, err := v.Disk.DeviceDigest(ctx, att.RDev, "")
 		digests = append(digests, d)
 		read = fmt.Sprintf(" (read %d bytes from %s)", n, att.RDev)
-		if derr := v.Disk.Detach(ctx, att); err == nil {
-			err = derr
-		}
+		err = errors.Join(err, v.Disk.Detach(ctx, att))
 		if err != nil {
 			return nil, fmt.Errorf("output %s: %w", out.Name, err)
 		}
@@ -362,17 +361,17 @@ func (v *Verifier) locateDifference(ctx context.Context, out schema.Output, imag
 
 // blockDigests attaches an image read-only and hashes its device in 1 MiB
 // blocks.
-func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) ([][32]byte, error) {
+func (v *Verifier) blockDigests(ctx context.Context, image string, password []byte) (result [][32]byte, resultErr error) {
 	att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true, Raw: strings.HasSuffix(image, ".raw"), Password: password, NoInventory: true})
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = v.Disk.Detach(ctx, att) }()
+	defer func() { resultErr = errors.Join(resultErr, v.Disk.Detach(ctx, att)) }()
 	f, err := os.Open(att.RDev)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = f.Close() }()
+	defer func() { resultErr = errors.Join(resultErr, f.Close()) }()
 	var blocks [][32]byte
 	buf := make([]byte, 1<<20)
 	for {

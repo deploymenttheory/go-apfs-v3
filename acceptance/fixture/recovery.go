@@ -473,7 +473,7 @@ func imageHelperOwner(inventory map[string]any, image, dev string, uid int) (int
 	return identifiers[0], nil
 }
 
-func (c *Capture) replayJournal(ctx context.Context, live, stage string) (*schema.Image, error) {
+func (c *Capture) replayJournal(ctx context.Context, live, stage string) (image *schema.Image, resultErr error) {
 	helper, ok := c.Helpers["hfs-journal-replay"]
 	if !ok {
 		return nil, errors.New("missing Apple HFS replay helper")
@@ -482,7 +482,7 @@ func (c *Capture) replayJournal(ctx context.Context, live, stage string) (*schem
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = c.Disk.Detach(context.Background(), att) }()
+	defer func() { resultErr = errors.Join(resultErr, c.Disk.Detach(context.Background(), att)) }()
 	cmd := Command{Label: "apple-replay-journal", Argv: []string{helper, att.RDev}, Sudo: true, Expected: "0"}
 	result := c.C.Run(ctx, cmd)
 	if err := c.t.Record(cmd, result); err != nil {

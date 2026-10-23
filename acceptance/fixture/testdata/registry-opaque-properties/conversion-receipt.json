@@ -1,0 +1,57 @@
+{
+  "scope": "Synthetic in-memory property-list conversion only; no disk image, device, mount or filesystem checker operation. Raw inputs and utility stdout/stderr retained without edits.",
+  "results": [
+    {
+      "case": "opaque-data",
+      "argv": [
+        "/usr/bin/plutil",
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "-"
+      ],
+      "exitCode": 1,
+      "files": {
+        "opaque-data.plist": {
+          "bytes": 336,
+          "sha256": "7ec386befab5c495c3274734fc3defb6c0ccd520fd7073594694673351fa8530"
+        },
+        "opaque-data.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "opaque-data.stderr": {
+          "bytes": 49,
+          "sha256": "34314ce9eb0cd2abc23b6987a56c6dff4043c2d3820321d5bee10f84995cbd62"
+        }
+      }
+    },
+    {
+      "case": "opaque-real",
+      "argv": [
+        "/usr/bin/plutil",
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "-"
+      ],
+      "exitCode": 0,
+      "files": {
+        "opaque-real.plist": {
+          "bytes": 329,
+          "sha256": "4442a65a016c6fbbfa41a13bddd3e2b528b168f1e340517af6669c61f0b48e3d"
+        },
+        "opaque-real.stdout": {
+          "bytes": 71,
+          "sha256": "51842d25b2444bb5455333f40bfc52f03af30203fad84e88188eb31f3b8f6a30"
+        },
+        "opaque-real.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -22,6 +23,7 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 	}
 	wanted := make(map[string]schema.Volume, len(obs.Volumes))
 	references, containers := map[string]bool{}, map[string]bool{}
+	var physicalStores map[string]bool
 	for _, v := range obs.Volumes {
 		if v.APFS == nil || !inventoryUUID(v.APFS.VolumeUUID) {
 			return nil, fmt.Errorf("volume %d has no valid native APFS identity", v.Index)
@@ -31,8 +33,9 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			return nil, fmt.Errorf("duplicate observed APFS UUID %s", id)
 		}
 		wanted[id] = v
-		if ref, _ := v.Diskutil["APFSContainerReference"].(string); ref != "" {
-			if !inventoryReference(ref) {
+		if raw, present := v.Diskutil["APFSContainerReference"]; present {
+			ref, ok := raw.(string)
+			if !ok || !inventoryReference(ref) {
 				return nil, fmt.Errorf("volume %d has an invalid native APFS container reference", v.Index)
 			}
 			references[strings.TrimPrefix(ref, "/dev/")] = true
@@ -43,6 +46,19 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			}
 			containers[strings.ToUpper(v.APFS.ContainerUUID)] = true
 		}
+		if raw, ok := v.Diskutil["APFSPhysicalStores"]; ok {
+			stores, err := inventoryPhysicalStores(raw, "APFSPhysicalStore")
+			if err != nil {
+				return nil, fmt.Errorf("volume %d: observed APFS physical stores: %w", v.Index, err)
+			}
+			if physicalStores != nil && !maps.Equal(physicalStores, stores) {
+				return nil, fmt.Errorf("observed APFS physical-store bindings conflict")
+			}
+			physicalStores = stores
+		}
+	}
+	if len(references) > 1 || len(containers) > 1 {
+		return nil, fmt.Errorf("observed APFS container bindings conflict")
 	}
 	for i := len(obs.Commands) - 1; i >= 0; i-- {
 		cmd := obs.Commands[i]
@@ -67,6 +83,7 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			return nil, fmt.Errorf("retained APFS listing has no Containers array")
 		}
 		var selected map[string]any
+		boundIdentitySeen := false
 		for _, item := range listedContainers {
 			container, ok := item.(map[string]any)
 			if !ok {
@@ -75,7 +92,7 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			ref, _ := container["ContainerReference"].(string)
 			ref = strings.TrimPrefix(ref, "/dev/")
 			containerID, _ := container["APFSContainerUUID"].(string)
-			matches := references[ref] || containers[strings.ToUpper(containerID)]
+			identityMatches := containers[strings.ToUpper(containerID)]
 			volumes, hasVolumes := container["Volumes"].([]any)
 			completeVolumeIDs := hasVolumes && len(volumes) != 0
 			volumeIDs := map[string]bool{}
@@ -91,9 +108,35 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 				}
 				volumeIDs[strings.ToUpper(id)] = true
 				if _, ok := wanted[strings.ToUpper(id)]; ok {
-					matches = true
+					identityMatches = true
 				}
 			}
+			// UUIDs intentionally survive edits and repacks. An earlier image
+			// whose detach failed can therefore have the same UUIDs as the
+			// current, successfully mounted image. Prefer the independent device
+			// binding, while still validating all UUIDs inside its selected row.
+			matches := identityMatches
+			var stores map[string]bool
+			var storesErr error
+			if physicalStores != nil {
+				stores, storesErr = inventoryPhysicalStores(container["PhysicalStores"], "DeviceIdentifier")
+			}
+			storesMatch := physicalStores != nil && storesErr == nil && maps.Equal(physicalStores, stores)
+			if len(references) != 0 {
+				matches = references[ref]
+				if identityMatches && !inventoryReference(ref) {
+					return nil, fmt.Errorf("retained APFS identity has no valid container reference")
+				}
+				if matches && physicalStores != nil && !storesMatch {
+					return nil, fmt.Errorf("retained APFS physical stores differ from the observed device binding")
+				}
+			} else if physicalStores != nil {
+				matches = storesMatch
+				if identityMatches && storesErr != nil {
+					return nil, fmt.Errorf("retained APFS identity has invalid physical-store bindings: %w", storesErr)
+				}
+			}
+			boundIdentitySeen = boundIdentitySeen || identityMatches || storesMatch
 			distinctReference := len(references) != 0 && inventoryReference(ref) && !references[ref]
 			distinctContainer := len(containers) != 0 && inventoryUUID(containerID) && !containers[strings.ToUpper(containerID)]
 			provedUnrelated := completeVolumeIDs || distinctReference || distinctContainer
@@ -107,6 +150,9 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 			}
 		}
 		if selected == nil {
+			if boundIdentitySeen && (len(references) != 0 || physicalStores != nil) {
+				return nil, fmt.Errorf("retained APFS identities omit the observed device binding")
+			}
 			if len(cmd.Argv) == 5 && (references[strings.TrimPrefix(cmd.Argv[4], "/dev/")] || containers[strings.ToUpper(cmd.Argv[4])]) {
 				return nil, fmt.Errorf("retained target APFS listing omits the observed container")
 			}
@@ -115,6 +161,28 @@ func APFSInventory(obs *schema.Observation) ([]schema.Volume, error) {
 		return enrichInventory(obs.Volumes, selected)
 	}
 	return nil, fmt.Errorf("no retained native APFS listing contains the observed volumes")
+}
+
+func inventoryPhysicalStores(raw any, key string) (map[string]bool, error) {
+	items, ok := raw.([]any)
+	if !ok || len(items) == 0 {
+		return nil, fmt.Errorf("missing nonempty physical-store array")
+	}
+	stores := make(map[string]bool, len(items))
+	for _, item := range items {
+		store, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("malformed physical-store record")
+		}
+		id, _ := store[key].(string)
+		id = strings.TrimPrefix(id, "/dev/")
+		parts := strings.Split(strings.TrimPrefix(id, "disk"), "s")
+		if !strings.HasPrefix(id, "disk") || len(parts) > 2 || !inventoryReference("disk"+parts[0]) || len(parts) == 2 && (parts[1] == "" || strings.Trim(parts[1], "0123456789") != "") || stores[id] {
+			return nil, fmt.Errorf("invalid or duplicate physical-store device %q", id)
+		}
+		stores[id] = true
+	}
+	return stores, nil
 }
 
 func enrichInventory(observed []schema.Volume, container map[string]any) ([]schema.Volume, error) {

@@ -74,11 +74,22 @@ func (c *Capture) asrSnapshot(ctx context.Context, name string) error {
 			return nil
 		}
 		lastErr = err
+		var cleanup *asrCleanupError
+		if errors.As(err, &cleanup) {
+			break
+		}
 	}
 	return fmt.Errorf("asr-snapshot %s: %w", name, lastErr)
 }
 
-func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedVolume, target string, attempt int) (string, error) {
+// asrCleanupError separates a failed release from the pre-existing replication
+// attempt failures. Starting another target cannot resolve this cleanup cause.
+type asrCleanupError struct{ cause error }
+
+func (e *asrCleanupError) Error() string { return "asr cleanup: " + e.cause.Error() }
+func (e *asrCleanupError) Unwrap() error { return e.cause }
+
+func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedVolume, target string, attempt int) (result string, resultErr error) {
 	// The target is attached the way Apple's tools expect for asr: mounted
 	// by hdiutil at its own mount point.
 	att, err := c.Disk.Attach(ctx, target, AttachOptions{Mount: true})
@@ -86,11 +97,11 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		return "", err
 	}
 	defer func() {
-		// asr remounts its target and can leave APFS children mounted;
-		// unmount the whole disk before detaching.
-		cmd := Command{Label: "asr-target-unmount", Argv: []string{"diskutil", "unmountDisk", "force", att.Dev}, Expected: "record"}
-		_ = c.t.Record(cmd, c.C.Run(ctx, cmd))
-		_ = c.Disk.Detach(ctx, att)
+		// Guarded normal detach owns the complete close operation, including
+		// mounted children. No unguarded command may precede its ownership check.
+		if err := c.Disk.Detach(ctx, att); err != nil {
+			resultErr = errors.Join(resultErr, &asrCleanupError{cause: err})
+		}
 	}()
 	tmount := ""
 	for _, v := range att.Volumes {
@@ -105,7 +116,11 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 	if err != nil {
 		return "", fmt.Errorf("open %s for snapshot listing: %w", source.Mount, err)
 	}
-	defer func() { _ = lister.Close() }()
+	defer func() {
+		if err := lister.Close(); err != nil {
+			resultErr = errors.Join(resultErr, &asrCleanupError{cause: err})
+		}
+	}()
 	existing := map[string]bool{}
 	if names, err := lister.List(); err != nil {
 		return "", fmt.Errorf("snapshot listing on %s before asr: %w", source.Mount, err)
@@ -180,15 +195,19 @@ func (c *Capture) asrAttempt(ctx context.Context, name string, source *AttachedV
 		entry.StderrText += "; " + strings.TrimSpace(stderr.String())
 	}
 	c.t.Commands = append(c.t.Commands, entry)
+	var pinCleanup error
 	if pinned {
 		if err := c.Disk.UnmountPath(ctx, pin); err != nil {
-			return "", err
+			pinCleanup = &asrCleanupError{cause: err}
 		}
 	}
 	if waitErr != nil {
 		_ = os.MkdirAll(c.Out, 0o755)
 		_ = os.WriteFile(filepath.Join(c.Out, c.prefix()+"."+sanitize(name)+".asr.log"), []byte(stderr.String()), 0o644)
-		return "", fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n")))
+		return "", errors.Join(fmt.Errorf("asr restore failed: %w: %s", waitErr, strings.TrimSpace(strings.ReplaceAll(stderr.String(), "\r", "\n"))), pinCleanup)
+	}
+	if pinCleanup != nil {
+		return "", pinCleanup
 	}
 	if !pinned {
 		return "", fmt.Errorf("asr snapshot was never pinned (seen %q after %d polls, %d list errors, last %v)", snapshot, retries, listErrors, listErr)

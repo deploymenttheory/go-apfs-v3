@@ -38,8 +38,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	// Successful continuations release their writable copies. Failed states
 	// remain available in the native diagnostics artifact.
 	defer func() {
-		var limit KnownLimit
-		if resultErr == nil || errors.As(resultErr, &limit) {
+		if resultErr == nil || onlyKnownLimit(resultErr) {
 			_ = os.RemoveAll(work)
 			return
 		}
@@ -63,9 +62,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	_, _, err = v.Disk.DeviceDigest(ctx, att.RDev, raw+".gz")
-	if derr := v.Disk.Detach(ctx, att); err == nil {
-		err = derr
-	}
+	err = errors.Join(err, v.Disk.Detach(ctx, att))
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +75,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	if len(att.Volumes) == 0 {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, fmt.Errorf("continuation %s: no volume discovered on the writable copy", out.Name)
+		return nil, errors.Join(fmt.Errorf("continuation %s: no volume discovered on the writable copy", out.Name), v.Disk.Detach(ctx, att))
 	}
 	volume := att.Volumes[0]
 	multiVolume := len(att.Volumes) > 1
@@ -90,8 +86,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if selected != "" {
 		volume = att.Volume(selected)
 		if volume == nil {
-			_ = v.Disk.Detach(ctx, att)
-			return nil, fmt.Errorf("continuation %s: selected volume %q is missing", out.Name, selected)
+			return nil, errors.Join(fmt.Errorf("continuation %s: selected volume %q is missing", out.Name, selected), v.Disk.Detach(ctx, att))
 		}
 	}
 	for _, vol := range att.Volumes {
@@ -99,35 +94,29 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			continue
 		}
 		if err := v.Disk.Mount(ctx, vol, "owners,noatime", filepath.Join(work, "mnt", sanitize(vol.Name)), false); err != nil {
-			_ = v.Disk.Detach(ctx, att)
-			return nil, err
+			return nil, errors.Join(err, v.Disk.Detach(ctx, att))
 		}
 	}
 	if volume.Mount == "" {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, fmt.Errorf("continuation %s: volume %s is not mounted", out.Name, volume.Name)
+		return nil, errors.Join(fmt.Errorf("continuation %s: volume %s is not mounted", out.Name, volume.Name), v.Disk.Detach(ctx, att))
 	}
 	if out.Expect.Container != nil {
 		if err := v.containerWrites(ctx, att, out); err != nil {
-			_ = v.Disk.Detach(ctx, att)
-			return nil, fmt.Errorf("continuation %s: container writes: %w", out.Name, err)
+			return nil, errors.Join(fmt.Errorf("continuation %s: container writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 		}
 	}
 	if out.Source.Recipe == "apfs-clones" {
 		if err := v.continueCloneWrites(ctx, volume.Mount, filepath.Join(work, "clone-native-source")); err != nil {
-			_ = v.Disk.Detach(ctx, att)
-			return nil, fmt.Errorf("continuation %s: native clone writes: %w", out.Name, err)
+			return nil, errors.Join(fmt.Errorf("continuation %s: native clone writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 		}
 	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
-		_ = v.Disk.Detach(ctx, att)
-		return nil, fmt.Errorf("continuation %s: native writes: %w", out.Name, err)
+		return nil, errors.Join(fmt.Errorf("continuation %s: native writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 	}
 	for _, vol := range att.Volumes {
 		if vol.Mount != "" {
 			if err := v.Disk.Unmount(ctx, vol); err != nil {
-				_ = v.Disk.Detach(ctx, att)
-				return nil, err
+				return nil, errors.Join(err, v.Disk.Detach(ctx, att))
 			}
 		}
 	}
@@ -260,6 +249,33 @@ type KnownLimit struct{ Refusal string }
 
 func (k KnownLimit) Error() string { return "product edit refused by a tracked limit: " + k.Refusal }
 
+// onlyKnownLimit keeps an independently failed cleanup or cancellation fatal
+// when it is joined with a tracked product refusal. errors.As alone would find
+// that refusal anywhere in the error tree and hide the other failures.
+func onlyKnownLimit(err error) bool {
+	switch value := err.(type) {
+	case KnownLimit:
+		return true
+	case *KnownLimit:
+		return value != nil
+	case interface{ Unwrap() []error }:
+		children := value.Unwrap()
+		if len(children) == 0 {
+			return false
+		}
+		for _, child := range children {
+			if !onlyKnownLimit(child) {
+				return false
+			}
+		}
+		return true
+	case interface{ Unwrap() error }:
+		return onlyKnownLimit(value.Unwrap())
+	default:
+		return false
+	}
+}
+
 // schemaCase carries the recipe an output's source came from.
 type schemaCase struct{ recipe schema.Recipe }
 
@@ -282,9 +298,11 @@ func (v *Verifier) writableDirectory(ctx context.Context, root string) error {
 		// A volume root owned by another user (as Apple's own fixtures
 		// are) takes the continuation directory the way recipes create
 		// theirs: as root, then handed to the runner's user.
+		t := &fixture.Transcript{}
+		v.setTranscript(t)
 		for _, argv := range [][]string{{"mkdir", root}, {"chown", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()), root}} {
 			cmd := fixture.Command{Argv: argv, Sudo: true, Expected: "0"}
-			if err := (&fixture.Transcript{}).Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+			if err := t.Record(cmd, v.C.Run(ctx, cmd)); err != nil {
 				return err
 			}
 		}
@@ -305,6 +323,7 @@ func (v *Verifier) writeContinuationTree(ctx context.Context, root, stage string
 		}
 	}
 	t := &fixture.Transcript{}
+	v.setTranscript(t)
 	run := func(argv ...string) error {
 		cmd := fixture.Command{Argv: argv, Expected: "0", Timeout: 5 * time.Minute}
 		return t.Record(cmd, v.C.Run(ctx, cmd))
@@ -383,14 +402,11 @@ func (v *Verifier) fsckRaw(ctx context.Context, raw, fs string) error {
 	rdev := att.RDev
 	if fs != "apfs" {
 		if len(att.Volumes) == 0 {
-			_ = v.Disk.Detach(ctx, att)
-			return fmt.Errorf("fsck %s: no %s volume discovered on the attached copy", raw, fs)
+			return errors.Join(fmt.Errorf("fsck %s: no %s volume discovered on the attached copy", raw, fs), v.Disk.Detach(ctx, att))
 		}
 		rdev = att.Volumes[0].RDev
 	}
 	_, err = v.Disk.Fsck(ctx, fs, rdev)
-	if derr := v.Disk.Detach(ctx, att); err == nil {
-		err = derr
-	}
+	err = errors.Join(err, v.Disk.Detach(ctx, att))
 	return err
 }

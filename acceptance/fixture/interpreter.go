@@ -43,32 +43,38 @@ type Capture struct {
 // Run performs every stage and derivation.
 func (c *Capture) Run(ctx context.Context) (err error) {
 	c.baselines, c.retained, c.snapshots = map[string]string{}, map[string]string{}, map[string]string{}
+	phase := "format"
+	c.newTranscript()
+	defer func() {
+		if c.att != nil {
+			if err == nil {
+				phase = "cleanup"
+			}
+			err = errors.Join(err, c.Disk.Detach(context.Background(), c.att))
+			c.att = nil
+		}
+		if err != nil {
+			err = errors.Join(err, c.writeFailure(phase, err))
+		}
+	}()
 	if err := os.MkdirAll(c.Out, 0o755); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(c.Work, 0o755); err != nil {
 		return err
 	}
-	defer func() {
-		if c.att != nil {
-			if derr := c.Disk.Detach(context.Background(), c.att); err == nil {
-				err = derr
-			}
-			c.att = nil
-		}
-	}()
-	c.newTranscript()
 	if err := c.format(ctx); err != nil {
 		return fmt.Errorf("%s/%s: format: %w", c.Recipe.Name, c.Profile.ID, err)
 	}
 	for i := range c.Recipe.Stages {
 		stage := &c.Recipe.Stages[i]
+		phase = stage.Name
 		if err := c.runStage(ctx, stage); err != nil {
-			c.writeFailure(stage.Name, err)
 			return fmt.Errorf("%s/%s/%s: %w", c.Recipe.Name, c.Profile.ID, stage.Name, err)
 		}
 	}
 	if c.att != nil {
+		phase = "cleanup"
 		if err := c.detach(ctx); err != nil {
 			return err
 		}
@@ -78,8 +84,8 @@ func (c *Capture) Run(ctx context.Context) (err error) {
 		if !applies(d.Only, c.Profile.ID) {
 			continue
 		}
+		phase = d.Name
 		if err := c.derive(ctx, d); err != nil {
-			c.writeFailure(d.Name, err)
 			return fmt.Errorf("%s/%s/%s: %w", c.Recipe.Name, c.Profile.ID, d.Name, err)
 		}
 	}
@@ -349,9 +355,10 @@ func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
 // writeFailure retains the case transcript and the error beside the
 // outputs so a failed capture can be diagnosed from the diagnostics
 // artifact without rerunning it.
-func (c *Capture) writeFailure(stage string, failure error) {
-	if c.t == nil {
-		return
+func (c *Capture) writeFailure(stage string, failure error) error {
+	var commands []schema.Command
+	if c.t != nil {
+		commands = c.t.Commands
 	}
 	report := struct {
 		Recipe   string           `json:"recipe"`
@@ -359,13 +366,18 @@ func (c *Capture) writeFailure(stage string, failure error) {
 		Stage    string           `json:"stage"`
 		Error    string           `json:"error"`
 		Commands []schema.Command `json:"commands"`
-	}{c.Recipe.Name, c.Profile.ID, stage, failure.Error(), c.t.Commands}
+	}{c.Recipe.Name, c.Profile.ID, stage, failure.Error(), commands}
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
-		return
+		return fmt.Errorf("retain capture failure for %s: %w", stage, err)
 	}
-	_ = os.MkdirAll(c.Out, 0o755)
-	_ = os.WriteFile(filepath.Join(c.Out, c.prefix()+"."+stage+".failure.json"), append(data, '\n'), 0o644)
+	if err := os.MkdirAll(c.Out, 0o755); err != nil {
+		return fmt.Errorf("retain capture failure for %s: %w", stage, err)
+	}
+	if err := os.WriteFile(filepath.Join(c.Out, c.prefix()+"."+stage+".failure.json"), append(data, '\n'), 0o644); err != nil {
+		return fmt.Errorf("retain capture failure for %s: %w", stage, err)
+	}
+	return nil
 }
 
 func (c *Capture) detach(ctx context.Context) error {
@@ -398,9 +410,7 @@ func (c *Capture) retain(ctx context.Context, stage *schema.Stage) (string, erro
 			return "", err
 		}
 		_, _, err = c.Disk.DeviceDigest(ctx, att.RDev, out)
-		if derr := c.Disk.Detach(ctx, att); err == nil {
-			err = derr
-		}
+		err = errors.Join(err, c.Disk.Detach(ctx, att))
 		if err != nil {
 			return "", err
 		}
@@ -432,9 +442,7 @@ func (c *Capture) observe(ctx context.Context, stage string, spec schema.Observe
 	work := filepath.Join(c.Work, "observe-work")
 	_ = os.RemoveAll(work)
 	obs, err := Observe(ctx, ObserveInput{Recipe: c.Recipe, Profile: c.Profile, Stage: stage, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: c.Disk, Vol: c.Vol, Vars: c.vars, T: c.t, Work: work, Out: c.Out, Prefix: prefix, Producer: c.Producer})
-	if derr := c.Disk.Detach(ctx, att); err == nil {
-		err = derr
-	}
+	err = errors.Join(err, c.Disk.Detach(ctx, att))
 	if err != nil {
 		return err
 	}
