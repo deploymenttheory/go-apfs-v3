@@ -102,6 +102,11 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	defer func() {
 		if published {
 			err = completeoutput.AfterPublication(destination, err)
+		} else {
+			// A callback can return a publication error from another operation,
+			// even naming this destination. Only our own publication commits
+			// the staged clone outcomes to the externally visible report.
+			report.Clones = nil
 		}
 	}()
 	if sourcePath == "" || destination == "" || mutation == nil {

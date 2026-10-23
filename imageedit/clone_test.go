@@ -243,6 +243,53 @@ func TestFailedClonePublicationDoesNotReportPublishedSharing(t *testing.T) {
 	}
 }
 
+func TestCallbackPublishedOutputErrorCannotClaimThisEditWasPublished(t *testing.T) {
+	ctx := context.Background()
+	source := fixture(t, "APFS")
+	original, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range []string{"another published output", "claimed current destination"} {
+		t.Run(failure, func(t *testing.T) {
+			output := filepath.Join(t.TempDir(), "unpublished.dmg")
+			claimed := output
+			if failure == "another published output" {
+				claimed = filepath.Join(t.TempDir(), "other-output")
+				if err := os.WriteFile(claimed, []byte("already published by another operation"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cause := errors.New("callback's other output cleanup failed")
+			callbackErr := &filesystem.PublishedOutputError{Path: claimed, Persisted: true, Err: cause}
+			report, err := imageedit.Edit(ctx, source, output, imageedit.Options{Time: clock}, func(editor *imageedit.Editor) error {
+				copied, err := editor.Copy([]imageedit.CopyCommand{{Sources: []string{"/file"}, Destination: "/clone", Options: imageedit.CopyOptions{Clone: true}}})
+				if err != nil {
+					return err
+				}
+				if len(copied.Clones) != 1 || !copied.Clones[0].Cloned {
+					t.Fatal("private clone did not complete")
+				}
+				return callbackErr
+			})
+			var outcome *filesystem.PublishedOutputError
+			if !errors.Is(err, cause) || !errors.As(err, &outcome) || outcome != callbackErr {
+				t.Fatal("callback's original error or publication metadata changed", err)
+			}
+			if _, err := os.Lstat(output); !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal("failed callback published this edit's destination", err)
+			}
+			if len(report.Clones) != 0 {
+				t.Fatal("unpublished edit reported completed clone sharing", report.Clones)
+			}
+		})
+	}
+	after, err := os.ReadFile(source)
+	if err != nil || !bytes.Equal(after, original) {
+		t.Fatal("failed callback changed original source", err)
+	}
+}
+
 func TestImageSymlinkCreationDoesNotInheritRegularFileACL(t *testing.T) {
 	ctx := context.Background()
 	for _, kind := range []string{"APFS", "HFS+"} {
