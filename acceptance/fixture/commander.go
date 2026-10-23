@@ -142,6 +142,9 @@ func (t *Transcript) Record(cmd Command, result Result) error {
 	if isImageInventoryPlist(cmd.Argv) {
 		stdoutLimit = retainedImageInventoryTextLimit
 	}
+	if isRegistryInventory(cmd.Argv) {
+		stdoutLimit = retainedRegistryTextLimit
+	}
 	entry.StdoutSHA256, entry.StdoutText = digestAndTextLimit(result.Stdout, stdoutLimit)
 	entry.StderrSHA256, entry.StderrText = digestAndText(result.Stderr)
 	t.Commands = append(t.Commands, entry)

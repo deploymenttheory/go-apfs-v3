@@ -55,9 +55,10 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 	return err
 }
 
-// attachedTo reports whether hdiutil still lists the attachment's device under
-// the same full image path. Distinct continuation directories all use the name
-// writable.raw, so a basename cannot establish ownership.
+// attachedTo binds the device to the complete image path, using an independent
+// kernel association when the framework inventory has no usable target binding.
+// Distinct continuation directories all use writable.raw, so a basename cannot
+// establish ownership.
 func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) {
 	cmd := Command{Label: "hdiutil-info", Argv: []string{"hdiutil", "info", "-plist"}, Expected: "0"}
 	result := d.C.Run(ctx, cmd)
@@ -73,23 +74,19 @@ func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) 
 		return false, errors.New("hdiutil inventory has no valid image list")
 	}
 	var owners []map[string]any
-	incomplete := false
 	for _, img := range images {
 		image, ok := img.(map[string]any)
 		if !ok {
-			incomplete = true
 			continue
 		}
 		entities, ok := image["system-entities"].([]any)
 		if !ok {
-			incomplete = true
 			continue
 		}
 		for _, e := range entities {
 			entity, ok := e.(map[string]any)
 			dev, identified := entity["dev-entry"].(string)
 			if !ok || !identified || dev == "" {
-				incomplete = true
 				continue
 			}
 			if dev == a.Dev {
@@ -101,10 +98,10 @@ func (d *HostDisk) attachedTo(ctx context.Context, a *Attachment) (bool, error) 
 		return false, fmt.Errorf("hdiutil inventory has ambiguous owners for %s", a.Dev)
 	}
 	if len(owners) == 0 {
-		if incomplete {
-			return false, fmt.Errorf("hdiutil inventory cannot establish whether %s is still attached", a.Dev)
-		}
-		return false, nil
+		// A framework inventory omitted a raw attachment after successful
+		// unmounts in native CI. Its absence cannot mean detached. Require
+		// an independent kernel binding, or corroborated kernel-media absence.
+		return d.kernelImageOwnership(ctx, a)
 	}
 	// Incomplete metadata for unrelated images cannot invalidate a positively
 	// identified device. Resolve only this owner's path and the expected image.
