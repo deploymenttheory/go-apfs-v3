@@ -193,9 +193,10 @@ func decodeV1Header(src []byte) *v1Header {
 // resumable: the output buffer is sized up front, so a stream that does not
 // fit is an error rather than a request for more room.
 type decoder struct {
-	src []byte
-	dst []byte
-	n   int // bytes written to dst
+	src   []byte
+	dst   []byte
+	n     int  // bytes written to dst
+	exact bool // the enclosing container requires all source bytes to belong to one stream
 
 	// literals is shared by every LZFSE block, as the reference's is: a
 	// malformed length that reads past one block's literals sees the previous
@@ -212,6 +213,9 @@ func (d *decoder) decode() error {
 		}
 		switch magic := binary.LittleEndian.Uint32(d.src[pos:]); magic {
 		case magicEndOfStream:
+			if d.exact && pos+4 != len(d.src) {
+				return corrupt("trailing bytes after end marker")
+			}
 			return nil
 		case magicRaw:
 			if pos+rawHeaderSize > len(d.src) {
