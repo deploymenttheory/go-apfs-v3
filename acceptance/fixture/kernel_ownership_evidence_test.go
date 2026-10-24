@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -40,6 +41,7 @@ type ownershipCommandEvidence struct {
 // This recorder does not interpret registry output or change a command result.
 // Raw files preserve even empty, non-text and parser-rejected native output.
 type ownershipEvidenceCommander struct {
+	mu      sync.Mutex
 	C       Commander
 	Dir     string
 	Phase   string
@@ -50,6 +52,10 @@ type ownershipEvidenceCommander struct {
 
 func (c *ownershipEvidenceCommander) Run(ctx context.Context, cmd Command) Result {
 	result := c.C.Run(ctx, cmd)
+	// Serialize only recording. Native reads still execute concurrently; all
+	// ordinals, publication paths and aggregate retention share this lock.
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	n := len(c.Results)
 	row := ownershipCommandEvidence{Sequence: n, Phase: c.Phase, Label: cmd.Label, Argv: append([]string(nil), cmd.Argv...), Sudo: cmd.Sudo, Status: result.Status, WallNS: result.Duration.Nanoseconds()}
 	if result.Err != nil {
@@ -62,14 +68,49 @@ func (c *ownershipEvidenceCommander) Run(ctx context.Context, cmd Command) Resul
 }
 
 func (c *ownershipEvidenceCommander) retain(sequence int, stream string, raw []byte) ownershipStreamEvidence {
-	row := ownershipStreamEvidence{File: filepath.ToSlash(filepath.Join("command-results", fmt.Sprintf("%03d.%s", sequence, stream))), Bytes: len(raw), SHA256: fmt.Sprintf("%x", sha256.Sum256(raw))}
-	keep := min(len(raw), ownershipStreamLimit, ownershipCaptureLimit-c.stored)
-	if keep != len(raw) {
-		limitErr := fmt.Errorf("native ownership command %d %s exceeded evidence bounds: %d of %d bytes retained", sequence, stream, keep, len(raw))
+	return c.retainObserved(sequence, stream, attachmentDiagnosticStream{Bytes: len(raw), SHA256: fmt.Sprintf("%x", sha256.Sum256(raw)), Data: raw})
+}
+
+// This method is called only by the foreground merge. The native phase is
+// frozen at preparation, before either asynchronous command can begin.
+func (c *ownershipEvidenceCommander) prepareDiagnosticRead() (Commander, func(Command, detachLogResult) error) {
+	c.mu.Lock()
+	phase := c.Phase
+	c.mu.Unlock()
+	delegate, publish := prepareDiagnosticRead(c.C)
+	return delegate, func(cmd Command, result detachLogResult) error {
+		var publicationErr error
+		if publish != nil {
+			publicationErr = publish(cmd, result)
+		}
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		n := len(c.Results)
+		row := ownershipCommandEvidence{Sequence: n, Phase: phase, Label: cmd.Label, Argv: append([]string(nil), cmd.Argv...), Sudo: cmd.Sudo, Status: result.result.Status, WallNS: result.result.Duration.Nanoseconds()}
+		if result.result.Err != nil {
+			row.Error = result.result.Err.Error()
+		}
+		row.Stdout = c.retainObserved(n, "stdout", result.probe.Stdout)
+		row.Stderr = c.retainObserved(n, "stderr", result.probe.Stderr)
+		c.Results = append(c.Results, row)
+		for _, stream := range []ownershipStreamEvidence{row.Stdout, row.Stderr} {
+			if stream.RetentionError != "" {
+				publicationErr = errors.Join(publicationErr, errors.New(stream.RetentionError))
+			}
+		}
+		return publicationErr
+	}
+}
+
+func (c *ownershipEvidenceCommander) retainObserved(sequence int, stream string, observed attachmentDiagnosticStream) ownershipStreamEvidence {
+	row := ownershipStreamEvidence{File: filepath.ToSlash(filepath.Join("command-results", fmt.Sprintf("%03d.%s", sequence, stream))), Bytes: observed.Bytes, SHA256: observed.SHA256}
+	keep := min(len(observed.Data), ownershipStreamLimit, ownershipCaptureLimit-c.stored)
+	if keep != observed.Bytes {
+		limitErr := fmt.Errorf("native ownership command %d %s exceeded evidence bounds: %d of %d bytes retained", sequence, stream, keep, observed.Bytes)
 		row.RetentionError = limitErr.Error()
 		c.Err = errors.Join(c.Err, limitErr)
 	}
-	data := raw[:keep]
+	data := observed.Data[:keep]
 	row.StoredBytes, row.StoredSHA256 = len(data), fmt.Sprintf("%x", sha256.Sum256(data))
 	path := filepath.Join(c.Dir, filepath.FromSlash(row.File))
 	err := os.MkdirAll(filepath.Dir(path), 0o700)

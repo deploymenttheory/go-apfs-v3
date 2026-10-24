@@ -63,7 +63,9 @@ func (d *HostDisk) Unmount(ctx context.Context, volume *AttachedVolume) error {
 		attempts++
 		cmd := Command{Label: "unmount", Argv: []string{"diskutil", "unmount", target.Dev}, Expected: "record"}
 		result := d.C.Run(ctx, cmd)
-		err := d.T.Record(cmd, result)
+		commandTranscript := d.T
+		commandOrdinal := len(commandTranscript.Commands)
+		err := commandTranscript.Record(cmd, result)
 		if ctx.Err() != nil {
 			return false, "", errors.Join(err, ctx.Err())
 		}
@@ -71,6 +73,10 @@ func (d *HostDisk) Unmount(ctx context.Context, volume *AttachedVolume) error {
 			return false, "", err
 		}
 		if result.Status == 0 {
+			volume.priorUnmount = nil
+			if original != nil {
+				volume.priorUnmount = &priorUnmountIdentity{Identity: *original, Command: commandOrdinal, transcript: commandTranscript}
+			}
 			volume.Mount = ""
 			return true, "", nil
 		}

@@ -64,12 +64,12 @@ func TestDetachConfirmsExactImageOwnershipBeforeRetryingBusyDevice(t *testing.T)
 	if err := disk.Detach(context.Background(), att); err != nil {
 		t.Fatal(err)
 	}
-	want := [][]string{{"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}, {"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}}
+	want := [][]string{{"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", att.Dev}, {"hdiutil", "info", "-plist"}, {"plutil", "-convert", "json", "-o", "-", "-"}, {"hdiutil", "detach", "-debug", att.Dev}}
 	if !reflect.DeepEqual(commander.calls, want) {
 		t.Fatalf("busy detach did not verify ownership before its normal second attempt: %v", commander.calls)
 	}
 	commands := disk.T.Commands
-	if len(commands) != 5 || commands[0].Label != "hdiutil-info" || commands[1].Status != "16" || commands[2].Label != "wait:detach-busy" || commands[3].Label != "hdiutil-info" || commands[3].StdoutText != "native image inventory" || commands[3].StdoutSHA256 == "" || commands[4].Status != "0" {
+	if len(commands) != 6 || commands[5].Label != "busy-detach-evidence" || commands[0].Label != "hdiutil-info" || commands[1].Status != "16" || commands[2].Label != "wait:detach-busy" || commands[3].Label != "hdiutil-info" || commands[3].StdoutText != "native image inventory" || commands[3].StdoutSHA256 == "" || commands[4].Status != "0" {
 		t.Fatalf("detach, ownership probe and wait outcomes must all remain in the native transcript: %+v", commands)
 	}
 }
