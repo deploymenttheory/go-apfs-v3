@@ -77,17 +77,18 @@ type revision struct {
 
 // Report describes canonical state separately from scratch storage placement.
 type Report struct {
-	Clones                []CopyCloneResult    `json:"clones,omitempty"`
-	OmittedAttributes     []CopyOmission       `json:"omittedAttributes,omitempty"`
-	Location              string               `json:"location"`
-	Names                 filesystem.NameRules `json:"names"`
-	Source                filesystem.Identity  `json:"source"`
-	AttributesUnavailable []uint64             `json:"attributesUnavailable,omitempty"`
-	Revision              string               `json:"revision"`
-	Objects               int                  `json:"objects"`
-	Entries               int                  `json:"entries"`
-	BlobBytes             int64                `json:"blobBytes"`
-	Defaulted             []Default            `json:"defaulted,omitempty"`
+	MetadataOmissions     []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
+	Clones                []CopyCloneResult                   `json:"clones,omitempty"`
+	OmittedAttributes     []CopyOmission                      `json:"omittedAttributes,omitempty"`
+	Location              string                              `json:"location"`
+	Names                 filesystem.NameRules                `json:"names"`
+	Source                filesystem.Identity                 `json:"source"`
+	AttributesUnavailable []uint64                            `json:"attributesUnavailable,omitempty"`
+	Revision              string                              `json:"revision"`
+	Objects               int                                 `json:"objects"`
+	Entries               int                                 `json:"entries"`
+	BlobBytes             int64                               `json:"blobBytes"`
+	Defaulted             []Default                           `json:"defaulted,omitempty"`
 }
 type Default struct {
 	Object uint64   `json:"object"`
@@ -342,7 +343,7 @@ func validBlob(b blob) bool {
 }
 func (s *Session) index(ctx context.Context) error {
 	d := s.document
-	if (d.Schema != 1 && d.Schema != 2) || len(d.Objects) == 0 || len(d.Objects) > workspace.DefaultLimits().Objects {
+	if (d.Schema < 1 || d.Schema > 3) || len(d.Objects) == 0 || len(d.Objects) > workspace.DefaultLimits().Objects {
 		return fmt.Errorf("session schema or object count: %w", filesystem.ErrCorrupt)
 	}
 	c, err := config(Options{UID: d.Config.UID, GID: d.Config.GID, Umask: &d.Config.Umask, Time: d.Config.Time, Limits: d.Config.Limits})
@@ -364,6 +365,9 @@ func (s *Session) index(ctx context.Context) error {
 	for _, o := range d.Objects {
 		if !edit.ValidNode(o.Node) || s.objects[o.Node.Identity.Object].Node.Identity.Object != 0 {
 			return fmt.Errorf("invalid session object metadata: %w", filesystem.ErrCorrupt)
+		}
+		if len(o.Node.MetadataOmissions) != 0 && d.Schema < 3 {
+			return fmt.Errorf("host metadata provenance schema: %w", filesystem.ErrCorrupt)
 		}
 		if o.Node.Created {
 			if !strings.HasPrefix(o.Node.Identity.Volume, "workspace:") || !validBlob(blob{SHA256: strings.TrimPrefix(o.Node.Identity.Volume, "workspace:")}) {
@@ -446,8 +450,14 @@ func (s *Session) save(ctx context.Context, r filesystem.Reader) error {
 		if err != nil {
 			return err
 		}
+		if len(n.MetadataOmissions) > 0 {
+			next.Schema = 3
+		}
 		o := object{Node: edit.CopyNode(n)}
 		metadataBytes += 2048
+		for _, omission := range n.MetadataOmissions {
+			metadataBytes += 6*(len(omission.Field)+len(omission.SourceFormat)+len(omission.Reason)) + 128
+		}
 		if metadataBytes > maxManifest {
 			return filesystem.ErrLimit
 		}
@@ -933,8 +943,26 @@ func (s *Session) Verify(ctx context.Context) error {
 func (s *Session) Report() Report {
 	result := Report{Location: s.directory, Names: s.NameRules(), Source: s.objects[s.Root()].Node.Identity, Revision: s.digest, Objects: len(s.objects), Entries: 1}
 	seen := map[string]bool{}
+	paths := map[uint64]string{}
+	var recordPaths func(uint64, string)
+	recordPaths = func(id uint64, path string) {
+		if _, ok := paths[id]; ok {
+			return
+		}
+		paths[id] = path
+		for _, entry := range s.objects[id].Children {
+			recordPaths(entry.Object, strings.TrimSuffix(path, "/")+"/"+entry.Name)
+		}
+	}
+	recordPaths(s.Root(), "/")
 	for _, o := range s.document.Objects {
 		result.Entries += len(o.Children)
+		for _, omission := range o.Node.MetadataOmissions {
+			result.MetadataOmissions = append(result.MetadataOmissions, filesystem.MetadataOmissionRecord{Object: o.Node.Identity.Object, Path: paths[o.Node.Identity.Object], MetadataOmission: omission})
+			if omission.Field == "acl" {
+				result.OmittedAttributes = append(result.OmittedAttributes, CopyOmission{Source: "host:" + omission.SourceFormat, Destination: paths[o.Node.Identity.Object], Attribute: "com.apple.system.Security", Reason: omission.Reason})
+			}
+		}
 		if o.Node.AttributesUnavailable {
 			result.AttributesUnavailable = append(result.AttributesUnavailable, o.Node.Identity.Object)
 		}

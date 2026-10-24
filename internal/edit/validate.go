@@ -8,6 +8,9 @@ import (
 
 func ValidNode(n filesystem.Node) bool {
 	m := n.Metadata
+	if filesystem.ValidateMetadataOmissions(n.MetadataOmissions) != nil {
+		return false
+	}
 	if filesystem.ValidateCloneStreams(n.CloneStreams) != nil || n.CloneStreams != nil && m.Mode.Value&0170000 != 0100000 {
 		return false
 	}

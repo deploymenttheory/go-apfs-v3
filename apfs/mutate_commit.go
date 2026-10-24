@@ -12,6 +12,9 @@ func (m *mutation) retireMetadata(address uint64, volume bool) error {
 	if address == 0 {
 		return nil
 	}
+	if m.history != nil && m.history.metadata[address] {
+		return nil
+	}
 	if m.retired[address] {
 		return corrupt("metadata retired twice", 0)
 	}
@@ -38,8 +41,15 @@ func (m *mutation) writeTree(t *cowTree, volume bool) error {
 			return e
 		}
 		if t.storage == 0 && n.address != 0 {
-			if e := removeObjectVersions(m.vmap, n.oid); e != nil {
+			if e := m.pruneVolumeObject(n.oid); e != nil {
 				return e
+			}
+			if record, retained := m.vmap.floor(append(buildUint64(n.oid), buildUint64(m.xid)...)); m.history != nil && retained && le.Uint64(record.key) == n.oid {
+				value := make([]byte, 16)
+				le.PutUint32(value, 1)
+				if err := m.vmap.put(append(buildUint64(n.oid), buildUint64(m.xid)...), value); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -91,6 +101,9 @@ func (m *mutation) commit(stamp uint64) error {
 	if err := m.updateStatistics(false); err != nil {
 		return err
 	}
+	if err := m.encodeHistoryExtents(); err != nil {
+		return err
+	}
 	if e := m.writeTree(m.fs, true); e != nil {
 		return e
 	}
@@ -103,7 +116,7 @@ func (m *mutation) commit(stamp uint64) error {
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	for _, id := range ids {
-		if e := removeObjectVersions(m.vmap, id); e != nil {
+		if e := m.pruneVolumeObject(id); e != nil {
 			return e
 		}
 		key := append(buildUint64(id), buildUint64(m.xid)...)
@@ -176,6 +189,10 @@ func (m *mutation) writeCheckpoint() error {
 	reaper := m.ephemeral[le.Uint64(m.nx[168:])]
 	reaper.data = bytes.Clone(reaper.data)
 	ep = append(ep, reaper)
+	for _, page := range m.reaperLists {
+		page.data = bytes.Clone(page.data)
+		ep = append(ep, page)
+	}
 	for _, q := range m.space.queues {
 		q.nodes = q.reachable()
 		for _, n := range q.nodes {
@@ -314,12 +331,40 @@ func removeObjectVersions(t *cowTree, oid uint64, retained ...XID) error {
 			keep[le.Uint64(record.key[8:])] = true
 		}
 	}
-	for _, r := range t.all() {
-		if le.Uint64(r.key) == oid && !keep[le.Uint64(r.key[8:])] {
+	for _, r := range objectVersions(t, oid) {
+		if !keep[le.Uint64(r.key[8:])] {
 			if e := t.put(r.key, nil); e != nil {
 				return e
 			}
 		}
 	}
 	return nil
+}
+
+// Versions of one OID can straddle several leaves. Traverse only children
+// whose ordered-pair key range can contain that OID, rather than allocating a
+// full object-map inventory for every changed filesystem node.
+func objectVersions(t *cowTree, oid uint64) []buildRecord {
+	var records []buildRecord
+	var visit func(*buildTreeNode)
+	visit = func(node *buildTreeNode) {
+		for index, record := range node.records {
+			id := le.Uint64(record.key)
+			if id > oid {
+				break
+			}
+			if node.level == 0 {
+				if id == oid {
+					records = append(records, record)
+				}
+			} else {
+				if index+1 < len(node.records) && le.Uint64(node.records[index+1].key) < oid {
+					continue
+				}
+				visit(node.children[index])
+			}
+		}
+	}
+	visit(t.rootNode)
+	return records
 }

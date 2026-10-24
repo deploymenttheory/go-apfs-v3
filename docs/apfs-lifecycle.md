@@ -8,10 +8,20 @@ completed encryption/decryption conversion. Linux and Windows must be able to
 read every completed result immediately.
 
 Existing readers can open native clones, retained snapshots and admitted software
-encryption. Existing mutation admits qualified plaintext clones and still refuses
-retained snapshot and encrypted-volume writes. Read-only storage accounting
+encryption. Ordinary mutation admits qualified plaintext clones and live edits
+with retained snapshots, and still refuses software-encrypted volume writes.
+Read-only storage accounting
 understands admitted plaintext clones and retained history. Ordinary mutation
 uses the same accountant, with separate admission checks for each writer profile.
+
+Live edits retain the object-map versions selected by every historical XID and
+protect historical metadata and stream extents independently of recoverable
+container checkpoints. The live physical-extent tree records its reference
+deltas against the newest immutable snapshot; a live unlink cannot release
+blocks still owned by an older history. Repeated replacements, resource-fork
+and attribute edits, and temporary allocation must leave all historical reads
+and snapshot identities unchanged. The public image editor retains its immutable
+source and completed, no-overwrite publication contract on failure.
 
 ## Dependencies and completion
 

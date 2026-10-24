@@ -183,8 +183,10 @@ flags and observed UUIDs. `OpenSnapshot(ctx, xid)` and
 snapshot. Keep the source and owning APFS unlock open; the historical reader
 has no separate `Close`. CLI `list`, `cat` and `extract` accept either `--snapshot-name` or
 `--snapshot-xid`. Missing or damaged selections fail without returning live files.
-Sealed-system verification, dataless snapshots and snapshot mutation remain outside
-this reader increment.
+Ordinary live edits preserve qualified retained snapshots, including historical
+object versions and shared storage. Snapshot creation, naming, deletion and
+revert, dataless snapshots and sealed-system verification remain outside this
+capability.
 
 `apfs.Volume` and `hfsplus.Volume` implement `filesystem.Reader`. `ReadDir`
 enumerates names and object IDs; `Stat` returns logical metadata;

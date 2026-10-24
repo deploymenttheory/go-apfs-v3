@@ -132,8 +132,19 @@ are listed in reports and retained in exported nodes. An explicit metadata
 assignment clears that field's default marker. Windows cannot supply POSIX
 owners/modes or macOS attributes. Linux inode flags and Windows streams are not
 translated into BSD flags or macOS forks. Unavailable attribute enumeration is
-recorded separately from an observed empty list. `-X` deliberately omits import
+recorded separately from an observed empty list. Windows named streams are
+independently inventoried; an observed empty inventory is not unavailable.
+Present streams have an explicit unsupported-conversion result.
+`-X` deliberately omits import
 of those attributes. Available values are not silently discarded on read errors.
+
+Darwin archive imports capture no-follow ACLs and apply the same direct-entry
+and inherited-entry copy policy as logical sources. A readable foreign POSIX ACL
+or Windows DACL has an explicit unsupported-conversion result; its presence is
+never replaced by an invented Darwin ACL. Known absence is distinct from a host
+that cannot report security. `metadataOmissions` records the affected field,
+source representation, status and reason at a logical object/path. These records
+survive copies, session reopen and export, and appear in packing reports.
 
 Each mutating command samples one UTC clock. `session create/open --time RFC3339`
 fixes that clock for reproducible commands. APFS retains nanoseconds; HFS+ uses
@@ -190,4 +201,6 @@ at 40 links. Ordinary host xattrs are bounded to 64 MiB because host APIs requir
 contiguous buffers; Darwin resource forks stream. Special files, unresolved
 cycles, unrepresentable names and unsupported metadata fail explicitly.
 Export schema 5 records derived change-time fields, defaulted metadata and
-unavailable attributes while schemas 1–4 remain readable.
+unavailable attributes. Schema 6 additionally retains typed host-metadata
+omissions when present; schemas 1–5 remain readable. Private session revisions
+use schema 3 when this provenance is present, retaining older revision readers.

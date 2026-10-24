@@ -74,6 +74,9 @@ type Paired struct {
 	Dirs    map[string]string
 	Locks   map[string]string
 	Primary string // the host whose copy is attached when all copies are identical
+	// Provenance binds independently observed host inputs to the producer
+	// manifest which carried their image and sidecar.
+	Provenance map[string]HostOutputProvenance
 	// Passwords are the public output passwords from the primary host's
 	// manifest.
 	Passwords map[string]string
@@ -85,6 +88,12 @@ type Paired struct {
 	// sector-preserving output Apple decrypts; every host decrypts its own
 	// copies in the portable tier.
 	DecryptHosts []string
+}
+
+type HostOutputProvenance struct {
+	Arch   string
+	Go     string
+	Commit string
 }
 
 // Pair groups outputs by name across hosts and requires every host to have
@@ -101,13 +110,14 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 		for _, o := range h.Manifest.Outputs {
 			p := byName[o.Name]
 			if p == nil {
-				p = &Paired{Name: o.Name, Output: o, ByHost: map[string]schema.Output{}, Dirs: map[string]string{}, Locks: map[string]string{}}
+				p = &Paired{Name: o.Name, Output: o, ByHost: map[string]schema.Output{}, Dirs: map[string]string{}, Locks: map[string]string{}, Provenance: map[string]HostOutputProvenance{}}
 				byName[o.Name] = p
 				names = append(names, o.Name)
 			}
 			p.ByHost[host] = o
 			p.Dirs[host] = h.Dir
 			p.Locks[host] = h.Manifest.Lock
+			p.Provenance[host] = HostOutputProvenance{Arch: h.Manifest.Arch, Go: h.Manifest.Go, Commit: h.Manifest.Commit}
 		}
 	}
 	for i := 1; i < len(locks); i++ {
@@ -137,10 +147,34 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 			if !expectationsEqual(o.Expect, p.Output.Expect) || o.Operation != p.Output.Operation || o.Encrypted != p.Output.Encrypted || o.Source != p.Output.Source || o.Format != p.Output.Format {
 				return nil, fmt.Errorf("output %s: hosts disagree about its expectation", name)
 			}
+			if (o.HostInput == nil) != (o.Expect.HostImport == nil) {
+				return nil, fmt.Errorf("output %s: unqualified host-input exception on %s", name, host)
+			}
 		}
 		sort.Strings(hostNames)
+		if p.Output.Expect.HostImport != nil {
+			byInput := map[string]string{}
+			for _, host := range hostNames {
+				inventory, err := loadHostInput(*p, host)
+				if err != nil {
+					return nil, fmt.Errorf("output %s on %s: %w", name, host, err)
+				}
+				provenance := p.Provenance[host]
+				if inventory.Arch != provenance.Arch || inventory.Go != provenance.Go || inventory.Commit != provenance.Commit {
+					return nil, fmt.Errorf("output %s on %s: host inventory provenance differs from its manifest", name, host)
+				}
+				input, err := hostImportEffectiveDigest(inventory, *p.Output.Expect.HostImport)
+				if err != nil {
+					return nil, err
+				}
+				if previous, ok := byInput[input]; ok && previous != p.ByHost[host].SHA256 {
+					return nil, fmt.Errorf("output %s: equal observed host inputs produced different plaintext bytes", name)
+				}
+				byInput[input] = p.ByHost[host].SHA256
+			}
+		}
 		switch {
-		case !p.Output.Encrypted && p.Output.Expect.Workspace == nil && len(digests) != 1:
+		case !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
 			return nil, fmt.Errorf("output %s: plaintext bytes differ across hosts: %v", name, digests)
 		case p.Output.Encrypted && len(digests) != len(hosts):
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)
@@ -254,6 +288,9 @@ func requireAppleDoubleOutputs(pairs []Paired, cases map[string]corpus.Case, maj
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
+	if !reflect.DeepEqual(a.HostImport, b.HostImport) {
+		return false
+	}
 	if !reflect.DeepEqual(a.Container, b.Container) {
 		return false
 	}

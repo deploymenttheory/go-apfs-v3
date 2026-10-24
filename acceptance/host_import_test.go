@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"sort"
@@ -230,6 +231,7 @@ func materializeNativeHostTree(t *testing.T, ctx context.Context, host string, s
 
 type hostImportObservation struct {
 	info   os.FileInfo
+	input  schema.HostInputEntry
 	mode   uint32
 	uid    uint32
 	gid    uint32
@@ -245,7 +247,12 @@ func observeHostImportTree(t *testing.T, host string, entries []schema.Entry) ma
 		if err != nil {
 			t.Fatal(err)
 		}
-		out[entry.Path] = observeHostImportMetadata(t, info)
+		value := observeHostImportMetadata(t, info)
+		value.input, err = observeHostInputPlatform(filepath.Join(host, filepath.FromSlash(entry.Path)), info)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[entry.Path] = value
 	}
 	return out
 }
@@ -344,9 +351,15 @@ func checkHostImportMetadata(t *testing.T, rules filesystem.NameRules, name stri
 	case "linux":
 		defaults = []string{"bsdFlags"}
 	}
-	if !slices.Equal(node.MetadataDefaulted, defaults) || node.AttributesUnavailable != (runtime.GOOS == "windows") {
-		t.Errorf("%s: metadata provenance defaulted=%v unavailable=%t, expected %v/%t", name, node.MetadataDefaulted, node.AttributesUnavailable, defaults, runtime.GOOS == "windows")
+	unavailable := false
+	for _, field := range host.input.Fields {
+		unavailable = unavailable || field.Field == "attributes" && field.State == "unavailable"
 	}
+	unavailable = unavailable || runtime.GOOS == "windows" && len(host.input.NamedStreams) != 0
+	if !slices.Equal(node.MetadataDefaulted, defaults) || node.AttributesUnavailable != unavailable {
+		t.Errorf("%s: metadata provenance defaulted=%v unavailable=%t, expected %v/%t", name, node.MetadataDefaulted, node.AttributesUnavailable, defaults, unavailable)
+	}
+	checkHostNodeProvenance(t, name, node, host.input, runtime.GOOS)
 }
 
 func checkHostImportReport(t *testing.T, report session.Report, reader filesystem.Reader, pathCount int, preserveLinks bool) {
@@ -382,11 +395,37 @@ func checkHostImportReport(t *testing.T, report session.Report, reader filesyste
 			t.Errorf("unavailable host attributes report names an available node: %d (%v)", object, err)
 		}
 	}
-	if runtime.GOOS == "windows" && len(seen) != objectCount || runtime.GOOS != "windows" && len(seen) != 0 {
-		t.Errorf("host attribute-availability report has %d objects for %d paths", len(seen), pathCount)
+	// Availability and unsupported ACL conversion are actual per-object
+	// observations, including known absence. Never infer them from GOOS.
+	expectedUnavailable, expectedACL := map[uint64]bool{}, map[uint64]bool{}
+	var collect func(uint64)
+	visited := map[uint64]bool{}
+	collect = func(id uint64) {
+		if visited[id] {
+			return
+		}
+		visited[id] = true
+		node, err := reader.Stat(context.Background(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if node.AttributesUnavailable {
+			expectedUnavailable[id] = true
+		}
+		for _, omitted := range node.MetadataOmissions {
+			if omitted.Field == "acl" {
+				expectedACL[id] = true
+			}
+		}
+		if node.Metadata.Mode.Value&0170000 == 0040000 {
+			if err := reader.ReadDir(context.Background(), id, func(e filesystem.DirEntry) error { collect(e.Object); return nil }); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
-	if len(omittedObjects) != objectCount {
-		t.Errorf("host ACL omissions missing from archive report: %d for %d objects", len(omittedObjects), objectCount)
+	collect(reader.Root())
+	if !reflect.DeepEqual(seen, expectedUnavailable) || !reflect.DeepEqual(omittedObjects, expectedACL) {
+		t.Errorf("host report differs from independently checked per-object provenance: attributes %v/%v ACL %v/%v", seen, expectedUnavailable, omittedObjects, expectedACL)
 	}
 	defaults := map[uint64]bool{}
 	for _, value := range report.Defaulted {

@@ -34,6 +34,10 @@ type Output struct {
 	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace, appledouble
 	Bytes     int64  `json:"bytes"`
 	SHA256    string `json:"sha256"`
+	// HostInput binds an independently observed ordinary host tree. Only the
+	// qualified HostImport consumer may use different host inputs; ordinary
+	// plaintext output determinism remains unchanged.
+	HostInput *HostInputReference `json:"hostInput,omitempty"`
 	// Encrypted outputs carry fresh random material, so their digests
 	// legitimately differ between hosts; Password names the recipe
 	// password that unlocks them.
@@ -57,6 +61,8 @@ type CaseRef struct {
 
 // Expectation tells the native verifier what to compare the output with.
 type Expectation struct {
+	// HostImport selects per-host validation against its original host inventory.
+	HostImport *HostImportExpectation `json:"hostImport,omitempty"`
 	// Container checks every source volume and each declared empty volume in a
 	// fresh APFS construction, including native inventory and shared allocation.
 	Container *ContainerExpectation `json:"container,omitempty"`
@@ -110,6 +116,24 @@ type Expectation struct {
 	// fsck still run; the edit must fail with exactly this text, and an
 	// edit that succeeds fails the check until the expectation is removed.
 	ContinuationRefusal string `json:"continuationRefusal,omitempty"`
+}
+
+// HostInputReference binds a bounded sidecar in the same producer artifact.
+type HostInputReference struct {
+	File   string `json:"file"`
+	Bytes  int64  `json:"bytes"`
+	SHA256 string `json:"sha256"`
+}
+
+// HostImportExpectation is a closed archive-import policy, shared across hosts.
+// Availability and actual values belong to each host's independent inventory.
+type HostImportExpectation struct {
+	Route         string `json:"route"` // session-pack or image-copy
+	Destination   string `json:"destination"`
+	ClockNS       int64  `json:"clockNs"`
+	UID           uint32 `json:"uid"`
+	GID           uint32 `json:"gid"`
+	PreserveLinks bool   `json:"preserveLinks"`
 }
 
 // ContainerExpectation records construction choices that differ from the native

@@ -27,6 +27,7 @@ import (
 
 type forkMappingCall struct {
 	Operation, Path, Started, Error string
+	DescriptorID, Phase             string
 	SinceStartNS, DurationNS        int64
 	Errno                           uint64
 	Input, Output                   string
@@ -64,13 +65,18 @@ type forkMappingOriginal struct {
 
 type forkMappingArm struct {
 	Target, Raw, InitialSHA256, ClosedSHA256, ReopenedSHA256 string
+	Pair                                                     int
+	DescriptorCalls                                          []forkMappingCall
+	DescriptorCleanupError                                   string
+	evidence                                                 *forkMappingEvidence
+	descriptorCleanup                                        error
 	Original                                                 *forkMappingOriginal
 	Snapshots                                                []forkMappingSnapshot
 	Extra                                                    []forkMappingCall
 	WriterCalls                                              []forkMappingCall
 	WriterMaps                                               []forkMappingFork
 	Commands                                                 []schema.Command
-	Fsck, Error, CleanupError                                string
+	WriterError, Fsck, Error, CleanupError                   string
 }
 
 type forkMappingPairReceipt struct {
@@ -96,8 +102,8 @@ func (v *Verifier) cloneForkMappingPair(ctx context.Context, p Paired, recipe sc
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if v.Major != 26 {
-		return fmt.Errorf("paired fork mapping is bounded to the macOS26 native case")
+	if cloneForkMappingInputName(v.Major) == "" {
+		return fmt.Errorf("paired fork mapping has no declared input for macOS%d", v.Major)
 	}
 	if err := requireCloneForkMappingInput([]Paired{p}, v.Major); err != nil {
 		return err
@@ -109,7 +115,8 @@ func (v *Verifier) cloneForkMappingPair(ctx context.Context, p Paired, recipe sc
 	if err := os.Mkdir(work, 0o700); err != nil {
 		return err // Never overwrite evidence from another invocation.
 	}
-	receipt := forkMappingPairReceipt{Schema: 1, Commit: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Go: runtime.Version(), Producer: v.Producer, Input: p.Output, Primary: p.Primary}
+	evidence := &forkMappingEvidence{}
+	receipt := forkMappingPairReceipt{Schema: 2, Commit: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Go: runtime.Version(), Producer: v.Producer, Input: p.Output, Primary: p.Primary}
 	image := filepath.Join(p.Dirs[p.Primary], p.ByHost[p.Primary].File)
 	transcript := &fixture.Transcript{}
 	v.setTranscript(transcript)
@@ -125,7 +132,7 @@ func (v *Verifier) cloneForkMappingPair(ctx context.Context, p Paired, recipe sc
 		// Retain successful and failing arms. Root's existing artifact upload
 		// includes this bounded directory even when all predicates pass.
 		for name, value := range map[string]any{"pair.json": receipt, "source-commands.json": transcript.Commands} {
-			resultErr = errors.Join(resultErr, writeForkMappingJSON(filepath.Join(work, name), value))
+			resultErr = errors.Join(resultErr, evidence.write(filepath.Join(work, name), value))
 		}
 	}()
 	var err error
@@ -156,34 +163,39 @@ func (v *Verifier) cloneForkMappingPair(ctx context.Context, p Paired, recipe sc
 	if err != nil {
 		return err
 	}
-	if receipt.RawBytes <= 0 || receipt.RawBytes > 256<<20 {
-		return fmt.Errorf("paired raw input outside the 256MiB diagnostic bound: %d", receipt.RawBytes)
+	trials := forkMappingTrials(v.Major)
+	if err := checkForkMappingRawBudget(receipt.RawBytes, len(trials)); err != nil {
+		return err
 	}
-	// Publish BOTH independent raw copies before attaching either one.
-	for _, target := range []string{"data", "resource"} {
-		arm := forkMappingArm{Target: target, Raw: filepath.Join(work, target, "writable.raw")}
+	// Each trial receives a fresh digest-identical file. No uncertain attachment
+	// can be followed by another arm, including at pair boundaries.
+	resultErr = runForkMappingSeries(ctx, len(trials), func(i int) (error, error) {
+		trial := trials[i]
+		armWork := work
+		if v.Major == 27 {
+			armWork = filepath.Join(work, fmt.Sprintf("pair-%02d", trial.Pair))
+		}
+		arm := forkMappingArm{Pair: trial.Pair, Target: trial.Target, Raw: filepath.Join(armWork, trial.Target, "writable.raw"), evidence: evidence}
 		if err := corpus.ExpandGzipContext(ctx, compressed, arm.Raw); err != nil {
-			return err
+			return err, err
 		}
 		arm.InitialSHA256, err = schema.FileDigest(arm.Raw)
 		if err != nil || arm.InitialSHA256 != receipt.RawSHA256 {
-			return errors.Join(fmt.Errorf("%s paired input is not byte-identical", target), err)
+			return errors.Join(fmt.Errorf("pair %d %s input is not byte-identical", trial.Pair, trial.Target), err), errors.New("paired source preparation failed")
 		}
 		receipt.Arms = append(receipt.Arms, arm)
-	}
-	resultErr = runForkMappingArms(ctx, func(i int) (error, error) {
 		child := v.ForSubtest()
-		arm := &receipt.Arms[i]
-		err, cleanupErr := child.runForkMappingArm(ctx, arm)
+		current := &receipt.Arms[len(receipt.Arms)-1]
+		err, cleanupErr := child.runForkMappingArm(ctx, current)
 		if err != nil {
-			arm.Error = err.Error()
+			current.Error = err.Error()
 		}
 		if cleanupErr != nil {
-			arm.CleanupError = cleanupErr.Error()
+			current.CleanupError = cleanupErr.Error()
 		}
 		return err, cleanupErr
 	})
-	receipt.Conclusion = "Diagnostic observations only; a single pair cannot establish universal fork synchronization semantics or product qualification. Original verdicts remain fatal. Read probes, ambient I/O and operation latency remain confounds: a transition before intervention, convergence in both arms or non-reproduction is inconclusive. Offline independent selected-XID/catalog analysis is required."
+	receipt.Conclusion = "Diagnostic observations only; fixed pairs cannot establish universal fork synchronization semantics or product qualification. Original verdicts remain fatal. Read probes, ambient I/O and operation latency remain confounds: a transition before intervention, convergence in both arms or non-reproduction is inconclusive. Offline independent selected-XID/catalog analysis is required."
 	return resultErr
 }
 
@@ -207,7 +219,7 @@ func (v *Verifier) runForkMappingArm(ctx context.Context, arm *forkMappingArm) (
 		if cleanupErr != nil {
 			arm.CleanupError = cleanupErr.Error()
 		}
-		resultErr = errors.Join(resultErr, writeForkMappingJSON(filepath.Join(stage, "arm.json"), arm))
+		resultErr = errors.Join(resultErr, arm.evidence.write(filepath.Join(stage, "arm.json"), arm))
 	}()
 	att, err := v.Disk.Attach(ctx, arm.Raw, fixture.AttachOptions{Raw: true})
 	if err != nil {
@@ -228,37 +240,31 @@ func (v *Verifier) runForkMappingArm(ctx context.Context, arm *forkMappingArm) (
 	v.Vol = &forkMappingVolume{Volume: baseVolume, arm: arm, start: start, ctx: ctx}
 	defer func() { v.Vol = baseVolume }()
 	source, sibling := "Fixture/followed", "Fixture/overwrite"
-	checkpoint := func(point string, original *nativeCloneState, verdict error) error {
-		if original != nil {
-			if arm.Original != nil {
-				return errors.New("paired original verdict recorded more than once")
-			}
-			arm.Original = &forkMappingOriginal{State: *original}
-			if verdict != nil {
-				arm.Original.Error = verdict.Error()
-			}
-			// O_EXCL and checked close make this a separate immutable receipt,
-			// written BEFORE the controlled additional operation.
-			if err := writeForkMappingJSON(filepath.Join(stage, "original-verdict.json"), arm.Original); err != nil {
-				return err
-			}
+	resultErr = runForkMappingObservedWriter(func(checkpoint cloneForkCheckpoint) error {
+		err := v.continueCloneWritesObserved(ctx, mount, filepath.Join(stage, "clone-writer"), source, sibling, checkpoint)
+		v.Vol = baseVolume // Later descriptor/readonly probes are not original writer calls.
+		if err != nil {
+			arm.WriterError = err.Error()
 		}
-		err := v.captureForkMapping(ctx, arm, start, mount, point, source, sibling)
-		if original == nil || err != nil {
-			return err
+		return errors.Join(err, arm.evidence.include(filepath.Join(stage, "clone-writer", "clone-continuation.json")))
+	}, func(original nativeCloneState, verdict error) error {
+		arm.Original = &forkMappingOriginal{State: original}
+		if verdict != nil {
+			arm.Original.Error = verdict.Error()
 		}
-		path := filepath.Join(mount, retainedPartialClone)
-		if arm.Target == "resource" {
-			path = filepath.Join(path, "..namedfork", "rsrc")
+		// O_EXCL preserves the exact original predicate before any new probe.
+		return arm.evidence.write(filepath.Join(stage, "original-verdict.json"), arm.Original)
+	}, func() error {
+		measurement, closeErr := v.measureForkDescriptors(ctx, arm, start, mount, source, sibling)
+		if closeErr != nil {
+			arm.DescriptorCleanupError = closeErr.Error()
+			arm.descriptorCleanup = closeErr
 		}
-		arm.Extra, err = probeForkMappingFlush(ctx, start, path)
-		// Even a failed additional flush stays fatal while a later read-only
-		// snapshot can preserve what the kernel reported; no retry follows.
-		return errors.Join(err, v.captureForkMapping(ctx, arm, start, mount, "after-extra-"+arm.Target+"-sync", source, sibling))
-	}
-	resultErr = v.continueCloneWritesObserved(ctx, mount, filepath.Join(stage, "clone-writer"), source, sibling, checkpoint)
+		return errors.Join(measurement, closeErr)
+	})
 	// One normal cleanup, regardless of the original physical verdict.
 	cleanupErr = closeForkMappingAttachment(ctx, v.Disk, att)
+	cleanupErr = errors.Join(cleanupErr, arm.descriptorCleanup)
 	resultErr = errors.Join(resultErr, cleanupErr)
 	if cleanupErr != nil || ctx.Err() != nil {
 		return errors.Join(resultErr, ctx.Err()), cleanupErr
@@ -364,7 +370,12 @@ func probeForkMapping(ctx context.Context, start time.Time, path string, readbac
 	}
 	now := time.Now()
 	f, err := os.Open(path)
-	proof.Calls = append(proof.Calls, forkMappingResult(start, now, "open-readonly", path, err))
+	call := forkMappingResult(start, now, "open-readonly", path, err)
+	call.Input = fmt.Sprint(os.O_RDONLY)
+	if err == nil {
+		call.Output = fmt.Sprint(f.Fd())
+	}
+	proof.Calls = append(proof.Calls, call)
 	if err != nil {
 		return proof, err
 	}
@@ -374,10 +385,36 @@ func probeForkMapping(ctx context.Context, start time.Time, path string, readbac
 		proof.Calls = append(proof.Calls, forkMappingResult(start, now, "close", path, err))
 		resultErr = errors.Join(resultErr, err)
 	}()
+	measured, err := probeOpenedForkMapping(ctx, start, path, "", "", f, readback)
+	measured.Calls = append(proof.Calls, measured.Calls...)
+	return measured, err
+}
+
+func probeOpenedForkMapping(ctx context.Context, start time.Time, path, descriptorID, phase string, f *os.File, readback bool) (proof forkMappingFork, resultErr error) {
+	proof.Path = path
+	if err := fixture.RequireDisposableHost(); err != nil {
+		return proof, err
+	}
+	if err := ctx.Err(); err != nil {
+		return proof, err
+	}
+	defer func() {
+		for i := range proof.Calls {
+			proof.Calls[i].DescriptorID, proof.Calls[i].Phase = descriptorID, phase
+		}
+		if resultErr != nil {
+			proof.Error = resultErr.Error()
+		}
+	}()
+	var now time.Time
+	var err error
 	var st unix.Stat_t
 	now = time.Now()
 	err = unix.Fstat(int(f.Fd()), &st)
-	proof.Calls = append(proof.Calls, forkMappingResult(start, now, "fstat", path, err))
+	call := forkMappingResult(start, now, "fstat", path, err)
+	stat := statForkMapping(st)
+	call.Stat = &stat
+	proof.Calls = append(proof.Calls, call)
 	if err != nil {
 		return proof, err
 	}
@@ -385,16 +422,6 @@ func probeForkMapping(ctx context.Context, start time.Time, path string, readbac
 	proof.Bytes = st.Size
 	if st.Size <= 0 || st.Size > 1<<20 {
 		return proof, fmt.Errorf("dense fork outside bounded 1MiB measurement: %s (%d)", path, st.Size)
-	}
-	if readback {
-		data := make([]byte, st.Size)
-		now = time.Now()
-		n, err := f.ReadAt(data, 0)
-		proof.Calls = append(proof.Calls, forkMappingResult(start, now, "pread", path, err))
-		if err != nil || int64(n) != st.Size {
-			return proof, errors.Join(fmt.Errorf("fork readback incomplete: %s", path), err)
-		}
-		proof.SHA256 = fmt.Sprintf("%x", sha256.Sum256(data))
 	}
 	// Exactly the existing packed20-byte ABI, preserving both original input
 	// and kernel-written output, without silently clipping the raw result.
@@ -421,15 +448,47 @@ func probeForkMapping(ctx context.Context, start time.Time, path string, readbac
 		if callErr != nil {
 			return proof, callErr
 		}
-		length := int64(binary.LittleEndian.Uint64(arg[4:12]))
-		physical := int64(binary.LittleEndian.Uint64(arg[12:20]))
-		if length <= 0 || physical < 0 || length > (1<<63-1)-offset || physical > (1<<63-1)-length {
-			return proof, errors.New("fork physical measurement returned invalid range")
+		raw, logical, err := forkMappingRange(arg, offset, st.Size)
+		if err != nil {
+			return proof, err
 		}
-		proof.Runs = append(proof.Runs, [3]int64{offset, physical, length})
-		logical := min(length, st.Size-offset)
-		proof.LogicalRuns = append(proof.LogicalRuns, [3]int64{offset, physical, logical})
-		offset += length
+		proof.Runs = append(proof.Runs, raw)
+		proof.LogicalRuns = append(proof.LogicalRuns, logical)
+		offset += raw[2]
+	}
+	if readback {
+		proof.SHA256, err = readForkMappingContents(st.Size, func(data []byte, offset int64) (int, error) {
+			now := time.Now()
+			if err := ctx.Err(); err != nil {
+				return 0, err
+			}
+			n, err := f.ReadAt(data, offset)
+			op := "pread"
+			if offset == st.Size {
+				op = "pread-eof"
+			}
+			call := forkMappingResult(start, now, op, path, err)
+			call.Offset, call.Input, call.Output = offset, fmt.Sprint(len(data)), fmt.Sprint(n)
+			proof.Calls = append(proof.Calls, call)
+			return n, err
+		})
+		if err != nil {
+			return proof, err
+		}
+	}
+	// The original writer already fstats once. Additional post-probe identity
+	// checks belong only to later descriptor/readback measurements.
+	if descriptorID != "" || readback {
+		var after unix.Stat_t
+		now = time.Now()
+		err = unix.Fstat(int(f.Fd()), &after)
+		call = forkMappingResult(start, now, "fstat-after-probe", path, err)
+		afterStat := statForkMapping(after)
+		call.Stat = &afterStat
+		proof.Calls = append(proof.Calls, call)
+		if err != nil || afterStat != proof.Stat {
+			return proof, errors.Join(errors.New("fork identity/size changed during probe"), err)
+		}
 	}
 	return proof, nil
 }
@@ -443,7 +502,12 @@ func probeForkMappingFlush(ctx context.Context, start time.Time, path string) (c
 	}
 	now := time.Now()
 	f, err := os.OpenFile(path, os.O_RDONLY, 0)
-	calls = append(calls, forkMappingResult(start, now, "open-readonly", path, err))
+	call := forkMappingResult(start, now, "open-readonly", path, err)
+	call.Input = fmt.Sprint(os.O_RDONLY)
+	if err == nil {
+		call.Output = fmt.Sprint(f.Fd())
+	}
+	calls = append(calls, call)
 	if err != nil {
 		return calls, err
 	}
@@ -456,7 +520,7 @@ func probeForkMappingFlush(ctx context.Context, start time.Time, path string) (c
 	var st unix.Stat_t
 	now = time.Now()
 	err = unix.Fstat(int(f.Fd()), &st)
-	call := forkMappingResult(start, now, "fstat", path, err)
+	call = forkMappingResult(start, now, "fstat", path, err)
 	stat := statForkMapping(st)
 	call.Stat = &stat
 	calls = append(calls, call)
@@ -477,9 +541,10 @@ func probeForkMappingFlush(ctx context.Context, start time.Time, path string) (c
 // actual syscall results instead of inferring what the kernel did from paths.
 type forkMappingVolume struct {
 	fixture.Volume
-	arm   *forkMappingArm
-	start time.Time
-	ctx   context.Context
+	arm      *forkMappingArm
+	start    time.Time
+	ctx      context.Context
+	sequence int
 }
 
 func (v *forkMappingVolume) Listxattr(path string, showCompression bool) ([]string, error) {
@@ -504,9 +569,22 @@ func (v *forkMappingVolume) Pwrite(path string, offset int64, data []byte) (resu
 	if err := v.ctx.Err(); err != nil {
 		return err
 	}
+	v.sequence++
+	id := fmt.Sprintf("writer-%03d", v.sequence)
+	firstCall := len(v.arm.WriterCalls)
+	defer func() {
+		for i := firstCall; i < len(v.arm.WriterCalls); i++ {
+			v.arm.WriterCalls[i].DescriptorID, v.arm.WriterCalls[i].Phase = id, "original-writer"
+		}
+	}()
 	now := time.Now()
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o644)
-	v.arm.WriterCalls = append(v.arm.WriterCalls, forkMappingResult(v.start, now, "open-write-create", path, err))
+	open := forkMappingResult(v.start, now, "open-write-create", path, err)
+	open.Input = fmt.Sprint(os.O_WRONLY | os.O_CREATE)
+	if err == nil {
+		open.Output = fmt.Sprint(f.Fd())
+	}
+	v.arm.WriterCalls = append(v.arm.WriterCalls, open)
 	if err != nil {
 		return err
 	}
@@ -540,6 +618,10 @@ func (v *forkMappingVolume) Pwrite(path string, offset int64, data []byte) (resu
 
 func (v *forkMappingVolume) Fullfsync(path string) error {
 	calls, err := probeForkMappingFlush(v.ctx, v.start, path)
+	v.sequence++
+	for i := range calls {
+		calls[i].DescriptorID, calls[i].Phase = fmt.Sprintf("writer-%03d", v.sequence), "original-writer"
+	}
 	v.arm.WriterCalls = append(v.arm.WriterCalls, calls...)
 	return err
 }
@@ -549,6 +631,10 @@ func (v *forkMappingVolume) Extents(path, fork string) ([][3]int64, error) {
 		path = filepath.Join(path, "..namedfork", "rsrc")
 	}
 	proof, err := probeForkMapping(v.ctx, v.start, path, false)
+	v.sequence++
+	for i := range proof.Calls {
+		proof.Calls[i].DescriptorID, proof.Calls[i].Phase = fmt.Sprintf("writer-%03d", v.sequence), "original-writer"
+	}
 	v.arm.WriterMaps = append(v.arm.WriterMaps, proof)
 	return proof.Runs, err
 }
@@ -567,20 +653,4 @@ func forkMappingResult(start, now time.Time, operation, path string, err error) 
 		}
 	}
 	return call
-}
-
-func writeForkMappingJSON(path string, value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return err
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return err
-	}
-	n, err := f.Write(append(data, '\n'))
-	if err == nil && n != len(data)+1 {
-		err = io.ErrShortWrite
-	}
-	return errors.Join(err, f.Close())
 }

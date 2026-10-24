@@ -52,7 +52,7 @@ func TestForkMappingPairStopsBeforeAnotherAttachmentWhenCleanupIsUncertain(t *te
 }
 
 func TestForkMappingPairRequiresItsExactCanonicalInput(t *testing.T) {
-	if err := requireCloneForkMappingInput(nil, 15); err != nil || cloneForkMappingInputName(27) != "" {
+	if err := requireCloneForkMappingInput(nil, 15); err != nil || cloneForkMappingInputName(28) != "" {
 		t.Fatal("diagnostic escaped its one native producer", err)
 	}
 	name := cloneForkMappingInputName(26)

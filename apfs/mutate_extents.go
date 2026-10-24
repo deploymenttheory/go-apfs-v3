@@ -47,10 +47,9 @@ func (m *mutation) changeExtentReferences(address, blocks uint64, delta int64) e
 				continue
 			}
 			if keep[2] == 0 {
-				if err := m.space.retire(false, keep[0], keep[1]); err != nil {
+				if err := m.retireData(keep[0], keep[1]); err != nil {
 					return err
 				}
-				m.freed += keep[1]
 				continue
 			}
 			record := buildExtentReference(keep[0], keep[1], owner)

@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "repository": "deploymenttheory/go-apfs-v3",
+  "run": 40114548003,
+  "job": 120933017771,
+  "head": "6db6e45ec3066ee2438e28513effd88187f2c456",
+  "checkout": "8b9618437b9d7f9945b4fab61fb8c2a273927aa4",
+  "artifact": {
+    "id": 12567828883,
+    "name": "native-diagnostics-macos-27",
+    "bytes": 9023127,
+    "sha256": "037fc02a3eb430b95c443db25faf5c4048fbe191f9e14a50e8eb05d14c22285c"
+  },
+  "member": "observe/drift-26-apfs-directory-statistics-apfs-after-03-fork-shrink/observation-commands.json",
+  "memberCRC32": "ea28edfb",
+  "retained": [
+    {
+      "file": "macos27-directory-statistics.commands.json.gz",
+      "bytes": 16263,
+      "sha256": "8c48a49c72dc78f9b671b4a1f03eb196e11a52ca491c8123743ede267731fa32",
+      "gzipSHA256": "8fa8299e52de4d3d55f17a5166ed81b0ccce9ac68360730e7d2e7bc3dd9c6c7c",
+      "meaning": "Original ZIP member, byte-for-byte after gzip decoding"
+    },
+    {
+      "file": "macos27-directory-statistics.plist-projection.json.gz",
+      "bytes": 4358,
+      "sha256": "0b7729b35c9a9c81de5190ae75ebd3688dc321b0faceeeb182e4746f3330bc2b",
+      "gzipSHA256": "c07365d2a48e32f84e6a6400a701913fdc8f359f7f98731573c6430d36e6bda4",
+      "meaning": "Derived semantic XML-to-JSON fixture projection, not captured native plutil output"
+    }
+  ],
+  "projections": [
+    "Original four command records and every result byte remain unchanged in the first gzip.",
+    "The second gzip maps original XML stdout SHA256 to Python standard-library plistlib parsed JSON, retaining strings, booleans, integers and arrays; native plutil output was not recorded.",
+    "Replay resolves only the exact original target image to a declared virtual canonical identity, refusing unknown paths.",
+    "New five-probe responses, foreign cleanup, cancellation and error variants are explicitly synthetic controls, not newly captured platform behavior."
+  ],
+  "observedOutcome": "Attach returned disk7/disk8/disk8s1; diskutil list reported Could not find disk; fresh framework inventory still bound the same full path; normal detach succeeded. No kernel-at-failure or readiness transition was captured.",
+  "kernelMajor": 27,
+  "fixture": {
+    "producer": 26,
+    "recipe": "apfs-directory-statistics",
+    "profile": "apfs",
+    "stage": "after-03-fork-shrink"
+  }
+}

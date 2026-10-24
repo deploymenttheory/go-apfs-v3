@@ -17,24 +17,31 @@ func (m *mutation) validateOwnership(storage *storageChecker) error {
 	if err := currentMapInventory(m.cmap, container); err != nil {
 		return err
 	}
-	for _, volume := range storage.volumes {
-		if len(volume.views) != 1 || le.Uint32(volume.mapHeader[36:]) != 0 || le.Uint64(volume.mapHeader[64:]) != 0 {
-			return fmt.Errorf("retained volume versions: %w", filesystem.ErrUnsupported)
-		}
-		current := make(map[uint64]uint64, len(volume.fs.nodes))
-		for _, n := range volume.fs.nodes {
-			current[n.oid] = n.address
-		}
-		if err := currentMapInventory(volume.omap, current); err != nil {
+	for index, volume := range storage.volumes {
+		if len(volume.snapshots) == 0 {
+			if le.Uint32(volume.mapHeader[36:]) != 0 || le.Uint64(volume.mapHeader[64:]) != 0 {
+				return fmt.Errorf("retained volume versions: %w", filesystem.ErrUnsupported)
+			}
+			current := make(map[uint64]uint64, len(volume.fs.nodes))
+			for _, n := range volume.fs.nodes {
+				current[n.oid] = n.address
+			}
+			if err := currentMapInventory(volume.omap, current); err != nil {
+				return err
+			}
+		} else if err := m.volumes[index].admitHistory(volume, storage); err != nil {
 			return err
 		}
-		streams := volume.views[0].streams
+		streams := volume.views[len(volume.views)-1].streams
 		for _, inode := range streams.inodes {
 			if _, err := statisticsForInode(inode.value); err != nil {
 				return err
 			}
 		}
-		for _, r := range volume.extents.all() {
+		for _, r := range m.volumes[index].extents.all() {
+			if len(volume.snapshots) != 0 && m.volumes[index] != m {
+				break
+			}
 			if le.Uint64(r.value)>>60 != 1 || int32(le.Uint32(r.value[16:])) <= 0 {
 				return fmt.Errorf("APFS physical extent history: %w", filesystem.ErrUnsupported)
 			}
@@ -46,10 +53,16 @@ func (m *mutation) validateOwnership(storage *storageChecker) error {
 	if le.Uint32(storage.mapHeader[36:]) != 0 || le.Uint64(storage.mapHeader[64:]) != 0 {
 		return fmt.Errorf("retained container map versions: %w", filesystem.ErrUnsupported)
 	}
-	// Empty reaper-list pages are understood by inspection. Carrying them into
-	// a new checkpoint remains outside the current writer's admission profile.
-	if _, err := m.emptyReaperLists(m.ephemeral[le.Uint64(m.nx[168:])].data, false); err != nil {
+	// Preserve only validated idle linked pages, in link order. Their free
+	// entries may contain stale work bytes; those bytes do not authorize work.
+	reaper := m.ephemeral[le.Uint64(m.nx[168:])].data
+	if _, err := m.emptyReaperLists(reaper, true); err != nil {
 		return err
+	}
+	for oid := le.Uint64(reaper[48:]); oid != 0; {
+		page := m.ephemeral[oid]
+		m.reaperLists = append(m.reaperLists, page)
+		oid = le.Uint64(page.data[32:])
 	}
 	m.space.protected, m.space.protectedPool = storage.protected, storage.pool
 	return nil

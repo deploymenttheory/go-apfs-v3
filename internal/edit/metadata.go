@@ -32,6 +32,7 @@ const userFlags uint32 = 0x800f // UF_NODUMP, UF_IMMUTABLE, UF_APPEND, UF_OPAQUE
 var MetadataFields = []string{"accessTime", "birthTime", "bsdFlags", "changeTime", "gid", "mode", "modifyTime", "uid"}
 
 func copyNode(n filesystem.Node) filesystem.Node {
+	n.MetadataOmissions = slices.Clone(n.MetadataOmissions)
 	n.MetadataDefaulted = slices.Clone(n.MetadataDefaulted)
 	n.MetadataModified = slices.Clone(n.MetadataModified)
 	n.AttributesModified = slices.Clone(n.AttributesModified)
@@ -275,6 +276,7 @@ func (r *Tree) setMetadata(ctx context.Context, o *editedObject, patch filesyste
 		*p.target = p.input
 		fields = markField(fields, p.name)
 		o.node.MetadataDefaulted = slices.DeleteFunc(o.node.MetadataDefaulted, func(name string) bool { return name == p.name })
+		o.node.MetadataOmissions = slices.DeleteFunc(o.node.MetadataOmissions, func(value filesystem.MetadataOmission) bool { return value.Field == p.name })
 		changed = true
 	}
 	for _, p := range []struct {
@@ -300,6 +302,7 @@ func (r *Tree) setMetadata(ctx context.Context, o *editedObject, patch filesyste
 		*p.target = filesystem.Observed(v)
 		fields = markField(fields, p.name)
 		o.node.MetadataDefaulted = slices.DeleteFunc(o.node.MetadataDefaulted, func(name string) bool { return name == p.name })
+		o.node.MetadataOmissions = slices.DeleteFunc(o.node.MetadataOmissions, func(value filesystem.MetadataOmission) bool { return value.Field == p.name })
 		changed = true
 	}
 	if !changed {

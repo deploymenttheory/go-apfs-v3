@@ -352,6 +352,14 @@ func TestWorkspaceRejectsInvalidManifest(t *testing.T) {
 		{"invalid attribute marker", func(m *manifest) { m.Schema = 4; m.Objects[0].Node.AttributesModified = []string{""} }},
 		{"created flag in old schema", func(m *manifest) { m.Objects[0].Node.Created = true }},
 		{"changed links in old schema", func(m *manifest) { m.Objects[0].Node.LinksModified = true }},
+		{"host provenance in old schema", func(m *manifest) {
+			m.Schema = 5
+			m.Objects[0].Node.MetadataOmissions = []filesystem.MetadataOmission{{Field: "acl", SourceFormat: "linux-posix-acl", Status: filesystem.MetadataUnsupported, Reason: "foreign ACL"}}
+		}},
+		{"invalid host provenance status", func(m *manifest) {
+			m.Schema = 6
+			m.Objects[0].Node.MetadataOmissions = []filesystem.MetadataOmission{{Field: "acl", SourceFormat: "linux-posix-acl", Status: "absent", Reason: "foreign ACL"}}
+		}},
 		{"unknown observation state", func(m *manifest) { m.Objects[0].Node.Metadata.UID.State = 3 }},
 		{"invalid blob size", func(m *manifest) { m.Objects[0].Data.Size = -1 }},
 		{"unavailable raw data", func(m *manifest) { m.Objects[0].RawData = nil }},

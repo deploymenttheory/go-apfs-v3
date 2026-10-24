@@ -227,8 +227,11 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 	if err == nil {
 		err = writePackCompressionReport(out, report.FileCompression, report.Compression)
 	}
-	if err == nil && (len(provenance.Defaulted) > 0 || len(provenance.AttributesUnavailable) > 0) {
-		_, err = fmt.Fprintf(out, "Host metadata defaults on %d objects; attributes unavailable on %d objects.\n", len(provenance.Defaulted), len(provenance.AttributesUnavailable))
+	if err == nil && (len(provenance.Defaulted) > 0 || len(provenance.AttributesUnavailable) > 0 || len(report.MetadataOmissions) > 0) {
+		_, err = fmt.Fprintf(out, "Host metadata defaults on %d objects; attributes unavailable on %d objects; %d metadata omissions (use --json for field/status/reason).\n", len(provenance.Defaulted), len(provenance.AttributesUnavailable), len(report.MetadataOmissions))
+	}
+	if err == nil {
+		err = writeMetadataOmissions(out, report.MetadataOmissions)
 	}
 	return err
 }

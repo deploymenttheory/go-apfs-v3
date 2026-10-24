@@ -110,7 +110,7 @@ func (r *Tree) AttributeAvailability(ctx context.Context, id uint64, unavailable
 	if err != nil {
 		return err
 	}
-	o.node.AttributesUnavailable = o.node.AttributesUnavailable || unavailable
+	o.node.AttributesUnavailable = unavailable
 	return nil
 }
 
@@ -119,4 +119,19 @@ func (r *Tree) AttributeAvailability(ctx context.Context, id uint64, unavailable
 func (r *Tree) ApplyCommand(ctx context.Context, change Change) error {
 	clear(r.replaced)
 	return r.Apply(ctx, change)
+}
+
+// MetadataOmissions records the current source availability/conversion policy.
+// A copy replaces its previous source provenance, rather than accumulating stale
+// omissions from a destination that has since received supported metadata.
+func (r *Tree) MetadataOmissions(ctx context.Context, id uint64, values []filesystem.MetadataOmission) error {
+	if err := filesystem.ValidateMetadataOmissions(values); err != nil {
+		return err
+	}
+	o, err := r.getNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	o.node.MetadataOmissions = append([]filesystem.MetadataOmission(nil), values...)
+	return nil
 }

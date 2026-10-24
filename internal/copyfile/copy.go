@@ -282,8 +282,9 @@ func (c *copier) attributes(ctx context.Context, e *copyEntry, dst string) (map[
 	if c.options.FromHost {
 		var err error
 		names, err = hostAttributes(e.path)
-		if errors.Is(err, filesystem.ErrUnsupported) {
+		if err == filesystem.ErrUnsupported || err == errHostAttributeConversion {
 			e.node.AttributesUnavailable = true
+			e.node.MetadataOmissions = append(e.node.MetadataOmissions, hostAttributeOmission(err))
 			return attrs, nil
 		}
 		if err != nil {
@@ -307,6 +308,11 @@ func (c *copier) attributes(ctx context.Context, e *copyEntry, dst string) (map[
 		removed = r
 	}
 	for _, name := range names {
+		// POSIX ACL encodings are security metadata, not ordinary Darwin
+		// attributes. hostSecurity reports their exact availability/conversion.
+		if c.options.FromHost && (name == "system.posix_acl_access" || name == "system.posix_acl_default") {
+			continue
+		}
 		// Apple's ordinary COPYFILE_XATTR view hides filesec. ACL copying is
 		// requested separately by cp -p; never treat it as an ordinary xattr.
 		if name == filesec.Attribute {
@@ -457,6 +463,8 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 	kind := e.node.Metadata.Mode.Value & 0170000
 	current, err := resolve(ctx, c.backend.Tree, dst, kind == 0100000)
 	exists := err == nil
+	existed := exists
+	var prior filesystem.Node
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -468,6 +476,7 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		if err != nil {
 			return err
 		}
+		prior = n
 		if !c.options.FromHost && current.id == e.node.Identity.Object {
 			return filesystem.ErrConflict
 		}
@@ -509,6 +518,8 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 				return err
 			}
 			exists = false
+			existed = false
+			prior = filesystem.Node{}
 		}
 		if first := c.links[e.key]; c.options.PreserveLinks && first != "" {
 			if err := c.backend.Apply(ctx, edit.Change{Op: edit.CreateHardLink, Path: first, To: dst}); err != nil {
@@ -711,11 +722,26 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 			return err
 		}
 	}
+	retainedUnknownAttributes := false
 	if !c.options.NoAttributes {
-		if err = c.backend.Tree.AttributeAvailability(ctx, at.id, e.node.AttributesUnavailable); err != nil {
+		// Quarantine is retained when the source omits it. Do not clear
+		// prior uncertainty for that one surviving destination attribute.
+		if !e.node.AttributesUnavailable && prior.AttributesUnavailable && attrs["com.apple.quarantine"] == nil {
+			v, err := c.backend.Tree.OpenAttribute(ctx, at.id, "com.apple.quarantine")
+			if err == nil {
+				retainedUnknownAttributes = true
+				if err := v.Close(); err != nil {
+					return err
+				}
+			} else if !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+		}
+		if err = c.backend.Tree.AttributeAvailability(ctx, at.id, e.node.AttributesUnavailable || retainedUnknownAttributes); err != nil {
 			return err
 		}
 	}
+	retainedACL := false
 	if c.options.Preserve {
 		if !c.options.FromHost {
 			security, err := filesec.Read(ctx, c.backend.Tree, e.node.Identity.Object)
@@ -725,12 +751,23 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 			if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
 				return err
 			}
-		} else if c.backend.Omitted != nil {
-			// Host stat/xattr observations do not capture Darwin filesec.
-			// Uncaptured security must never be treated as an observed absent
-			// ACL and remove a destination's existing security information.
-			c.backend.Omitted(Omission{e.path, dst, filesec.Attribute,
-				"host Darwin ACL was not captured; destination ACL retained"})
+		} else {
+			security, omission, err := hostSecurity(e.path)
+			if err != nil {
+				return err
+			}
+			if omission == nil {
+				if err = c.backend.Tree.CopySecurity(ctx, at.id, security); err != nil {
+					return err
+				}
+			} else {
+				retainedACL = true
+				e.node.MetadataOmissions = append(e.node.MetadataOmissions, *omission)
+				if c.backend.Omitted != nil {
+					c.backend.Omitted(Omission{Source: e.path, Destination: dst, Attribute: filesec.Attribute, Reason: omission.Reason})
+				}
+			}
+
 		}
 		m.ChangeTime = filesystem.Observation[time.Time]{}
 		// Birth time preservation is qualified independently from runtime ctime.
@@ -744,6 +781,16 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 	}
 	if err = c.changeTime(ctx, at.id); err != nil {
 		return err
+	}
+	if c.options.FromHost {
+		e.node.MetadataOmissions = append(e.node.MetadataOmissions, hostDefaultOmissions()...)
+	}
+	omissions := copiedOmissions(prior.MetadataOmissions, e.node.MetadataOmissions, !existed, c.options.Preserve, c.options.NoAttributes, e.node.AttributesUnavailable || retainedUnknownAttributes, retainedACL)
+	if err = c.backend.Tree.MetadataOmissions(ctx, at.id, omissions); err != nil {
+		return err
+	}
+	if existed && !c.options.Preserve {
+		defaults = nil
 	}
 	if err = c.backend.Tree.Defaults(ctx, at.id, defaults); err != nil {
 		return err

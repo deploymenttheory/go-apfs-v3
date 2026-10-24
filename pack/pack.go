@@ -49,14 +49,15 @@ type layout interface {
 	Write(context.Context, io.Writer) error
 }
 type Report struct {
-	Clones          []CloneOutcome        `json:"clones,omitempty"`
-	Format          string                `json:"format"`
-	Filesystem      string                `json:"filesystem"`
-	VolumeBytes     int64                 `json:"volumeBytes"`
-	ImageBytes      int64                 `json:"imageBytes"`
-	Encryption      *diskimage.Encryption `json:"encryption,omitempty"`
-	FileCompression string                `json:"fileCompression"`
-	Compression     []CompressionOutcome  `json:"compression,omitempty"`
+	MetadataOmissions []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
+	Clones            []CloneOutcome                      `json:"clones,omitempty"`
+	Format            string                              `json:"format"`
+	Filesystem        string                              `json:"filesystem"`
+	VolumeBytes       int64                               `json:"volumeBytes"`
+	ImageBytes        int64                               `json:"imageBytes"`
+	Encryption        *diskimage.Encryption               `json:"encryption,omitempty"`
+	FileCompression   string                              `json:"fileCompression"`
+	Compression       []CompressionOutcome                `json:"compression,omitempty"`
 }
 
 // Write streams a fresh volume through the DMG encoder. The caller owns the
@@ -93,9 +94,14 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 		err = errors.Join(err, prepared.Close())
 		if err != nil {
 			report.Clones = nil
+			report.MetadataOmissions = nil
 		}
 	}()
 	r = prepared
+	omissions, err := filesystem.CollectMetadataOmissions(ctx, r)
+	if err != nil {
+		return report, err
+	}
 	clones, err := cloneOutcomes(ctx, r, false)
 	if err != nil {
 		return report, err
@@ -131,6 +137,7 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes, Encryption: encryptionInfo(o.Encryption)}
 	report.FileCompression, report.Compression = compressionPolicy(o.FileCompression), prepared.Outcomes()
 	report.Clones = clones
+	report.MetadataOmissions = omissions
 	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
@@ -147,14 +154,15 @@ type ContainerOptions struct {
 }
 
 type ContainerReport struct {
-	Clones          []CloneOutcome        `json:"clones,omitempty"`
-	Format          string                `json:"format"`
-	VolumeCount     int                   `json:"volumeCount"`
-	ContainerBytes  int64                 `json:"containerBytes"`
-	ImageBytes      int64                 `json:"imageBytes"`
-	Encryption      *diskimage.Encryption `json:"encryption,omitempty"`
-	FileCompression string                `json:"fileCompression"`
-	Compression     []CompressionOutcome  `json:"compression,omitempty"`
+	MetadataOmissions []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
+	Clones            []CloneOutcome                      `json:"clones,omitempty"`
+	Format            string                              `json:"format"`
+	VolumeCount       int                                 `json:"volumeCount"`
+	ContainerBytes    int64                               `json:"containerBytes"`
+	ImageBytes        int64                               `json:"imageBytes"`
+	Encryption        *diskimage.Encryption               `json:"encryption,omitempty"`
+	FileCompression   string                              `json:"fileCompression"`
+	Compression       []CompressionOutcome                `json:"compression,omitempty"`
 }
 
 // WriteContainer streams one fresh APFS container through the DMG encoder.
@@ -187,10 +195,12 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 		}
 		if err != nil {
 			report.Clones = nil
+			report.MetadataOmissions = nil
 		}
 	}()
 	var outcomes []CompressionOutcome
 	var clones []CloneOutcome
+	var omissions []filesystem.MetadataOmissionRecord
 	for i := range volumes {
 		cloneReader, e := filesystem.PrepareCloneStreams(ctx, volumes[i].Reader)
 		if e != nil {
@@ -212,6 +222,14 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 			outcome.Volume = volumes[i].Name
 			clones = append(clones, outcome)
 		}
+		volumeOmissions, e := filesystem.CollectMetadataOmissions(ctx, r)
+		if e != nil {
+			return report, e
+		}
+		for _, outcome := range volumeOmissions {
+			outcome.Volume = volumes[i].Name
+			omissions = append(omissions, outcome)
+		}
 		volumes[i].Reader = r
 		for _, outcome := range r.Outcomes() {
 			outcome.Volume = volumes[i].Name
@@ -231,7 +249,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 			return report, err
 		}
 	}
-	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes, Clones: clones}, nil
+	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes, Clones: clones, MetadataOmissions: omissions}, nil
 }
 
 func compressionPolicy(policy string) string {
@@ -247,6 +265,7 @@ func CreateContainer(ctx context.Context, path string, volumes []apfs.VolumeSpec
 	var published *filesystem.PublishedOutputError
 	if err != nil && !errors.As(err, &published) {
 		report.Clones = nil
+		report.MetadataOmissions = nil
 	}
 	return report, err
 }
@@ -294,6 +313,7 @@ func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (r
 	var published *filesystem.PublishedOutputError
 	if err != nil && !errors.As(err, &published) {
 		report.Clones = nil
+		report.MetadataOmissions = nil
 	}
 	return report, err
 }

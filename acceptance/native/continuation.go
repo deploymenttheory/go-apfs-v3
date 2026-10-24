@@ -135,7 +135,8 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
-	nativeSpec := schema.ObserveSpec{}
+	sourceObservation := v.Cases[CaseKey(out.Source)].Observation
+	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation)}
 	if out.Source.Recipe == "apfs-clones" {
 		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
 	}
@@ -145,6 +146,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, nativeSpec, k.recipe)
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
+	}
+	if nativeSpec.Snapshots {
+		if err := compareHistoricalViews(before, sourceObservation); err != nil {
+			return before, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
+		}
 	}
 	var cloneBefore schema.View
 	if out.Source.Recipe == "apfs-clones" {

@@ -34,11 +34,12 @@ type attachmentDiagnosticStream struct {
 }
 
 type attachmentDiagnosticProbe struct {
-	Command int
-	Started string
-	Error   string `json:",omitempty"`
-	Stdout  attachmentDiagnosticStream
-	Stderr  attachmentDiagnosticStream
+	Command  int
+	Started  string
+	Returned string
+	Error    string `json:",omitempty"`
+	Stdout   attachmentDiagnosticStream
+	Stderr   attachmentDiagnosticStream
 }
 
 type attachmentDiagnosticMount struct {
@@ -82,9 +83,10 @@ func (c *attachmentDiagnostics) run(ctx context.Context, label string, sudo bool
 	} else {
 		result = c.disk.C.Run(ctx, cmd)
 	}
+	returned := time.Now().UTC().Format(time.RFC3339Nano)
 	index := len(c.disk.T.Commands)
 	err := errors.Join(c.disk.T.Record(cmd, result), ctx.Err())
-	probe := attachmentDiagnosticProbe{Command: index, Started: started, Stdout: c.stream(result.Stdout), Stderr: c.stream(result.Stderr)}
+	probe := attachmentDiagnosticProbe{Command: index, Started: started, Returned: returned, Stdout: c.stream(result.Stdout), Stderr: c.stream(result.Stderr)}
 	if err != nil {
 		probe.Error = err.Error()
 		c.err = errors.Join(c.err, err)

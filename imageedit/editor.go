@@ -15,6 +15,7 @@ type Editor struct {
 	view    *mutablePartition
 	isAPFS  bool
 	options Options
+	command uint64
 	report  Report
 	active  bool
 	failed  error
@@ -54,6 +55,7 @@ func (e *Editor) ready() error {
 
 func (e *Editor) collect(r Report) {
 	e.report.Clones = append(e.report.Clones, r.Clones...)
+	e.report.MetadataOmissions = append(e.report.MetadataOmissions, r.MetadataOmissions...)
 	e.report.VolumeID, e.report.FreeBlocks, e.report.Transaction = r.VolumeID, r.FreeBlocks, r.Transaction
 	e.report.Changed = append(e.report.Changed, r.Changed...)
 }
@@ -64,6 +66,7 @@ func (e *Editor) Apply(changes []Change) (Report, error) {
 	if err := e.ready(); err != nil {
 		return Report{}, err
 	}
+	e.command++
 	if len(changes) == 0 {
 		e.failed = fs.ErrInvalid
 		return Report{}, e.failed
@@ -94,10 +97,16 @@ func (e *Editor) Copy(commands []CopyCommand) (CopyReport, error) {
 	if err := e.ready(); err != nil {
 		return CopyReport{}, err
 	}
+	e.command++
 	result, err := copyTo(e.ctx, e.view, e.isAPFS, e.options, commands)
 	if err != nil {
 		e.failed = err
+		result.MetadataOmissions = nil
 		return result, err
+	}
+	for i := range result.MetadataOmissions {
+		result.MetadataOmissions[i].Command = e.command
+		result.MetadataOmissions[i].ClockNS = e.options.Time.UnixNano()
 	}
 	e.collect(result.Report)
 	return result, nil

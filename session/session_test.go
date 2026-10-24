@@ -230,8 +230,8 @@ func TestCopyPoliciesAndHostDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if runtime.GOOS == "windows" {
-		if n.Metadata.Mode.Value != 0100644 || n.Metadata.UID.Value != 0 || n.Metadata.GID.Value != 0 || !n.AttributesUnavailable {
-			t.Fatal("missing Windows default observations", n)
+		if n.Metadata.Mode.Value != 0100644 || n.Metadata.UID.Value != 0 || n.Metadata.GID.Value != 0 || n.AttributesUnavailable {
+			t.Fatal("missing Windows defaults or invented named streams", n)
 		}
 	} else if n.Metadata.Mode.Value != 0100751 {
 		t.Fatalf("preserved mode: %#o", n.Metadata.Mode.Value)
