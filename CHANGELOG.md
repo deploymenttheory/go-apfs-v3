@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/deploymenttheory/go-apfs-v3/compare/v0.1.0...v0.2.0) (2026-10-24)
+
+
+### Features
+
+* **apfs:** create native clones through ordinary copy commands ([8dd473a](https://github.com/deploymenttheory/go-apfs-v3/commit/8dd473ad4db20fb3e80e8cdffadb8e6ddcfd9bbc))
+* **apfs:** edit shared clone streams with copy-on-write ownership ([1705c1b](https://github.com/deploymenttheory/go-apfs-v3/commit/1705c1b4e706b55700a5c7124452df16bfb45a8b))
+* **copy:** retain clone stream intent through logical edits ([a6d9f50](https://github.com/deploymenttheory/go-apfs-v3/commit/a6d9f50d6abebc7fafaa56dda5bf994e126dea59))
+* **diskimage:** decode bounded LZFSE UDIF chunks ([0482c48](https://github.com/deploymenttheory/go-apfs-v3/commit/0482c48072754e0b8bc31cad1205e67b40b396d2))
+* **diskimage:** decode bounded LZFSE UDIF chunks ([abea1a6](https://github.com/deploymenttheory/go-apfs-v3/commit/abea1a6727f2baf27ce05aac95c9188b5274af97))
+* **diskimage:** read bounded LZFSE UDIF chunks ([d3b00c9](https://github.com/deploymenttheory/go-apfs-v3/commit/d3b00c960c775ebf3262e7f8d29bcd1dd1c3e5ac))
+* edit existing APFS clones and encrypted disk images ([38f949f](https://github.com/deploymenttheory/go-apfs-v3/commit/38f949fe1b6e40e4980077d882ccb010ec3528ac))
+* **filesystem:** declare explicit per-stream clone lineage ([3d34869](https://github.com/deploymenttheory/go-apfs-v3/commit/3d348695e4e881e6d5755b0cfc5574ad1b85f7b4))
+* **filesystem:** retain captured partial clone stream identity ([7294564](https://github.com/deploymenttheory/go-apfs-v3/commit/72945647a4411be214617cd49140fd69f2386360))
+* **filesystem:** validate clone lineage and expose partial sharing ([93c1863](https://github.com/deploymenttheory/go-apfs-v3/commit/93c18632556bc865d0c55b3875c9684ba15a73ff))
+* **pack:** materialize explicit APFS clone stream sharing ([47b44b6](https://github.com/deploymenttheory/go-apfs-v3/commit/47b44b6317a7d3dbe3642f209c1ce373d5813629))
+* preserve APFS clone sharing through copy and sessions ([7566f10](https://github.com/deploymenttheory/go-apfs-v3/commit/7566f1030c628e950564dd29b0e0fc3339cca6e4))
+* **session:** persist explicit clone stream relationships ([ef1dc03](https://github.com/deploymenttheory/go-apfs-v3/commit/ef1dc03b5e3fb2fe98889c332c894d5630b8a3a2))
+
+
+### Bug Fixes
+
+* **acceptance:** bind APFS inventory to the observed device ([0681da3](https://github.com/deploymenttheory/go-apfs-v3/commit/0681da365cc66de78889919b8a386b2f79a60c3f))
+* **acceptance:** bind every image cleanup to its owner ([e510ae7](https://github.com/deploymenttheory/go-apfs-v3/commit/e510ae7cca79f5d783c3fc40d432149be0d4c7e5))
+* **acceptance:** bound fixture image lifetimes and verify platform gates ([4a55ce4](https://github.com/deploymenttheory/go-apfs-v3/commit/4a55ce4ab52088f10f566f774a9f5f9b84035392))
+* **acceptance:** declare raw input when re-encrypting native edits ([f3fdbc2](https://github.com/deploymenttheory/go-apfs-v3/commit/f3fdbc2681980d76423067d0bd5e95aef537403a))
+* **acceptance:** guard approved volume unmount dissent ([b7d0b35](https://github.com/deploymenttheory/go-apfs-v3/commit/b7d0b358a9ecc589397ede36727d8d9e54086ae0))
+* **acceptance:** guard native attachment and mount cleanup ([0f267b3](https://github.com/deploymenttheory/go-apfs-v3/commit/0f267b340d67050a43be68b4aebf09fc18f8b657))
+* **acceptance:** keep native verification progressing ([e79016e](https://github.com/deploymenttheory/go-apfs-v3/commit/e79016e11ffa9e8c65e2e42363afaf107b49329c))
+* **acceptance:** normalize host paths before resource-fork detection ([d4b7e6f](https://github.com/deploymenttheory/go-apfs-v3/commit/d4b7e6fe461048dae94909882636303bdfc764ae))
+* **acceptance:** pin snapshot mount identity during cleanup ([36b6eac](https://github.com/deploymenttheory/go-apfs-v3/commit/36b6eac71621f7e7e8f9a8698186fc945b837acd))
+* **acceptance:** preserve native cleanup failures and evidence ([5fd3fb9](https://github.com/deploymenttheory/go-apfs-v3/commit/5fd3fb9c0d0d406413cd206eb9a9fdb49bbb3a9c))
+* **acceptance:** release run-owned fixture images after readers close ([1d84df5](https://github.com/deploymenttheory/go-apfs-v3/commit/1d84df572690dad74adae03d70f335848aa0cc6d))
+* **acceptance:** retain failed output verification commands ([c445f31](https://github.com/deploymenttheory/go-apfs-v3/commit/c445f31f2b3d1d7284c5ed77416c7cbb2c98ff90))
+* **acceptance:** retry transient busy snapshot unmount ([69add77](https://github.com/deploymenttheory/go-apfs-v3/commit/69add77ba53f7c6b6f4062500e825bc0bd77aad0))
+* **acceptance:** share guarded image operation retries ([4e0e767](https://github.com/deploymenttheory/go-apfs-v3/commit/4e0e767234000af2dd65405a384f5fb01708e9f3))
+* **acceptance:** share image lifecycle retries on macOS 26+ ([ffbe16c](https://github.com/deploymenttheory/go-apfs-v3/commit/ffbe16c46014db1cbaad0fb413ecb12b20d57033))
+* **acceptance:** size native continuations and retain busy evidence ([589a9c4](https://github.com/deploymenttheory/go-apfs-v3/commit/589a9c45c07235d6988336971f188fae026aa633))
+* **acceptance:** wait for partitioned image volume slices ([eb44317](https://github.com/deploymenttheory/go-apfs-v3/commit/eb443176224a457f46e4055d0ecaece9bc48c80c))
+* **acceptance:** wait for partitioned image volume slices ([2531804](https://github.com/deploymenttheory/go-apfs-v3/commit/2531804a03741a141eb9ec6603f45c2687a32ccb))
+* **apfs:** require inode stream ownership before replacement or release ([39623d1](https://github.com/deploymenttheory/go-apfs-v3/commit/39623d1672188112947fb8a71cf2fdbc2da144fc))
+* **apfs:** reserve checkpoint capacity for ephemeral growth ([a347955](https://github.com/deploymenttheory/go-apfs-v3/commit/a3479556d1b3fa1529afc4b1cd22681644ccca0e))
+* **apfs:** retain owned empty clone stream identity during capture ([1d51046](https://github.com/deploymenttheory/go-apfs-v3/commit/1d51046208c13cf1b31eb230b2b84ad3d2231539))
+* **apfs:** size checkpoints for allocator growth and qualify workflows ([81eca7f](https://github.com/deploymenttheory/go-apfs-v3/commit/81eca7fdebbc0ec4af9f4246821d5296411ed489))
+* **copy:** preserve untouched source ACL clone lineage ([5a2bb0a](https://github.com/deploymenttheory/go-apfs-v3/commit/5a2bb0a4cd39e1f5b1427aec53ce3bcde68f0e46))
+* **copy:** retain native alias clocks and symlink ACL creation policy ([c7fc0cb](https://github.com/deploymenttheory/go-apfs-v3/commit/c7fc0cbcc8464f6b035ba6d3e43d596c2f89e226))
+* **decmpfs:** decode type-4 zlib blocks with resource suffix ([59da994](https://github.com/deploymenttheory/go-apfs-v3/commit/59da9942d5aa6ec994543c37c1a72291dd0e4245))
+* **decmpfs:** decode type-4 zlib blocks with resource suffix ([7a26153](https://github.com/deploymenttheory/go-apfs-v3/commit/7a26153eb16526457e79376c10c2b6c4a7e0dd37))
+* **fixture:** bind legacy kernel disk-image owners explicitly ([685d5a2](https://github.com/deploymenttheory/go-apfs-v3/commit/685d5a21f818cd6d613c6c661e170351a853c26a))
+* **fixture:** distinguish ownership from completed attachment cleanup ([86f4f9e](https://github.com/deploymenttheory/go-apfs-v3/commit/86f4f9e9ea48d2db7357429b8a0ea3912eb9d3ed))
+* **fixture:** project ownership from opaque registry archives ([2a6bb49](https://github.com/deploymenttheory/go-apfs-v3/commit/2a6bb49f2b809efc3ac23c98a820e71852298b82))
+* **fixture:** refuse release while the expected image remains attached ([85d864b](https://github.com/deploymenttheory/go-apfs-v3/commit/85d864b85401573e8ced2cb13b7949ff2a10cb27))
+* **fixture:** require kernel proof for missing image ownership ([b313b25](https://github.com/deploymenttheory/go-apfs-v3/commit/b313b25502422e06400eace75e4b6b138607fdfd))
+* **fixture:** retain related attachment failure evidence ([962d696](https://github.com/deploymenttheory/go-apfs-v3/commit/962d696e220a12e43369e63acac833c91757ff19))
+* **fixture:** separate native image paths from host resolution ([bdeaf76](https://github.com/deploymenttheory/go-apfs-v3/commit/bdeaf76a19c4566e001b4f92106f9893767664f6))
+* **imageedit:** bind clone outcomes to the actual publication ([dd1aabc](https://github.com/deploymenttheory/go-apfs-v3/commit/dd1aabc90feee9f793e0a23e0daf52effaa7285f))
+* **imageedit:** report clones only after image publication ([f928ab7](https://github.com/deploymenttheory/go-apfs-v3/commit/f928ab7a2e985048aed85055d43e0f2464fd7a82))
+* **imageedit:** retain clone outcomes for visible completed outputs ([8f4bc59](https://github.com/deploymenttheory/go-apfs-v3/commit/8f4bc59e94100498736a1a20be244fcd106f5335))
+* **pack:** reconcile clone descriptors before compression ([8a64efb](https://github.com/deploymenttheory/go-apfs-v3/commit/8a64efb9cdf3dec58f41cbad4fcdf561cc40c703))
+* **pack:** validate source clone groups before storage transforms ([c369399](https://github.com/deploymenttheory/go-apfs-v3/commit/c369399b4fbcd2c04d3f75d2d2886a56c3a197be))
+* **session:** release exclusive locks before closing inherited descriptors ([1cd0833](https://github.com/deploymenttheory/go-apfs-v3/commit/1cd083389d77bfaaca073d9e3da81ed6537f042e))
+* **session:** report clones only after successful publication ([246e017](https://github.com/deploymenttheory/go-apfs-v3/commit/246e01711ee5c103fa9d9d8c2cfa8e2b1302416c))
+
 ## 1.0.0 (2026-10-21)
 
 
