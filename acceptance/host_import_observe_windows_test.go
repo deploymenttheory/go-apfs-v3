@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"testing"
 	"time"
 	"unicode/utf16"
 	"unsafe"
@@ -17,6 +18,15 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"golang.org/x/sys/windows"
 )
+
+// FILE_BASIC_INFO contains four LARGE_INTEGERs, not four merely uint32-aligned
+// FILETIMEs. The separate native observer must satisfy the SDK ABI independently
+// of the product adapter. See Microsoft's go-winio/fileinfo.go aligned layout.
+type hostInputWindowsBasicInfo struct {
+	CreationTime, AccessTime, ModifyTime, ChangeTime uint64
+	FileAttributes                                   uint32
+	_                                                uint32
+}
 
 func observeHostInputPlatform(filename string, info os.FileInfo) (v schema.HostInputEntry, resultErr error) {
 	name, err := windows.UTF16PtrFromString(filename)
@@ -82,20 +92,30 @@ func observeHostInputPlatform(filename string, info os.FileInfo) (v schema.HostI
 	}
 	// Observe the actual basic-info timestamps after our own stream reads.
 	// ChangeTime independently detects owner/security-only source changes.
-	basic := make([]byte, 40)
-	if err := windows.GetFileInformationByHandleEx(h, windows.FileBasicInfo, &basic[0], uint32(len(basic))); err != nil {
+	var basic hostInputWindowsBasicInfo
+	if err := windows.GetFileInformationByHandleEx(h, windows.FileBasicInfo, (*byte)(unsafe.Pointer(&basic)), uint32(unsafe.Sizeof(basic))); err != nil {
 		return v, err
 	}
-	stamp := func(off int) int64 {
-		value := windows.Filetime{LowDateTime: binary.LittleEndian.Uint32(basic[off:]), HighDateTime: binary.LittleEndian.Uint32(basic[off+4:])}
+	stamp := func(ticks uint64) int64 {
+		value := windows.Filetime{LowDateTime: uint32(ticks), HighDateTime: uint32(ticks >> 32)}
 		return time.Unix(0, value.Nanoseconds()).UnixNano()
 	}
-	v.Entry.Times = schema.Times{Birth: stamp(0), Access: stamp(8), Modify: stamp(16), Change: stamp(24)}
+	v.Entry.Times = schema.Times{Birth: stamp(basic.CreationTime), Access: stamp(basic.AccessTime), Modify: stamp(basic.ModifyTime), Change: stamp(basic.ChangeTime)}
 	for _, field := range []string{"birthTime", "accessTime", "modifyTime", "changeTime"} {
 		v.Fields = append(v.Fields, hostInputField(field, "present", "windows-file-basic-info", ""))
 	}
 	slices.SortFunc(v.Fields, func(a, b schema.HostInputField) int { return strings.Compare(a.Field, b.Field) })
 	return v, nil
+}
+
+func TestHostInputWindowsBasicInfoMatchesNativeSizeAlignmentAndOffsets(t *testing.T) {
+	var record hostInputWindowsBasicInfo
+	if unsafe.Sizeof(record) != 40 || unsafe.Alignof(record) != 8 || uintptr(unsafe.Pointer(&record))%8 != 0 {
+		t.Fatalf("FILE_BASIC_INFO ABI: size=%d alignment=%d address%%8=%d", unsafe.Sizeof(record), unsafe.Alignof(record), uintptr(unsafe.Pointer(&record))%8)
+	}
+	if offsets := [5]uintptr{unsafe.Offsetof(record.CreationTime), unsafe.Offsetof(record.AccessTime), unsafe.Offsetof(record.ModifyTime), unsafe.Offsetof(record.ChangeTime), unsafe.Offsetof(record.FileAttributes)}; offsets != [5]uintptr{0, 8, 16, 24, 32} {
+		t.Fatal("FILE_BASIC_INFO native field offsets changed", offsets)
+	}
 }
 
 func hostInputUTF16(units []uint16) string {
