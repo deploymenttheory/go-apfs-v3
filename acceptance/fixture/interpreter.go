@@ -574,6 +574,9 @@ func (c *Capture) runTool(ctx context.Context, t *schema.ToolStep) error {
 	if err != nil {
 		return err
 	}
+	if t.Program == "hdiutil" && len(args) > 0 && (args[0] == "attach" || args[0] == "detach") {
+		return fmt.Errorf("hdiutil %s must use the shared Disk attachment lifecycle, not a raw recipe tool command", args[0])
+	}
 	program := t.Program
 	if helper, ok := c.Helpers[program]; ok {
 		program = helper

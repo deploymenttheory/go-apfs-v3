@@ -20,13 +20,16 @@ import (
 // This contract deliberately bypasses the framework inventory for its positive
 // claims, so a green matrix must exercise the live kernel ownership adapter.
 func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
-	if err := RequireDisposableHost(); err != nil {
-		t.Fatal(err)
-	}
 	base := os.Getenv("APFS_NATIVE_WORK")
 	major, err := strconv.Atoi(os.Getenv("APFS_EXPECT_MAJOR"))
 	if base == "" || err != nil || major <= 0 {
 		t.Fatal("APFS_NATIVE_WORK and APFS_EXPECT_MAJOR are required for retained native ownership evidence")
+	}
+	if !schema.IsSupportedProducer(major) {
+		t.Fatalf("unsupported native ownership macOS major %d; supported producers are %v", major, schema.Producers)
+	}
+	if err := RequireDisposableHost(); err != nil {
+		t.Fatal(err)
 	}
 	base = filepath.Join(base, "kernel-image-ownership-contract")
 	if err := os.MkdirAll(base, 0o700); err != nil {

@@ -4,6 +4,12 @@ The library supplies filesystem operations for forensics, packaging, and
 codesigning on Linux, Windows, and macOS. Production interpretation of an image
 on another operating system must never depend on a macOS helper.
 
+macOS support starts at version 26. The current acceptance matrix qualifies
+macOS 26 and 27 with Linux, Windows and Darwin portable hosts. Original macOS 15
+evidence remains archived outside mandatory replay. The
+[acceptance policy](acceptance.md#supported-macos-releases) defines the active
+producer and verifier set.
+
 ## Dependency direction
 
 ```text

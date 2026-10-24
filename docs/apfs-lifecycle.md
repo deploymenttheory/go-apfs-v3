@@ -147,7 +147,7 @@ remain open until their positive controls are available and qualified.
 The Go acceptance family checks each native state on Linux, Windows and macOS:
 volume identity, name policy, locked/unlocked credentials, files, links, forks,
 attributes, metadata and every retained historical view. Fresh controls come from
-macOS 15, 26 and 27. Missing evidence fails rather than becoming a skip.
+macOS 26 and 27. Missing supported evidence fails rather than becoming a skip.
 
 The collector and its C storage observer require `GITHUB_ACTIONS=true` and
 `RUNNER_ENVIRONMENT=github-hosted` before opening files or invoking native tools.
@@ -160,9 +160,10 @@ are retained in `acceptance/testdata/apfs-lifecycle`: 24 states per source OS,
 original source/tool identity, command observations, independent parent history
 and GitHub artifact digests. Original manifests are stored verbatim in gzip;
 small retention receipts expose the cases without rewriting native values.
-All 72 states also pass ordinary-file Go replay locally. The required workflow
-replays every source on Linux, Windows and macOS to establish portable
-qualification. Source review and mocked tests do not supply a native verdict.
+All 72 states passed ordinary-file Go replay during that qualification. The
+current required workflow replays supported producer sources on Linux, Windows
+and macOS to establish portable qualification; original macOS 15 controls remain
+archived outside mandatory replay. Source review and mocked tests do not supply a native verdict.
 Conversion of retained encrypted history and successful arbitrary snapshot naming
 have their own required controls in the corresponding implementation tickets.
 

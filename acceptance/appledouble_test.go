@@ -88,7 +88,7 @@ func TestAppleDoubleMatchesNativeExports(t *testing.T) {
 			})
 		}
 	}
-	for _, major := range []int{15, 26, 27} {
+	for _, major := range schema.Producers {
 		for _, profile := range recipesByName(t)["file-corpus"].Profiles {
 			if !seen[fmt.Sprintf("macos-%d/%s", major, profile)] {
 				t.Errorf("missing AppleDouble consumer for macOS %d/%s", major, profile)

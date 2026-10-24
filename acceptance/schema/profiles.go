@@ -33,5 +33,16 @@ func LookupProfile(id string) (Profile, error) {
 	return Profile{}, fmt.Errorf("unknown profile %q", id)
 }
 
-// Producers lists the macOS major versions that must produce every bundle.
-var Producers = []int{15, 26, 27}
+// Producers lists the supported macOS major versions required by active
+// acceptance, in canonical order. Archived captures remain historical evidence.
+var Producers = []int{26, 27}
+
+// IsSupportedProducer reports whether major participates in active acceptance.
+func IsSupportedProducer(major int) bool {
+	for _, supported := range Producers {
+		if major == supported {
+			return true
+		}
+	}
+	return false
+}

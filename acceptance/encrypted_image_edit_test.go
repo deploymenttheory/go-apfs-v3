@@ -105,7 +105,7 @@ func TestEncryptedImageEditsMatchAppleStates(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		for _, profile := range recipe.Profiles {
 			for _, stage := range []string{"before-aes128", "before-aes256"} {
 				key := fmt.Sprintf("%d/%s/%s", producer, profile, stage)
@@ -290,7 +290,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		if !seen[producer] {
 			t.Errorf("missing native nested encryption control for macOS %d", producer)
 		}

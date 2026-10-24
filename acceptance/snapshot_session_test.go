@@ -123,7 +123,7 @@ func TestSnapshotSessionsRetainTheSelectedHistoricalView(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		for _, profile := range []string{"apfs", "apfsx"} {
 			if !seen[fmt.Sprintf("macos-%d/%s", producer, profile)] {
 				t.Fatalf("corpus lacks historical session controls for macOS %d/%s", producer, profile)

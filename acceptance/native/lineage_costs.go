@@ -4,7 +4,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 // lineageCosts are maximum complete-lineage wall seconds from the successful
@@ -19,6 +22,18 @@ var measuredLineageSeconds = func() map[string]map[string]int {
 	var costs map[string]map[string]int
 	if err := json.Unmarshal(lineageCosts, &costs); err != nil {
 		panic(err)
+	}
+	// Keep every original timing byte above, while only supported producer
+	// measurements participate in the default active fixture schedule.
+	for key := range costs["fixtures"] {
+		producer, _, _ := strings.Cut(key, "/")
+		major, err := strconv.Atoi(strings.TrimPrefix(producer, "macos-"))
+		if err != nil {
+			panic(err)
+		}
+		if !schema.IsSupportedProducer(major) {
+			delete(costs["fixtures"], key)
+		}
 	}
 	return costs
 }()

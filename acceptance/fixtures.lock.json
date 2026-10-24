@@ -3,13 +3,6 @@
   "release": "fixtures/2026.10.22-39768238838",
   "recipesSHA256": "c25a6714ff2696c33b31598b85e99f70dbaa79e1e9b9cc849ea46928f16413f4",
   "bundles": {
-    "macos-15": {
-      "asset": "fixtures-macos-15-c9623cd56b4d5b1b.tar.gz",
-      "sha256": "c9623cd56b4d5b1b165251f1e48d96503f6ba7faeb8416de4adfad031ca5cd15",
-      "bytes": 128020139,
-      "build": "24G830",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39768238838"
-    },
     "macos-26": {
       "asset": "fixtures-macos-26-326c89ec8fcf9b1e.tar.gz",
       "sha256": "326c89ec8fcf9b1e8ecef9bbbbdd2f960019499cfc594b37d8d65991c4748e64",

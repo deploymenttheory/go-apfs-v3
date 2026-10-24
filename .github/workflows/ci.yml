@@ -19,14 +19,14 @@ env:
   APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
 
 # Three tiers. checks and unit gate the source. portable reads every Apple
-# fixture from macOS 15, 26 and 27 with the product on Linux, Windows and
+# fixture from macOS 26 and 27 with the product on Linux, Windows and
 # macOS and produces images from them; portable-slow replays the
 # minutes-long catalog growth stages beside it. native runs on each macOS
-# version from the start, reading the other two versions' fixtures while
+# version from the start, reading the other producer's fixtures while
 # the portable jobs run, then judges, with Apple tools, the images every host derived from
 # that version's fixtures (container checks for sector-preserving repacks;
 # check, mount, readback and a representative native continuation for
-# images Go wrote) and reads the other two versions' fixtures for
+# images Go wrote) and reads the other producer's fixtures for
 # cross-version parity. The fixture corpus is pinned by
 # acceptance/fixtures.lock.json and cached by its digest.
 
@@ -92,7 +92,7 @@ jobs:
         include:
           - {host: linux, runner: ubuntu-24.04}
           - {host: windows, runner: windows-2025}
-          - {host: darwin, runner: macos-15}
+          - {host: darwin, runner: macos-26}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -135,17 +135,9 @@ jobs:
         run: |
           acceptance_package="$(go list ./acceptance)"
           go test -count=1 -timeout 25m "$acceptance_package"
-      # One artifact per producer: the native job for macOS N verifies only
+      # One artifact for each of the two producers: macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.
-      - name: Upload the images derived from macOS 15 fixtures
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: outputs-${{ matrix.host }}-macos-15
-          path: |
-            ${{ runner.temp }}/outputs/outputs.json
-            ${{ runner.temp }}/outputs/macos-15.*
-          if-no-files-found: error
       - name: Upload the images derived from macOS 26 fixtures
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -242,7 +234,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {major: 15, runner: macos-15}
           - {major: 26, runner: macos-26}
           - {major: 27, runner: xcode-27}
     env:

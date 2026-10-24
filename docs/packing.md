@@ -386,14 +386,14 @@ Every portable host captures a session and builds UDRO and UDZO twice. Automatic
 8 MiB and explicit 160 MiB capacities exercise multi-block allocation bitmaps and
 checksum-covered zero chunks; long keys force a three-level catalog. Local
 comparisons check the original observations and reproducibility. CI returns every
-output to macOS 15, 26 and 27 for `hdiutil verify`, `fsck_apfs -n` or
+output to the supported macOS 26 and 27 verifiers for `hdiutil verify`, `fsck_apfs -n` or
 `fsck_hfs -fn`, read-only mounted
 readback and `codesign --verify --deep --strict`. An independent Python comparison
 checks exact values and a bijection of link identities; hashes must match across
 portable hosts for the same captured input and options. No Go writer or reader
 supplies the native expected values or the final native verdict. CI requires
 same-input output hashes to match across hosts before verifying one identical
-copy of each image on every macOS version.
+copy of each image on its fixture producer's supported macOS version.
 
 APFS adds exact birth nanoseconds, tracked documents, 53 native positive/negative
 name lookups per profile and an independently observed empty-directory build. Each
