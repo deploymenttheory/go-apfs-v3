@@ -329,7 +329,7 @@ jobs:
         # sharing a container or volume UUID remain serial within a lineage.
         run: go test -count=1 -v -parallel 5 -timeout 70m -tags native ./acceptance/native
       - name: Upload diagnostics
-        if: failure() || matrix.major == 26
+        if: failure() || matrix.major == 26 || matrix.major == 27
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-macos-${{ matrix.major }}
