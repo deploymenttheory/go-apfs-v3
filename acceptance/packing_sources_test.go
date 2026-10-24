@@ -127,7 +127,7 @@ func TestPackingReopenedPreservationSourcesMatchesNativeFiles(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		for profile := range profiles {
 			if !seen[fmt.Sprintf("macos-%d/%s", producer, profile)] {
 				t.Fatalf("corpus has no packing source for macOS %d/%s", producer, profile)

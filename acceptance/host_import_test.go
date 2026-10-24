@@ -111,7 +111,7 @@ func TestRecursiveHostImportsPreserveNativeLogicalTrees(t *testing.T) {
 			})
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		for _, profile := range recipes["workspace-edits"].Profiles {
 			if !seen[fmt.Sprintf("macos-%d/%s", producer, profile)] {
 				t.Errorf("missing recursive host-import control for macOS %d/%s", producer, profile)

@@ -130,12 +130,15 @@ var (
 )
 
 func buildVerifier() (verifier *Verifier, resultErr error) {
-	if err := fixture.RequireDisposableHost(); err != nil {
-		return nil, err
-	}
 	major, _ := strconv.Atoi(os.Getenv("APFS_EXPECT_MAJOR"))
 	if major == 0 {
 		return nil, fmt.Errorf("APFS_EXPECT_MAJOR is required")
+	}
+	if !schema.IsSupportedProducer(major) {
+		return nil, fmt.Errorf("unsupported native verification macOS major %d; supported producers are %v", major, schema.Producers)
+	}
+	if err := fixture.RequireDisposableHost(); err != nil {
+		return nil, err
 	}
 	commander := fixture.Exec{}
 	producer, err := fixture.IdentifyProducer(context.Background(), commander, major, "")

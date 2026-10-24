@@ -4,6 +4,12 @@ This is the complete agreed scope. A capability requires independent native
 qualification before it is complete. v2 production code and documentation were examined; its `_test` files
 and harness were not imported.
 
+macOS support starts at version 26. Current capture, portable fixture coverage
+and native verification use macOS 26 and 27 alongside Linux/Windows/Darwin
+portable hosts. Historical results below retain their original version lists;
+macOS 15 originals remain archived and are excluded from mandatory replay.
+See [the current support policy](acceptance.md#supported-macos-releases).
+
 | Capability | Current status |
 | --- | --- |
 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
@@ -158,7 +164,7 @@ unknown/deleted snapshot selection, cancellation, corruption and borrowed-key
 lifetime checks. Preserve source image hashes and record native commands,
 observations, source hashes and OS builds.
 
-Require fresh macOS 15/26/27 captures and Linux/Windows/macOS replay, plus the
+Require fresh macOS 26/27 captures and Linux/Windows/macOS replay, plus the
 existing regression matrix. Reuse the common file observation/comparison code;
 report capture and replay duration and avoid a Cartesian product of every
 encryption, compression and filename profile.
@@ -584,7 +590,7 @@ completed-output transaction remain the same.
 
 The existing HFS acceptance family captures journaled and nonjournaled controls
 separately, with bounded source-version Linux race jobs and portable replay on
-all three hosts. Every distinct output returns to macOS 15/26/27 for native
+all three hosts. Every distinct output returns to macOS 26/27 for native
 checker, mounted metadata/content/signature checks and actual subsequent journal
 writes. Go re-edits that native state and Apple verifies it again. Retained
 journaled references provide file-only regression replay. Explicit pending-transaction
@@ -616,7 +622,7 @@ extends the existing HFS scenario family, including both admitted journal profil
 - Mounted workloads retain identity, links, attributes, forks, and durable writes
    under concurrency and remounts. Drivers remain optional dependencies.
 - Seeded deletions recover with provenance; packaging and downstream signing
-   journeys pass native verification on macOS 15, 26, and 27.
+   journeys pass native verification on macOS 26 and 27.
 
 ## Rules
 
@@ -716,9 +722,9 @@ using the published structures and independent observations.
 
 Apple captures retain signed versioned framework material with only its links
 removed. Native readback must accept restored signatures after Go creates them.
-Retained before/growth/removal images on macOS 15/26/27 and fresh required captures
-cover both name policies and both HFS journal profiles. Existing pipelines require
-all portable outputs, complete native/Go/native link cycles and original source
+Retained before/growth/removal images keep their original macOS 15/26/27 identities.
+Fresh required captures on macOS 26/27 cover both name policies and both HFS
+journal profiles. Existing pipelines require all portable outputs, complete native/Go/native link cycles and original source
 preservation. Identity mappings persist across successive edits to detect accidental
 recreation, separated aliases and conflation with retired objects. See
 [link contracts and profile bounds](image-links.md).

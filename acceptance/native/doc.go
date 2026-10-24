@@ -1,5 +1,5 @@
-// Package native verifies Go-produced images with Apple tools on macOS 15,
-// 26 and 27: cross-host equality, hdiutil verify, fsck, diskutil
+// Package native verifies Go-produced images with Apple tools on macOS 26
+// and 27: cross-host equality, hdiutil verify, fsck, diskutil
 // verification, codesign, mounted readback against the fixture
 // observation, native continuation writes followed by a further product
 // edit through the product's command-line binary, and cross-version

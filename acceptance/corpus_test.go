@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 var (
@@ -93,7 +94,7 @@ func TestEveryCorpusCaseHasAConsumer(t *testing.T) {
 	for _, k := range cases {
 		producers[k.Producer] = true
 	}
-	for _, major := range []int{15, 26, 27} {
+	for _, major := range schema.Producers {
 		if !producers[major] {
 			t.Errorf("corpus has no cases from macOS %d", major)
 		}

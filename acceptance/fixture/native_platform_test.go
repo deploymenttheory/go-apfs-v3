@@ -10,7 +10,34 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
+
+func TestNativePlatformArchivesPreserveHistoricalIdentityOutsideActiveReplay(t *testing.T) {
+	archived := map[int]bool{}
+	for _, capture := range archivedNativePlatformCaptures(t) {
+		archived[capture.Major] = true
+	}
+	if !maps.Equal(archived, map[int]bool{15: true, 26: true, 27: true}) {
+		t.Fatal("historical capture identity changed", archived)
+	}
+	active := map[int]bool{}
+	for _, capture := range retainedNativePlatformCaptures(t) {
+		if !schema.IsSupportedProducer(capture.Major) {
+			t.Fatal("unsupported archive entered active replay", capture.Major)
+		}
+		active[capture.Major] = true
+	}
+	if len(active) != len(schema.Producers) {
+		t.Fatal("active platform replay inventory differs", active)
+	}
+	for _, major := range schema.Producers {
+		if !active[major] {
+			t.Fatal("missing supported platform replay", major)
+		}
+	}
+}
 
 func TestNativePlatformOriginalsRetainCompleteIndependentScopesAndAdapterFailures(t *testing.T) {
 	for _, capture := range retainedNativePlatformCaptures(t) {

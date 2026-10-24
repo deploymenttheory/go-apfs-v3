@@ -3,22 +3,23 @@
 The product claims to read, build and edit APFS and HFS+/HFSX images the way
 macOS does. Acceptance testing therefore compares the product with
 fixtures that Apple tools produced, and verifies images the product produced
-with Apple tools, on macOS 15, 26 and 27. Three tiers do this:
+with Apple tools, on macOS 26 and 27. macOS support starts at version 26.
+Three tiers do this:
 
 | Tier | Where | What | When |
 | --- | --- | --- | --- |
-| Fixture corpus | macOS 15, 26, 27 runners | Recipes executed with Apple tools and system calls; the kernel's view recorded | Manual dispatch, when a recipe changes or a macOS version is added |
+| Fixture corpus | macOS 26, 27 runners | Recipes executed with Apple tools and system calls; the kernel's view recorded | Manual dispatch, when a recipe changes or a macOS version is added |
 | Portable conformance | Linux, Windows, macOS | The product reads every fixture from every producer and must match the observation; it builds, edits, copies, repacks and encrypts images from the fixtures | Every pull request |
-| Native truth | macOS 15, 26, 27 | Each version judges, with `hdiutil`, `fsck`, `codesign` and mounted readback, the images every host derived from its own fixtures; native writes and a further product edit follow on a representative set; fixtures from the other versions are cross-mounted | Every pull request |
+| Native truth | macOS 26, 27 | Each version judges, with `hdiutil`, `fsck`, `codesign` and mounted readback, the images every host derived from its own fixtures; native writes and a further product edit follow on a representative set; fixtures from the other versions are cross-mounted | Every pull request |
 
-One pull request starts eleven jobs, four of them macOS: source checks,
+One pull request starts ten jobs, three of them macOS: source checks,
 race-checked unit tests, portable conformance on Linux, Windows and macOS,
-the slow bucket on Linux and Windows, native truth on macOS 15, 26 and 27,
+the slow bucket on Linux and Windows, native truth on macOS 26 and 27,
 and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
 before anything merges to `main`.
 
 The native jobs start beside the source checks and portable jobs.
-Each first reads the other two versions' fixtures, which
+Each first reads the other version's fixtures, which
 needs only the corpus, while the portable jobs produce their images; it
 then collects and verifies the slow bucket's images before every host's main
 outputs. The slow artifacts arrive while the main producers are still working,
@@ -28,9 +29,9 @@ of waiting. Performance qualification still requires complete warm runs.
 
 ## The matrix
 
-- **Producers**: the macOS versions that captured fixtures (15, 26, 27).
+- **Producers**: the active macOS fixture versions (26, 27).
 - **Hosts**: where the product runs (linux, windows, darwin).
-- **Verifiers**: the macOS versions that judge the product's output (15, 26, 27).
+- **Verifiers**: the macOS versions that judge the product's output (26, 27).
 
 Every fixture from every producer is read on every host. Every image the
 product produces is verified by the macOS version whose fixture it came
@@ -38,9 +39,38 @@ from, on every host's copy where the copies differ: plaintext outputs must
 be byte-identical across hosts, and each host's encrypted output must
 decrypt to the same device. Every verifier therefore judges every kind of
 structure the product writes, without repeating the same bytes three times.
-Every fixture is also mounted on the two verifiers that did not produce it,
-and any difference the kernel reports must be in
+Every fixture is also mounted on the other verifier, and any difference
+the kernel reports must be in
 `acceptance/known-drift.json`.
+
+## Supported macOS releases
+
+The minimum supported macOS release is 26. The explicit producer and verifier
+set is currently 26 and 27; a future release enters that set through reviewed
+fixture capture and qualification. Darwin portable conformance runs on macOS 26.
+Linux and Windows remain required portable hosts. Product readers select support
+from filesystem structures and formats, without an image-origin macOS restriction.
+
+macOS 15 is excluded from capture jobs, the active lock, portable fixture cases,
+native verification and mandatory offline replay. Its original bundles, command
+logs, collector sources, observations, ownership archives and digests remain
+unchanged as historical evidence. Archived provenance can list three captures;
+that original inventory does not define the current two-version requirement.
+Mandatory adapter replay selects only the supported captures. Generic injected
+adapter controls continue to cover omitted inventories and uncertain ownership.
+
+The recipe-tree digest includes its README and helper sources. A support-policy
+change reuses the pinned macOS 26/27 bundles without editing that captured tree,
+changing its recipe digest or recapturing solely to update wording. Version lists
+inside that tree describe the original capture baseline; this document describes
+current support. Historical run logs, timing data and known-drift observations
+retain their original version identities. Required timing replay selects only
+current verifiers, and old measurements do not qualify the revised matrix.
+
+Local capture trees may contain one or both supported producers. Discovery ignores
+unsupported version directories; an unsupported-only tree fails clearly. Normal
+pinned acceptance requires both supported bundles and every required case. Missing
+supported evidence, a digest mismatch or a skipped required contract remains fatal.
 
 ## Fixture corpus
 
@@ -470,7 +500,9 @@ independent host-input inventory policy and native control, tracked in
 birth-time availability and provenance cannot be treated as restored fixture
 metadata or silently exempted from deterministic image checks.
 
-The performance changes preserve the required gate and eleven-job workflow.
+The performance changes preserve the required gate. The support-policy revision
+uses the ten-job workflow described above; the retained run measurements describe
+their original eleven-job workflows.
 Issue #134 remains open until three consecutive warm runs of the complete
 combined workload record at most twelve jobs and forty-five minutes wall clock.
 

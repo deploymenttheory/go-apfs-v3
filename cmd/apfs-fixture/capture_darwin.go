@@ -29,6 +29,9 @@ func capture(ctx context.Context, args []string) error {
 	if *major == 0 || *output == "" || *bundleDir == "" {
 		return fmt.Errorf("--expect-major, --output and --bundle-dir are required")
 	}
+	if !schema.IsSupportedProducer(*major) {
+		return fmt.Errorf("unsupported capture macOS major %d; supported producers are %v", *major, schema.Producers)
+	}
 	if err := fixture.RequireDisposableHost(); err != nil {
 		return err
 	}

@@ -63,6 +63,72 @@ func TestContractGateRequiresExecutedPassingContractsAndCompletePackages(t *test
 	}
 }
 
+func TestArchivedPlatformContractsRequireOnlySupportedProducerDescendants(t *testing.T) {
+	parents := []string{
+		"TestNativePlatformOriginalsRetainCompleteIndependentScopesAndAdapterFailures",
+		"TestNativePlatformReplayBindsOriginalPathsAliasesForeignImagesAndPostDetachFacts",
+		"TestCapturedLiveImageWithAStaleDeviceCannotBeReportedReleased",
+		"TestKernelOwnershipStatesReplayCompleteCapturedPlatformResults",
+	}
+	for _, parent := range parents {
+		var descendants []string
+		for _, name := range helperContracts[module+"fixture"] {
+			if strings.HasPrefix(name, parent+"/") {
+				descendants = append(descendants, name)
+			}
+		}
+		if want := []string{parent + "/26", parent + "/27"}; !reflect.DeepEqual(descendants, want) {
+			t.Fatalf("archived producer execution inventory: got %v, want %v", descendants, want)
+		}
+	}
+	current := map[string][]string{}
+	for pkg, names := range helperContracts {
+		for _, name := range names {
+			if !strings.HasSuffix(name, "/15") {
+				current[pkg] = append(current[pkg], name)
+			}
+		}
+		if _, ok := current[pkg]; !ok {
+			current[pkg] = nil
+		}
+	}
+	if err := validateEvents(passingEvents(current), 0, helperContracts); err != nil {
+		t.Fatal("retired producer remains a required execution", err)
+	}
+	for _, parent := range parents {
+		for _, major := range []int{26, 27} {
+			name := fmt.Sprintf("%s/%d", parent, major)
+			for _, action := range []string{"missing", "skip"} {
+				t.Run(name+"/"+action, func(t *testing.T) {
+					var events bytes.Buffer
+					decoder := json.NewDecoder(bytes.NewReader(passingEvents(current)))
+					encoder := json.NewEncoder(&events)
+					for decoder.More() {
+						var event map[string]string
+						if err := decoder.Decode(&event); err != nil {
+							t.Fatal(err)
+						}
+						if event["Package"] == module+"fixture" && event["Test"] == name {
+							if action == "missing" {
+								continue
+							}
+							if event["Action"] == "pass" {
+								event["Action"] = "skip"
+							}
+						}
+						if err := encoder.Encode(event); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if err := validateEvents(events.Bytes(), 0, helperContracts); err == nil {
+						t.Fatal("supported producer contract was not required", name, action)
+					}
+				})
+			}
+		}
+	}
+}
+
 func nativeControl(t *testing.T) (nativePacket, string, provenance) {
 	t.Helper()
 	dir := t.TempDir()
@@ -139,6 +205,19 @@ func TestNativeContractGateRequiresThisInvocationAndExactQualifiedRelations(t *t
 			test.change(&packet)
 			if err := validateNativePacket(packet, dir, 26, provenance); err == nil {
 				t.Fatal("unqualified native evidence accepted")
+			}
+		})
+	}
+}
+
+func TestNativeContractGateRejectsUnsupportedProducerInvocations(t *testing.T) {
+	for _, major := range []int{15, 26, 27, 28} {
+		t.Run(fmt.Sprint(major), func(t *testing.T) {
+			packet, dir, provenance := nativeControl(t)
+			packet.KernelVersion = fmt.Sprintf("%d.0", major)
+			err := validateNativePacket(packet, dir, major, provenance)
+			if want := major == 26 || major == 27; (err == nil) != want {
+				t.Fatal("native support policy differs from the current producer matrix", err)
 			}
 		})
 	}

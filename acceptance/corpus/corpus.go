@@ -34,7 +34,8 @@ type Producer struct {
 	Manifest *schema.Manifest
 }
 
-// Corpus is every producer the lock pins, in ascending major order.
+// Corpus contains the supported producers selected for active acceptance, in
+// ascending major order. Historical lock entries do not become active producers.
 type Corpus struct {
 	Lock      *schema.Lock
 	Producers []Producer
@@ -251,7 +252,7 @@ func (c *Corpus) loadLocal(root string) error {
 			continue
 		}
 		major, err := strconv.Atoi(strings.TrimPrefix(e.Name(), "macos-"))
-		if err != nil {
+		if err != nil || !schema.IsSupportedProducer(major) {
 			continue
 		}
 		dir := filepath.Join(root, e.Name())
@@ -262,7 +263,7 @@ func (c *Corpus) loadLocal(root string) error {
 		c.Producers = append(c.Producers, Producer{Major: major, Dir: dir, Manifest: m})
 	}
 	if len(c.Producers) == 0 {
-		return fmt.Errorf("%s: no macos-<major> capture directories", root)
+		return fmt.Errorf("%s: no supported macos-<major> capture directories (supported producers: %v)", root, schema.Producers)
 	}
 	sort.Slice(c.Producers, func(i, j int) bool { return c.Producers[i].Major < c.Producers[j].Major })
 	return nil

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 )
 
@@ -49,7 +50,7 @@ func TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		if !seen[producer] {
 			t.Fatalf("corpus has no multi-volume selection control from macOS %d", producer)
 		}

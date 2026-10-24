@@ -2,21 +2,16 @@ package fixture
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 func registryString(text string) string {
@@ -33,8 +28,8 @@ func registryMedia(name string) string {
 	return `<dict><key>IOObjectClass</key><string>IOMedia</string><key>BSD Name</key>` + registryString(name) + `</dict>`
 }
 
-// These IORegistry archives are synthetic public-API controls. The historical
-// run did not capture IORegistry; its unchanged framework transcript is below.
+// These IORegistry archives are synthetic public-API controls. Original native
+// inventories remain separate, digest-bound evidence in the platform replays.
 func registryImage(imageURL, media string) string {
 	return `<dict><key>IOObjectClass</key><string>AppleDiskImageDevice</string><key>DiskImageURL</key>` + registryString(imageURL) + `<key>IORegistryEntryChildren</key><array>` + media + `</array><key>opaque-driver-data</key><data>AAEC</data><key>IORegistryEntryID</key><integer>18446744073709551615</integer></dict>`
 }
@@ -116,37 +111,15 @@ func (c *kernelOwnershipCommander) count(label string) int {
 	return n
 }
 
-func retainedMissingImageInventory(t *testing.T) []schema.Command {
-	t.Helper()
-	b, err := os.ReadFile("testdata/image-ownership-missing-inventory.json.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	z, err := gzip.NewReader(bytes.NewReader(b))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer z.Close()
-	b, err = io.ReadAll(io.LimitReader(z, 92067))
-	if err != nil || len(b) != 92066 || fmt.Sprintf("%x", sha256.Sum256(b)) != "59b292e64a94b4ea16fbd0b07acfe60756b7299f3acb1843ad4637e41d7ac194" {
-		t.Fatalf("original native command bytes changed: %d %v", len(b), err)
-	}
-	var commands []schema.Command
-	if err := json.Unmarshal(b, &commands); err != nil {
-		t.Fatal(err)
-	}
-	if len(commands) != 30 || commands[9].Status != "0" || commands[25].Status != "0" || commands[27].Status != "0" || commands[28].Label != "hdiutil-info" || commands[29].Status != "1" {
-		t.Fatal("native failure sequence changed")
-	}
-	return commands
-}
-
 func TestDetachUsesKernelOwnershipWhenTheNativeFrameworkInventoryOmitsItsImage(t *testing.T) {
-	commands := retainedMissingImageInventory(t)
+	// Synthetic public-API scenario: the framework lists a different complete
+	// image while the kernel binds our target. Historical macOS15 transcripts
+	// remain archived but do not select an active replay platform.
+	framework := []byte(`<plist><dict><key>images</key><array><dict><key>image-path</key><string>/System/Library/synthetic-unrelated.dmg</string><key>system-entities</key><array><dict><key>dev-entry</key><string>/dev/disk3</string></dict></array></dict></array></dict></plist>`)
 	image := detachImage(t, t.TempDir())
 	att := &Attachment{Image: image, Dev: "/dev/disk17"}
 	c := &kernelOwnershipCommander{
-		global: []byte(commands[28].StdoutText),
+		global: framework,
 		images: registryArchive(registryImage(imageFileURL(image), registryMedia("disk17"))),
 	}
 	d := imageTestDisk(c)
@@ -156,8 +129,8 @@ func TestDetachUsesKernelOwnershipWhenTheNativeFrameworkInventoryOmitsItsImage(t
 	if c.count("detach") != 1 || c.count("ioreg-image-ownership") != 1 || c.count("ioreg-media-absence") != 0 {
 		t.Fatalf("framework absence falsely completed cleanup: detach=%d kernel=%d full-media=%d", c.count("detach"), c.count("ioreg-image-ownership"), c.count("ioreg-media-absence"))
 	}
-	if d.T.Commands[0].StdoutText != commands[28].StdoutText || d.T.Commands[0].StdoutSHA256 != commands[28].StdoutSHA256 {
-		t.Fatal("original retained framework evidence changed")
+	if d.T.Commands[0].StdoutText != string(framework) || d.T.Commands[0].StdoutSHA256 != fmt.Sprintf("%x", sha256.Sum256(framework)) {
+		t.Fatal("synthetic framework evidence was not retained unchanged")
 	}
 	if len(d.T.Commands) != 3 || d.T.Commands[1].StdoutText != string(c.images) || d.T.Commands[1].StdoutSHA256 != fmt.Sprintf("%x", sha256.Sum256(c.images)) {
 		t.Fatal("raw kernel proof was not retained before the detach")

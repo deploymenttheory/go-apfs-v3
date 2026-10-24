@@ -39,15 +39,15 @@ func TestCompareViewsReportsEveryKindOfDifference(t *testing.T) {
 }
 
 func TestKnownDriftMatchesOnlyRecordedPairs(t *testing.T) {
-	allow := &schema.KnownDrift{Schema: 1, Entries: []schema.DriftEntry{{Recipe: "compressed-files", Path: "Fixture/type-15", Field: "compression.kernelRead", Producers: map[string]string{"macos-15": "EIO", "macos-27": "ok"}, Reason: "r"}}}
+	allow := &schema.KnownDrift{Schema: 1, Entries: []schema.DriftEntry{{Recipe: "compressed-files", Path: "Fixture/type-15", Field: "compression.kernelRead", Producers: map[string]string{"macos-26": "EIO", "macos-27": "ok"}, Reason: "r"}}}
 	d := Difference{Path: "Fixture/type-15", Field: "compression.kernelRead", Got: "EIO", Want: "ok"}
-	if !KnownDrift(allow, "compressed-files", "apfs", d, [2]int{15, 27}) {
+	if !KnownDrift(allow, "compressed-files", "apfs", d, [2]int{26, 27}) {
 		t.Error("recorded drift not matched")
 	}
-	if KnownDrift(allow, "compressed-files", "apfs", d, [2]int{26, 27}) {
-		t.Error("unrecorded producer pair matched")
+	if KnownDrift(allow, "compressed-files", "apfs", d, [2]int{27, 26}) {
+		t.Error("reversed producer values matched")
 	}
-	if KnownDrift(allow, "file-corpus", "apfs", d, [2]int{15, 27}) {
+	if KnownDrift(allow, "file-corpus", "apfs", d, [2]int{26, 27}) {
 		t.Error("other recipe matched")
 	}
 }

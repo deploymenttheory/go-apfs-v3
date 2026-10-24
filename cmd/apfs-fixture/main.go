@@ -106,6 +106,9 @@ func lock(args []string) error {
 			continue
 		}
 		major, _ := strconv.Atoi(m[1])
+		if !schema.IsSupportedProducer(major) {
+			continue
+		}
 		path := filepath.Join(*bundles, entry.Name())
 		sum, err := schema.FileDigest(path)
 		if err != nil {

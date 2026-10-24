@@ -43,7 +43,7 @@ func storageCases(t *testing.T, matrix map[string]map[string][]string) []corpus.
 	wanted := map[string]bool{}
 	for recipe, profiles := range matrix {
 		for profile, stages := range profiles {
-			for _, major := range []int{15, 26, 27} {
+			for _, major := range schema.Producers {
 				for _, stage := range stages {
 					wanted[fmt.Sprintf("%d/%s/%s/%s", major, recipe, profile, stage)] = false
 				}

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 const nativePlatformData = "testdata/native-image-ownership/"
@@ -103,6 +105,22 @@ func (c nativePlatformCapture) commander(t *testing.T, phase string) *nativePlat
 // The archives, including the native manifest and failed adapter booleans,
 // remain verbatim. No native tool is invoked and no raw image is expanded.
 func retainedNativePlatformCaptures(t *testing.T) []nativePlatformCapture {
+	t.Helper()
+	var active []nativePlatformCapture
+	for _, capture := range archivedNativePlatformCaptures(t) {
+		if schema.IsSupportedProducer(capture.Major) {
+			active = append(active, capture)
+		}
+	}
+	if len(active) != len(schema.Producers) {
+		t.Fatal("active native platform replay lacks a supported producer")
+	}
+	return active
+}
+
+// All three original captures remain digest-verified historical evidence.
+// Only the supported subset participates in mandatory adapter-policy replay.
+func archivedNativePlatformCaptures(t *testing.T) []nativePlatformCapture {
 	t.Helper()
 	var provenance struct {
 		Schema                                 int

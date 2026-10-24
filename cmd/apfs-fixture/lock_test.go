@@ -44,6 +44,10 @@ func TestLockRecordsEveryProducerAndRefusesForeignRecipes(t *testing.T) {
 	for _, major := range schema.Producers {
 		bundleFor(t, major, digest, bundles)
 	}
+	// Archived or malformed unsupported bundles cannot enter active locking.
+	if err := os.WriteFile(filepath.Join(bundles, "fixtures-macos-15-0000000000000000.tar.gz"), []byte("not an active bundle"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	out := filepath.Join(t.TempDir(), "fixtures.lock.json")
 	if err := lock([]string{"--recipes", recipes, "--release", "fixtures/2026.10.18-1", "--run", "https://example/run", "--bundles", bundles, "--out", out}); err != nil {
 		t.Fatal(err)
@@ -52,8 +56,11 @@ func TestLockRecordsEveryProducerAndRefusesForeignRecipes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(l.Bundles) != 3 || l.RecipesSHA256 != digest || l.Release != "fixtures/2026.10.18-1" || l.Bundles["macos-27"].Build != "build7" {
+	if len(l.Bundles) != len(schema.Producers) || l.RecipesSHA256 != digest || l.Release != "fixtures/2026.10.18-1" || l.Bundles["macos-27"].Build != "build7" {
 		t.Fatalf("lock %+v", l)
+	}
+	if _, present := l.Bundles["macos-15"]; present {
+		t.Fatal("unsupported archive entered the active lock")
 	}
 	foreign := t.TempDir()
 	bundleFor(t, 15, digest, foreign)
@@ -64,7 +71,7 @@ func TestLockRecordsEveryProducerAndRefusesForeignRecipes(t *testing.T) {
 	}
 	partial := t.TempDir()
 	bundleFor(t, 27, digest, partial)
-	if err := lock([]string{"--recipes", recipes, "--release", "r", "--bundles", partial, "--out", out}); err == nil || !strings.Contains(err.Error(), "no bundle for macos-15") {
+	if err := lock([]string{"--recipes", recipes, "--release", "r", "--bundles", partial, "--out", out}); err == nil || !strings.Contains(err.Error(), "no bundle for macos-26") {
 		t.Fatalf("partial producer set accepted: %v", err)
 	}
 }

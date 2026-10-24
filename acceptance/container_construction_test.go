@@ -186,7 +186,7 @@ func TestConstructedContainersMatchNativeVolumes(t *testing.T) {
 			}
 		})
 	}
-	for _, producer := range []int{15, 26, 27} {
+	for _, producer := range schema.Producers {
 		for _, recipe := range []string{"container-volumes", "volume-groups"} {
 			if !seen[fmt.Sprintf("macos-%d/%s", producer, recipe)] {
 				t.Errorf("no native construction input for macOS %d/%s", producer, recipe)

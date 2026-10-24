@@ -18,6 +18,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 const module = "github.com/deploymenttheory/go-apfs-v3/acceptance/"
@@ -83,8 +85,8 @@ func init() {
 		"TestCapturedLiveImageWithAStaleDeviceCannotBeReportedReleased",
 		"TestKernelOwnershipStatesReplayCompleteCapturedPlatformResults",
 	} {
-		for _, major := range []string{"15", "26", "27"} {
-			helperContracts[module+"fixture"] = append(helperContracts[module+"fixture"], name+"/"+major)
+		for _, major := range schema.Producers {
+			helperContracts[module+"fixture"] = append(helperContracts[module+"fixture"], name+"/"+strconv.Itoa(major))
 		}
 	}
 }
@@ -334,7 +336,7 @@ func validateNative(root string, major int, p provenance) (fileEvidence, error) 
 
 func validateNativePacket(packet nativePacket, dir string, major int, p provenance) error {
 	actual, err := strconv.Atoi(strings.SplitN(packet.KernelVersion, ".", 2)[0])
-	if p.GOOS != "darwin" || major <= 0 || err != nil || actual != major || packet.OSBuild == "" || packet.Architecture != p.GOARCH || packet.Schema != 2 || packet.Commit != p.Commit || packet.RunID != p.RunID || packet.RunAttempt != p.RunAttempt {
+	if p.GOOS != "darwin" || !schema.IsSupportedProducer(major) || err != nil || actual != major || packet.OSBuild == "" || packet.Architecture != p.GOARCH || packet.Schema != 2 || packet.Commit != p.Commit || packet.RunID != p.RunID || packet.RunAttempt != p.RunAttempt {
 		return errors.New("native contract platform/provenance differs from this checkout and invocation")
 	}
 	if packet.ContractError != "" || packet.RetentionError != "" {

@@ -79,7 +79,7 @@ Apple's checker or read-only mount observes them.
 Apple's checker supplies its selected transaction identifier. The read-only
 mount supplies complete file observations and signature verification. Retained
 evidence records OS builds, tool and capture-source hashes, commands, original
-disk hashes and acquisition diagnostics. Fresh capture on macOS 15, 26 and 27
+disk hashes and acquisition diagnostics. Fresh capture on macOS 26 and 27
 and portable/native comparisons are required by the compatibility gate.
 
 The retained corpus contains 36 controls from
