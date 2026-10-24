@@ -256,7 +256,7 @@ func (m *mutation) encodeHistoryExtents() error {
 	slices.Sort(points)
 	points = slices.Compact(points)
 	var records []buildRecord
-	i, j, ownerIndex := 0, 0, 0
+	i, j := 0, 0
 	for index := 0; index+1 < len(points); index++ {
 		if err := m.ctx.Err(); err != nil {
 			return err
@@ -287,15 +287,10 @@ func (m *mutation) encodeHistoryExtents() error {
 		kind, refs := uint64(1), now
 		if known {
 			kind, refs = 2, now-old
-			if owner == 0 {
-				for ownerIndex < len(m.history.owners) && m.history.owners[ownerIndex].end <= at {
-					ownerIndex++
-				}
-				if ownerIndex == len(m.history.owners) || m.history.owners[ownerIndex].start > at {
-					return corrupt("snapshot delta owner coverage", 0)
-				}
-				owner = m.history.owners[ownerIndex].owner
-			}
+			// UPDATE changes a retained allocation's count, not its owner.
+			// Apple-written snapshot extent trees use INVALID here; fsck
+			// rejects an ordinary stream owner even when the delta is sound.
+			owner = owningObjectIDInvalid
 		}
 		if refs < math.MinInt32 || refs > math.MaxInt32 {
 			return filesystem.ErrLimit

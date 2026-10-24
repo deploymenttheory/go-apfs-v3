@@ -80,6 +80,7 @@ func TestPhysicalExtentWorkDependsOnRecordsRatherThanPayload(t *testing.T) {
 func TestPhysicalExtentCountsAreSignedAndStreamAliasesAreSeparate(t *testing.T) {
 	r := buildExtentReference(100, 8, 19)
 	le.PutUint64(r.value, uint64(2)<<60|8)
+	le.PutUint64(r.value[8:], owningObjectIDInvalid)
 	negative := int32(-3)
 	le.PutUint32(r.value[16:], uint32(negative))
 	changes, err := readExtentChanges([]buildRecord{r}, 1000)

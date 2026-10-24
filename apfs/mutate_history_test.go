@@ -38,7 +38,7 @@ func TestSnapshotExtentDeltasDistinguishKnownZeroRangesAndPreserveOwnerBoundarie
 	for _, r := range m.extents.all() {
 		got = append(got, [5]int64{int64(prefix(r.key).id), int64(le.Uint64(r.value) & objectMask), int64(le.Uint64(r.value) >> 60), int64(le.Uint64(r.value[8:])), int64(int32(le.Uint32(r.value[16:])))})
 	}
-	want := [][5]int64{{10, 1, 2, 11, 1}, {12, 2, 2, 11, 1}, {14, 2, 2, 11, -1}, {17, 1, 1, 77, 1}, {18, 1, 1, 78, 1}}
+	want := [][5]int64{{10, 1, 2, -1, 1}, {12, 2, 2, -1, 1}, {14, 2, 2, -1, -1}, {17, 1, 1, 77, 1}, {18, 1, 1, 78, 1}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatal("snapshot boundary/delta encoding changed", got, want)
 	}

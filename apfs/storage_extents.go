@@ -29,6 +29,10 @@ type extentEvent struct {
 
 const maxStorageRecords = 1 << 20
 
+// OWNING_OBJ_ID_INVALID in Apple's APFS reference. Retained Apple UPDATE
+// records use this marker rather than repeating the original NEW owner.
+const owningObjectIDInvalid = ^uint64(0)
+
 func readExtentChanges(records []buildRecord, blocks uint64) ([]extentChange, error) {
 	if len(records) > maxStorageRecords {
 		return nil, filesystem.ErrLimit
@@ -50,6 +54,9 @@ func readExtentChanges(records []buildRecord, blocks uint64) ([]extentChange, er
 		}
 		if kind == 1 && (refs <= 0 || le.Uint64(r.value[8:]) == 0 || le.Uint64(r.value[8:]) > objectMask) {
 			return nil, corrupt("new physical extent reference", 0)
+		}
+		if kind == 2 && le.Uint64(r.value[8:]) != owningObjectIDInvalid {
+			return nil, corrupt("update physical extent owner", 0)
 		}
 		end = p.id + length
 		changes = append(changes, extentChange{storageExtent{p.id, end, refs}, kind == 1})
