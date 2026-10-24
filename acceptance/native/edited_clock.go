@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/hex"
 	"fmt"
 	"path"
 	"slices"
@@ -11,14 +12,16 @@ import (
 )
 
 type editedClockNode struct {
-	id    uint64
-	kind  string
-	times schema.Times
+	id     uint64
+	kind   string
+	target string
+	times  schema.Times
 }
 
 type editedClockState struct {
-	paths map[string]*editedClockNode
-	clock int64
+	paths   map[string]*editedClockNode
+	clock   int64
+	profile string
 }
 
 // ProjectEditedViewClocks replaces only the four inode clocks in an independent
@@ -33,17 +36,25 @@ func ProjectEditedViewClocks(source, target schema.View, steps []schema.Step, pr
 	if clockNS <= 0 || clockNS%1_000_000_000 != 0 {
 		return schema.View{}, fmt.Errorf("edited view needs a positive whole-second command clock")
 	}
-	state := editedClockState{paths: map[string]*editedClockNode{}, clock: clockNS}
+	state := editedClockState{paths: map[string]*editedClockNode{}, clock: clockNS, profile: profile}
 	objects := map[uint64]*editedClockNode{}
 	for _, entry := range source.Entries {
 		if entry.Path == "" || entry.Path == ".." || path.Clean(entry.Path) != entry.Path || strings.HasPrefix(entry.Path, "/") || strings.HasPrefix(entry.Path, "../") || entry.ID == 0 || state.paths[entry.Path] != nil || !slices.Contains([]string{"file", "dir", "symlink"}, entry.Kind) {
 			return schema.View{}, fmt.Errorf("invalid native clock source path %q", entry.Path)
 		}
+		target := entry.Target
+		if entry.Kind == "symlink" {
+			decoded, err := hex.DecodeString(target)
+			if err != nil {
+				return schema.View{}, fmt.Errorf("native clock source has invalid symlink target: %q", entry.Path)
+			}
+			target = string(decoded)
+		}
 		node := objects[entry.ID]
 		if node == nil {
-			node = &editedClockNode{id: entry.ID, kind: entry.Kind, times: entry.Times}
+			node = &editedClockNode{id: entry.ID, kind: entry.Kind, target: target, times: entry.Times}
 			objects[entry.ID] = node
-		} else if node.kind != entry.Kind || !sameInodeClocks(node.times, entry.Times) {
+		} else if node.kind != entry.Kind || node.target != target || !sameInodeClocks(node.times, entry.Times) {
 			return schema.View{}, fmt.Errorf("native aliases disagree on clocks: %q", entry.Path)
 		}
 		state.paths[entry.Path] = node
@@ -55,13 +66,37 @@ func ProjectEditedViewClocks(source, target schema.View, steps []schema.Step, pr
 		var err error
 		switch {
 		case step.FS != nil && step.Tool == nil && step.Host == nil && step.Control == nil:
-			err = state.apply(*step.FS)
+			if step.FS.Op == "clone" && step.FS.Expect == "EEXIST" {
+				err = state.rejectedClone(*step.FS)
+			} else {
+				err = state.apply(*step.FS)
+			}
 		case step.Tool != nil && step.FS == nil && step.Host == nil && step.Control == nil:
 			command := step.Tool
-			if command.Program != "cp" || command.Expect != "0" || len(command.Args) != 3 || command.Args[0] != "-a" || len(command.Stdin) != 0 || command.StdinBytes != "" {
+			if command.Program == "dd" && index > 0 && steps[index-1].Host != nil {
+				var write schema.FSStep
+				write, err = CloneCopyWriteStep(*steps[index-1].Host, *command)
+				if err == nil {
+					rel, _ := editedClockPath(write.Path)
+					rel = strings.TrimSuffix(rel, "/..namedfork/rsrc")
+					if node := state.paths[rel]; node == nil || node.kind != "file" {
+						err = fmt.Errorf("clone-copy native write lacks an existing regular inode")
+					} else {
+						err = state.apply(write)
+					}
+				}
+			} else if command.Program != "cp" || len(command.Args) != 3 || len(command.Stdin) != 0 || command.StdinBytes != "" {
 				err = fmt.Errorf("unqualified edited clock tool command")
-			} else {
+			} else if command.Args[0] == "-a" && command.Expect == "0" {
 				err = state.archive(command.Args[1], command.Args[2])
+			} else {
+				err = state.cloneCopy(*command)
+			}
+		case step.Host != nil && step.FS == nil && step.Tool == nil && step.Control == nil:
+			if index+1 >= len(steps) || steps[index+1].Tool == nil || !slices.Equal(step.Only, steps[index+1].Only) {
+				err = fmt.Errorf("clone-copy staged payload lacks its immediately following native write")
+			} else {
+				_, err = CloneCopyWriteStep(*step.Host, *steps[index+1].Tool)
 			}
 		default:
 			err = fmt.Errorf("unqualified edited clock step")
@@ -73,13 +108,16 @@ func ProjectEditedViewClocks(source, target schema.View, steps []schema.Step, pr
 	result := target
 	result.Entries = slices.Clone(target.Entries)
 	seen := map[string]bool{}
+	identities := map[uint64]*editedClockNode{}
+	aliases := map[*editedClockNode]uint64{}
 	for i := range result.Entries {
 		entry := &result.Entries[i]
 		node := state.paths[entry.Path]
-		if node == nil || seen[entry.Path] || node.kind != entry.Kind || node.id != 0 && node.id != entry.ID {
+		if node == nil || seen[entry.Path] || entry.ID == 0 || node.kind != entry.Kind || node.id != 0 && node.id != entry.ID || identities[entry.ID] != nil && identities[entry.ID] != node || aliases[node] != 0 && aliases[node] != entry.ID {
 			return schema.View{}, fmt.Errorf("native clock target path %q has no unique matching declared object", entry.Path)
 		}
 		seen[entry.Path] = true
+		identities[entry.ID], aliases[node] = node, entry.ID
 		entry.Times.Birth, entry.Times.Modify, entry.Times.Change, entry.Times.Access = node.times.Birth, node.times.Modify, node.times.Change, node.times.Access
 	}
 	if len(seen) != len(state.paths) {
@@ -167,6 +205,9 @@ func (s *editedClockState) apply(command schema.FSStep) error {
 			kind = "symlink"
 		}
 		s.paths[rel] = s.newNode(kind)
+		if kind == "symlink" {
+			s.paths[rel].target = command.Target
+		}
 	case "link", "rename":
 		target, err := editedClockPath(command.Target)
 		if err != nil {

@@ -24,6 +24,9 @@ import (
 // CopyOptions uses Apple cp's logical behavior. PreserveLinks is an explicit
 // extension: Apple -a means -RpP and does not preserve hard-link relationships.
 type Options struct {
+	// Clone requests Apple's cp -c behavior. Ordinary copying is used only
+	// when the source/target cannot share storage; outcomes report that choice.
+	Clone         bool
 	FromHost      bool
 	Recursive     bool
 	Preserve      bool
@@ -40,6 +43,16 @@ type Omission struct {
 	Attribute   string `json:"attribute"`
 	Reason      string `json:"reason"`
 }
+
+// CloneResult records an explicitly requested clone. Cloned means distinct
+// inode metadata with declared shared raw streams; Fallback explains why an
+// ordinary copy was used. Byte equality alone never sets Cloned.
+type CloneResult struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Cloned      bool   `json:"cloned"`
+	Fallback    string `json:"fallback,omitempty"`
+}
 type copyEntry struct {
 	node      filesystem.Node
 	path, key string
@@ -49,6 +62,10 @@ type copyEntry struct {
 // Backend owns destination state and immutable payload storage. Apply updates Tree;
 // Own consumes and closes each Value before returning a stable source.
 type Backend struct {
+	// CloneNamespace identifies the immutable input revision for new logical
+	// stream lineage. It is not derived from a stream's payload contents.
+	CloneNamespace  string
+	CloneResult     func(CloneResult)
 	Tree            *edit.Tree
 	Time            time.Time
 	UID, GID, Umask uint32
@@ -73,6 +90,9 @@ type copier struct {
 func Run(ctx context.Context, backend Backend, sources []string, to string, options Options) error {
 	if len(sources) == 0 || backend.Tree == nil || backend.Own == nil || backend.Apply == nil || backend.Time.IsZero() {
 		return fs.ErrInvalid
+	}
+	if options.Clone && options.NoAttributes {
+		return fmt.Errorf("cp -c and -X cannot be combined: %w", fs.ErrInvalid)
 	}
 	limits, err := backend.Limits.Normalize()
 	if err != nil {
@@ -440,7 +460,7 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	if !exists && current.path != "" {
+	if !exists && current.path != "" && !c.options.Clone {
 		dst = current.path
 	}
 	if exists {
@@ -459,6 +479,70 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 		if c.options.NoClobber && kind != 0040000 {
 			return fs.ErrExist
+		}
+	}
+	cloneFallback := ""
+	if c.options.Clone && kind == 0100000 {
+		// cp checks identical source/target identities through the destination
+		// symlink, but unlinks the named entry before trying clonefile.
+		literal, literalErr := resolve(ctx, c.backend.Tree, dst, false)
+		if !exists && literalErr == nil {
+			// A dangling destination was absent to stat, so native cp does not
+			// unlink it; clonefile fails EEXIST instead of following it.
+			return fs.ErrExist
+		}
+		if literalErr != nil && !errors.Is(literalErr, fs.ErrNotExist) {
+			return literalErr
+		}
+		if exists {
+			if literalErr != nil {
+				return literalErr
+			}
+			dst = literal.path
+			// Unlink changes the old inode even when another alias survives.
+			// The logical tree must retain that clock independently of the new
+			// clone which replaces the destination's directory entry.
+			if err := c.changeTime(ctx, literal.id); err != nil {
+				return err
+			}
+			if err := c.backend.Apply(ctx, edit.Change{Op: edit.RemoveEntry, Path: dst}); err != nil {
+				return err
+			}
+			exists = false
+		}
+		if first := c.links[e.key]; c.options.PreserveLinks && first != "" {
+			if err := c.backend.Apply(ctx, edit.Change{Op: edit.CreateHardLink, Path: first, To: dst}); err != nil {
+				return err
+			}
+			if err := c.parentTime(ctx, dst); err != nil {
+				return err
+			}
+			if c.backend.Modified != nil {
+				if err := c.backend.Modified(ctx, dst); err != nil {
+					return err
+				}
+			}
+			if c.backend.CloneResult != nil {
+				cloned := !c.options.FromHost && c.backend.Tree.NameRules().Format == "APFS"
+				fallback := ""
+				if !cloned {
+					fallback = "hard-link relationship retained after ordinary-copy fallback"
+				}
+				c.backend.CloneResult(CloneResult{Source: e.path, Destination: dst, Cloned: cloned, Fallback: fallback})
+			}
+			return nil
+		}
+		switch {
+		case c.options.FromHost:
+			cloneFallback = "source and destination use different filesystems"
+		case c.backend.Tree.NameRules().Format != "APFS":
+			cloneFallback = "destination filesystem does not support cloning"
+		default:
+			if err := c.clone(ctx, e, dst); err != nil {
+				return err
+			}
+			c.links[e.key] = dst
+			return nil
 		}
 	}
 	m, defaults, err := c.metadata(ctx, e, dst)
@@ -681,7 +765,12 @@ func (c *copier) copy(ctx context.Context, e copyEntry, dst string, depth int) e
 		}
 	}
 	if c.backend.Modified != nil {
-		return c.backend.Modified(ctx, dst)
+		if err := c.backend.Modified(ctx, dst); err != nil {
+			return err
+		}
+	}
+	if cloneFallback != "" && c.backend.CloneResult != nil {
+		c.backend.CloneResult(CloneResult{Source: e.path, Destination: dst, Fallback: cloneFallback})
 	}
 	return nil
 }

@@ -163,6 +163,13 @@ type rootReader struct {
 
 func (r rootReader) Root() uint64 { return r.root }
 
+func (r rootReader) CloneStreams(ctx context.Context, root uint64) (map[uint64]filesystem.CloneStreams, error) {
+	if source, ok := r.Reader.(filesystem.CloneSource); ok {
+		return source.CloneStreams(ctx, root)
+	}
+	return nil, ctx.Err()
+}
+
 func sessions(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: apfs session create|open|status|verify|export|remove [options] NAME")

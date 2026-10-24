@@ -112,6 +112,13 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, errors.Join(fmt.Errorf("continuation %s: native clone writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 		}
 	}
+	if usesCloneCopyContinuation(out) {
+		source, sibling := cloneCopyContinuationPeers(out)
+		if err := v.continueCloneWritesFrom(ctx, volume.Mount, filepath.Join(work, "clone-native-source"), source, sibling); err != nil {
+			_ = v.Disk.Detach(ctx, att)
+			return nil, fmt.Errorf("continuation %s: native clone-copy writes: %w", out.Name, err)
+		}
+	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
 		return nil, errors.Join(fmt.Errorf("continuation %s: native writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 	}
@@ -132,6 +139,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if out.Source.Recipe == "apfs-clones" {
 		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
 	}
+	if usesCloneCopyContinuation(out) {
+		nativeSpec.Extents, nativeSpec.Samples = append(cloneCopyExtentPaths(out.Expect.Subtree), retainedPartialClone), 12
+	}
 	before, err := v.observeImage(ctx, out.Name+".native-state", raw, "raw", nil, nativeSpec, k.recipe)
 	if err != nil {
 		return nil, fmt.Errorf("continuation %s: native state: %w", out.Name, err)
@@ -144,6 +154,16 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		}
 		if err != nil {
 			return nil, fmt.Errorf("continuation %s: native partial clone input: %w", out.Name, err)
+		}
+	}
+	if usesCloneCopyContinuation(out) {
+		cloneBefore, err = onlyLiveView(before)
+		if err == nil {
+			source, _ := cloneCopyContinuationPeers(out)
+			err = requireCloneCopyPartial(cloneBefore, source)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("continuation %s: native partial clone-copy input: %w", out.Name, err)
 		}
 	}
 	partition, err := continuationPartition(envelope.imageinfo, before, volume.UUID)
@@ -214,6 +234,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		}
 		if len(differences) != 0 {
 			return obs, fmt.Errorf("continuation %s: continued clone sharing differs: %v", out.Name, differences)
+		}
+	}
+	if usesCloneCopyContinuation(out) {
+		if err := compareCloneCopyContinuation(obs, before, out); err != nil {
+			return obs, fmt.Errorf("continuation %s: continued clone-copy sharing: %w", out.Name, err)
 		}
 	}
 	paths := map[string]bool{}

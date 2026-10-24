@@ -478,12 +478,16 @@ func (m *mutation) createCatalogKind(parent *catalogItem, name string, fileType 
 	if fileType != 0040000 {
 		be.PutUint32(b[76:], 1)
 	}
-	security, err := m.inheritSecurity(parent, fileType == 0040000)
-	if err != nil {
-		return nil, err
+	var security []byte
+	if fileType != 0120000 {
+		var err error
+		security, err = m.inheritSecurity(parent, fileType == 0040000)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if security != nil {
-		if err = m.changeAttribute(Change{Attribute: filesec.Attribute, Data: bytes.NewReader(security)}, id, b); err != nil {
+		if err := m.changeAttribute(Change{Attribute: filesec.Attribute, Data: bytes.NewReader(security)}, id, b); err != nil {
 			return nil, err
 		}
 		be.PutUint16(b[2:], be.Uint16(b[2:])|8)

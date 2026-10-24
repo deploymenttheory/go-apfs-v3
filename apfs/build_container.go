@@ -98,7 +98,9 @@ func (p *Layout) arrange(ctx context.Context) error {
 		count := uint64(len(fst.nodes) + len(ert.nodes) + len(snap.nodes) + len(omap.nodes))
 		used := uint64(0)
 		for _, stream := range v.streams {
-			used += stream.blocks
+			if stream.backing == nil {
+				used += stream.blocks
+			}
 		}
 		v.allocated = count + 1 + used
 		quota := uint64(v.options.Quota+4095) / 4096
@@ -175,6 +177,10 @@ func (p *Layout) arrange(ctx context.Context) error {
 	for i, t := range trees {
 		v := t.volume
 		for _, stream := range v.streams {
+			if stream.backing != nil {
+				stream.start = stream.backing.start
+				continue
+			}
 			stream.start = at
 			at += stream.blocks
 			if stream.blocks != 0 {

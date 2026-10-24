@@ -151,6 +151,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
 	defer finish(&resultErr)
 	v.setTranscript(&fixture.Transcript{})
+	if out.Expect.CommandClockNS != 0 && (out.Source.Recipe != "clone-copy" || out.Operation != "edit" && out.Operation != "build") {
+		return nil, fmt.Errorf("output %s declares an unqualified command clock", out.Name)
+	}
 	k, want, err := v.expectedView(out)
 	if err != nil {
 		return nil, err
@@ -242,6 +245,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	if out.Source.Recipe == "apfs-clones" {
 		spec.Extents, spec.Samples = cloneExtentPaths(), 12
 	}
+	if out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") {
+		spec.Extents, spec.Samples = cloneCopyExtentPaths(out.Expect.Subtree), 8
+	}
 	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
 	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
 	if err != nil {
@@ -281,12 +287,19 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		if out.Expect.NewIdentities {
 			opts.Existing = v.existingPaths(out.Source, want.Volume)
 		}
-		if opts.IgnoreIdentity {
+		if opts.IgnoreIdentity && out.Expect.CommandClockNS == 0 {
 			for _, name := range []string{"birth", "modify", "change", "access"} {
 				opts.IgnoreTimes[name] = true
 			}
 		}
 		if opts.IgnoreIdentity {
+			if out.Source.Recipe == "clone-copy" {
+				var err error
+				want, err = v.cloneCopyClockView(out, k.Observation)
+				if err != nil {
+					return nil, err
+				}
+			}
 			view, err := onlyLiveView(obs)
 			if err != nil {
 				return nil, err
@@ -302,6 +315,13 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	}
 	if out.Source.Recipe == "apfs-clones" && out.Operation == "edit" {
 		sharing, err := cloneOutputDifferences(obs, want)
+		if err != nil {
+			return nil, err
+		}
+		diffs = append(diffs, sharing...)
+	}
+	if out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") {
+		sharing, err := cloneCopyOutputDifferences(obs, want, out.Expect.Subtree)
 		if err != nil {
 			return nil, err
 		}

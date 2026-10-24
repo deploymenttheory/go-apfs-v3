@@ -77,6 +77,7 @@ type revision struct {
 
 // Report describes canonical state separately from scratch storage placement.
 type Report struct {
+	Clones                []CopyCloneResult    `json:"clones,omitempty"`
 	OmittedAttributes     []CopyOmission       `json:"omittedAttributes,omitempty"`
 	Location              string               `json:"location"`
 	Names                 filesystem.NameRules `json:"names"`
@@ -97,6 +98,7 @@ type Session struct {
 	directory string
 	root      *os.Root
 	lock      *os.File
+	lockHeld  bool
 	document  revision
 	digest    string
 	objects   map[uint64]object
@@ -166,6 +168,10 @@ func capture(ctx context.Context, directory string, source filesystem.Reader, c 
 	if err = ctx.Err(); err != nil {
 		return nil, err
 	}
+	source, err = filesystem.PrepareCloneStreams(ctx, source)
+	if err != nil {
+		return nil, err
+	}
 	if err = os.Mkdir(directory, 0700); err != nil {
 		return nil, err
 	}
@@ -229,6 +235,7 @@ func acquire(directory string) (s *Session, err error) {
 	if err = lockFile(s.lock); err != nil {
 		return nil, fmt.Errorf("session is in use: %w", errors.Join(filesystem.ErrConflict, err))
 	}
+	s.lockHeld = true
 	return s, nil
 }
 
@@ -335,7 +342,7 @@ func validBlob(b blob) bool {
 }
 func (s *Session) index(ctx context.Context) error {
 	d := s.document
-	if d.Schema != 1 || len(d.Objects) == 0 || len(d.Objects) > workspace.DefaultLimits().Objects {
+	if (d.Schema != 1 && d.Schema != 2) || len(d.Objects) == 0 || len(d.Objects) > workspace.DefaultLimits().Objects {
 		return fmt.Errorf("session schema or object count: %w", filesystem.ErrCorrupt)
 	}
 	c, err := config(Options{UID: d.Config.UID, GID: d.Config.GID, Umask: &d.Config.Umask, Time: d.Config.Time, Limits: d.Config.Limits})
@@ -399,6 +406,9 @@ func (s *Session) index(ctx context.Context) error {
 		}
 		s.objects[o.Node.Identity.Object] = o
 	}
+	if err := validateCloneGroups(d); err != nil {
+		return err
+	}
 	tree, err := edit.New(ctx, s, c.Limits)
 	if err != nil {
 		return err
@@ -428,7 +438,7 @@ func values(o object) []blob {
 }
 
 func (s *Session) save(ctx context.Context, r filesystem.Reader) error {
-	next := revision{Schema: 1, Parent: s.digest, Root: r.Root(), Names: r.NameRules(), Config: s.document.Config}
+	next := revision{Schema: 2, Parent: s.digest, Root: r.Root(), Names: r.NameRules(), Config: s.document.Config}
 	var transferred, reachable int64
 	metadataBytes := 0
 	err := walk(ctx, r, r.Root(), 0, next.Config.Limits, func(id uint64) error {
@@ -533,6 +543,9 @@ func (s *Session) save(ctx context.Context, r filesystem.Reader) error {
 		return nil
 	})
 	if err != nil {
+		return err
+	}
+	if err := validateCloneGroups(next); err != nil {
 		return err
 	}
 	data, err := json.Marshal(next)
@@ -976,7 +989,14 @@ func (s *Session) Close() error {
 	s.closed = true
 	var err error
 	if s.lock != nil {
-		err = s.lock.Close()
+		// A concurrently forked process can retain the open-file description
+		// until exec closes its inherited CLOEXEC descriptor. Release our lock
+		// explicitly rather than waiting for every descriptor to close.
+		if s.lockHeld {
+			err = unlockFile(s.lock)
+			s.lockHeld = false
+		}
+		err = errors.Join(err, s.lock.Close())
 	}
 	if s.root != nil {
 		err = errors.Join(err, s.root.Close())

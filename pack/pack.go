@@ -49,6 +49,7 @@ type layout interface {
 	Write(context.Context, io.Writer) error
 }
 type Report struct {
+	Clones          []CloneOutcome        `json:"clones,omitempty"`
 	Format          string                `json:"format"`
 	Filesystem      string                `json:"filesystem"`
 	VolumeBytes     int64                 `json:"volumeBytes"`
@@ -77,12 +78,28 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 		return report, filesystem.ErrUnsupported
 	}
 	var compressionBudget int64
+	r, err = filesystem.PrepareCloneStreams(ctx, r)
+	if err != nil {
+		return report, err
+	}
+	if _, err := cloneOutcomes(ctx, r, true); err != nil {
+		return report, err
+	}
 	prepared, err := filecompression.Prepare(ctx, r, o.FileCompression, o.ScratchDir, &compressionBudget)
 	if err != nil {
 		return report, err
 	}
-	defer func() { err = errors.Join(err, prepared.Close()) }()
+	defer func() {
+		err = errors.Join(err, prepared.Close())
+		if err != nil {
+			report.Clones = nil
+		}
+	}()
 	r = prepared
+	clones, err := cloneOutcomes(ctx, r, false)
+	if err != nil {
+		return report, err
+	}
 	var plan layout
 	hint := "Apple_HFS"
 	v := o.Volume
@@ -113,6 +130,7 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	}
 	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes, Encryption: encryptionInfo(o.Encryption)}
 	report.FileCompression, report.Compression = compressionPolicy(o.FileCompression), prepared.Outcomes()
+	report.Clones = clones
 	if report.Filesystem == "HFS+" && o.Volume.CaseSensitive {
 		report.Filesystem = "HFSX"
 	}
@@ -129,6 +147,7 @@ type ContainerOptions struct {
 }
 
 type ContainerReport struct {
+	Clones          []CloneOutcome        `json:"clones,omitempty"`
 	Format          string                `json:"format"`
 	VolumeCount     int                   `json:"volumeCount"`
 	ContainerBytes  int64                 `json:"containerBytes"`
@@ -166,14 +185,33 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 		for _, r := range prepared {
 			err = errors.Join(err, r.Close())
 		}
+		if err != nil {
+			report.Clones = nil
+		}
 	}()
 	var outcomes []CompressionOutcome
+	var clones []CloneOutcome
 	for i := range volumes {
-		r, e := filecompression.Prepare(ctx, volumes[i].Reader, o.FileCompression, o.ScratchDir, &compressionBudget)
+		cloneReader, e := filesystem.PrepareCloneStreams(ctx, volumes[i].Reader)
+		if e != nil {
+			return report, e
+		}
+		if _, e := cloneOutcomes(ctx, cloneReader, true); e != nil {
+			return report, e
+		}
+		r, e := filecompression.Prepare(ctx, cloneReader, o.FileCompression, o.ScratchDir, &compressionBudget)
 		if e != nil {
 			return report, e
 		}
 		prepared = append(prepared, r)
+		volumeClones, e := cloneOutcomes(ctx, r, false)
+		if e != nil {
+			return report, e
+		}
+		for _, outcome := range volumeClones {
+			outcome.Volume = volumes[i].Name
+			clones = append(clones, outcome)
+		}
 		volumes[i].Reader = r
 		for _, outcome := range r.Outcomes() {
 			outcome.Volume = volumes[i].Name
@@ -193,7 +231,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 			return report, err
 		}
 	}
-	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes}, nil
+	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes, Clones: clones}, nil
 }
 
 func compressionPolicy(policy string) string {
@@ -206,6 +244,10 @@ func compressionPolicy(policy string) string {
 // CreateContainer uses the same no-overwrite publication contract as Create.
 func CreateContainer(ctx context.Context, path string, volumes []apfs.VolumeSpec, o ContainerOptions) (report ContainerReport, err error) {
 	err = publish(ctx, path, func(out io.Writer) error { report, err = WriteContainer(ctx, out, volumes, o); return err })
+	var published *filesystem.PublishedOutputError
+	if err != nil && !errors.As(err, &published) {
+		report.Clones = nil
+	}
 	return report, err
 }
 
@@ -249,6 +291,10 @@ func Create(ctx context.Context, path string, r filesystem.Reader, o Options) (r
 		report, err = Write(ctx, out, r, o)
 		return err
 	})
+	var published *filesystem.PublishedOutputError
+	if err != nil && !errors.As(err, &published) {
+		report.Clones = nil
+	}
 	return report, err
 }
 

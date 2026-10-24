@@ -160,6 +160,7 @@ func (r *Reader) prepareFile(ctx context.Context, id uint64, path string, n file
 		hasDecmpfs = hasDecmpfs || name == filesystem.Decmpfs
 	}
 	o := &object{node: n}
+	cloneToken := logicalCloneToken(n)
 	if active {
 		open := func(name string) (filesystem.Value, error) { return r.Reader.OpenAttribute(ctx, id, name) }
 		h, err := decmpfs.Inspect(open)
@@ -179,6 +180,7 @@ func (r *Reader) prepareFile(ctx context.Context, id uint64, path string, n file
 		o.logicalRaw = true
 		o.node.Metadata.BSDFlags.Value &^= 32
 		o.node.Compression = filesystem.Observation[filesystem.Compression]{State: filesystem.Absent}
+		transformCloneStreams(&o.node, cloneToken, false, false, o.removeResource)
 		r.objects[id] = o
 	}
 	if policy == "none" {
@@ -240,6 +242,7 @@ func (r *Reader) prepareFile(ctx context.Context, id uint64, path string, n file
 	o.logicalRaw = false
 	o.node.Metadata.BSDFlags.Value |= 32
 	o.node.Compression = filesystem.Observed(filesystem.Compression{Type: uint32(encoded.Attribute[4])})
+	transformCloneStreams(&o.node, cloneToken, true, encoded.ResourceBytes != 0, true)
 	if encoded.ResourceBytes != 0 {
 		o.resource = encodedPath
 	} else if err = os.Remove(encodedPath); err != nil {

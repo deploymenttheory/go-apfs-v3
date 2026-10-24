@@ -24,6 +24,7 @@ const (
 	CreateDirectory     Operation = "mkdir"
 	CreateSymlink       Operation = "symlink"
 	CreateHardLink      Operation = "link"
+	CloneFile           Operation = "clone"
 	RenameEntry         Operation = "rename"
 	RemoveEntry         Operation = "remove"
 	ReplaceFileData     Operation = "replace"
@@ -41,12 +42,15 @@ const (
 // SetMetadata uses Present fields as assignments and Uncaptured fields as omissions.
 // Fields unrelated to the operation must be zero; directory removal is empty-only.
 type Change struct {
-	Op       Operation            `json:"op"`
-	Path     string               `json:"path"`
-	To       string               `json:"to,omitempty"`
-	Target   string               `json:"target,omitempty"`
-	Metadata *filesystem.Metadata `json:"metadata,omitempty"`
-	Data     block.Source         `json:"-"`
+	// CloneNamespace scopes explicit stream lineage to an immutable input
+	// revision. CloneFile uses Path as source and To as absent destination.
+	CloneNamespace string               `json:"cloneNamespace,omitempty"`
+	Op             Operation            `json:"op"`
+	Path           string               `json:"path"`
+	To             string               `json:"to,omitempty"`
+	Target         string               `json:"target,omitempty"`
+	Metadata       *filesystem.Metadata `json:"metadata,omitempty"`
+	Data           block.Source         `json:"-"`
 	// Attributes are explicit initial values for a new object, including forks.
 	Attributes map[string]block.Source `json:"-"`
 	// Attribute names a setxattr/removexattr value. Resource forks use the
@@ -56,6 +60,9 @@ type Change struct {
 }
 
 type editedObject struct {
+	// origin addresses immutable base data/attributes for a fresh clone. It
+	// survives removal or further modification of the source's logical inode.
+	origin     uint64
 	node       filesystem.Node
 	data       block.Source
 	target     string
@@ -320,6 +327,9 @@ func (r *Tree) OpenData(ctx context.Context, id uint64) (filesystem.Value, error
 	if o.data != nil {
 		return &replacementValue{o.data, ctx}, nil
 	}
+	if o.origin != 0 {
+		return r.Reader.OpenData(ctx, o.origin)
+	}
 	if o.fresh {
 		return nil, fs.ErrInvalid
 	}
@@ -332,6 +342,9 @@ func (r *Tree) OpenRawData(ctx context.Context, id uint64) (filesystem.Value, er
 	}
 	if o.data != nil {
 		return r.OpenData(ctx, id)
+	}
+	if o.origin != 0 {
+		return r.Reader.OpenRawData(ctx, o.origin)
 	}
 	if o.fresh {
 		return nil, fs.ErrInvalid
@@ -346,8 +359,12 @@ func (r *Tree) ListAttributes(ctx context.Context, id uint64, yield func(string)
 	if err != nil {
 		return err
 	}
-	if !o.fresh {
-		if err := r.Reader.ListAttributes(ctx, id, func(name string) error {
+	if !o.fresh || o.origin != 0 {
+		baseID := id
+		if o.origin != 0 {
+			baseID = o.origin
+		}
+		if err := r.Reader.ListAttributes(ctx, baseID, func(name string) error {
 			if o.removed[name] || o.attributes[name] != nil {
 				return nil
 			}
@@ -374,8 +391,11 @@ func (r *Tree) OpenAttribute(ctx context.Context, id uint64, name string) (files
 	if value, ok := o.attributes[name]; ok {
 		return &replacementValue{value, ctx}, nil
 	}
-	if o.fresh || o.removed[name] {
+	if o.fresh && o.origin == 0 || o.removed[name] {
 		return nil, fs.ErrNotExist
+	}
+	if o.origin != 0 {
+		return r.Reader.OpenAttribute(ctx, o.origin, name)
 	}
 	return r.Reader.OpenAttribute(ctx, id, name)
 }
@@ -453,6 +473,9 @@ func (r *Tree) supply(data block.Source) error {
 func (r *Tree) Apply(ctx context.Context, c Change) error {
 	if err := c.valid(); err != nil {
 		return err
+	}
+	if c.Op == CloneFile {
+		return r.cloneFile(ctx, c)
 	}
 	if c.Op == SetMetadata || c.Op == SetAttribute || c.Op == RemoveAttribute || c.Op == ReplaceResourceFork {
 		return r.editMetadata(ctx, c)
@@ -576,6 +599,9 @@ func (r *Tree) Apply(ctx context.Context, c Change) error {
 	}
 }
 func (c Change) valid() error {
+	if c.Op != CloneFile && c.CloneNamespace != "" {
+		return fs.ErrInvalid
+	}
 	if c.Op != SetAttribute && c.Op != RemoveAttribute && (c.Attribute != "" || c.AttributeMode != "") {
 		return fs.ErrInvalid
 	}
@@ -583,6 +609,10 @@ func (c Change) valid() error {
 		return fs.ErrInvalid
 	}
 	switch c.Op {
+	case CloneFile:
+		if c.Data != nil || c.Metadata == nil || c.To == "" || c.Target != "" || c.CloneNamespace == "" || len(c.CloneNamespace) > 256 {
+			return fs.ErrInvalid
+		}
 	case SetMetadata:
 		if c.Metadata == nil || c.Data != nil || c.To != "" || c.Target != "" {
 			return fs.ErrInvalid
@@ -664,7 +694,9 @@ func (r *Tree) create(ctx context.Context, parent uint64, name string, c Change)
 		attrs[name] = value
 	}
 
-	if attrs[filesec.Attribute] == nil {
+	// Darwin creates symlinks without inheriting the directory's file ACL.
+	// Explicit source ACL copying remains a separate operation.
+	if attrs[filesec.Attribute] == nil && c.Op != CreateSymlink {
 		security, err := filesec.Read(ctx, r, parent)
 		if err != nil {
 			return err

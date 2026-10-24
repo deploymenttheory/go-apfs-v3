@@ -52,6 +52,11 @@ type buildStream struct {
 	attribute                 string
 	size                      int64
 	digest                    [32]byte
+	// backing is a declared clone allocation, never content deduplication.
+	// Data clones share the backing's stream ID; attributes retain distinct IDs.
+	backing                  *buildStream
+	references, physicalRefs uint32
+	members                  []*buildStream
 }
 type buildAttribute struct {
 	name   string
@@ -81,6 +86,7 @@ type volumeLayout struct {
 	grouped    bool
 	objects    []*buildObject
 	streams    []*buildStream
+	inputs     []*buildStream
 	nextID     uint64
 	budget     *int64
 	superblock []byte
@@ -140,8 +146,8 @@ func (p *volumeLayout) collect(ctx context.Context) error {
 			obj.id = 2
 			obj.aliases[0].name = "root"
 		}
-		if err = p.validateObject(ctx, obj); err != nil {
-			return fmt.Errorf("%q: %w", name, err)
+		if n.CloneStreams != nil && len(n.CloneStreams.Partial) != 0 {
+			return fmt.Errorf("APFS build cannot preserve partially shared streams: %w", filesystem.ErrUnsupported)
 		}
 		seen[source] = obj
 		p.objects = append(p.objects, obj)
@@ -185,6 +191,15 @@ func (p *volumeLayout) collect(ctx context.Context) error {
 	if p.objects[0].node.Metadata.Mode.Value&0170000 != 0040000 {
 		return fs.ErrInvalid
 	}
+	for _, object := range p.objects {
+		if err := p.validateObject(ctx, object); err != nil {
+			return fmt.Errorf("%q: %w", object.aliases[0].name, err)
+		}
+	}
+	if err := validateBuildCloneGroups(p.objects); err != nil {
+		return err
+	}
+	groups := map[string]*buildStream{}
 	for _, obj := range p.objects {
 		if len(obj.aliases) > 1 {
 			for i := range obj.aliases {
@@ -198,15 +213,31 @@ func (p *volumeLayout) collect(ctx context.Context) error {
 				s.owner = obj.id
 				p.nextID++
 				p.streams = append(p.streams, s)
+				p.inputs = append(p.inputs, s)
+				if obj.node.CloneStreams != nil {
+					if err := p.shareStream(groups, obj.node.CloneStreams.Attributes[obj.attrs[i].name], s, true); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		if obj.data != nil {
-			obj.data.id = obj.id
-			obj.data.owner = obj.id
-			p.streams = append(p.streams, obj.data)
+			s := obj.data
+			s.id, s.owner, s.references = obj.id, obj.id, 1
+			p.inputs = append(p.inputs, s)
+			if obj.node.CloneStreams != nil {
+				if err := p.shareStream(groups, obj.node.CloneStreams.Data, s, false); err != nil {
+					return err
+				}
+			}
+			if s.backing == nil {
+				p.streams = append(p.streams, s)
+			} else {
+				obj.data = s.backing
+			}
 		}
 	}
-	for _, stream := range p.streams {
+	for _, stream := range p.inputs {
 		stream.reader = r
 	}
 	return nil
@@ -229,12 +260,15 @@ func (p *volumeLayout) fingerprint(ctx context.Context) ([]byte, error) {
 			_, _ = h.Write(a.inline)
 		}
 	}
-	for _, stream := range p.streams {
+	for _, stream := range p.inputs {
 		digest := sha256.New()
 		if err := copyBuildStream(ctx, digest, stream, false); err != nil {
 			return nil, err
 		}
 		copy(stream.digest[:], digest.Sum(nil))
+		if stream.backing != nil && stream.digest != stream.backing.digest {
+			return nil, fmt.Errorf("conflicting declared APFS clone stream: %w", filesystem.ErrCorrupt)
+		}
 		_, _ = h.Write(stream.digest[:])
 	}
 	return h.Sum(nil), ctx.Err()
@@ -256,6 +290,15 @@ func (p *volumeLayout) reserve(n int64) error {
 func (p *volumeLayout) validateObject(ctx context.Context, o *buildObject) error {
 	n := o.node
 	m := n.Metadata
+	if err := filesystem.ValidateCloneStreams(n.CloneStreams); err != nil {
+		return err
+	}
+	if n.CloneStreams != nil && len(n.CloneStreams.Partial) != 0 {
+		return fmt.Errorf("APFS build cannot preserve partially shared streams: %w", filesystem.ErrUnsupported)
+	}
+	if n.CloneStreams != nil && m.Mode.Value&0170000 != 0100000 {
+		return filesystem.ErrCorrupt
+	}
 	if m.Mode.State != filesystem.Present || m.UID.State != filesystem.Present || m.GID.State != filesystem.Present || m.BSDFlags.State != filesystem.Present || m.Mode.Value > 0177777 {
 		return filesystem.ErrUnsupported
 	}
@@ -421,6 +464,12 @@ func copyBuildStream(ctx context.Context, out io.Writer, s *buildStream, verify 
 	if v.Size() != s.size {
 		return filesystem.ErrConflict
 	}
+	if s.size == 0 {
+		if verify && s.digest != sha256.Sum256(nil) {
+			return filesystem.ErrConflict
+		}
+		return ctx.Err()
+	}
 	h := sha256.New()
 	if verify {
 		out = io.MultiWriter(out, h)
@@ -452,6 +501,17 @@ func copyBuildStream(ctx context.Context, out io.Writer, s *buildStream, verify 
 func (p *Layout) Write(ctx context.Context, out io.Writer) error {
 	if out == nil {
 		return fs.ErrInvalid
+	}
+	// Empty streams have no physical output part, but remain borrowed inputs
+	// whose sizes must not change after planning.
+	for _, volume := range p.volumes {
+		for _, stream := range volume.inputs {
+			if stream.size == 0 {
+				if err := copyBuildStream(ctx, io.Discard, stream, true); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	zero := make([]byte, 128<<10)
 	write := func(b []byte) error {
@@ -485,6 +545,11 @@ func (p *Layout) Write(ctx context.Context, out io.Writer) error {
 		if part.stream != nil {
 			if err := copyBuildStream(ctx, out, part.stream, true); err != nil {
 				return err
+			}
+			for _, member := range part.stream.members {
+				if err := copyBuildStream(ctx, io.Discard, member, true); err != nil {
+					return err
+				}
 			}
 			off += part.stream.size
 		} else {

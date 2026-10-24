@@ -50,7 +50,9 @@ func loadCorpus(t *testing.T) ([]corpus.Case, *corpus.Corpus) {
 // without any consumer fails: a fixture nobody checks proves nothing.
 var consumers = map[string][]string{
 	"apfs-clones":                  {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
+	"clone-copy":                   {"TestReadParity", "TestCloneCopyEditsMatchAppleStates", "TestReopenedSessionCloneStreamsPackToAppleStates"},
 	"encrypted-image-edits":        {"TestReadParity", "TestEncryptedImageEditsMatchAppleStates"},
+	"lzfse-images":                 {"TestReadParity", "TestRepackPreservesEverySector"},
 	"hfs-journal-interruption":     {"TestRecoveryMatchesAppleStates"},
 	"apfs-checkpoint-interruption": {"TestReadParity", "TestRecoveryMatchesAppleStates"},
 	"file-corpus":                  {"TestReadParity", "TestBuildFromFixtures", "TestPackingReopenedPreservationSourcesMatchesNativeFiles", "TestRepackPreservesEverySector", "TestAppleDoubleMatchesNativeExports", "TestStorageAccountingMatchesNativeAllocation"},

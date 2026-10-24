@@ -67,7 +67,7 @@ type ImageSpec struct {
 	// "-E -S $PASSWORD:primary" to create an encrypted APFS volume).
 	FSArgs map[string]string `json:"fsargs,omitempty"`
 	// Output is the hdiutil convert format of the retained image: UDZO,
-	// UDRO, UDBZ, UDRW, or "raw" to retain the gzip-compressed raw device.
+	// UDRO, UDBZ, ULFO, UDRW, or "raw" to retain the gzip-compressed raw device.
 	// OutputByProfile overrides it per profile.
 	Output          string            `json:"output"`
 	OutputByProfile map[string]string `json:"outputByProfile,omitempty"`
@@ -342,7 +342,7 @@ func (r *Recipe) Validate() error {
 		return fmt.Errorf("recipe %q: unknown layout %q", r.Name, r.Image.Layout)
 	}
 	switch r.Image.Output {
-	case "UDZO", "UDRO", "UDBZ", "UDRW", "raw":
+	case "UDZO", "UDRO", "UDBZ", "ULFO", "UDRW", "raw":
 	default:
 		return fmt.Errorf("recipe %q: unknown output format %q", r.Name, r.Image.Output)
 	}

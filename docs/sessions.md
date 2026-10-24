@@ -55,7 +55,7 @@ targets and `..`. Resolution never escapes into the host filesystem.
 
 | Command | Supported behavior |
 | --- | --- |
-| `cp SOURCE... DESTINATION` | Copy session contents; `--from-host` selects host source paths; `-R` recurses, `-p` preserves metadata, `-a` means `-RpP`, `-X` omits source attributes/forks, `-n` refuses existing files |
+| `cp SOURCE... DESTINATION` | Copy session contents; `-c` requests a clone, `--from-host` selects host source paths; `-R` recurses, `-p` preserves metadata, `-a` means `-RpP`, `-X` omits source attributes/forks, `-n` refuses existing files |
 | `chmod MODE PATH...` | Octal or Apple symbolic mode, including copy bits and `X`; `-R`, `-h`, `-H/-L/-P` |
 | `chown UID[:GID] PATH...` | Numeric ownership, including `:GID`; same traversal flags as chmod |
 | `chflags FLAGS PATH...` | Octal user flags or comma-separated `nodump`, `uchg`, `uappnd`, `opaque`, `hidden`, their supported aliases and `no` forms; same traversal flags |
@@ -73,8 +73,9 @@ Generic writes to compression-owned, security or `com.apple.fs.*` attributes are
 rejected. FinderInfo and flags retain the qualified APFS/HFS+ coupling rules.
 Ordinary copies preserve opaque attributes and destination ACLs. `cp -p` composes
 source direct ACL entries with destination inherited entries even with `-X`. New
-objects inherit parent ACLs through the shared Darwin filesec policy. Symbolic
-ACL editing and native process permission enforcement remain outside file-command sessions.
+files and directories inherit parent ACLs through the shared Darwin filesec
+policy; symlinks retain explicitly supplied ACLs. Symbolic ACL editing and native
+process permission enforcement remain outside file-command sessions.
 
 Apple `cp -a` copies regular-file hard-link aliases independently.
 `--preserve-links` explicitly retains those relationships within one copy command.
@@ -90,6 +91,23 @@ Copying onto an existing regular file retains its identity and updates all its
 aliases. New copies contain logical uncompressed data; active compression-owned
 storage is not copied as an independent fork. An unrelated `._name` file remains
 ordinary content; AppleDouble companions are never inferred.
+
+`cp -c` creates a separate APFS object with explicit shared raw-stream lineage.
+The declaration survives closing and reopening the session, moving or removing
+the original source, and hard-link operations. Metadata stays independent.
+Replacing data, a resource fork or an attribute detaches only that stream;
+unchanged streams retain their lineage. Cloning onto an existing regular file
+replaces its directory entry, leaving its old hard-link aliases intact. `-c`
+cannot be combined with `-X`. Session copy reports list each requested clone and
+whether it used cloning or an ordinary-copy fallback on an unsupported source
+or filesystem. Equal blob hashes never establish clone intent.
+
+Native APFS session capture also inventories exact physical stream mappings.
+Complete shared maps become explicit groups; partially overlapping maps receive
+an observable `cloneStreams.partial` marker. The empty stream name identifies
+raw data and other names identify attributes. APFS packing refuses a live partial
+marker because its whole-stream model cannot preserve that relationship.
+Replacing that complete stream clears its marker; metadata changes preserve it.
 
 These are the supported subsets of the Apple command interfaces. Interactive
 prompts, shell glob expansion, username/group lookup, symbolic ACL editing,
@@ -155,6 +173,11 @@ bounded logical graph, but do not stream the filesystem again. Opening checks
 metadata; the first payload read checks its hash, and `verify`/`export` check all
 values. Scratch files are private implementation data and must not be edited by
 other programs.
+
+Private session revision schema 2 persists explicit clone groups independently
+of content-addressed blobs. Schema 1 sessions remain readable. Opening checks
+that every repeated group refers to compatible stored streams and that declared
+attributes exist; a conflicting declaration is rejected before cleanup or edits.
 
 `session.Create`, `Capture`, `Open`, command methods, `Verify`, `Export`, `Report`
 and `Close` provide the same behavior to Go callers. The old `Workspace.Edit`

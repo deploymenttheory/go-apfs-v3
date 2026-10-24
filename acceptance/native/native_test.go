@@ -5,6 +5,7 @@ package native
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -250,6 +251,12 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireCloneOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireCloneCopyOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireCloneForkMappingInput(pairs, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -261,10 +268,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		planContainerChecks(lineages[key])
 	}
 	t.Run("outputs", func(t *testing.T) {
-		for _, key := range order {
+		nativeLineageAdmission().run(order, func(key string) {
 			group := lineages[key]
 			t.Run(key, func(t *testing.T) {
-				t.Parallel()
 				v := v.ForSubtest()
 				for _, p := range group {
 					p := p
@@ -273,7 +279,7 @@ func TestOutputsWithAppleTools(t *testing.T) {
 					})
 				}
 			})
-		}
+		})
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, fmt.Sprintf("Outputs verified on macOS %d (%d)", v.Major, len(pairs)), append([]string{"| output | hosts | verdict |", "| --- | --- | --- |"}, rows.rows...))
@@ -308,6 +314,21 @@ func groupByLineage[T any](items []T, key func(T) string) (map[string][]T, []str
 	return groups, order
 }
 
+var nativeLineages = sync.OnceValue(func() *lineageAdmission {
+	limit, err := strconv.Atoi(flag.Lookup("test.parallel").Value.String())
+	if err != nil {
+		panic(err)
+	}
+	return newLineageAdmission(limit)
+})
+
+// nativeLineageAdmission uses the same process-wide bound as -parallel. Go's
+// parallel-test barrier releases all registered subtests together, so sorted
+// registration alone does not preserve priority when they compete for a slot.
+// Run supports concurrent callers and returns after subtest cleanup; callbacks
+// keep the existing test names and cannot release a filesystem identity early.
+func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
+
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 	ctx := context.Background()
@@ -325,6 +346,17 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 	}
 	if p.Output.Expect.Continuation && len(diffs) == 0 {
 		k := v.Cases[CaseKey(p.Output.Source)]
+		if p.Name == cloneForkMappingInputName(v.Major) {
+			// The pair is separate evidence. Its failure must not suppress the
+			// original continuation or replace that continuation's predicates.
+			if !t.Run("fork-mapping-pair", func(t *testing.T) {
+				if err := v.cloneForkMappingPair(ctx, p, v.Recipes[k.Recipe]); err != nil {
+					t.Error(err)
+				}
+			}) {
+				verdict += ", fork-mapping diagnostic failed"
+			}
+		}
 		var limit KnownLimit
 		switch _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); {
 		case onlyKnownLimit(err) && errors.As(err, &limit):
@@ -368,10 +400,9 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	})
 	prioritizeLineages(order, "fixtures")
 	t.Run("fixtures", func(t *testing.T) {
-		for _, key := range order {
+		nativeLineageAdmission().run(order, func(key string) {
 			group := lineages[key]
 			t.Run(key, func(t *testing.T) {
-				t.Parallel()
 				v := v.ForSubtest()
 				for _, k := range group {
 					k := k
@@ -391,7 +422,7 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 					})
 				}
 			})
-		}
+		})
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, "Cross-version parity on macOS "+strconv.Itoa(v.Major), append([]string{"| fixture | producer | known drift | unexplained |", "| --- | --- | --- | --- |"}, rows.rows...))

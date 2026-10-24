@@ -473,8 +473,10 @@ the continuation's product edit fail with. The native writes and their
 `fsck` still run, the edit must fail with exactly that text, and an edit
 that succeeds fails the check until the entry is removed with the fix.
 
-Subtests run five at a time with `-v`, so progress is visible. Complete lineages
-start longest first using retained timings; their members keep their order. Outputs
+Complete lineages run five at a time with `-v`, so progress is visible. A shared
+bounded admission pool starts them longest first using retained timings; their
+members keep their order. A slot remains occupied until subtest cleanup finishes,
+including after a failed verdict. Outputs
 and fixtures that share filesystem identities (one recipe and profile's
 lineage, or any fresh build) are attached one after another, never in
 parallel. The job
@@ -488,6 +490,41 @@ It retains native replacement, truncation, metadata, fork/attribute, unlink and
 reclamation states. Portable edits must preserve untouched physical sharing;
 native verification compares the sharing graph and requires further native clone
 writes followed by the ordinary Go/native continuation.
+
+The `clone-copy` family covers ordinary `cp -c` and reopened-session packing on
+APFS, APFSX, HFS+ and HFSX. Every native transition has both UDRO and UDZO
+existing-image edits and a fresh session-built UDZO image. The closed native
+inventory requires all 72 outputs per producer, even if every portable host
+omits the same output. It binds each output to the original or immediately prior
+native source, exact target state and explicit command clock. New inode numbers
+retain exact hard-link equivalence, and unchanged inode identities remain exact
+for existing-image edits. Native data/resource-fork extent relations distinguish
+sharing from independent equal bytes. Final edit and session outputs require
+further native and product modifications. Compressed and sparse controls retain
+complete logical/raw bytes and metadata; their extent collection stays within
+the native observer's supported dense-fork measurement scope.
+
+The macOS 26 APFS refused-copy continuation also retains one bounded diagnostic
+pair from two fresh, byte-identical copies of the manifest-bound input. Both arms
+execute the complete clone writer and fixed-order observations; one additional
+`F_FULLFSYNC` targets the data descriptor in the control and the resource-fork
+descriptor in the other arm. The original physical-sharing state and verdict
+are retained before that operation. A later observation cannot change a failed
+original verdict, and the normal continuation still runs.
+
+The pair records descriptor identities, bytes, the exact packed 20-byte
+`F_LOG2PHYS_EXT` inputs/outputs, syscall errors and timings, normal cleanup and
+read-only reopen observations. Its closed raw images remain available for an
+independent selected-checkpoint/catalog walk. The existing native diagnostics
+artifact retains this bounded pair on success as well as failure. A transition
+before the additional flush, convergence in both arms, or failure to reproduce
+the discrepancy is inconclusive; one pair cannot establish general APFS flush
+semantics or replace the required filesystem verdicts.
+
+The `lzfse-images` family captures Apple ULFO images for all four plaintext
+filesystem profiles. The existing read-parity and repack families compare every
+file and decoded device digest. Synthetic decoder controls and the bounded
+[public-image opening proof](lzfse-images.md) supplement those native controls.
 
 The `encrypted-image-edits` family supplies native before/after states for APFS,
 APFSX, HFS+ and HFSX and AES-128/AES-256 envelopes. Every producer emits both UDRO
@@ -556,6 +593,51 @@ lifetime checks alone do not supply those measurements. Never remove or move a
 backing path whose release is uncertain. Document unresolved causes explicitly
 and assess the integrated reliability outcome separately from product capability
 and performance qualification.
+
+### Measuring native scheduling
+
+The retained timing projection in
+`acceptance/native/testdata/lineage_timings.json` records complete-lineage
+elapsed times and start offsets from successful warm PR run
+[39793190385](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/39793190385).
+It binds the three original job logs by SHA256. That run took **53m00s** with
+eleven jobs, ten Go cache hits and eight fixture cache hits. Each kernel passed
+eight serial raw conversion proofs, 558 fixture parity cases, two slow outputs
+and 1,016 main outputs. Its observed wall time exceeds the target.
+
+The file-only replay preserves every complete group, the serial proof/setup
+prefix, the three phase boundaries, actual producer-artifact readiness,
+download/transition delays and the final gate delay. It changes only ordered
+admission and its concurrency bound. Recalibrated costs are the rounded-up
+maximum observed duration of each complete lineage across kernels; missing
+measurements retain a positive fallback and never omit work.
+
+| Independent lineages | Projected wall time for the retained workload |
+| --- | --- |
+| 5 | 51m35s |
+| 6 | 46m32s |
+| 7 | 43m01s |
+
+Seven workers retaining the observed admission order instead project 45m38s.
+This comparison isolates the priority change from the concurrency increase.
+
+Reproduce the observed budget failure with:
+
+```sh
+go test -count=1 -parallel 7 -v -run '^TestNativeLineageTimingReplay$' ./acceptance/native -args -native-lineage-observed -native-lineage-budget=45m
+```
+
+Remove `-native-lineage-observed` to test the ordered-admission projection against
+the same budget. Ordinary tests also require every retained measured lineage to
+have a complete cost and check admission priority, the shared bound, cleanup and
+progress after aborted work.
+
+These are projections, not performance qualification. They hold measured group
+durations fixed and cannot predict changed IO contention, runner variance or new
+coverage. In particular, the added `clone-copy` and `lzfse-images` lineages have no
+native timing measurements yet and are absent from this retained workload.
+The next complete PR matrix must measure them; no elapsed time is subtracted
+from a real run to claim the forty-five-minute target.
 
 ## Diagnosing a failure
 

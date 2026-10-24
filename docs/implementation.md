@@ -13,11 +13,11 @@ See [the current support policy](acceptance.md#supported-macos-releases).
 | Capability | Current status |
 | --- | --- |
 | Contracts, source inventory, native scenarios, build/CI, portable inspection | Native macOS 15/26/27 production and Linux/Windows/macOS replay passed in PR #7 |
-| Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; retained APFS historical views implemented; broader key profiles remain pending |
+| Full readers, names, metadata, forks, links, compression, unlocking | Ordinary/compressed reads, native name lookup, regular-file links, HFS+ overflow forks, metadata, symlinks, attributes and software-encrypted APFS and AES-128/256 encrypted-DMG reads implemented; bounded LZFSE UDIF decoding and retained APFS historical views implemented; broader key profiles remain pending |
 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented. The required corpus matrix covers workspace/session edits, AppleDouble native unpack, historical session selection and packing reopened preservation sources; recursive host imports have portable logical/default controls, while complete foreign-host archive metadata qualification remains pending |
 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Plaintext APFS file commands, selected-volume editing, directory statistics and copy-on-write allocation/tree/object-map/checkpoint transactions implemented; HFS metadata initialization, overflow growth and node-map extension implemented; ordinary ACL/set-ID metadata effects, ordered commands and completed-output persistence are qualified by the closed offline editing checklist; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
-| Snapshot lifecycle, clones, encrypted modification/creation | [Native history/sharing/encryption controls](apfs-lifecycle.md) retained from macOS 15/26/27; completed-key-change reads corrected. Existing plaintext clone editing and encrypted-DMG envelope editing implemented, with independent native qualification required; positive software-encrypted APFS volume and snapshot writes remain pending. Positive snapshot mutation oracle tracked in [#74](https://github.com/deploymenttheory/go-apfs-v3/issues/74) |
+| Snapshot lifecycle, clones, encrypted modification/creation | [Native history/sharing/encryption controls](apfs-lifecycle.md) retained from macOS 15/26/27; completed-key-change reads corrected. Plaintext clone editing, ordinary clone copying, persistent session clone packing and encrypted-DMG envelope editing implemented, with independent native qualification required; positive software-encrypted APFS volume and snapshot writes remain pending. Positive snapshot mutation oracle tracked in [#74](https://github.com/deploymenttheory/go-apfs-v3/issues/74) |
 | Read/write mounts on Linux/macOS/Windows | Pending |
 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
 
@@ -32,6 +32,17 @@ Go edits receive a further native allocation and remounted preservation check;
 System/Data role-bearing edits retain their explicit refusal. The historical
 qualification references below describe their original implementations, rather
 than additional workflows that run beside the current corpus matrix.
+
+The clone-copy family extends that matrix through ordinary `cp -c`, persistent
+session reopen and fresh packing. APFS uses explicit per-stream lineage;
+independently equal bytes remain separate. Native whole-stream sharing is
+captured from actual descriptors and physical maps. Partially shared streams
+remain observable and refuse fresh APFS packing until their complete replacement.
+HFS copying reports an ordinary-copy fallback. The independent native controls
+cover destination replacement, ownership/ACL policy, links, compression, sparse
+contents, later data/fork/attribute changes, source removal and refusals.
+The [LZFSE reader](lzfse-images.md) adds native ULFO controls to the existing
+read-parity and sector-preserving repack families.
 
 The volume-inspection family compares native APFS, case-sensitive APFS, HFS+,
 and HFSX images against `diskutil`: name, case policy, allocation block size,
