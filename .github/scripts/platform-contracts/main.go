@@ -28,6 +28,12 @@ const module = "github.com/deploymenttheory/go-apfs-v3/acceptance/"
 // runs every untagged helper test, including newly added packages and tests.
 var helperContracts = map[string][]string{
 	module + "fixture": {
+		"TestAttachRetriesBusyWithJitterAndPreservesCredentialsAndArguments",
+		"TestAttachStopsAtItsBusyBudget",
+		"TestAttachCancellationPreventsCommandsAndPreservesPriorBusyFailure",
+		"TestAttachNeverRetriesPermanentOrCommandFailures",
+		"TestAttachPartialOutputAndParserFailuresCannotReplayAnAttachment",
+		"TestCaptureToolStepsCannotBypassTheSharedAttachmentLifecycle",
 		"TestCapturedEvidenceSurvivesGitCheckoutFiltersWithoutByteConversion",
 		"TestNativePlatformOriginalsRetainCompleteIndependentScopesAndAdapterFailures",
 		"TestNativePlatformReplayBindsOriginalPathsAliasesForeignImagesAndPostDetachFacts",

@@ -207,11 +207,20 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 		stdin = append(append([]byte(nil), opts.Password...), 0)
 	}
 	argv = append(argv, path)
-	out, err := d.run(ctx, "attach", false, stdin, argv...)
+	attempts := 0
+	result, err := d.imageOperation(ctx, "attach-busy", func() (Command, bool, error) {
+		if attempts > 0 {
+			if err := d.confirmAttachRetry(ctx, path); err != nil {
+				return Command{}, false, err
+			}
+		}
+		attempts++
+		return Command{Label: "attach", Argv: argv, Stdin: stdin}, false, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	info, err := d.plist(ctx, out)
+	info, err := d.plist(ctx, result.Stdout)
 	if err != nil {
 		return nil, err
 	}

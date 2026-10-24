@@ -392,6 +392,19 @@ They omit whole-device hashing when no assertion consumes it. Repack/recovery
 disk-digest checks and fresh-container measured sizes remain required; fixture
 capture continues recording both file and device digests.
 
+Capture and native verification route every attach and detach through
+`HostDisk` and its shared image-operation helper. An explicit busy command
+result receives the existing bounded exponential jitter policy: at most six
+attempts, starting at a 250 ms ceiling and capped at 2 seconds. Each command,
+probe and retry remains in the transcript. A busy attach is retried only after
+framework and kernel scopes establish no matching attachment; partial output,
+unknown state, cancellation, launch failures and permanent errors stop the
+operation. Successful attach output is parsed once, outside the retry loop.
+Raw recipe tool commands cannot bypass this lifecycle, including expanded verbs.
+Filesystem checks and comparison verdicts are never retried. Exhausting detach
+retries remains fatal and retains its diagnostic receipt; adding the helper
+does not establish the cause of a persistent busy device.
+
 Native attachment cleanup classifies the complete backing-image identity before
 each detach request. Capture and verification use the same adapter contract:
 

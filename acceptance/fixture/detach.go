@@ -4,59 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 )
 
 func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
-	var busyErr error
-	err := Settle(ctx, d.T, "detach-busy", BusyWait, func() (bool, string, error) {
-		if err := ctx.Err(); err != nil {
-			return false, "", err
-		}
+	_, err := d.imageOperation(ctx, "detach-busy", func() (Command, bool, error) {
 		// A device number can be reused before the first cleanup call as
 		// well as after a busy report. Bind every action to this image's
 		// exact full path; unknown ownership never permits a detach.
 		ownership, err := d.attachmentOwnership(ctx, a)
 		if err != nil {
-			return false, "", &AttachmentOwnershipError{State: OwnershipUnknown, Device: a.Dev, Image: a.Image, Cause: errors.Join(fmt.Errorf("confirm attachment ownership before detaching %s: %w", a.Dev, err), ctx.Err())}
+			return Command{}, false, &AttachmentOwnershipError{State: OwnershipUnknown, Device: a.Dev, Image: a.Image, Cause: errors.Join(fmt.Errorf("confirm attachment ownership before detaching %s: %w", a.Dev, err), ctx.Err())}
 		}
 		if err := ctx.Err(); err != nil {
-			return false, "", err
+			return Command{}, false, err
 		}
 		switch ownership {
 		case OwnershipAbsent:
-			return true, "", nil
+			return Command{}, true, nil
 		case OwnershipOwned:
 			// The exact owner permits this normal detach request.
 		default:
-			return false, "", &AttachmentOwnershipError{State: ownership, Device: a.Dev, Image: a.Image}
+			return Command{}, false, &AttachmentOwnershipError{State: ownership, Device: a.Dev, Image: a.Image}
 		}
-		if err := ctx.Err(); err != nil {
-			return false, "", err
-		}
-		cmd := Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}, Expected: "record"}
-		result := d.C.Run(ctx, cmd)
-		err = d.T.Record(cmd, result)
-		if ctx.Err() != nil {
-			return false, "", errors.Join(err, ctx.Err())
-		}
-		if err != nil {
-			return false, "", err
-		}
-		err = fmt.Errorf("hdiutil detach %s: exit %d: %s", a.Dev, result.Status, strings.TrimSpace(string(result.Stderr)))
-		switch result.Status {
-		case 0:
-			return true, "", nil
-		case 16: // EBUSY.
-			busyErr = err
-			return false, err.Error(), nil
-		default:
-			return false, "", err
-		}
+		return Command{Label: "detach", Argv: []string{"hdiutil", "detach", a.Dev}}, false, nil
 	})
-	if err != nil {
-		err = errors.Join(err, busyErr)
-	}
 	var unsettled *NotSettledError
 	if errors.As(err, &unsettled) {
 		return errors.Join(err, d.recordBusyDetachEvidence(ctx, a))
