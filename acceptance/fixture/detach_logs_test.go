@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -102,7 +103,7 @@ func TestBusyDetachLogReadsDoNotDelayMandatoryDeviceAndHolderEvidence(t *testing
 		if i == 0 && !slices.Equal(command.Argv[len(command.Argv)-2:], []string{"--process", "123"}) {
 			t.Fatal("backend PID was guessed or omitted")
 		}
-		if i == 1 && (!strings.Contains(command.Argv[len(command.Argv)-1], `process == "diskarbitrationd"`) || !strings.Contains(command.Argv[len(command.Argv)-1], image)) {
+		if i == 1 && (!strings.Contains(command.Argv[len(command.Argv)-1], `process == "diskarbitrationd"`) || !strings.Contains(command.Argv[len(command.Argv)-1], "eventMessage CONTAINS[c] "+strconv.Quote(image))) {
 			t.Fatal("arbitration/device query lost target scope")
 		}
 		if i > 0 && row.Command <= receipt.Logs[i-1].Command {
@@ -114,6 +115,21 @@ func TestBusyDetachLogReadsDoNotDelayMandatoryDeviceAndHolderEvidence(t *testing
 		if end.Before(originalEnd) || end.Sub(originalEnd) > time.Second {
 			t.Fatal("query window did not bracket original failed requests")
 		}
+	}
+}
+
+func TestDetachLogPredicateQuotesWindowsImagePath(t *testing.T) {
+	image := `C:\Users\runneradmin\AppData\Local\Temp\image path\writable.raw`
+	c := newAttachmentDiagnostics(imageTestDisk(&fakeCommander{}), &Attachment{Image: image, Dev: "/dev/disk42"})
+	logActionWindow(c)
+	commands, _, err := c.logCommands(234)
+	if err != nil {
+		t.Fatal(err)
+	}
+	predicate := commands[1].Argv[len(commands[1].Argv)-1]
+	want := `eventMessage CONTAINS[c] "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\image path\\writable.raw"`
+	if !strings.Contains(predicate, want) {
+		t.Fatalf("Windows image path is not retained as one complete quoted literal: %q", predicate)
 	}
 }
 
