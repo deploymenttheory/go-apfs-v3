@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Attachment is an attached disk image and the volumes macOS found in it.
@@ -208,7 +209,10 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	argv = append(argv, path)
 	attempts := 0
-	result, err := d.imageOperation(ctx, "attach-busy", func() (Command, bool, error) {
+	var discovery attachmentDiscovery
+	timed := *d
+	timed.C = discoveryAttachCommander{Commander: d.C, interval: &discovery.Attach}
+	result, err := timed.imageOperation(ctx, "attach-busy", func() (Command, bool, error) {
 		if attempts > 0 {
 			if err := d.confirmAttachRetry(ctx, path); err != nil {
 				return Command{}, false, err
@@ -237,6 +241,9 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 		if m, _ := entity["potentially-mountable"].(bool); m {
 			mountable++
 		}
+	}
+	for _, e := range devEntries {
+		discovery.Reported = append(discovery.Reported, discoveryEntity{Device: e.dev, ContentHint: e.contentHint})
 	}
 	whole, ok := wholeDisk(devEntries)
 	if !ok {
@@ -268,7 +275,11 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	checks := 0
 	err = Settle(ctx, d.T, "volume-discovery", ShortWait, func() (bool, string, error) {
 		checks++
-		if err := d.Refresh(ctx, a); err != nil {
+		var initial *attachmentDiscovery
+		if checks == 1 {
+			initial = &discovery
+		}
+		if err := d.refresh(ctx, a, initial); err != nil {
 			return false, "", err
 		}
 		if len(a.Volumes) >= mountable || (len(a.Volumes) > 0 && checks >= 3) {
@@ -341,11 +352,24 @@ func (a *Attachment) volumeByDev(dev string) *AttachedVolume {
 // Refresh re-reads the volume inventory: APFS containers through
 // diskutil apfs list, everything else through diskutil list.
 func (d *HostDisk) Refresh(ctx context.Context, a *Attachment) error {
-	out, err := d.run(ctx, "list", false, nil, "diskutil", "list", "-plist", a.Dev)
+	return d.refresh(ctx, a, nil)
+}
+
+func (d *HostDisk) refresh(ctx context.Context, a *Attachment, discovery *attachmentDiscovery) error {
+	cmd := Command{Label: "list", Argv: []string{"diskutil", "list", "-plist", a.Dev}, Expected: "0"}
+	index := len(d.T.Commands)
+	started := time.Now()
+	result := d.C.Run(ctx, cmd)
+	returned := time.Now()
+	err := d.T.Record(cmd, result)
 	if err != nil {
+		if discovery != nil {
+			discovery.FailedList = discoveryInvocation{Started: started, Returned: returned}
+			return errors.Join(err, d.recordDiscoveryEvidence(ctx, a, *discovery, index, cmd, result, err))
+		}
 		return err
 	}
-	listing, err := d.plist(ctx, out)
+	listing, err := d.plist(ctx, result.Stdout)
 	if err != nil {
 		return err
 	}

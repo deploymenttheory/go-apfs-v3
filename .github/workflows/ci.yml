@@ -333,7 +333,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: native-diagnostics-macos-${{ matrix.major }}
-          # A successful macOS 26 run still retains the bounded matched pair.
+          # Each successful native run retains its bounded matched pairs.
           # Failed jobs keep their complete existing diagnostics directory.
           path: ${{ job.status == 'failure' && format('{0}/native-work/', runner.temp) || format('{0}/native-work/fork-mapping-pair/', runner.temp) }}
           if-no-files-found: error
