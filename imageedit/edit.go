@@ -43,13 +43,16 @@ type Options struct {
 type Change = filesystem.Change
 
 type Report struct {
-	Clones      []CopyCloneResult              `json:"clones,omitempty"`
-	VolumeID    string                         `json:"volumeId"`
-	Changed     []uint64                       `json:"changed"`
-	FreeBlocks  uint64                         `json:"freeBlocks"`
-	Transaction uint64                         `json:"transaction,omitempty"`
-	Journal     *hfsplus.JournalReplayReport   `json:"journal,omitempty"`
-	Checkpoint  *apfs.CheckpointRecoveryReport `json:"checkpoint,omitempty"`
+	// MetadataOmissions are COPY-call outcomes at Command/ClockNS, not a
+	// final-node inventory: subsequent calls may remove or replace a path.
+	MetadataOmissions []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
+	Clones            []CopyCloneResult                   `json:"clones,omitempty"`
+	VolumeID          string                              `json:"volumeId"`
+	Changed           []uint64                            `json:"changed"`
+	FreeBlocks        uint64                              `json:"freeBlocks"`
+	Transaction       uint64                              `json:"transaction,omitempty"`
+	Journal           *hfsplus.JournalReplayReport        `json:"journal,omitempty"`
+	Checkpoint        *apfs.CheckpointRecoveryReport      `json:"checkpoint,omitempty"`
 	diskimage.RepackReport
 }
 
@@ -107,6 +110,7 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 			// even naming this destination. Only our own publication commits
 			// the staged clone outcomes to the externally visible report.
 			report.Clones = nil
+			report.MetadataOmissions = nil
 		}
 	}()
 	if sourcePath == "" || destination == "" || mutation == nil {

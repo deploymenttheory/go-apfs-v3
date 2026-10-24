@@ -136,6 +136,11 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 		if n.Identity.Object != id || !validNode(n) {
 			return fmt.Errorf("workspace object identity or mode: %w", filesystem.ErrCorrupt)
 		}
+		for _, omission := range n.MetadataOmissions {
+			if err := x.metadata(6*(len(omission.Field)+len(omission.SourceFormat)+len(omission.Reason)) + 128); err != nil {
+				return err
+			}
+		}
 		for _, field := range append(slices.Clone(n.MetadataModified), n.AttributesModified...) {
 			if err := x.metadata(2*len(field) + 32); err != nil {
 				return err
@@ -167,6 +172,9 @@ func (x *capture) walk(id, parent uint64, name []byte, host string, depth int) e
 		}
 		if len(n.AttributesModified) != 0 {
 			x.manifest.Report.AttributeObjects++
+		}
+		if len(n.MetadataOmissions) > 0 {
+			x.manifest.Schema = max(x.manifest.Schema, 6)
 		}
 		if n.AttributesUnavailable || len(n.MetadataDefaulted) > 0 || slices.Contains(n.MetadataModified, "changeTime") {
 			x.manifest.Schema = max(x.manifest.Schema, 5)

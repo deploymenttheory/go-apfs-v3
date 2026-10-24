@@ -133,6 +133,10 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	if err = plan.finish(ctx, &result); err != nil {
 		return result, err
 	}
+	result.MetadataOmissions, err = filesystem.CollectMetadataOmissions(ctx, tree)
+	if err != nil {
+		return result, err
+	}
 	// Fixed batches retain existing mutation limits while larger trees keep
 	// a single command publication boundary. Payloads are already immutable.
 	for len(plan.changes) > 0 {

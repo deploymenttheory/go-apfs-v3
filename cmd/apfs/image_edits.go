@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 
@@ -185,6 +186,9 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 			if err = copyOmissions(f.Output(), report.OmittedAttributes); err != nil {
 				return err
 			}
+			if err = writeMetadataOmissions(f.Output(), report.MetadataOmissions); err != nil {
+				return err
+			}
 			_, err = fmt.Fprintf(out, "Copied %d path(s) in volume %s; published %s (%s); %d free allocation blocks\n", report.Copied, report.VolumeID, destination, report.Format, report.FreeBlocks)
 			return err
 		}
@@ -236,6 +240,38 @@ func copyCloneResults(out io.Writer, results []copyfile.CloneResult) error {
 			if _, err := fmt.Fprintf(out, "Copied %s to %s (clone fallback: %s)\n", result.Source, result.Destination, result.Fallback); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// Summarize the precise typed outcomes without repeating an absolute host path.
+func writeMetadataOmissions(out io.Writer, records []filesystem.MetadataOmissionRecord) error {
+	type key struct{ field, format, status, reason string }
+	counts := map[key]int{}
+	for _, r := range records {
+		counts[key{r.Field, r.SourceFormat, string(r.Status), r.Reason}]++
+	}
+	keys := make([]key, 0, len(counts))
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := keys[i], keys[j]
+		if a.field != b.field {
+			return a.field < b.field
+		}
+		if a.format != b.format {
+			return a.format < b.format
+		}
+		if a.status != b.status {
+			return a.status < b.status
+		}
+		return a.reason < b.reason
+	})
+	for _, k := range keys {
+		if _, err := fmt.Fprintf(out, "Host metadata %s: %s (%s), %d outcome(s): %s\n", k.field, k.status, k.format, counts[k], k.reason); err != nil {
+			return err
 		}
 	}
 	return nil

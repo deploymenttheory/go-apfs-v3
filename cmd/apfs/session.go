@@ -153,7 +153,7 @@ func printSessionReport(out io.Writer, r session.Report, jsonOutput, details boo
 			return err
 		}
 	}
-	return nil
+	return writeMetadataOmissions(out, r.MetadataOmissions)
 }
 
 type rootReader struct {

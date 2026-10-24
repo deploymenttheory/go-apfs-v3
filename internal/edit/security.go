@@ -21,12 +21,13 @@ func (r *Tree) CopySecurity(ctx context.Context, id uint64, source []byte) error
 	if err != nil {
 		return err
 	}
-	if bytes.Equal(result, destination) {
-		return nil
-	}
 	o, err := r.getNode(ctx, id)
 	if err != nil {
 		return err
+	}
+	o.node.MetadataOmissions = slices.DeleteFunc(o.node.MetadataOmissions, func(value filesystem.MetadataOmission) bool { return value.Field == "acl" })
+	if bytes.Equal(result, destination) {
+		return nil
 	}
 	if !slices.Contains(o.node.AttributesModified, filesec.Attribute) && len(o.node.AttributesModified) >= maxAttributes {
 		return filesystem.ErrLimit
