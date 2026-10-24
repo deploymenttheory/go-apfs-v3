@@ -97,7 +97,7 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	if e != nil {
 		return result, e
 	}
-	plan := copyPlan{tree: tree, changed: map[string]bool{}, limits: limits, cloned: map[uint64]bool{}, synced: map[uint64]bool{}}
+	plan := copyPlan{tree: tree, changed: map[string]bool{}, destinations: map[string]bool{}, limits: limits, cloned: map[uint64]bool{}, synced: map[uint64]bool{}}
 	root, err := tree.Stat(ctx, tree.Root())
 	if err != nil {
 		return result, err
@@ -119,8 +119,11 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 			}
 			return filesystem.Metadata{Mode: filesystem.Observed(kind), UID: uid, GID: parent.Metadata.GID, BSDFlags: filesystem.Observed(uint32(0)), BirthTime: filesystem.Observed(o.Time), ModifyTime: filesystem.Observed(o.Time), ChangeTime: filesystem.Observed(o.Time), AccessTime: filesystem.Observed(o.Time)}, nil
 		},
-		Modified: func(ctx context.Context, p string) error { plan.changed[p] = true; return ctx.Err() },
-		Omitted:  func(value copyfile.Omission) { result.OmittedAttributes = append(result.OmittedAttributes, value) },
+		Modified: func(ctx context.Context, p string) error {
+			plan.changed[p], plan.destinations[p] = true, true
+			return ctx.Err()
+		},
+		Omitted: func(value copyfile.Omission) { result.OmittedAttributes = append(result.OmittedAttributes, value) },
 	}
 	for _, command := range commands {
 		if len(command.Sources) == 0 || command.Destination == "" {
@@ -133,7 +136,7 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	if err = plan.finish(ctx, &result); err != nil {
 		return result, err
 	}
-	result.MetadataOmissions, err = filesystem.CollectMetadataOmissions(ctx, tree)
+	result.MetadataOmissions, err = copyMetadataOmissions(ctx, tree, plan.destinations)
 	if err != nil {
 		return result, err
 	}
@@ -158,10 +161,13 @@ type copyPlan struct {
 	tree    *edit.Tree
 	changes []Change
 	changed map[string]bool
-	payload *os.File
-	size    int64
-	values  []filesystem.Value
-	limits  edit.Limits
+	// destinations contains only completed copy destinations, excluding parent
+	// clocks and other incidental mutations recorded in changed.
+	destinations map[string]bool
+	payload      *os.File
+	size         int64
+	values       []filesystem.Value
+	limits       edit.Limits
 }
 
 func (p *copyPlan) own(ctx context.Context, v filesystem.Value, total *int64) (result block.Source, err error) {
