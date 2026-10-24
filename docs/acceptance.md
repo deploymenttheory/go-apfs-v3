@@ -516,12 +516,19 @@ complete logical/raw bytes and metadata; their extent collection stays within
 the native observer's supported dense-fork measurement scope.
 
 The macOS 26 APFS refused-copy continuation also retains one bounded diagnostic
-pair from two fresh, byte-identical copies of the manifest-bound input. Both arms
-execute the complete clone writer and fixed-order observations; one additional
+pair from two fresh, byte-identical copies of the manifest-bound input. The
+macOS 27 APFSX refused-copy continuation retains eight fixed pairs, alternating
+which arm runs first. These are independent trials, never retries seeking a
+passing verdict. Both arms execute the complete clone writer; one additional
 `F_FULLFSYNC` targets the data descriptor in the control and the resource-fork
 descriptor in the other arm. The original physical-sharing state and verdict
 are retained before that operation. A later observation cannot change a failed
-original verdict, and the normal continuation still runs.
+original verdict, and the normal continuation still runs. Added descriptor and
+read probes begin only after the original writer returns. Old/new/old descriptor
+maps, full fork hashes and EOF are measured before the intervention; retained
+and freshly opened descriptors are measured afterward. Unknown descriptor or
+image cleanup stops the series. Raw copies are bounded to 1 GiB in aggregate,
+with a 64 MiB aggregate JSON receipt budget and 16 MiB member limit.
 
 The pair records descriptor identities, bytes, the exact packed 20-byte
 `F_LOG2PHYS_EXT` inputs/outputs, syscall errors and timings, normal cleanup and
@@ -557,11 +564,26 @@ subset of the native workspace tree: names, contents, empty directories, symlink
 targets and hard-link classes. Archive metadata is compared with ordinary host
 stat observations and explicit platform defaults; uncaptured ACLs and unavailable
 attribute inventories must be reported. These portable controls emit no native
-image artifacts. Full archive preservation of a foreign host's ACLs and attributes still needs an
-independent host-input inventory policy and native control, tracked in
-[#143](https://github.com/deploymenttheory/go-apfs-v3/issues/143). Host owner IDs,
-birth-time availability and provenance cannot be treated as restored fixture
-metadata or silently exempted from deterministic image checks.
+image artifacts.
+
+`TestObservedHostArchivesSurviveSessionPackingAndImageImports` adds actual host
+metadata controls and independently inventories names, bytes, links, modes,
+ownership, flags, timestamps, attributes, forks and raw security before import.
+The inventory distinguishes availability, absence and empty values; foreign
+security and Windows named streams retain their actual representations and
+explicit conversion policy. The public API and CLI must agree after session
+reopen, preservation export, packing and existing-image imports. Failed imports
+cannot publish partial revisions or images; source inputs remain unchanged.
+
+Each bounded inventory has at most 64 entries, 32 attribute/security values per
+namespace, 256 KiB per value and a 2 MiB sidecar. Sidecars are source/host/policy
+bound and checked by size and SHA-256 alongside the actual images. All eight
+source cases produce both routes, giving eight paired names per native kernel;
+every host's copy receives native checker/readback and a complete continued-write
+sequence. Equal effective preserved inputs still require identical plaintext
+bytes. Different actual host observations receive independent native verdicts.
+Host owner IDs, birth-time availability and provenance never become restored
+Apple fixture metadata or blanket deterministic-check exemptions.
 
 The performance changes preserve the required gate. The support-policy revision
 uses the ten-job workflow described above; the retained run measurements describe

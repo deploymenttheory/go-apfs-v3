@@ -254,6 +254,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireSnapshotEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireHostImportOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireCloneCopyOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -361,7 +364,13 @@ func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
 			}
 		}
 		var limit KnownLimit
-		switch _, err := v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]}); {
+		var continuationErr error
+		if p.Output.Expect.HostImport != nil {
+			continuationErr = v.hostImportContinuations(ctx, p)
+		} else {
+			_, continuationErr = v.Continuation(ctx, p, schemaCase{recipe: v.Recipes[k.Recipe]})
+		}
+		switch err := continuationErr; {
 		case onlyKnownLimit(err) && errors.As(err, &limit):
 			t.Logf("native writes passed fsck; %v", limit)
 			verdict += ", native continuation ok, product edit refused by a tracked limit"

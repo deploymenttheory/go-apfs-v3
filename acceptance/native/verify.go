@@ -116,6 +116,12 @@ func (v *Verifier) observeImageWithCleanup(ctx context.Context, label, image, fo
 	_ = os.RemoveAll(work)
 	vars := &fixture.Vars{Passwords: recipe.Passwords}
 	obs, err := fixture.Observe(ctx, fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "output"}, Stage: label, Spec: spec, Image: image, Format: format, Password: password, Att: att, Disk: v.Disk, Vol: v.Vol, Vars: vars, T: t, Work: work, Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(label), Producer: v.Producer, OmitDeviceDigest: !deviceDigest})
+	// A scoped consumer can require observations that the generic collector
+	// records as unavailable. Return that failure before continuation cleanup
+	// can classify the observation as successful and remove its evidence.
+	if required, ok := v.Vol.(interface{ ObservationError() error }); ok {
+		err = errors.Join(err, required.ObservationError())
+	}
 	cleanupErr = v.Disk.Detach(ctx, att)
 	err = errors.Join(err, cleanupErr)
 	if obs != nil {
@@ -147,6 +153,9 @@ func (v *Verifier) observeFixture(ctx context.Context, k corpus.Case, label stri
 // VerifyOutput checks one paired output with Apple tools and returns the
 // differences from its expectation; integrity failures are errors.
 func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Difference, resultErr error) {
+	if p.Output.HostInput != nil || p.Output.Expect.HostImport != nil {
+		return v.verifyHostImport(ctx, p)
+	}
 	out := p.Output
 	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
 	defer finish(&resultErr)

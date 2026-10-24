@@ -84,6 +84,20 @@ and appears in the report. Unavailable attribute enumeration remains distinct
 from an observed empty list. Windows host streams and Linux inode flags are not
 interpreted as macOS forks or BSD flags.
 
+Archive imports capture Darwin host ACLs without following the source link and
+apply the ordinary ACL copy policy below. Foreign POSIX/Windows security that
+cannot be converted and unavailable observations have distinct typed
+`metadataOmissions` in the completed copy report. Observed absence and empty
+values remain separate from both results. Packing and reopened-session exports
+retain this provenance; none of these paths reconstructs missing Apple metadata
+from the host file's earlier history.
+
+For ordered image edits, omission records are COPY-call outcomes. `command` is
+the one-based Editor call index and `clockNs` is its explicit operation clock.
+A later command may remove or replace that logical path. These events are
+reported only when the complete image is published; session and packing reports
+instead describe provenance in their current logical tree.
+
 Image source and destination symlinks resolve inside the selected logical volume,
 including absolute targets. Literal recursive links are copied without opening
 their target on the host. Traversal is limited to 40 symlink expansions and 128

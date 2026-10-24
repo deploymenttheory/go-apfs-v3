@@ -306,8 +306,12 @@ and descriptor-tree layouts are currently explicit errors.
 
 Writable engines require validated ownership, feature admission, allocation
 accounting, and durable publication. Plaintext APFS clone edits reconcile shared
-stream and physical reference counts before copy-on-write and reclamation. APFS
-copy-on-write and HFS+ journaling need separate implementations. HFS+ metadata journaling is not atomic file-content
+stream and physical reference counts before copy-on-write and reclamation. Live
+APFS edits preserve retained historical object-map predecessors, metadata roots
+and stream ownership. Releasing a live reference cannot free historical storage;
+the live extent tree records deltas against the newest retained snapshot.
+Historical ownership remains protected after older recovery checkpoints retire.
+APFS copy-on-write and HFS+ journaling need separate implementations. HFS+ metadata journaling is not atomic file-content
 replacement. Existing-image edits decode into project-owned private regular-file copies and
 explicitly publish new DMGs. Native shadow replay is not the transaction engine.
 `Sync` must describe exactly what becomes durable. The first HFS engine flushes
@@ -372,7 +376,11 @@ observations and report unavailable fields instead of mapping host permissions o
 streams into invented macOS values. Logical symlink traversal and native name
 comparison stay above these adapters. A fixed session clock is independent of
 scratch placement; reporting its location does not insert that path into canonical
-state. Export uses the existing preservation engine and schema 5 provenance.
+state. Typed host-metadata omissions retain field/representation/status/reason
+through copies, revisions, preservation exports and completed packing reports.
+Darwin ACLs use the existing copy-security policy; foreign security formats have
+explicit conversion results. Export uses the existing preservation engine and
+versioned provenance schemas.
 See [session semantics](sessions.md) for command flags and policy boundaries.
 
 ## Fresh image construction

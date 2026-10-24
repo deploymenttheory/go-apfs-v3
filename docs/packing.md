@@ -265,7 +265,10 @@ Uncaptured required metadata, subsecond or out-of-range HFS timestamps, unsuppor
 object types, directory hard links, reserved names/attributes and unrepresentable
 FinderInfo fail explicitly. An input claiming an independently present empty resource fork is rejected in
 this construction profile. Available attributes are never
-silently dropped. Host-import defaults and unavailable attributes are reported;
+silently dropped. Host-import defaults, unavailable attributes and typed metadata
+omissions are reported, including after session reopen or preservation export.
+An omission names the logical path, field, original host representation and
+whether observation was unavailable or conversion unsupported;
 packing cannot recreate metadata the host did not provide.
 
 APFS preserves nanosecond times in the supported 1970–2262 signed-nanosecond

@@ -66,7 +66,7 @@ var consumers = map[string][]string{
 	"hfs-mutation-sources":         {"TestReadParity", "TestExistingImageEditsMatchAppleStates"},
 	"apfs-mutation-sources":        {"TestReadParity", "TestExistingImageEditsMatchAppleStates", "TestStorageAccountingMatchesNativeAllocation"},
 	"file-command-journeys":        {"TestReadParity", "TestFileCommandSessionsMatchAppleJourney"},
-	"workspace-edits":              {"TestReadParity", "TestWorkspaceOperationsMatchAppleStates", "TestRecursiveHostImportsPreserveNativeLogicalTrees"},
+	"workspace-edits":              {"TestReadParity", "TestWorkspaceOperationsMatchAppleStates", "TestRecursiveHostImportsPreserveNativeLogicalTrees", "TestObservedHostArchivesSurviveSessionPackingAndImageImports"},
 	"permission-inheritance":       {"TestReadParity", "TestSessionPermissionsMatchAppleStates"},
 	// Stage sequences the image editor replays from Apple's prior state.
 	"apfs-container-geometry":       {"TestReadParity", "TestGoEditsReproduceAppleStageStates"},
