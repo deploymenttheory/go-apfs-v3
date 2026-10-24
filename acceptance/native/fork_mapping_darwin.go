@@ -242,6 +242,7 @@ func (v *Verifier) runForkMappingArm(ctx context.Context, arm *forkMappingArm) (
 	source, sibling := "Fixture/followed", "Fixture/overwrite"
 	resultErr = runForkMappingObservedWriter(func(checkpoint cloneForkCheckpoint) error {
 		err := v.continueCloneWritesObserved(ctx, mount, filepath.Join(stage, "clone-writer"), source, sibling, checkpoint)
+		v.Vol = baseVolume // Later descriptor/readonly probes are not original writer calls.
 		if err != nil {
 			arm.WriterError = err.Error()
 		}
