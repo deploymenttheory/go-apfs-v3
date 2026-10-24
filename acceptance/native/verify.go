@@ -151,7 +151,8 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
 	defer finish(&resultErr)
 	v.setTranscript(&fixture.Transcript{})
-	if out.Expect.CommandClockNS != 0 && (out.Source.Recipe != "clone-copy" || out.Operation != "edit" && out.Operation != "build") {
+	qualifiedClock := out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") || out.Source.Recipe == "snapshot-history" && out.Operation == "edit"
+	if out.Expect.CommandClockNS != 0 && !qualifiedClock {
 		return nil, fmt.Errorf("output %s declares an unqualified command clock", out.Name)
 	}
 	k, want, err := v.expectedView(out)
@@ -242,6 +243,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		return v.verifyContainer(ctx, out, image, password, digests, !p.SkipChecksums)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
+	spec.Snapshots = hasHistoricalViews(k.Observation)
 	if out.Source.Recipe == "apfs-clones" {
 		spec.Extents, spec.Samples = cloneExtentPaths(), 12
 	}

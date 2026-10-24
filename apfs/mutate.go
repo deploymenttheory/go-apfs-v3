@@ -35,6 +35,7 @@ type mutation struct {
 	nx, super               []byte
 	xid, next               uint64
 	ephemeral               map[uint64]ephemeral
+	reaperLists             []ephemeral
 	space                   *mutationSpace
 	fs, extents, vmap, cmap *cowTree
 	volumeMap, containerMap []byte
@@ -46,13 +47,15 @@ type mutation struct {
 	links                   map[uint64]map[*mutationEntry]bool
 	actor                   filesystem.Observation[uint32]
 	reusePrepared           bool
+	history                 *mutationHistory
 }
 type readOnlyMutation struct{ block.Source }
 
 func (readOnlyMutation) WriteAt([]byte, int64) (int, error) { return 0, fs.ErrPermission }
 
-// ValidateMutation admits only the fully accounted single-volume plaintext
-// profile. Unknown metadata or ownership is a refusal, never a guessed free block.
+// ValidateMutation admits fully accounted ordinary plaintext volumes and
+// qualified retained histories. Unknown metadata or ownership is a refusal,
+// never a guessed free block.
 func ValidateMutation(ctx context.Context, source block.Source) error {
 	_, e := openMutation(ctx, readOnlyMutation{source})
 	return e
@@ -197,7 +200,7 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 	return m, nil
 }
 func admitMutationVolume(v *Volume) error {
-	if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Snapshots != 0 || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
+	if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
 		return fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
 	}
 	return nil

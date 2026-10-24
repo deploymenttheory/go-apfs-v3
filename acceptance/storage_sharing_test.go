@@ -545,13 +545,11 @@ func checkInterleavedHistory(t *testing.T, ctx context.Context, observed []schem
 	}
 }
 
-// TestHistoryAndEncryptedWritersRefuseWithoutPublication checks both the
+// TestEncryptedWritersRefuseWithoutPublication checks both the
 // low-level zero-write boundary and the public image editor's publication
-// contract. These controls have snapshots or encryption; they do not isolate
-// the separate plaintext clone-only writer boundary.
-func TestHistoryAndEncryptedWritersRefuseWithoutPublication(t *testing.T) {
+// contract. Software-encrypted APFS remains outside ordinary mutation support.
+func TestEncryptedWritersRefuseWithoutPublication(t *testing.T) {
 	cases := storageCases(t, map[string]map[string][]string{
-		"snapshot-history":  snapshotStages,
 		"encrypted-volumes": {"apfs": encryptedVolumeStages, "apfsx": encryptedVolumeStages},
 	})
 	recipes := recipesByName(t)

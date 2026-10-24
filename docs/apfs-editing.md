@@ -46,8 +46,9 @@ Every current and pending-free block must have validated ownership.
 
 Plaintext clone-bearing volumes are admitted when their stream and physical
 reference counts reconcile. Shared data, resource forks and attribute streams
-use copy-on-write; hard-link aliases retain their shared inode. Snapshot-bearing
-volumes, System/Data roles, Fusion, software-encrypted APFS volumes, pending
+use copy-on-write; hard-link aliases retain their shared inode. Qualified retained
+snapshots remain immutable while ordinary commands edit the live volume.
+System/Data roles, Fusion, software-encrypted APFS volumes, active or nonempty
 reapers and unrecognized write profiles are refused before disk staging. Tracked directories
 retain their statistics and inheritance; protected filesystem-owned directories
 remain outside user mutation.
@@ -103,7 +104,8 @@ flags and a matching private stream ID never establish ownership by themselves.
 An occupied destination entry is replaced, while its other hard-link aliases
 retain the old inode. See [copy policy and fallback reports](image-copy.md).
 
-Snapshot and encrypted-volume mutation retain separate admission limits.
+Snapshot lifecycle operations and encrypted-volume mutation retain separate
+admission limits.
 Independent qualification requires the plaintext `apfs-clones` and `clone-copy`
 controls, physical-sharing observations, Apple checks and subsequent native
 clone writes on macOS 15/26/27. New native controls and generated outputs must

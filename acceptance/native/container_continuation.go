@@ -122,6 +122,9 @@ func (v *Verifier) fillVolume(ctx context.Context, filename string, bound int64)
 }
 
 func compareContinuedContainer(before, after *schema.Observation, selected string) error {
+	if err := compareHistoricalViews(after, before); err != nil {
+		return err
+	}
 	if diffs, err := comparePreservedVolumeMetadata(after, before); err != nil {
 		return err
 	} else if len(diffs) != 0 {

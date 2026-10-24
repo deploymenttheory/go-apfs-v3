@@ -69,6 +69,7 @@ type storageVolume struct {
 	mapHeader         []byte
 	views             []*storageView
 	data              []storageExtent
+	snapshots         []snapshotRecord
 }
 
 type storageView struct {
@@ -328,6 +329,7 @@ func (s *storageChecker) checkVolume(volume *storageVolume) error {
 	if err != nil {
 		return err
 	}
+	volume.snapshots = history
 	s.report.Snapshots += uint64(len(history))
 	var previous []storageExtent
 	for _, snapshot := range history {

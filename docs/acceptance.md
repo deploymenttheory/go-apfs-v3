@@ -243,8 +243,19 @@ same native observation. No captured header is rewritten to make a test pass.
   identities and requires equivalent preservation exports. All twelve exports
   receive an independent native-tier verdict against the selected historical
   view; missing or invalid history cannot fall back to the live volume.
-- `TestHistoryAndEncryptedWritersRefuseWithoutPublication` checks the current
-  encrypted/history admission boundaries without writing or publishing outputs.
+- `TestLiveEditsPreserveRetainedSnapshotHistories` repeatedly replaces and
+  restores live data, clone data, resource forks and attributes across committed
+  checkpoints, with temporary allocation and removal. The original Apple live
+  inventory supplies the final contents and inode identities; declared commands
+  supply only changed clocks. Every historical file, fork, attribute, ACL and
+  timestamp remains exact. Both APFS name policies and supported producers are
+  mandatory. Native verification mounts both histories before and after the
+  native/Go/native continued-write sequence and requires unchanged snapshot
+  names, UUIDs and transaction identities throughout.
+  `TestSnapshotEditFailuresNeverPublishOrAlterSource` covers allocation failure,
+  interrupted reads and processes, and existing-output preservation.
+- `TestEncryptedWritersRefuseWithoutPublication` checks the software-encrypted
+  APFS admission boundary without writing or publishing outputs.
   `TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors` requires explicit
   valid volume selection and preserves the original source and destination state.
 - `TestRepackPreservesEverySector` repacks every retained image into both
@@ -537,7 +548,9 @@ and preserved untouched timestamps rather than timestamp exemptions.
 Positive software-encrypted APFS volume writing remains separate product work.
 Existing nested encryption controls enforce distinct image/volume credentials,
 authentication and the explicit write refusal; they do not qualify positive
-nested writes. Snapshot mutation still requires the independent oracle in #74.
+nested writes. Creating, naming, deleting or reverting snapshots still requires
+the independent lifecycle controls in #74; ordinary live editing preserves
+existing histories without invoking those operations.
 
 `TestRecursiveHostImportsPreserveNativeLogicalTrees` checks an attribute-free
 subset of the native workspace tree: names, contents, empty directories, symlink
