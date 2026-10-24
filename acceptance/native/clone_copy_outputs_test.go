@@ -42,7 +42,7 @@ func cloneCopyOutputInventory(major int) ([]Paired, map[string]corpus.Case) {
 }
 
 func TestCloneCopyQualificationRequiresEveryNativeControlAndOutput(t *testing.T) {
-	for _, major := range []int{15, 26, 27} {
+	for _, major := range schema.Producers {
 		pairs, cases := cloneCopyOutputInventory(major)
 		if len(pairs) != 72 || len(cases) != 28 {
 			t.Fatal("invalid independent clone-copy capability inventory")

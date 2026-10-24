@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
 var (
@@ -69,14 +71,20 @@ func retainedLineageTimings(t *testing.T) lineageTimings {
 	return timings
 }
 
-func TestNativeLineageCostsCoverEveryRetainedCompleteGroup(t *testing.T) {
+func TestNativeLineageCostsCoverEverySupportedRetainedCompleteGroup(t *testing.T) {
 	for _, kernel := range retainedLineageTimings(t).Native {
+		if !schema.IsSupportedProducer(kernel.Major) {
+			continue
+		}
 		for _, phase := range kernel.Phases {
 			kind := "outputs"
 			if phase.Kind == "fixtures" {
 				kind = "fixtures"
 			}
 			for _, group := range phase.Groups {
+				if !supportedTimedLineage(group.Key) {
+					continue
+				}
 				key := group.Key
 				if kind == "outputs" && strings.HasPrefix(key, "macos-") {
 					_, key, _ = strings.Cut(key, "/")
@@ -89,6 +97,20 @@ func TestNativeLineageCostsCoverEveryRetainedCompleteGroup(t *testing.T) {
 	}
 }
 
+// supportedTimedLineage projects the historical archive onto current producer
+// support. Producer-independent build/container groups remain part of the replay.
+func supportedTimedLineage(key string) bool {
+	if !strings.HasPrefix(key, "macos-") {
+		return true
+	}
+	producer, _, ok := strings.Cut(key, "/")
+	if !ok {
+		return false
+	}
+	major, err := strconv.Atoi(strings.TrimPrefix(producer, "macos-"))
+	return err == nil && schema.IsSupportedProducer(major)
+}
+
 // projectLineagePhase changes admission only: every complete group retains its
 // observed duration. Serial proofs/setup before the first group and the phase
 // suffix remain. This cannot predict changed native IO contention or new work.
@@ -97,10 +119,15 @@ func projectLineagePhase(p timedPhase, workers int, ordered bool) float64 {
 	keys := make([]string, 0, len(p.Groups))
 	prefix, last := math.Inf(1), float64(0)
 	for _, group := range p.Groups {
-		keys = append(keys, group.Key)
-		groups[group.Key] = group
+		// Preserve the original serial setup/suffix boundaries. Recomputing
+		// them after filtering would relabel retired work as serial overhead.
 		prefix = min(prefix, group.Start)
 		last = max(last, group.Start+group.Seconds)
+		if !supportedTimedLineage(group.Key) {
+			continue
+		}
+		keys = append(keys, group.Key)
+		groups[group.Key] = group
 	}
 	kind := "outputs"
 	if p.Kind == "fixtures" {
@@ -136,6 +163,9 @@ func projectLineageRun(timings lineageTimings, workers int, ordered bool) (float
 	last := float64(0)
 	phases := map[int][]float64{}
 	for _, kernel := range timings.Native {
+		if !schema.IsSupportedProducer(kernel.Major) {
+			continue
+		}
 		previous, observedPrevious := float64(0), float64(0)
 		for _, phase := range kernel.Phases {
 			start := phase.Start
@@ -162,7 +192,7 @@ func TestNativeLineageTimingReplay(t *testing.T) {
 		t.Fatalf("retained full warm-run provenance changed: %+v", timings)
 	}
 	if len(timings.Native) != 3 {
-		t.Fatal("retained replay must include all three native kernels")
+		t.Fatal("historical timing archive must preserve all three original native kernels")
 	}
 	last := float64(0)
 	for _, kernel := range timings.Native {
@@ -198,10 +228,10 @@ func TestNativeLineageTimingReplay(t *testing.T) {
 	t.Logf("observed run %s: %.2fs, 45-minute budget exceeded by %.2fs", timings.Run, observed, observed-2700)
 	for _, workers := range []int{5, 6, 7} {
 		seconds, phases := projectLineageRun(timings, workers, true)
-		for _, major := range []int{15, 26, 27} {
-			t.Logf("projection only: %d workers, macOS %d fixture/slow/main seconds %.2f", workers, major, phases[major])
+		for _, major := range schema.Producers {
+			t.Logf("supported-producer projection only: %d workers, macOS %d fixture/slow/main seconds %.2f", workers, major, phases[major])
 		}
-		t.Logf("projection only: %d workers, full wall %.2fs (change %.2fs)", workers, seconds, seconds-observed)
+		t.Logf("supported-producer projection only: %d workers, wall %.2fs (difference from historical run %.2fs)", workers, seconds, seconds-observed)
 		if seconds >= observed {
 			t.Errorf("ordered %d-worker projection regressed the retained baseline: %.2fs", workers, seconds)
 		}
@@ -224,5 +254,34 @@ func TestNativeLineageTimingReplay(t *testing.T) {
 		if seconds > lineageReplayBudget.Seconds() {
 			t.Fatalf("retained scheduling replay %.2fs exceeds budget %s (projection=%t)", seconds, *lineageReplayBudget, !*lineageReplayObserved)
 		}
+	}
+}
+
+// The archive is historical. Filtering work must not silently add its removed
+// tail back as serial time, schedule a retired kernel, or mutate the archive.
+func TestNativeLineageProjectionExcludesRetiredProducersWithoutInventedSerialTail(t *testing.T) {
+	phase := timedPhase{Kind: "fixtures", Seconds: 101, Groups: []timedLineage{
+		{Key: "macos-15/example/apfs", Start: 1, Seconds: 100},
+		{Key: "macos-26/example/apfs", Start: 1, Seconds: 2},
+	}}
+	if got := projectLineagePhase(phase, 1, true); got != 3 {
+		t.Fatalf("retired producer became work or invented serial overhead: %.2fs", got)
+	}
+	timings := lineageTimings{Native: []timedKernel{
+		{Major: 15, Phases: []timedPhase{{Kind: "fixtures", Seconds: 100, Groups: []timedLineage{{Key: "macos-15/example/apfs", Seconds: 100}}}}},
+		{Major: 26, Phases: []timedPhase{phase}},
+		{Major: 27, Phases: []timedPhase{{Kind: "fixtures", Seconds: 4, Groups: []timedLineage{{Key: "macos-26/example/apfs", Seconds: 4}}}}},
+	}}
+	seconds, phases := projectLineageRun(timings, 1, true)
+	if seconds != 4 || len(phases) != len(schema.Producers) {
+		t.Fatalf("projection retained a retired native worker: %.2fs, %v", seconds, phases)
+	}
+	for major := range phases {
+		if !schema.IsSupportedProducer(major) {
+			t.Fatal("projection retained an unsupported producer", major)
+		}
+	}
+	if len(timings.Native) != 3 || len(phase.Groups) != 2 || !supportedTimedLineage("builds") || !supportedTimedLineage("containers") {
+		t.Fatal("projection changed its historical input or lost producer-independent work")
 	}
 }

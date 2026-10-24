@@ -473,7 +473,7 @@ the continuation's product edit fail with. The native writes and their
 `fsck` still run, the edit must fail with exactly that text, and an edit
 that succeeds fails the check until the entry is removed with the fix.
 
-Complete lineages run seven at a time with `-v`, so progress is visible. A shared
+Complete lineages run five at a time with `-v`, so progress is visible. A shared
 bounded admission pool starts them longest first using retained timings; their
 members keep their order. A slot remains occupied until subtest cleanup finishes,
 including after a failed verdict. Outputs

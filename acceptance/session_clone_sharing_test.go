@@ -40,7 +40,7 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 			t.Fatal("unqualified clone-copy stage", stage.Name)
 		}
 	}
-	for _, major := range []int{15, 26, 27} {
+	for _, major := range schema.Producers {
 		for _, profile := range []string{"apfs", "apfsx", "hfsplus", "hfsx"} {
 			states := make([]corpus.Case, len(sessionCloneStages))
 			for i, stage := range sessionCloneStages {
@@ -52,7 +52,7 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 			t.Run(fmt.Sprintf("macos-%d/%s", major, profile), func(t *testing.T) {
 				t.Parallel()
 				before := states[0]
-				sourceDigest := packingFileDigest(t, before.Image())
+				sourceDigest := packingFileDigest(t, fixtureImage(t, before))
 				clock := commandClock(states)
 				s := openCommandSession(t, before, clock)
 				actor := s.actor
@@ -141,7 +141,7 @@ func TestReopenedSessionCloneStreamsPackToAppleStates(t *testing.T) {
 					checkSessionCloneImage(t, output, projected, capacity)
 					recordOutput(t, schema.Output{Name: name, File: filepath.Base(output), Operation: "build", Format: "UDZO", Source: caseRef(before), Expect: schema.Expectation{View: stage.Name, Subtree: "Fixture", NewIdentities: true, CommandClockNS: clock.UnixNano(), Continuation: continuation}})
 				}
-				if packingFileDigest(t, before.Image()) != sourceDigest {
+				if packingFileDigest(t, fixtureImage(t, before)) != sourceDigest {
 					t.Fatal("session clone journey changed its captured source image")
 				}
 			})
@@ -190,7 +190,7 @@ func sessionCloneFS(t *testing.T, state *commandSession, step *schema.FSStep) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
+	defer closeFixture(t, s)
 	path := "/" + workspacePath(step.Path)
 	var data []byte
 	if step.Op == "write" || step.Op == "setxattr" {
@@ -239,7 +239,7 @@ func checkSessionCloneImage(t *testing.T, image string, want schema.View, capaci
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer img.Close()
+	defer closeFixture(t, img)
 	if capacity != 0 && img.Size() != capacity {
 		t.Fatalf("native continuation build capacity: got %d bytes, want %d", img.Size(), capacity)
 	}

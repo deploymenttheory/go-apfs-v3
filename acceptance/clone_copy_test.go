@@ -60,7 +60,7 @@ func TestCloneCopyEditsMatchAppleStates(t *testing.T) {
 		t.Run(fmt.Sprintf("macos-%d/%s/%s", before.Producer, before.Profile, after.Stage), func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			source := before.Image()
+			source := fixtureImage(t, before)
 			sourceDigest := packingFileDigest(t, source)
 			stage := recipe.Stages[index+1]
 			if after.Stage == "refused" {
@@ -233,12 +233,12 @@ func checkCloneCopiedImage(t *testing.T, ctx context.Context, output string, bef
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer image.Close()
+	defer closeFixture(t, image)
 	report, err := inspect.Image(ctx, image)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reader, close := openVolume(t, ctx, report, after.Observation.Volumes[0], volumeName(after.Observation.Volumes[0]), recipe)
+	reader, close := openVolume(t, ctx, report, after.Observation.Volumes[0], volumeName(after.Observation.Volumes[0]), recipe, image)
 	if close != nil {
 		defer close()
 	}
