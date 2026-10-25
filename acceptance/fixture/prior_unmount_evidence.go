@@ -142,6 +142,10 @@ func probePriorUnmount(ctx context.Context, probe func(string) (mountIdentity, e
 				rel, relErr := filepath.Rel(actual.MountPoint, pin)
 				if relErr == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
 					row.Outcome = "enclosing"
+				} else if actual.FSID != saved.Identity.FSID {
+					// A different filesystem observed at this pin need not have
+					// a lexically enclosing mountpoint. This is no release proof.
+					row.Outcome = "different-filesystem"
 				} else {
 					err = errors.New("prior unmount diagnostic returned neither the exact pin nor an enclosing filesystem")
 				}

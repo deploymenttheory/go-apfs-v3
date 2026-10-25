@@ -722,8 +722,10 @@ after the foreground has retained an unavailable result.
 `PriorUnmounts` independently observes a private pin validated before an earlier
 successful normal unmount, even when later framework information says unmounted.
 An enclosing filesystem describes that pin only; it does not prove the image
-has no mounts elsewhere. These saved identities never authorize cleanup or
-additional holder queries.
+has no mounts elsewhere. `different-filesystem` records a different kernel FSID
+at that pin when its mountpoint is not a lexical ancestor, as with a macOS Data
+volume reported under `/System/Volumes/Data` for a pin under `/Users`.
+These saved identities never authorize cleanup or additional holder queries.
 The expected image backend holding its own backing file is an observation; it
 does not identify an ejection blocker. Missing or inconclusive observations leave
 the cause unknown, and the original exhausted detach remains fatal.

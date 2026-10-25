@@ -165,6 +165,11 @@ func TestPriorUnmountEvidenceNeverChangesCleanupAuthority(t *testing.T) {
 			v.MountPoint = filepath.Join(filepath.Dir(v.MountPoint), "unrelated")
 			return v
 		}},
+		{name: "different filesystem without lexical ancestry", outcome: "different-filesystem", actual: func(v mountIdentity) mountIdentity {
+			v.MountPoint = filepath.Join(filepath.Dir(v.MountPoint), "host-filesystem")
+			v.Source, v.FSID = "host-filesystem", [2]int32{8, 9}
+			return v
+		}},
 		{name: "malformed kernel result", outcome: "unavailable", actual: func(v mountIdentity) mountIdentity { v.Source = ""; return v }},
 		{name: "failed probe", outcome: "unavailable", probeErr: probeFailure},
 		{name: "diskutil information timeout", outcome: "same", infoErr: infoFailure},
