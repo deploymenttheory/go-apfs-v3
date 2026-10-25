@@ -237,7 +237,7 @@ func (c *attachmentDiagnostics) finishEjectTrace(ctx context.Context, wait bool,
 				} else if result.probe.Returned == "" {
 					c.ejectTrace.State = "outcome-unavailable"
 				}
-				c.ejectTrace.OutputComplete = result.result.Err == nil && result.result.Status == 0 && len(result.probe.Stdout.Data) == result.probe.Stdout.Bytes && len(result.probe.Stderr.Data) == result.probe.Stderr.Bytes && result.probe.Stderr.Bytes == 0
+				c.ejectTrace.OutputComplete = result.err == nil && result.result.Err == nil && result.result.Status == 0 && len(result.probe.Stdout.Data) == result.probe.Stdout.Bytes && len(result.probe.Stderr.Data) == result.probe.Stderr.Bytes && result.probe.Stderr.Bytes == 0
 				for _, target := range c.ejectTrace.RawTargets {
 					coverage, err := inspectEjectTrace(result.probe.Stdout.Data, target)
 					c.ejectTrace.Coverage = append(c.ejectTrace.Coverage, coverage)
@@ -283,6 +283,10 @@ func (c *attachmentDiagnostics) recordEjectTrace() {
 func (c *attachmentDiagnostics) qualifyEjectCoverage() {
 	e := c.ejectTrace
 	e.Availability = "unknown"
+	if e.Admission != "off-observed-nonatomic" || e.DaemonPID <= 0 {
+		e.Reason = "final OFF/PID admission metadata unavailable"
+		return
+	}
 	if !e.OutputComplete || e.Started == "" || e.Returned == "" || len(e.Coverage) != len(e.RawTargets) || len(e.Coverage) == 0 {
 		return
 	}
@@ -290,6 +294,11 @@ func (c *attachmentDiagnostics) qualifyEjectCoverage() {
 	end, eErr := time.Parse(time.RFC3339Nano, e.Returned)
 	if sErr != nil || eErr != nil || end.Before(start) {
 		e.Reason = "observer wall-clock interval cannot be correlated"
+		return
+	}
+	deadline, dErr := time.Parse(time.RFC3339Nano, e.Deadline)
+	if dErr != nil || end.After(deadline) {
+		e.Reason = "observer return is outside its declared deadline"
 		return
 	}
 	for _, coverage := range e.Coverage {

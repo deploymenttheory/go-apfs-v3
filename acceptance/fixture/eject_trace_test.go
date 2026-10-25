@@ -227,7 +227,7 @@ func TestEjectTraceAvailabilityRequiresFullOriginalStreamsAndDatedExactTarget(t 
 			// Fixed ordinary-file projection: event bytes are synthetic; bind
 			// their UTC date/interval explicitly rather than changing originals.
 			e.LocalDate, e.LocalZone, e.UTCOffsetSeconds = "2026-10-25", "UTC", 0
-			e.Started, e.Returned = "2026-10-25T12:34:56Z", "2026-10-25T12:34:57Z"
+			e.Started, e.Returned, e.Deadline = "2026-10-25T12:34:56Z", "2026-10-25T12:34:57Z", "2026-10-25T12:35:00Z"
 			capture.qualifyEjectCoverage()
 			if (e.Availability == "observed-target-lifecycles") != tc.want || capture.err != nil {
 				t.Fatalf("bad availability: %+v err=%v", e, capture.err)
@@ -343,5 +343,76 @@ func TestEjectTraceFreezesReusedReadBuffersAndDistinguishesCallerCancellation(t 
 	capture.finishEjectTrace(ctx, false, "operation-finished")
 	if !strings.HasPrefix(capture.ejectTrace.StopReason, "caller-cancelled:") || capture.ejectTrace.Availability != "unknown" || capture.err != nil {
 		t.Fatalf("caller cancellation was mislabeled or manufactured a diagnostic failure: %+v %v", capture.ejectTrace, capture.err)
+	}
+}
+
+func TestEjectTraceReadBeforeFinalAdmissionCannotQualifyVisibility(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := Command{Label: "busy-eject-fs-usage", Argv: []string{"/usr/bin/env", "TZ=UTC", "/usr/bin/fs_usage"}, Expected: "record"}
+	job := &ejectTraceJob{ctx: ctx, cancel: cancel, done: make(chan ejectTraceAnswer, 1), reads: make(chan ejectTraceRead, 3)}
+	// Exact scheduling seam: the completed native result is buffered, while
+	// the worker's final OFF/PID/tool metadata has not yet been delivered.
+	job.reads <- ejectTraceRead{cmd, freezeDetachLog(ctx, cmd, Result{Stdout: []byte(syntheticEjectTrace)}, "2026-10-25T12:34:56Z", "2026-10-25T12:34:57Z")}
+	capture := newAttachmentDiagnostics(&HostDisk{T: &Transcript{}}, &Attachment{Dev: "/dev/disk42"})
+	capture.ejectTrace = &ejectTraceEvidence{Availability: "unknown", LocalDate: "2026-10-25", LocalZone: "UTC", RawTargets: []string{"/dev/rdisk42"}}
+	capture.ejectJob = job
+	capture.finishEjectTrace(ctx, false, "operation-finished")
+	if !capture.ejectTrace.OutputComplete || len(capture.probes) != 1 {
+		t.Fatal("completed original read was discarded")
+	}
+	if capture.ejectTrace.Availability != "unknown" || capture.ejectTrace.Admission != "" || capture.ejectTrace.DaemonPID != 0 {
+		t.Fatalf("missing final admission metadata became positive: %+v", capture.ejectTrace)
+	}
+}
+
+func TestEjectTraceSuccessfulResultWithRecordedCancellationRemainsUnqualified(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	commander := discoveryCommandFunc(func(_ context.Context, cmd Command) Result {
+		switch cmd.Label {
+		case "busy-eject-trace-state":
+			return Result{Stdout: []byte("0\n")}
+		case "busy-eject-daemon-pid":
+			return Result{Stdout: []byte("314\n")}
+		default:
+			cancel()
+			return Result{Stdout: []byte(syntheticEjectTrace)}
+		}
+	})
+	capture := newAttachmentDiagnostics(&HostDisk{C: commander, T: &Transcript{}, ejectTraceGuard: func() error { return nil }}, &Attachment{Dev: "/dev/disk42"})
+	capture.startEjectTrace(ctx, 1)
+	answer := <-capture.ejectJob.done
+	capture.ejectJob.done <- answer
+	capture.finishEjectTrace(ctx, true, "control")
+	last := capture.probes[len(capture.probes)-1]
+	if last.Error == "" || last.Returned == "" {
+		t.Fatal("original successful return/cancellation uncertainty was lost")
+	}
+	if capture.ejectTrace.OutputComplete || capture.ejectTrace.Availability != "unknown" {
+		t.Fatalf("cancelled read became qualified: %+v", capture.ejectTrace)
+	}
+	if capture.err != nil {
+		t.Fatal("observed cancellation manufactured cleanup failure", capture.err)
+	}
+}
+
+func TestEjectTraceAvailabilityRequiresReturnWithinDeclaredDeadline(t *testing.T) {
+	coverage, err := inspectEjectTrace([]byte(syntheticEjectTrace), "/dev/rdisk42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		deadline string
+		want     bool
+	}{
+		{"", false}, {"unparseable", false}, {"2026-10-25T12:34:56.5Z", false}, {"2026-10-25T12:34:57Z", true},
+	} {
+		e := ejectTraceEvidence{Admission: "off-observed-nonatomic", DaemonPID: 314, OutputComplete: true, Started: "2026-10-25T12:34:56Z", Returned: "2026-10-25T12:34:57Z", Deadline: tc.deadline, LocalDate: "2026-10-25", LocalZone: "UTC", RawTargets: []string{"/dev/rdisk42"}, Coverage: []ejectTraceCoverage{coverage}}
+		capture := &attachmentDiagnostics{ejectTrace: &e}
+		capture.qualifyEjectCoverage()
+		if (e.Availability == "observed-target-lifecycles") != tc.want {
+			t.Fatalf("invalid deadline qualification: %+v", e)
+		}
 	}
 }
