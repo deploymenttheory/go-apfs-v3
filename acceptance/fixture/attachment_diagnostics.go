@@ -37,6 +37,8 @@ type attachmentDiagnosticProbe struct {
 	Command  int
 	Started  string
 	Returned string
+	Observed string `json:",omitempty"`
+	Deadline string `json:",omitempty"`
 	Error    string `json:",omitempty"`
 	Stdout   attachmentDiagnosticStream
 	Stderr   attachmentDiagnosticStream
@@ -52,12 +54,17 @@ type attachmentDiagnosticMount struct {
 }
 
 type attachmentDiagnostics struct {
-	disk       *HostDisk
-	attachment *Attachment
-	err        error
-	stored     int
-	probes     []attachmentDiagnosticProbe
-	mounts     []attachmentDiagnosticMount
+	disk          *HostDisk
+	attachment    *Attachment
+	err           error
+	stored        int
+	busy          bool
+	started       time.Time
+	actions       []detachOperationEvidence
+	probes        []attachmentDiagnosticProbe
+	mounts        []attachmentDiagnosticMount
+	priorUnmounts []priorUnmountObservation
+	logs          []detachLogEvidence
 }
 
 func newAttachmentDiagnostics(d *HostDisk, a *Attachment) *attachmentDiagnostics {
@@ -110,7 +117,13 @@ func (c *attachmentDiagnostics) collect(ctx context.Context) {
 	} {
 		c.run(ctx, scope.label, false, nil, scope.argv...)
 	}
-	nodes, _, err := c.binding(ctx)
+	finishPriorUnmounts := c.observePriorUnmounts(ctx)
+	defer finishPriorUnmounts()
+	nodes, pid, err := c.binding(ctx)
+	if c.busy {
+		finishLogs := c.startLogs(ctx, pid, err)
+		defer finishLogs()
+	}
 	if err != nil {
 		c.err = errors.Join(c.err, err)
 		return
@@ -138,7 +151,7 @@ func (c *attachmentDiagnostics) collect(ctx context.Context) {
 	}
 	// Re-derive the entire selection immediately before the holder probe. Stale
 	// Attachment.Container/Volumes/Mount values never authorize extra queries.
-	nodes, pid, err := c.binding(ctx)
+	nodes, pid, err = c.binding(ctx)
 	if err != nil {
 		c.err = errors.Join(c.err, err)
 		return
@@ -299,7 +312,8 @@ func (c *attachmentDiagnostics) finish() error {
 	// Decode each stream's Data as base64 and verify its StoredSHA256; when its
 	// length equals Bytes, verify SHA256 too. ReceiptCommand and Probe.Command
 	// are local transcript ordinals. In a merged continuation transcript, add
-	// (the receipt's actual ordinal - ReceiptCommand) to every Probe.Command.
+	// (the receipt's actual ordinal - ReceiptCommand) to every Probe.Command or
+	// Action.Command.
 	// The original commands retain argv, status and elapsed time independently.
 	receipt := struct {
 		SourceRevision  string
@@ -308,10 +322,17 @@ func (c *attachmentDiagnostics) finish() error {
 		Image           string
 		RequestedDevice string
 		ReceiptCommand  int
+		DetachStarted   string `json:",omitempty"`
+		Actions         []detachOperationEvidence
 		Probes          []attachmentDiagnosticProbe
 		Mounts          []attachmentDiagnosticMount
+		PriorUnmounts   []priorUnmountObservation
+		Logs            []detachLogEvidence
 		Error           string `json:",omitempty"`
-	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), Probes: c.probes, Mounts: c.mounts}
+	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), Actions: c.actions, Probes: c.probes, Mounts: c.mounts, PriorUnmounts: c.priorUnmounts, Logs: c.logs}
+	if !c.started.IsZero() {
+		receipt.DetachStarted = c.started.UTC().Format(time.RFC3339Nano)
+	}
 	if c.err != nil {
 		receipt.Error = c.err.Error()
 	}

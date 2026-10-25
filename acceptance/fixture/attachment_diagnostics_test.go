@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -17,6 +18,7 @@ import (
 // a whole disk, its physical slice and a synthesized APFS container/volume.
 // They are fake-command controls, not additional captured platform evidence.
 type attachmentEvidenceCommander struct {
+	mu         sync.Mutex
 	image      string
 	calls      []Command
 	mountPoint string
@@ -24,6 +26,8 @@ type attachmentEvidenceCommander struct {
 }
 
 func (c *attachmentEvidenceCommander) Run(_ context.Context, cmd Command) Result {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.calls = append(c.calls, cmd)
 	if c.reply != nil {
 		if result, ok := c.reply(cmd); ok {
@@ -54,6 +58,8 @@ func (c *attachmentEvidenceCommander) Run(_ context.Context, cmd Command) Result
 		value = map[string]any{"DeviceNode": node, "Mounted": node == "/dev/disk43s1" && c.mountPoint != "", "MountPoint": c.mountPoint}
 	case "/usr/sbin/lsof":
 		return Result{Status: 1, Stdout: []byte("expected backend backing-file FD; cause unknown\n")}
+	case "/usr/bin/log":
+		return Result{Stdout: []byte("{\"finished\":true}\n")}
 	case "/bin/ps":
 		return Result{Stdout: []byte("123 1 native-backend\n")}
 	default:

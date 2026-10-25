@@ -701,25 +701,48 @@ original error. Native continuation transcripts likewise include commands across
 observer handoffs and final cleanup. A tracked product refusal cannot suppress an
 independent cleanup or evidence-retention failure.
 
-For an exhausted busy detach, find `busy-detach-evidence` in the retained
-command transcript. Its `StdoutText` is a JSON receipt containing the source
-revision, workflow run and attempt, requested image/device, independent framework
-and registry scopes, fresh related-device probes and mount source/FSID observations.
+After a detach reports busy, find `busy-detach-evidence` in the retained command
+transcript. Its `StdoutText` is a JSON receipt containing the source revision,
+workflow run and attempt, requested image/device, caller entry time and original
+action responses. The first detach command stays unchanged. Existing subsequent
+busy attempts add `hdiutil`'s `-debug` option; they still require fresh image
+ownership and use the same six-attempt limit. The receipt is retained even if an
+existing later attempt succeeds.
+
+An exhausted detach also collects independent framework and registry scopes,
+fresh related-device probes, mount source/FSID observations and two bounded
+unified-log reads. Log windows derive from the original detach interval, with
+explicit time zones and a declared sixty-second clamp. Backend queries require
+a freshly bound positive PID. Empty, redacted, failed or timed-out logs do not
+establish approval or release. An invoked read whose result is unavailable has
+no `Returned` time; its `Observed` time and declared deadline describe the
+observation limit. Workers cannot publish commands or native recorder files
+after the foreground has retained an unavailable result.
+
+`PriorUnmounts` independently observes a private pin validated before an earlier
+successful normal unmount, even when later framework information says unmounted.
+An enclosing filesystem describes that pin only; it does not prove the image
+has no mounts elsewhere. These saved identities never authorize cleanup or
+additional holder queries.
 The expected image backend holding its own backing file is an observation; it
 does not identify an ejection blocker. Missing or inconclusive observations leave
 the cause unknown, and the original exhausted detach remains fatal.
 
 To reconstruct the receipt, verify its `StdoutSHA256` against the UTF-8 bytes of
-`StdoutText`, then parse that JSON. Each probe's `Command` is its original
-transcript ordinal. In a merged continuation transcript, add the receipt's actual
-ordinal minus `ReceiptCommand` to each probe ordinal. Read argv, exit status and
-duration from the corresponding command. Base64-decode `Stdout.Data` and
+`StdoutText`, then parse that JSON. Each action, probe and prior-unmount observation's
+`Command` is its original transcript ordinal. In a merged continuation transcript,
+add the receipt's actual ordinal minus `ReceiptCommand` to those ordinals. Apply
+that offset to `PriorUnmounts.UnmountCommand` only when `UnmountTranscript` is
+`current`; `prior` or `unknown` refers to another or unidentified transcript.
+Read argv, exit status and duration from the corresponding command. Base64-decode `Stdout.Data` and
 `Stderr.Data`, verify each `StoredSHA256`, and compare the decoded length with
 `Bytes`. Equal lengths also require the original `SHA256` to match. A shorter
 retained stream or receipt error identifies incomplete evidence; it cannot support
 a complete-output claim. Mount observations carry their own time and identity.
-These probes have bounded time, target count and output retention and perform
-no additional cleanup requests.
+The collector keeps its thirty-second total and ten-second per-probe deadlines,
+sixteen-target bound, eight-MiB raw-stream limit and shared sixty-four-MiB raw
+retention limit. JSON base64 encoding adds size beyond that raw-byte allowance.
+These probes perform no additional cleanup requests.
 
 ## History
 

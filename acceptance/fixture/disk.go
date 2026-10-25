@@ -37,6 +37,10 @@ type AttachedVolume struct {
 	Locked bool
 	UUID   string
 	Role   string
+	// priorUnmount retains only the kernel identity validated before the last
+	// successful normal unmount. Failure diagnostics may observe this pin; it
+	// is never permission to unmount, query holders or claim image release.
+	priorUnmount *priorUnmountIdentity
 }
 
 // Volume finds an attached volume by name.

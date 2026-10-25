@@ -39,7 +39,10 @@ type Result struct {
 }
 
 // Commander runs programs. The real implementation is Exec; tests use a
-// fake. Every call is appended to the Transcript the interpreter owns.
+// fake. Busy-detach diagnostics may issue concurrent read-only calls: delegates
+// must honor cancellation, return independently owned result buffers, and protect
+// recorder bookkeeping without serializing native calls. The caller publishes
+// each result into its own Transcript; workers never share a Transcript.
 type Commander interface {
 	Run(ctx context.Context, cmd Command) Result
 }

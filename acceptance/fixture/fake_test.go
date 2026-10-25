@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -35,6 +36,7 @@ func writeFakeImage(path string, img fakeImage) error {
 // fakeCommander answers every program with a canned result and records
 // what was asked.
 type fakeCommander struct {
+	mu       sync.Mutex
 	calls    [][]string
 	results  map[string]Result   // keyed by program name; default success
 	sequence map[string][]Result // consumed in order before results
@@ -42,6 +44,8 @@ type fakeCommander struct {
 }
 
 func (f *fakeCommander) Run(_ context.Context, cmd Command) Result {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.calls = append(f.calls, cmd.Argv)
 	if queue := f.sequence[cmd.Argv[0]]; len(queue) > 0 {
 		f.sequence[cmd.Argv[0]] = queue[1:]
