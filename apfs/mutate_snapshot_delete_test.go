@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"reflect"
@@ -154,6 +155,53 @@ func appendDeleteTestSnapshot(t *testing.T, disk *cloneMutationDisk, name string
 	}
 	if _, err := InspectStorage(ctx, disk); err != nil {
 		t.Fatal("synthetic multi-history admission", err)
+	}
+}
+
+func TestSnapshotDeletionPreservesDeletedObjectMapVersions(t *testing.T) {
+	ctx := context.Background()
+	disk := newCloneMutationDisk(snapshotMutationImage(t))
+	var create, remove []Change
+	for i := 0; i < 128; i++ {
+		path := fmt.Sprintf("/temporary-%03d", i)
+		create = append(create, Change{Path: path, Data: bytes.NewReader(nil)})
+		remove = append(remove, Change{Operation: "rm", Path: path})
+	}
+	if _, err := Modify(ctx, disk, create, builtClock); err != nil {
+		t.Fatal(err)
+	}
+	appendDeleteTestSnapshot(t, disk, "populated-tree")
+	if _, err := Modify(ctx, disk, remove, builtClock); err != nil {
+		t.Fatal(err)
+	}
+	appendDeleteTestSnapshot(t, disk, "compacted-tree")
+	before, err := openMutation(ctx, disk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleted := map[uint64]buildRecord{}
+	for _, record := range before.vmap.all() {
+		oid := le.Uint64(record.key)
+		selected, ok := before.vmap.floor(append(buildUint64(oid), buildUint64(uint64(before.c.XID))...))
+		if ok && le.Uint64(selected.key) == oid && le.Uint32(selected.value)&1 != 0 {
+			deleted[oid] = selected
+		}
+	}
+	if len(deleted) == 0 {
+		t.Fatal("tree compaction did not retain deleted object-map versions")
+	}
+	if _, err := DeleteSnapshot(ctx, disk, "", SnapshotSelector{Name: "retained-history"}, builtClock); err != nil {
+		t.Fatal(err)
+	}
+	after, err := openMutation(ctx, disk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for oid, wanted := range deleted {
+		got, ok := after.vmap.floor(append(buildUint64(oid), buildUint64(uint64(after.c.XID))...))
+		if !ok || !bytes.Equal(got.key, wanted.key) || !bytes.Equal(got.value, wanted.value) {
+			t.Fatalf("deletion changed the live deleted state of metadata node %d", oid)
+		}
 	}
 }
 

@@ -186,6 +186,26 @@ func (m *mutation) deleteSnapshot(deleted int) error {
 	if err != nil {
 		return err
 	}
+	// A deleted predecessor is a version barrier even though it owns no
+	// bytes. Without it, an older node retained for another snapshot would
+	// resolve again in a later view where that node has been removed.
+	if len(history.xids) != 0 {
+		views := append(slices.Clone(history.xids), m.c.XID)
+		var previous uint64
+		for _, record := range m.vmap.all() {
+			oid := le.Uint64(record.key)
+			if oid == previous {
+				continue
+			}
+			previous = oid
+			for _, xid := range views {
+				selected, ok := m.vmap.floor(append(buildUint64(oid), buildUint64(uint64(xid))...))
+				if ok && le.Uint64(selected.key) == oid && le.Uint32(selected.value)&1 != 0 {
+					keepMappings[string(selected.key)] = true
+				}
+			}
+		}
+	}
 	// Drop versions with no reachable filesystem or snapshot UUID owner.
 	// Recovery checkpoints keep their own physical object maps and free-queue
 	// protections; removing a current mapping never frees its blocks early.
