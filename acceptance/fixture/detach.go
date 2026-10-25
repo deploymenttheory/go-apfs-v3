@@ -43,6 +43,12 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 			// force, another request, or a different cleanup policy.
 			argv = append(argv, "-debug")
 		}
+		if attempts == BusyWait.Attempts-1 {
+			// macOS 27 can keep refusing the deprecated detach path after
+			// unmount. Use its recommended normal eject for the final
+			// permitted request, under the same fresh ownership check.
+			argv = []string{"diskutil", "eject"}
+		}
 		attempts++
 		return Command{Label: "detach", Argv: append(argv, a.Dev)}, false, nil
 	})
