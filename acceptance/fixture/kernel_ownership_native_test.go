@@ -95,6 +95,21 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 	// Cleanup happens once per successful attachment. Errors remain fatal, and
 	// the original transcript is serialized after every existing close request.
 	defer func() {
+		// One conditional-visibility measurement spans the same two already
+		// required cleanups. It never adds a detach or waits for readiness.
+		var visibility *attachmentDiagnostics
+		var visibilityRecorder *ownershipEvidenceCommander
+		if len(attachments) == 2 {
+			// Optional tool statuses are not ownership verdicts. Isolate
+			// their original streams/transcript from the strict schema-2 gate.
+			visibilityRecorder = &ownershipEvidenceCommander{C: recorder.C, Dir: filepath.Join(work, "eject-visibility"), Phase: "eject-visibility-control"}
+			visibilityDisk := *disk
+			visibilityDisk.C, visibilityDisk.T = visibilityRecorder, &Transcript{}
+			visibility = newAttachmentDiagnostics(&visibilityDisk, attachments[0].attachment)
+			visibility.startEjectTrace(ctx, -1,
+				strings.Replace(attachments[0].attachment.Dev, "/dev/disk", "/dev/rdisk", 1),
+				strings.Replace(attachments[1].attachment.Dev, "/dev/disk", "/dev/rdisk", 1))
+		}
 		for i := len(attachments) - 1; i >= 0; i-- {
 			item := attachments[i]
 			recorder.Phase = "detach-" + item.name
@@ -103,6 +118,32 @@ func TestKernelOwnershipMatchesNativeImagePaths(t *testing.T) {
 			}
 			collect("after-detach-" + item.name)
 			checkClaim("post-detach-"+item.name, item.attachment, OwnershipAbsent)
+		}
+		if visibility != nil {
+			visibility.finishEjectTrace(ctx, true, "ownership-visibility-control")
+			// The schema-2 ownership transcript/claims remain independent.
+			// This sidecar is an observational measurement, never a waiver
+			// for an ownership failure or proof of protected visibility.
+			packet := struct {
+				Schema                    int
+				Commit, RunID, RunAttempt string
+				Observation               *ejectTraceEvidence
+				Probes                    []attachmentDiagnosticProbe
+				Commands                  []schema.Command
+				CommandResults            []ownershipCommandEvidence
+				RetentionError            string
+			}{1, evidence.Commit, evidence.RunID, evidence.RunAttempt, visibility.ejectTrace, visibility.probes, visibility.disk.T.Commands, visibilityRecorder.Results, ""}
+			if visibilityRecorder.Err != nil {
+				packet.RetentionError = visibilityRecorder.Err.Error()
+			}
+			data, err := json.MarshalIndent(packet, "", "  ")
+			if err == nil {
+				err = os.MkdirAll(visibilityRecorder.Dir, 0o700)
+				if err == nil {
+					err = os.WriteFile(filepath.Join(visibilityRecorder.Dir, "evidence.json"), append(data, '\n'), 0o600)
+				}
+			}
+			contractErr = errors.Join(contractErr, visibility.err, visibilityRecorder.Err, err)
 		}
 		for image, before := range evidence.RawSHA256 {
 			if after, err := schema.FileDigest(image); err != nil || after != before {

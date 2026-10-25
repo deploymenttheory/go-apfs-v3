@@ -43,6 +43,13 @@ func (d *HostDisk) imageOperation(ctx context.Context, what string, prepare func
 			return false, "", errors.Join(failure, errors.New("failed attach returned partial output; refusing another attachment"))
 		}
 		busyErr = failure
+		// All native result inspection and the original transcript record are
+		// frozen before an optional read-only observer can execute concurrently.
+		if observer, ok := d.C.(interface {
+			imageBusyRecorded(context.Context, Command)
+		}); ok {
+			observer.imageBusyRecorded(ctx, cmd)
+		}
 		return false, failure.Error(), nil
 	})
 	if err != nil {

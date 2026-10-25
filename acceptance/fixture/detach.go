@@ -51,6 +51,10 @@ func (d *HostDisk) Detach(ctx context.Context, a *Attachment) error {
 		probeCtx, cancel := context.WithTimeout(ctx, busyEvidenceTimeout)
 		defer cancel()
 		capture.collect(probeCtx)
+		capture.finishEjectTrace(probeCtx, true, "exhausted-busy")
+	}
+	if capture.ejectTrace != nil && !errors.As(err, &unsettled) {
+		capture.finishEjectTrace(ctx, false, "operation-finished")
 	}
 	if capture.busy {
 		return errors.Join(err, capture.finish())

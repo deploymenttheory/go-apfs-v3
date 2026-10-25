@@ -34,13 +34,14 @@ type Verifier struct {
 	AppleDoubleUnpack string // guarded public copyfile(3) adapter, built once
 	continuationLog   *continuationCommands
 	attachmentCleanup *attachmentCleanupSink
+	observeBusyEject  bool
 }
 
 // ForSubtest returns a copy of the verifier with its own disk transcript,
 // so subtests can run in parallel without sharing recorder state.
 func (v *Verifier) ForSubtest() *Verifier {
 	c := *v
-	host := &fixture.HostDisk{C: v.C, T: &fixture.Transcript{}}
+	host := &fixture.HostDisk{C: v.C, T: &fixture.Transcript{}, ObserveBusyEject: c.observeBusyEject}
 	if c.attachmentCleanup != nil {
 		host.AttachmentCleanupEvidence = c.attachmentCleanup.retain
 	}

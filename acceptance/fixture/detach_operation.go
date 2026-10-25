@@ -54,3 +54,9 @@ func (c *detachOperationCommander) Run(ctx context.Context, cmd Command) Result 
 func (c *detachOperationCommander) prepareDiagnosticRead() (Commander, func(Command, detachLogResult) error) {
 	return prepareDiagnosticRead(c.delegate)
 }
+
+func (c *detachOperationCommander) imageBusyRecorded(ctx context.Context, cmd Command) {
+	if c.evidence.disk.ObserveBusyEject && len(cmd.Argv) > 1 && cmd.Argv[1] == "detach" {
+		c.evidence.startEjectTrace(ctx, len(c.evidence.disk.T.Commands)-1)
+	}
+}

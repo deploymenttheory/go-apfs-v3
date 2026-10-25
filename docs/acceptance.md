@@ -751,6 +751,27 @@ native phases count existing packets toward the same job budget. Retention
 failures remain fatal alongside any original operation error, including a
 tracked product limit.
 
+The guarded native verifier enables `EjectTrace` after the first busy result has
+been recorded. It observes a unique, freshly queried `diskarbitrationd` PID with
+one six-second `fs_usage` reader in UTC. A read-only kernel-trace preflight must
+report OFF; active, missing or ambiguous state skips capture. This admission is
+not atomic with another tracer starting. It changes no persistent service,
+security or logging configuration and adds no eject requests. The reader uses
+the existing ten-second child and thirty-second failure-evidence bounds.
+Recovered, permanent and cancelled operations stop without waiting for the
+reader; unavailable output is reported without invented return times or bytes.
+
+Availability requires complete retained output and a positively observed exact
+raw-device open, descriptor, eject ioctl and close on the same daemon thread,
+with times inside the recorded UTC interval. Wide output's suffix is a thread
+ID; the numeric PID comes from the process filter. Exit zero, empty output,
+redaction or a dropped/partial trace cannot establish visibility or a blocker.
+The existing native ownership control measures this capability across its same
+two cleanup requests and retains `eject-visibility/evidence.json` beside the
+ownership packet, with a separate transcript and recorder. Hosted visibility
+remains unqualified until those actual events are observed. A positive lifecycle describes only those observed calls,
+not every daemon request or every attempt against the target.
+
 To reconstruct the receipt, verify its `StdoutSHA256` against the UTF-8 bytes of
 `StdoutText`, then parse that JSON. Each action, probe and prior-unmount observation's
 `Command` is its original transcript ordinal. In a merged continuation transcript,

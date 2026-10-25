@@ -114,13 +114,21 @@ func TestAttachmentCleanupPacketsPreserveOriginalBytesAndLocalReferences(t *test
 
 func TestAttachmentCleanupSinkIsInheritedAndDeduplicatedAcrossChildrenAndPhases(t *testing.T) {
 	work := t.TempDir()
-	parent := &Verifier{Work: work, attachmentCleanup: newAttachmentCleanupSink(work)}
+	parent := &Verifier{Work: work, attachmentCleanup: newAttachmentCleanupSink(work), observeBusyEject: true}
 	child := parent.ForSubtest()
 	sibling := parent.ForSubtest()
 	child.Work = filepath.Join(work, "discarded-child-scratch")
 	host, _ := child.hostImportVerifier("output", "windows")
 	if parent.attachmentCleanup != child.attachmentCleanup || sibling.attachmentCleanup != parent.attachmentCleanup || host.attachmentCleanup != parent.attachmentCleanup || host.attachmentCleanup.root != filepath.Join(work, "native-attachment-cleanup") {
 		t.Fatal("child/host observation redirected evidence into disposable scratch")
+	}
+	for _, current := range []*Verifier{child, sibling, host} {
+		if !current.observeBusyEject || !current.Disk.(*fixture.HostDisk).ObserveBusyEject {
+			t.Fatal("child/host observation lost its native job's explicit observer option")
+		}
+	}
+	if (&Verifier{}).ForSubtest().Disk.(*fixture.HostDisk).ObserveBusyEject {
+		t.Fatal("ordinary verifier enabled native observation implicitly")
 	}
 	source := cleanupPacket(t, "/native/source.raw")
 	var wg sync.WaitGroup

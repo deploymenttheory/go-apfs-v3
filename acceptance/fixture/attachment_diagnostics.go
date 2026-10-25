@@ -66,6 +66,8 @@ type attachmentDiagnostics struct {
 	mounts        []attachmentDiagnosticMount
 	priorUnmounts []priorUnmountObservation
 	logs          []detachLogEvidence
+	ejectTrace    *ejectTraceEvidence
+	ejectJob      *ejectTraceJob
 }
 
 func newAttachmentDiagnostics(d *HostDisk, a *Attachment) *attachmentDiagnostics {
@@ -330,8 +332,9 @@ func (c *attachmentDiagnostics) finish() error {
 		Mounts          []attachmentDiagnosticMount
 		PriorUnmounts   []priorUnmountObservation
 		Logs            []detachLogEvidence
-		Error           string `json:",omitempty"`
-	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), StartCommand: c.startCommand, Actions: c.actions, Probes: c.probes, Mounts: c.mounts, PriorUnmounts: c.priorUnmounts, Logs: c.logs}
+		EjectTrace      *ejectTraceEvidence `json:",omitempty"`
+		Error           string              `json:",omitempty"`
+	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), StartCommand: c.startCommand, Actions: c.actions, Probes: c.probes, Mounts: c.mounts, PriorUnmounts: c.priorUnmounts, Logs: c.logs, EjectTrace: c.ejectTrace}
 	if !c.started.IsZero() {
 		receipt.DetachStarted = c.started.UTC().Format(time.RFC3339Nano)
 	}
