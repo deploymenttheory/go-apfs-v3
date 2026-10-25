@@ -730,6 +730,27 @@ The expected image backend holding its own backing file is an observation; it
 does not identify an ejection blocker. Missing or inconclusive observations leave
 the cause unknown, and the original exhausted detach remains fatal.
 
+Native verifiers also save emitted busy receipts under
+`native-attachment-cleanup/`, including a request that later succeeds. The shared
+job sink runs synchronously before transcript handoff or scratch removal and
+retains no image copies. Successful native diagnostic archives now use the common
+`native-work/` root, containing `fork-mapping-pair/` and any
+`native-attachment-cleanup/` packets. Failed jobs retain the complete existing
+diagnostic tree.
+
+Each cleanup packet is named by its original receipt SHA256 and stored as gzip
+JSON. Decode `ReceiptJSONBase64`, verify `ReceiptBytes` and `ReceiptSHA256`, then
+restore those exact UTF-8 bytes to the indexed receipt command's `StdoutText`.
+`ReceiptStdoutField` declares this sole body projection; the packet does not
+encode a second copy. `Commands` preserves original local `Ordinal` values,
+including the complete `StartCommand` through `ReceiptCommand` span and valid
+earlier unmount anchors. It does not rebase prior or unidentified transcripts.
+Retention is bounded to 128 MiB of uncompressed packet data, 16 MiB per gzip
+file, 64 MiB and 128 packets per job, and 512 anchors per packet. Sequential
+native phases count existing packets toward the same job budget. Retention
+failures remain fatal alongside any original operation error, including a
+tracked product limit.
+
 To reconstruct the receipt, verify its `StdoutSHA256` against the UTF-8 bytes of
 `StdoutText`, then parse that JSON. Each action, probe and prior-unmount observation's
 `Command` is its original transcript ordinal. In a merged continuation transcript,

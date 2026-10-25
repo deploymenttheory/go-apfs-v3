@@ -115,8 +115,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if usesCloneCopyContinuation(out) {
 		source, sibling := cloneCopyContinuationPeers(out)
 		if err := v.continueCloneWritesFrom(ctx, volume.Mount, filepath.Join(work, "clone-native-source"), source, sibling); err != nil {
-			_ = v.Disk.Detach(ctx, att)
-			return nil, fmt.Errorf("continuation %s: native clone-copy writes: %w", out.Name, err)
+			return nil, errors.Join(fmt.Errorf("continuation %s: native clone-copy writes: %w", out.Name, err), v.Disk.Detach(ctx, att))
 		}
 	}
 	if err := v.nativeWrites(ctx, volume.Mount, filepath.Join(work, "native-source")); err != nil {
@@ -287,6 +286,8 @@ func (k KnownLimit) Error() string { return "product edit refused by a tracked l
 // that refusal anywhere in the error tree and hide the other failures.
 func onlyKnownLimit(err error) bool {
 	switch value := err.(type) {
+	case *fixture.AttachmentCleanupRetentionError:
+		return false
 	case KnownLimit:
 		return true
 	case *KnownLimit:

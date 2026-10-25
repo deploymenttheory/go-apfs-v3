@@ -60,6 +60,7 @@ type attachmentDiagnostics struct {
 	stored        int
 	busy          bool
 	started       time.Time
+	startCommand  int
 	actions       []detachOperationEvidence
 	probes        []attachmentDiagnosticProbe
 	mounts        []attachmentDiagnosticMount
@@ -68,7 +69,7 @@ type attachmentDiagnostics struct {
 }
 
 func newAttachmentDiagnostics(d *HostDisk, a *Attachment) *attachmentDiagnostics {
-	return &attachmentDiagnostics{disk: d, attachment: a}
+	return &attachmentDiagnostics{disk: d, attachment: a, startCommand: len(d.T.Commands)}
 }
 
 func (c *attachmentDiagnostics) stream(raw []byte) attachmentDiagnosticStream {
@@ -322,6 +323,7 @@ func (c *attachmentDiagnostics) finish() error {
 		Image           string
 		RequestedDevice string
 		ReceiptCommand  int
+		StartCommand    int
 		DetachStarted   string `json:",omitempty"`
 		Actions         []detachOperationEvidence
 		Probes          []attachmentDiagnosticProbe
@@ -329,7 +331,7 @@ func (c *attachmentDiagnostics) finish() error {
 		PriorUnmounts   []priorUnmountObservation
 		Logs            []detachLogEvidence
 		Error           string `json:",omitempty"`
-	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), Actions: c.actions, Probes: c.probes, Mounts: c.mounts, PriorUnmounts: c.priorUnmounts, Logs: c.logs}
+	}{SourceRevision: os.Getenv("GITHUB_SHA"), RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"), Image: c.attachment.Image, RequestedDevice: c.attachment.Dev, ReceiptCommand: len(c.disk.T.Commands), StartCommand: c.startCommand, Actions: c.actions, Probes: c.probes, Mounts: c.mounts, PriorUnmounts: c.priorUnmounts, Logs: c.logs}
 	if !c.started.IsZero() {
 		receipt.DetachStarted = c.started.UTC().Format(time.RFC3339Nano)
 	}
@@ -342,5 +344,16 @@ func (c *attachmentDiagnostics) finish() error {
 	entry := &c.disk.T.Commands[len(c.disk.T.Commands)-1]
 	entry.StdoutSHA256 = fmt.Sprintf("%x", sha256.Sum256(data))
 	entry.StdoutText = string(data)
+	// Publish only after the original receipt bytes/digest and command exist.
+	// A sink failure does not rewrite that receipt or any native action result.
+	if c.busy && c.disk.AttachmentCleanupEvidence != nil {
+		payload, retainErr := c.cleanupEvidence(receipt.ReceiptCommand)
+		if retainErr == nil {
+			retainErr = c.disk.AttachmentCleanupEvidence(payload)
+		}
+		if retainErr != nil {
+			c.err = errors.Join(c.err, &AttachmentCleanupRetentionError{Cause: retainErr})
+		}
+	}
 	return c.err
 }

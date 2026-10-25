@@ -197,7 +197,7 @@ func buildVerifier() (verifier *Verifier, resultErr error) {
 			return nil, err
 		}
 	}
-	return &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer, AppleDoubleUnpack: unpacker}, nil
+	return &Verifier{Major: major, Corpus: c, Cases: byKey, Recipes: byName, Drift: drift, Product: product, Work: work, Disk: &fixture.HostDisk{C: commander, T: &fixture.Transcript{}}, Vol: fixture.HostVolume{}, C: commander, Producer: producer, AppleDoubleUnpack: unpacker, attachmentCleanup: newAttachmentCleanupSink(work)}, nil
 }
 
 // summary collects job-summary rows from parallel subtests.

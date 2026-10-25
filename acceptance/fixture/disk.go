@@ -117,6 +117,10 @@ type TranscriptUser interface {
 type HostDisk struct {
 	C Commander
 	T *Transcript
+	// AttachmentCleanupEvidence synchronously retains an immutable busy-detach
+	// packet after its original receipt is recorded. Nil disables the sink; a
+	// sink error remains fatal even if a later normal request succeeded.
+	AttachmentCleanupEvidence func(AttachmentCleanupEvidence) error
 	// Tests replace this per instance; private mount cleanup never needs a global
 	// probe override or a real host mount to exercise ownership decisions.
 	mountProbe func(string) (mountIdentity, error)
