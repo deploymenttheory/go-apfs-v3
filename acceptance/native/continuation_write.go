@@ -59,7 +59,7 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("checker after final native allocation: %w", err)
 	}
-	spec := schema.ObserveSpec{Snapshots: hasHistoricalViews(before)}
+	spec := schema.ObserveSpec{Snapshots: hasHistoricalViews(before) || len(out.Expect.DeletedSnapshots) > 0}
 	if usesCloneCopyContinuation(out) {
 		spec.Extents, spec.Samples = append(cloneCopyExtentPaths(out.Expect.Subtree), retainedPartialClone), 12
 	}

@@ -58,6 +58,11 @@ func (v *Verifier) expectedView(out schema.Output) (corpus.Case, schema.View, er
 	if !ok {
 		return corpus.Case{}, schema.View{}, fmt.Errorf("output %s expects case %s which the corpus lacks", out.Name, CaseKey(ref))
 	}
+	projected, err := snapshotOutputReference(out, k.Observation)
+	if err != nil {
+		return corpus.Case{}, schema.View{}, err
+	}
+	k.Observation = projected
 	volume := 0
 	if out.Expect.Volume != "" {
 		found := false
@@ -252,7 +257,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		return v.verifyContainer(ctx, out, image, password, digests, !p.SkipChecksums)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
-	spec.Snapshots = hasHistoricalViews(k.Observation)
+	spec.Snapshots = hasHistoricalViews(k.Observation) || len(out.Expect.DeletedSnapshots) > 0
 	if out.Source.Recipe == "apfs-clones" {
 		spec.Extents, spec.Samples = cloneExtentPaths(), 12
 	}

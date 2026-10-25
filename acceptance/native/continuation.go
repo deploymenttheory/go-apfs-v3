@@ -135,8 +135,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
-	sourceObservation := v.Cases[CaseKey(out.Source)].Observation
-	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation)}
+	sourceObservation, err := snapshotOutputReference(out, v.Cases[CaseKey(out.Source)].Observation)
+	if err != nil {
+		return nil, err
+	}
+	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation) || len(out.Expect.DeletedSnapshots) > 0}
 	if out.Source.Recipe == "apfs-clones" {
 		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
 	}
@@ -150,6 +153,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if nativeSpec.Snapshots {
 		if err := compareHistoricalViews(before, sourceObservation); err != nil {
 			return before, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
+		}
+	}
+	if len(out.Expect.DeletedSnapshots) > 0 {
+		d, err := comparePreservedVolumeMetadata(before, sourceObservation)
+		if err != nil || len(d) != 0 {
+			return before, fmt.Errorf("snapshot deletion metadata after native writes: %v: %v", d, err)
 		}
 	}
 	var cloneBefore schema.View

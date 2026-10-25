@@ -132,23 +132,43 @@ func (m *mutation) admitHistory(volume *storageVolume, storage *storageChecker) 
 		}
 	}
 	m.history = h
+	normalized, err := normalizeHistoryExtents(m.ctx, volume.views[len(h.xids)].refs, h.owners)
+	if err != nil {
+		return err
+	}
+	return replaceHistoryExtentRecords(m.ctx, m.extents, normalized)
+}
+
+// normalizeHistoryExtents restores the original NEW owner boundaries to an
+// effective reference state. Zero-count ranges remain in the reference state,
+// but do not own an allocation and therefore have no normalized NEW record.
+func normalizeHistoryExtents(ctx context.Context, refs []storageExtent, owners []historyExtentOwner) ([]buildRecord, error) {
+	if len(refs) > maxStorageRecords || len(owners) > maxStorageRecords {
+		return nil, filesystem.ErrLimit
+	}
 	var normalized []buildRecord
 	ownerAt := 0
-	for _, r := range volume.views[len(h.xids)].refs {
+	for _, r := range refs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if r.start >= r.end || r.refs < 0 || r.refs > math.MaxInt32 {
+			return nil, corrupt("snapshot effective reference bounds/count", 0)
+		}
 		if r.refs == 0 {
 			continue
 		}
 		for at := r.start; at < r.end; {
 			if len(normalized) == maxStorageRecords {
-				return filesystem.ErrLimit
+				return nil, filesystem.ErrLimit
 			}
-			for ownerAt < len(h.owners) && h.owners[ownerAt].end <= at {
+			for ownerAt < len(owners) && owners[ownerAt].end <= at {
 				ownerAt++
 			}
-			if ownerAt == len(h.owners) || h.owners[ownerAt].start > at {
-				return corrupt("snapshot extent owner coverage", 0)
+			if ownerAt == len(owners) || owners[ownerAt].start > at {
+				return nil, corrupt("snapshot extent owner coverage", 0)
 			}
-			owner := h.owners[ownerAt]
+			owner := owners[ownerAt]
 			stop := min(r.end, owner.end)
 			record := buildExtentReference(at, stop-at, owner.owner)
 			le.PutUint32(record.value[16:], uint32(r.refs))
@@ -156,7 +176,7 @@ func (m *mutation) admitHistory(volume *storageVolume, storage *storageChecker) 
 			at = stop
 		}
 	}
-	return replaceHistoryExtentRecords(m.ctx, m.extents, normalized)
+	return normalized, ctx.Err()
 }
 
 func replaceHistoryExtentRecords(ctx context.Context, tree *cowTree, records []buildRecord) error {
@@ -240,8 +260,21 @@ func (m *mutation) encodeHistoryExtents() error {
 	if m.history == nil {
 		return nil
 	}
-	current := m.extents.all()
-	base := m.history.base
+	records, err := encodeHistoryExtentRecords(m.ctx, m.extents.all(), m.history.base)
+	if err != nil {
+		return err
+	}
+	return replaceHistoryExtentRecords(m.ctx, m.extents, records)
+}
+
+// encodeHistoryExtentRecords expresses normalized NEW current records as a
+// delta against the preceding retained view, including its known-zero ranges.
+// A caller rebasing a history chain must materialize the returned records with
+// readExtentChanges and applyExtentChanges before encoding the following view.
+func encodeHistoryExtentRecords(ctx context.Context, current []buildRecord, base []storageExtent) ([]buildRecord, error) {
+	if len(current) > maxStorageRecords || len(base) > maxStorageRecords {
+		return nil, filesystem.ErrLimit
+	}
 	var points []uint64
 	for _, r := range base {
 		points = append(points, r.start, r.end)
@@ -251,15 +284,15 @@ func (m *mutation) encodeHistoryExtents() error {
 		points = append(points, start, start+(le.Uint64(r.value)&objectMask))
 	}
 	if len(points) > 4*maxStorageRecords {
-		return filesystem.ErrLimit
+		return nil, filesystem.ErrLimit
 	}
 	slices.Sort(points)
 	points = slices.Compact(points)
 	var records []buildRecord
 	i, j := 0, 0
 	for index := 0; index+1 < len(points); index++ {
-		if err := m.ctx.Err(); err != nil {
-			return err
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 		at, end := points[index], points[index+1]
 		for i < len(base) && base[i].end <= at {
@@ -279,7 +312,7 @@ func (m *mutation) encodeHistoryExtents() error {
 			owner = le.Uint64(current[j].value[8:])
 		}
 		if now < 0 || now > math.MaxInt32 {
-			return corrupt("snapshot live reference count", 0)
+			return nil, corrupt("snapshot live reference count", 0)
 		}
 		if known && old == now || !known && now == 0 {
 			continue
@@ -293,7 +326,7 @@ func (m *mutation) encodeHistoryExtents() error {
 			owner = owningObjectIDInvalid
 		}
 		if refs < math.MinInt32 || refs > math.MaxInt32 {
-			return filesystem.ErrLimit
+			return nil, filesystem.ErrLimit
 		}
 		record := buildExtentReference(at, end-at, owner)
 		le.PutUint64(record.value, kind<<60|(end-at))
@@ -305,7 +338,10 @@ func (m *mutation) encodeHistoryExtents() error {
 				continue
 			}
 		}
+		if len(records) == maxStorageRecords {
+			return nil, filesystem.ErrLimit
+		}
 		records = append(records, record)
 	}
-	return replaceHistoryExtentRecords(m.ctx, m.extents, records)
+	return records, ctx.Err()
 }

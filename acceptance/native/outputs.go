@@ -288,6 +288,9 @@ func requireAppleDoubleOutputs(pairs []Paired, cases map[string]corpus.Case, maj
 // expectationsEqual compares expectations field by field; the slices
 // inside make == invalid.
 func expectationsEqual(a, b schema.Expectation) bool {
+	if !reflect.DeepEqual(a.DeletedSnapshots, b.DeletedSnapshots) {
+		return false
+	}
 	if !reflect.DeepEqual(a.HostImport, b.HostImport) {
 		return false
 	}

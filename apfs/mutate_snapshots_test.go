@@ -450,6 +450,15 @@ func TestSnapshotVolumeEditsPreserveAllPeerHistoryAndStorageBytes(t *testing.T) 
 				t.Fatal("editing one volume changed peer metadata/history/data storage")
 			}
 		}
+		if _, err := DeleteSnapshot(ctx, disk, "", SnapshotSelector{Name: "retained-history"}, builtClock); !errors.Is(err, fs.ErrInvalid) {
+			t.Fatal("snapshot deletion accepted an ambiguous volume", err)
+		}
+		if _, err := DeleteSnapshot(ctx, disk, volume.UUID, SnapshotSelector{Name: "retained-history"}, builtClock); err != nil {
+			t.Fatal("delete selected volume history", err)
+		}
+		if got := snapshotVolumeBytes(t, disk, peer); got != before {
+			t.Fatal("deleting one volume history changed peer metadata/history/data storage")
+		}
 	}
 }
 

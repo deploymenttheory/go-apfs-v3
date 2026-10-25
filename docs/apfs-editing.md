@@ -82,6 +82,32 @@ and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
 chmod preserves ACLs. Set-ID writes require the explicit logical UID described
 below; these metadata effects do not emulate process authorization.
 
+## Deleting retained snapshots
+
+Select one retained snapshot by its exact name or XID and publish a new image:
+
+```sh
+apfs snapshot delete --image Original.dmg --output Deleted.dmg --snapshot-name com.apple.asr.123
+apfs snapshot delete --image Original.dmg --output Deleted.dmg --snapshot-xid 123 --volume VOLUME_UUID --format UDRO
+```
+
+Exactly one selector is required. Names use the retained spelling; a numeric
+name is not interpreted as an XID. Missing selections fail without publishing.
+The original image stays read-only, the output path must not exist, and the
+selected partition and APFS volume follow ordinary editing rules. Deletion uses
+the same whole-second `--time`, output format and DMG envelope credential options
+as other edits. Software-encrypted APFS volume writes remain unsupported.
+
+The library exposes `imageedit.DeleteSnapshot(ctx, source, destination, options,
+apfs.SnapshotSelector{Name: name})`; use `XID: xid` instead for a transaction
+selector. `editor.DeleteSnapshot(selector)` can share an `imageedit.Edit`
+transaction with other commands. A failed deletion invalidates that whole
+transaction even when its callback ignores the error. The engine preserves live
+content, remaining snapshots and other owners; final references are reclaimed
+only when their retained ownership permits it. Independent Apple checking and
+continued allocation remain required qualification, not a consequence of the
+CLI or Go API returning successfully.
+
 ## Creating and editing clones
 
 Whole-file replacement and truncation detach only the edited clone's data stream.
