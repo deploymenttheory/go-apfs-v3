@@ -422,6 +422,16 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Each native consumer judges outputs derived from its own producer's
+	// fixtures. Establish its full checker against those exact original
+	// encrypted controls; cross-version mounted parity remains independent.
+	for _, k := range cases {
+		if k.Producer == v.Major && k.Recipe == "encrypted-snapshot-history" && k.Stage == "retained" {
+			if err := v.checkEncryptedFixture(context.Background(), k); err != nil {
+				t.Fatalf("native encrypted checker baseline: %v", err)
+			}
+		}
+	}
 	if err := requireRawImageEncryption(t, v, cases); err != nil {
 		t.Fatalf("raw image encryption proof: %v", err)
 	}
