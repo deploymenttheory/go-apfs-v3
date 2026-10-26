@@ -5,6 +5,7 @@ package native
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,6 +42,26 @@ func TestEncryptedAPFSEditAndPasswordNativeContinuation(t *testing.T) {
 			t.Error(err)
 		}
 	}()
+	other := 26
+	if v.Major == 26 {
+		other = 27
+	}
+	baseline := schema.CaseRef{Producer: other, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "retained"}
+	k := v.Cases[CaseKey(baseline)]
+	lease, baselineErr := v.Corpus.AcquireImage(ctx, k)
+	if baselineErr == nil {
+		finish := v.recordVerificationCommands(filepath.Join(v.Work, "cross-version-baseline"))
+		baselineErr = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
+		finish(&baselineErr)
+		baselineErr = errors.Join(baselineErr, lease.Release(baselineErr))
+	}
+	// Record the cross-version warning diagnostic; the actual file/password
+	// verdicts below still fail this bounded run on any qualification error.
+	row := verdict{Name: "cross-version checker diagnostic"}
+	if baselineErr != nil {
+		row.Error = baselineErr.Error()
+	}
+	results = append(results, row)
 	for _, profile := range []string{"apfs", "apfsx"} {
 		for _, stage := range []string{"retained", "final"} {
 			name := profile + "-" + stage
@@ -93,7 +114,7 @@ func TestEncryptedAPFSEditAndPasswordNativeContinuation(t *testing.T) {
 									t.Fatal("unexpected native edit")
 								}
 								file := filepath.Join(work, "payload-"+strconv.Itoa(count))
-								if err := os.WriteFile(file, []byte(write.Content), 0600); err != nil {
+								if err := os.WriteFile(file, []byte(write.Content), 0644); err != nil {
 									t.Fatal(err)
 								}
 								if count > 0 {
