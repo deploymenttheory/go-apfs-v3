@@ -20,8 +20,8 @@ jobs:
     env:
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
       APFS_NATIVE_GROUPS: fixtures
-      APFS_NATIVE_WORK: ${{ runner.temp }}/encrypted-construction
-      APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
+      APFS_NATIVE_WORK: ${{ github.workspace }}/artifacts/encrypted-construction
+      APFS_PRODUCT_CLI: ${{ github.workspace }}/artifacts/apfs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -39,6 +39,6 @@ jobs:
         with:
           name: encrypted-construction-${{ matrix.major }}
           path: |
-            ${{ runner.temp }}/encrypted-construction/result.json
-            ${{ runner.temp }}/encrypted-construction/**/*commands.json
+            ${{ github.workspace }}/artifacts/encrypted-construction/result.json
+            ${{ github.workspace }}/artifacts/encrypted-construction/**/*commands.json
           if-no-files-found: error
