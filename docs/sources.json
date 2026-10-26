@@ -435,7 +435,7 @@
       "components": [
         "internal/crypto/keywrap.go"
       ],
-      "basis": "Original bounded RFC 3394 unwrap with mandatory constant-time IV integrity verification, built on Go standard AES."
+      "basis": "Original bounded RFC 3394 wrap and unwrap, with mandatory constant-time IV integrity verification on unwrap, built on Go standard AES."
     },
     {
       "id": "rfc8018-password-derivation",
