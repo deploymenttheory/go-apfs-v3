@@ -11,7 +11,7 @@
   },
   "image": {
     "create": "hdiutil",
-    "size": "128m",
+    "size": "1536m",
     "layout": "GPTSPUD",
     "output": "UDZO",
     "mountOptions": "owners,noatime",
