@@ -62,6 +62,7 @@ type Volume struct {
 	rootType                  uint32
 	id                        [16]byte
 	keys                      *volumeKeys
+	keysBorrowed              bool
 	xid                       XID
 	snapMeta                  OID
 	snapMetaType              uint32
@@ -208,6 +209,8 @@ func (c *Container) volume(b []byte, xid XID) Volume {
 	v := Volume{OID: OID(le.Uint64(b[8:])), UUID: uuid(b[240:256]), Name: string(name), Role: le.Uint16(b[964:]), VolumeGroup: uuid(b[1008:1024]), CaseSensitive: features&1 == 0, Flags: flags, CompatibleFeatures: le.Uint64(b[40:]), ReadOnlyCompatibleFeatures: le.Uint64(b[48:]), IncompatibleFeatures: features, Encrypted: flags&1 == 0, Sealed: features&0x20 != 0, Files: le.Uint64(b[184:]), Directories: le.Uint64(b[192:]), Snapshots: le.Uint64(b[216:])}
 	v.ReserveBlocks, v.QuotaBlocks = le.Uint64(b[72:]), le.Uint64(b[80:])
 	copy(v.id[:], b[240:256])
+	v.keys = sourceVolumeKeys(c.source, v.id)
+	v.keysBorrowed = v.keys != nil
 	v.container, v.omap, v.root, v.rootType = c, PhysicalAddress(le.Uint64(b[128:])), OID(le.Uint64(b[136:])), le.Uint32(b[116:])
 	v.xid, v.snapMeta, v.snapMetaType, v.snapMetaExt = xid, OID(le.Uint64(b[152:])), le.Uint32(b[124:]), OID(le.Uint64(b[1000:]))
 	v.EncryptionRollingStateOID = OID(le.Uint64(b[976:]))
@@ -226,7 +229,7 @@ func (c *Container) object(address PhysicalAddress, kind uint32) ([]byte, error)
 	if !validChecksum(b) {
 		return nil, corrupt("object checksum", off)
 	}
-	if le.Uint32(b[24:])&0xffff != kind {
+	if kind != 0 && le.Uint32(b[24:])&0xffff != kind {
 		return nil, corrupt("object type", off)
 	}
 	return b, nil

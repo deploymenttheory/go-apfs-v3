@@ -40,6 +40,15 @@ func (k *volumeKeys) decrypt(b []byte, sector uint64) error {
 	return k.xts.Decrypt(b, b, sector)
 }
 
+func (k *volumeKeys) encrypt(b []byte, sector uint64) error {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
+	if k.xts == nil {
+		return fs.ErrClosed
+	}
+	return k.xts.Encrypt(b, b, sector)
+}
+
 func (v *Volume) access() error {
 	if v.EncryptionRollingStateOID != 0 {
 		return fmt.Errorf("APFS encryption conversion in progress: %w", filesystem.ErrUnsupported)
@@ -140,6 +149,7 @@ func (v *Volume) Unlock(ctx context.Context, password []byte) (*Volume, error) {
 		}
 		view := *v
 		view.keys = &volumeKeys{xts: x}
+		view.keysBorrowed = false
 		// A verified wrapped key is necessary but not sufficient: require a valid
 		// filesystem root before exposing the view, retaining corruption errors.
 		if _, err := view.Stat(ctx, view.Root()); err != nil {
@@ -184,7 +194,7 @@ func unlockKey(ctx context.Context, password []byte, kek, vek keyRecord) ([]byte
 // Copies of the same unlocked Volume share this lifetime. For a locked or
 // unencrypted volume Close has no effect.
 func (v *Volume) Close() error {
-	if v.keys != nil {
+	if v.keys != nil && !v.keysBorrowed {
 		v.keys.mu.Lock()
 		v.keys.xts = nil
 		v.keys.mu.Unlock()
@@ -214,7 +224,7 @@ func (v *Volume) object(m objectMapping, kind uint32) ([]byte, error) {
 	if err := v.keys.decrypt(b, uint64(off)/512); err != nil {
 		return nil, err
 	}
-	if !validChecksum(b) || le.Uint32(b[24:])&0xffff != kind {
+	if !validChecksum(b) || kind != 0 && le.Uint32(b[24:])&0xffff != kind {
 		return nil, corrupt("decrypted object checksum or type", off)
 	}
 	return b, nil

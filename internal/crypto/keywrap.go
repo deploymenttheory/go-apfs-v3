@@ -6,6 +6,34 @@ import (
 	"encoding/binary"
 )
 
+// Wrap implements RFC 3394 for the bounded key sizes accepted by Unwrap.
+func Wrap(key, plain []byte) ([]byte, error) {
+	if (len(key) != 16 && len(key) != 32) || len(plain) < 16 || len(plain) > 64 || len(plain)%8 != 0 {
+		return nil, ErrInvalid
+	}
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	wrapped := make([]byte, len(plain)+8)
+	copy(wrapped[8:], plain)
+	a := uint64(0xa6a6a6a6a6a6a6a6)
+	blocks := len(plain) / 8
+	var b [16]byte
+	defer clear(b[:])
+	for j := 0; j < 6; j++ {
+		for i := 1; i <= blocks; i++ {
+			binary.BigEndian.PutUint64(b[:], a)
+			copy(b[8:], wrapped[i*8:i*8+8])
+			cipher.Encrypt(b[:], b[:])
+			a = binary.BigEndian.Uint64(b[:]) ^ uint64(j*blocks+i)
+			copy(wrapped[i*8:], b[8:])
+		}
+	}
+	binary.BigEndian.PutUint64(wrapped, a)
+	return wrapped, nil
+}
+
 // Unwrap implements RFC 3394, including its mandatory integrity check. Wrapped
 // APFS keys are small; cap the input before allocating or running unwrap rounds.
 func Unwrap(key, wrapped []byte) ([]byte, error) {

@@ -28,10 +28,11 @@ type Options struct {
 	Time      time.Time // whole seconds; required for the library API
 	// ImagePassword unlocks the source DMG envelope. Nil means no credential;
 	// a non-nil empty slice supplies an explicitly empty password. VolumePassword
-	// is a separate APFS credential. Software-encrypted APFS writes remain
-	// unsupported, including after successful volume authentication.
-	ImagePassword  []byte `json:"-"`
-	VolumePassword []byte `json:"-"`
+	// is a separate credential for the selected APFS volume. VolumeCredentials
+	// supplies explicit UUID/password pairs for independently encrypted peers.
+	ImagePassword     []byte                  `json:"-"`
+	VolumePassword    []byte                  `json:"-"`
+	VolumeCredentials []apfs.VolumeCredential `json:"-"`
 	// Encryption replaces the output envelope password and optionally its AES
 	// strength. KeyBits zero retains the encrypted source's strength. Without
 	// Encryption or Decrypt, source encryption and its password are preserved
@@ -51,6 +52,7 @@ type Report struct {
 	Changed           []uint64                            `json:"changed"`
 	FreeBlocks        uint64                              `json:"freeBlocks"`
 	Transaction       uint64                              `json:"transaction,omitempty"`
+	CryptoUser        string                              `json:"cryptoUser,omitempty"`
 	Journal           *hfsplus.JournalReplayReport        `json:"journal,omitempty"`
 	Checkpoint        *apfs.CheckpointRecoveryReport      `json:"checkpoint,omitempty"`
 	diskimage.RepackReport
@@ -81,7 +83,7 @@ func modify(ctx context.Context, view *mutablePartition, isAPFS bool, changes []
 		}
 	}
 	if isAPFS {
-		changed, e := apfs.ModifyVolume(ctx, view, volume, changes, when)
+		changed, e := apfs.ModifyVolume(ctx, view.mutationSource(), volume, changes, when)
 		report.VolumeID, report.Changed, report.FreeBlocks, report.Transaction = changed.VolumeID, changed.Changed, changed.FreeBlocks, changed.Transaction
 		return report, e
 	}
@@ -163,6 +165,8 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	if isAPFS {
 		validate = apfs.ValidateMutation
 	}
+	var credentials []apfs.VolumeCredential
+	var authenticatedAPFS bool
 	// Admit supported ownership before staging the complete decoded disk.
 	if admission == nil {
 		admission = func(s block.Source, isAPFS bool) error {
@@ -175,19 +179,22 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 				if err != nil {
 					return err
 				}
+				credentials = append([]apfs.VolumeCredential(nil), o.VolumeCredentials...)
 				if o.VolumePassword != nil {
-					unlocked, err := volume.Unlock(ctx, o.VolumePassword)
+					credentials = append(credentials, apfs.VolumeCredential{VolumeUUID: volume.UUID, Password: o.VolumePassword})
+				}
+				for _, peer := range container.Volumes {
+					authenticatedAPFS = authenticatedAPFS || peer.Encrypted
+				}
+				if authenticatedAPFS || len(credentials) != 0 {
+					authenticated, err := apfs.UnlockMutation(ctx, readOnlyPartition{s}, credentials...)
 					if err != nil {
 						return err
 					}
-					if err := unlocked.Close(); err != nil {
-						return err
-					}
+					defer authenticated.Close()
+					return validate(ctx, authenticated)
 				}
-				if volume.Encrypted {
-					return fmt.Errorf("software-encrypted APFS image editing: %w", filesystem.ErrUnsupported)
-				}
-			} else if o.VolumePassword != nil {
+			} else if o.VolumePassword != nil || len(o.VolumeCredentials) != 0 {
 				return fmt.Errorf("APFS volume password requires an encrypted APFS volume: %w", fs.ErrInvalid)
 			} else if o.Volume != "" {
 				volume, err := hfsplus.Open(s)
@@ -222,12 +229,20 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	}
 	defer func() { err = errors.Join(err, disk.Close()) }()
 	view := &mutablePartition{disk: disk, offset: partition.Offset, size: partition.Size}
+	if authenticatedAPFS {
+		authenticated, err := apfs.UnlockMutation(ctx, view, credentials...)
+		if err != nil {
+			return report, err
+		}
+		view.authenticated = authenticated
+		defer func() { err = errors.Join(err, authenticated.Close()) }()
+	}
 	report, err = mutation(view, isAPFS)
 	if err != nil {
 		return report, err
 	}
 	// Reopen and account all current and pending-free blocks before publication.
-	if err = validate(ctx, view); err != nil {
+	if err = validate(ctx, view.mutationSource()); err != nil {
 		return report, err
 	}
 
@@ -264,8 +279,20 @@ func (d *decodedDisk) Size() int64                             { return d.image.
 func (d *decodedDisk) ReadAt(p []byte, off int64) (int, error) { return d.image.ReadAt(p, off) }
 
 type mutablePartition struct {
-	disk         *block.Staging
-	offset, size int64
+	disk          *block.Staging
+	offset, size  int64
+	authenticated *apfs.MutationSource
+}
+
+type readOnlyPartition struct{ block.Source }
+
+func (readOnlyPartition) WriteAt([]byte, int64) (int, error) { return 0, fs.ErrPermission }
+
+func (p *mutablePartition) mutationSource() apfs.MutableSource {
+	if p.authenticated != nil {
+		return p.authenticated
+	}
+	return p
 }
 
 func (p *mutablePartition) Size() int64 { return p.size }

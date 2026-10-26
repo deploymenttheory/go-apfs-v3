@@ -31,7 +31,7 @@ func (e *Editor) DeleteSnapshot(selector apfs.SnapshotSelector) (Report, error) 
 		e.failed = fmt.Errorf("snapshot deletion requires APFS: %w", filesystem.ErrUnsupported)
 		return Report{}, e.failed
 	}
-	changed, err := apfs.DeleteSnapshot(e.ctx, e.view, e.options.Volume, selector, e.options.Time)
+	changed, err := apfs.DeleteSnapshot(e.ctx, e.view.mutationSource(), e.options.Volume, selector, e.options.Time)
 	if err != nil {
 		e.failed = err
 		return Report{}, err

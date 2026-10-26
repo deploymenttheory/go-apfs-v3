@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"slices"
 	"time"
+
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
 // SnapshotSelector identifies exactly one snapshot by its exact name or XID.
@@ -34,6 +36,9 @@ func DeleteSnapshot(ctx context.Context, disk MutableSource, volumeUUID string, 
 	}
 	if volumeUUID == "" && len(m.c.Volumes) > 1 {
 		return report, fmt.Errorf("select an APFS volume UUID in a multiple-volume container: %w", fs.ErrInvalid)
+	}
+	if m.v.Encrypted {
+		return report, fmt.Errorf("snapshot deletion on encrypted APFS: %w", filesystem.ErrUnsupported)
 	}
 	index := slices.IndexFunc(m.ownership.snapshots, func(snapshot snapshotRecord) bool {
 		return selector.Name != "" && snapshot.Name == selector.Name || selector.XID != 0 && snapshot.XID == selector.XID

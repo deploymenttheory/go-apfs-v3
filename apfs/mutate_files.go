@@ -99,6 +99,9 @@ func (m *mutation) modifyFile(c Change, id, stamp uint64) (uint64, error) {
 		sv := make([]byte, 40)
 		le.PutUint64(sv, uint64(c.Data.Size()))
 		le.PutUint64(sv[8:], blocks*4096)
+		if m.v.Encrypted {
+			le.PutUint64(sv[16:], 4)
+		}
 		le.PutUint64(sv[24:], uint64(c.Data.Size()))
 		value, e = replaceInodeField(value, 8, 0x20, sv)
 		if e != nil {
@@ -235,6 +238,11 @@ func (m *mutation) replaceStream(id, owner uint64, data block.Source) (uint64, e
 					return 0, e
 				}
 			}
+			if m.v.Encrypted {
+				if e = m.v.keys.encrypt(buf[:n], address*8+off/512); e != nil {
+					return 0, e
+				}
+			}
 			if e = m.write(buf[:n], address*4096+off); e != nil {
 				return 0, e
 			}
@@ -245,6 +253,10 @@ func (m *mutation) replaceStream(id, owner uint64, data block.Source) (uint64, e
 		value := make([]byte, 24)
 		le.PutUint64(value, count*4096)
 		le.PutUint64(value[8:], address)
+		if m.v.Encrypted {
+			le.PutUint64(value, uint64(1)<<56|count*4096)
+			le.PutUint64(value[16:], address)
+		}
 		if e = m.fs.put(key, value); e != nil {
 			return 0, e
 		}

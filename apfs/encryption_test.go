@@ -134,6 +134,9 @@ func TestPublishedCryptographyVectors(t *testing.T) {
 				if err := x.Decrypt(got, encrypted, tc.Sector); err != nil || !bytes.Equal(got, text) {
 					t.Fatal("product sector decryption disagrees with the qualified reference", size, err)
 				}
+				if err := x.Encrypt(got, text, tc.Sector); err != nil || !bytes.Equal(got, encrypted) {
+					t.Fatal("product sector encryption disagrees with the qualified reference", size, err)
+				}
 			}
 		})
 	}
@@ -154,6 +157,9 @@ func TestPublishedCryptographyVectors(t *testing.T) {
 			got, err := storagecrypto.Unwrap(kek, wrapped)
 			if err != nil || !bytes.Equal(got, key) {
 				t.Fatalf("unwrap %x %v", got, err)
+			}
+			if got, err := storagecrypto.Wrap(kek, key); err != nil || !bytes.Equal(got, wrapped) {
+				t.Fatalf("wrap disagrees with published vector: %x %v", got, err)
 			}
 			damaged := bytes.Clone(wrapped)
 			damaged[len(damaged)-1] ^= 1

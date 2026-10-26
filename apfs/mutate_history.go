@@ -55,8 +55,9 @@ func (m *mutation) admitHistory(volume *storageVolume, storage *storageChecker) 
 		}
 		address := le.Uint64(record.value[8:])
 		object := storage.metadata[address]
-		filesystemNode := object.subtype == 14 && (object.kind == 2 || object.kind == 3)
-		snapshotMetadata := object.kind == 29 && object.oid == uint64(volume.v.snapMetaExt)
+		kind := object.kind &^ uint32(0x10000000)
+		filesystemNode := object.subtype == 14 && (kind == 2 || kind == 3)
+		snapshotMetadata := kind == 29 && object.oid == uint64(volume.v.snapMetaExt)
 		if object.volume != volume.v.UUID || object.kind&0xc0000000 != 0 || !filesystemNode && !snapshotMetadata {
 			return fmt.Errorf("snapshot object-map mutation profile: %w", filesystem.ErrUnsupported)
 		}

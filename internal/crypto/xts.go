@@ -12,7 +12,7 @@ import (
 var ErrInvalid = errors.New("invalid cryptographic input")
 var ErrIntegrity = errors.New("key integrity check failed")
 
-// XTS decrypts complete 512-byte APFS encryption sectors. Keys contain the data
+// XTS encrypts and decrypts complete 512-byte APFS sectors. Keys contain the data
 // and tweak keys consecutively: 32 bytes for AES-128-XTS, 64 for AES-256-XTS.
 // It is immutable and safe for concurrent use; it does not own source storage.
 type XTS struct{ data, tweak cipher.Block }
@@ -35,8 +35,21 @@ func NewXTS(key []byte) (*XTS, error) {
 // Decrypt allows identical or disjoint slices. It rejects partial sectors;
 // APFS uses complete sectors and never requires ciphertext stealing here.
 func (x *XTS) Decrypt(dst, src []byte, sector uint64) error {
+	return x.crypt(dst, src, sector, true)
+}
+
+// Encrypt has the same complete-sector and slice requirements as Decrypt.
+func (x *XTS) Encrypt(dst, src []byte, sector uint64) error {
+	return x.crypt(dst, src, sector, false)
+}
+
+func (x *XTS) crypt(dst, src []byte, sector uint64, decrypt bool) error {
 	if x == nil || len(dst) != len(src) || len(src)%512 != 0 || (len(src) > 0 && uint64(len(src)/512-1) > ^uint64(0)-sector) {
 		return ErrInvalid
+	}
+	crypt := x.data.Encrypt
+	if decrypt {
+		crypt = x.data.Decrypt
 	}
 	for base := 0; base < len(src); base += 512 {
 		var tweak, block [16]byte
@@ -46,7 +59,7 @@ func (x *XTS) Decrypt(dst, src []byte, sector uint64) error {
 			for i := range block {
 				block[i] = src[off+i] ^ tweak[i]
 			}
-			x.data.Decrypt(block[:], block[:])
+			crypt(block[:], block[:])
 			for i := range block {
 				dst[off+i] = block[i] ^ tweak[i]
 			}
