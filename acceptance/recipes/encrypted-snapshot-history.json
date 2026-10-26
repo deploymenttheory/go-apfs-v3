@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "encrypted-snapshot-history",
-  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, with independently encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert.",
+  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert.",
   "profiles": [
     "apfs",
     "apfsx"
@@ -26,7 +26,8 @@
     "replacement": "public-encrypted-history-replacement-λ",
     "image": "public-independent-history-envelope",
     "wrong": "public-incorrect-password",
-    "empty": ""
+    "empty": "",
+    "peer": "public-independent-encrypted-history-peer"
   },
   "stages": [
     {
@@ -84,6 +85,138 @@
           }
         },
         {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "Peer",
+              "-nomount"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Peer",
+              "$VOLUME:Peer"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Peer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Peer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Peer/Fixture/preserved-peer",
+            "content": "plaintext peer volume\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "EncryptedPeer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedPeer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:EncryptedPeer",
+              "$VOLUME:EncryptedPeer"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:EncryptedPeer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:EncryptedPeer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedPeer/Fixture/example.txt",
+            "content": "Native Apple filesystem fixture.\n"
+          }
+        },
+        {
           "fs": {
             "op": "write",
             "path": "$MOUNT:EncryptedHistory/Fixture/data",
@@ -135,12 +268,18 @@
       ],
       "observe": {
         "unlock": {
-          "EncryptedHistory": "primary"
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
         },
         "rejected": {
           "EncryptedHistory": [
             "wrong",
             "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
           ]
         },
         "snapshots": true,
@@ -205,12 +344,18 @@
       ],
       "observe": {
         "unlock": {
-          "EncryptedHistory": "primary"
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
         },
         "rejected": {
           "EncryptedHistory": [
             "wrong",
             "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
           ]
         },
         "snapshots": true,
@@ -267,12 +412,18 @@
       ],
       "observe": {
         "unlock": {
-          "EncryptedHistory": "primary"
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
         },
         "rejected": {
           "EncryptedHistory": [
             "wrong",
             "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
           ]
         },
         "snapshots": true,
@@ -337,12 +488,18 @@
       ],
       "observe": {
         "unlock": {
-          "EncryptedHistory": "primary"
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
         },
         "rejected": {
           "EncryptedHistory": [
             "wrong",
             "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
           ]
         },
         "snapshots": true,
@@ -412,11 +569,17 @@
       ],
       "observe": {
         "unlock": {
-          "EncryptedHistory": "replacement"
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
         },
         "rejected": {
           "EncryptedHistory": [
             "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
             "primary"
           ]
         },
