@@ -1,163 +1,39 @@
-name: Obtain acceptance test fixtures
-
-# Captures the Apple fixture corpus on macOS 26 and 27 with the recipe
-# tool. Dispatch only: fixtures do not depend on Go, so they are captured
-# when a recipe changes or a macOS version is added, never per pull request.
-# With dry_run the bundles are uploaded as workflow artifacts and nothing
-# is published. Otherwise the publish job creates a release holding the
-# two bundles, verifies the uploaded assets by digest, writes
-# acceptance/fixtures.lock.json with the lock subcommand and opens a pull
-# request that changes only the lock. Nothing replaces the pinned corpus
-# without review.
-#
-# Before the workflow exists on the default branch it can only run from a
-# pull request: adding the label capture:<recipe> (or capture:all) to a PR
-# runs a dry run of that recipe on the PR's branch.
-
+name: Check encrypted APFS storage
 on:
   workflow_dispatch:
-    inputs:
-      recipes:
-        description: Space-separated recipe names (empty means every recipe the tool supports)
-        required: false
-        default: ""
-      dry_run:
-        description: Capture and upload bundles without publishing a release
-        type: boolean
-        default: true
-  pull_request:
-    types: [labeled]
-
 permissions:
   contents: read
-
-# Label-triggered dry runs get their own group per label so queued requests
-# for different recipes are not cancelled by one another; full dispatches
-# share one group.
-concurrency:
-  group: fixtures-${{ github.event_name == 'pull_request' && github.event.label.name || 'dispatch' }}
-  cancel-in-progress: false
-
 env:
   GOTOOLCHAIN: local
-
+  CGO_ENABLED: "0"
+  APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
 jobs:
-  capture:
-    name: Capture on macOS ${{ matrix.major }}
-    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'capture:') }}
+  check:
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - {major: 26, runner: macos-26}
           - {major: 27, runner: xcode-27}
+    env:
+      APFS_EXPECT_MAJOR: ${{ matrix.major }}
+      APFS_NATIVE_WORK: ${{ github.workspace }}/artifacts/encrypted-storage-check
+      APFS_PRODUCT_CLI: ${{ github.workspace }}/artifacts/apfs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
-      - name: Build the capture tool
-        run: go build -tags fixture -o "$RUNNER_TEMP/apfs-fixture" ./cmd/apfs-fixture
-      - name: Capture every recipe with Apple tools only
-        env:
-          RECIPES: ${{ inputs.recipes }}
-          LABEL: ${{ github.event.label.name }}
-        run: |
-          if [ -n "$LABEL" ]; then
-            RECIPES="${LABEL#capture:}"
-            [ "$RECIPES" = all ] && RECIPES=""
-          fi
-          read -ra selected <<< "$RECIPES"
-          "$RUNNER_TEMP/apfs-fixture" capture \
-            --recipes acceptance/recipes \
-            --expect-major "${{ matrix.major }}" \
-            --output "$RUNNER_TEMP/fixtures" \
-            --bundle-dir "$RUNNER_TEMP/bundles" \
-            "${selected[@]}"
-      - name: Upload the bundle
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - run: go build -o "$APFS_PRODUCT_CLI" ./cmd/apfs
+      - run: go test -count=1 -v -timeout 25m -tags native ./acceptance/native -run '^TestEncryptedAPFSStorageBaseline$'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
         with:
-          name: fixtures-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/bundles/
-          compression-level: 0
+          name: encrypted-storage-check-${{ matrix.major }}
+          path: |
+            artifacts/encrypted-storage-check/result.json
+            artifacts/encrypted-storage-check/commands.json
           if-no-files-found: error
-      - name: Upload diagnostics
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: fixtures-diagnostics-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/fixtures/
-          include-hidden-files: true
-          if-no-files-found: ignore
-
-  publish:
-    name: Publish the release and open the lock pull request
-    needs: capture
-    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Download every producer's bundle
-        uses: actions/download-artifact@v7
-        with:
-          pattern: fixtures-macos-*
-          path: ${{ runner.temp }}/bundles
-          merge-multiple: true
-      - name: Build the lock tool
-        run: go build -o "$RUNNER_TEMP/apfs-fixture" ./cmd/apfs-fixture
-      - name: Create the release and upload the bundles
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="fixtures/$(date -u +%Y.%m.%d)-${{ github.run_id }}"
-          gh release create "$tag" --prerelease --title "Fixture corpus $tag" \
-            --notes "Apple fixture corpus captured by run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} from recipes at ${{ github.sha }}. Pinned only through a reviewed fixtures.lock.json update." \
-            "$RUNNER_TEMP"/bundles/fixtures-macos-*.tar.gz
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Verify the uploaded assets by digest
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/verify"
-          gh release download "$TAG" --dir "$RUNNER_TEMP/verify" --pattern 'fixtures-macos-*.tar.gz'
-          cd "$RUNNER_TEMP/bundles" && shasum -a 256 fixtures-macos-*.tar.gz > "$RUNNER_TEMP/expected.sha256"
-          cd "$RUNNER_TEMP/verify" && shasum -a 256 -c "$RUNNER_TEMP/expected.sha256"
-      - name: Write the lock file
-        env:
-          TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          "$RUNNER_TEMP/apfs-fixture" lock --recipes acceptance/recipes --release "$TAG" \
-            --run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --bundles "$RUNNER_TEMP/bundles" --out acceptance/fixtures.lock.json
-          git diff --stat
-      - name: Open the lock pull request
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          branch="fixtures/lock-${{ github.run_id }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$branch"
-          git add acceptance/fixtures.lock.json
-          git commit -m "chore(fixtures): pin corpus $TAG"
-          git push -u origin "$branch"
-          gh pr create --title "chore(fixtures): pin corpus $TAG" --base "${{ github.ref_name }}" --head "$branch" \
-            --body "Pins the fixture corpus captured by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} (release $TAG). Review the capture summaries and merge to adopt it; nothing changes until this merges."
-          # Pull requests opened with the Actions token start no workflows,
-          # but a dispatch does, and its gate check counts on the head commit.
-          gh workflow run ci.yml --ref "$branch"
