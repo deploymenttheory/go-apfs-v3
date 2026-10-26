@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -62,6 +63,46 @@ func (c *imageOperationCommander) attachCommands() []Command {
 		}
 	}
 	return result
+}
+
+func TestRawAttachmentChoosesDriverForWritableCopies(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		options AttachOptions
+		kernel  bool
+	}{
+		{"plain writable raw", AttachOptions{Raw: true}, true},
+		{"read-only raw", AttachOptions{Raw: true, ReadOnly: true}, false},
+		{"explicit no-kernel raw", AttachOptions{Raw: true, NoKernel: true}, false},
+		{"raw shadow", AttachOptions{Raw: true, Shadow: "owned.shadow"}, false},
+		{"encoded image", AttachOptions{}, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			instantWaits(t)
+			commander := newImageOperationCommander(Result{Stdout: []byte(imageOperationAttachPlist)})
+			disk := &HostDisk{C: commander, T: &Transcript{}}
+			test.options.NoInventory = true
+			if _, err := disk.Attach(context.Background(), detachImage(t, t.TempDir()), test.options); err != nil {
+				t.Fatal(err)
+			}
+			calls := commander.attachCommands()
+			if len(calls) != 1 {
+				t.Fatal("driver selection repeated the attachment", len(calls))
+			}
+			argv := calls[0].Argv
+			if slices.Contains(argv, "-kernel") != test.kernel || slices.Contains(argv, "-nokernel") != test.options.NoKernel {
+				t.Fatal("attachment changed its driver policy", argv)
+			}
+			for _, option := range []string{"-nobrowse", "-noautoopen", "-nomount"} {
+				if !slices.Contains(argv, option) {
+					t.Fatal("driver selection dropped a private attachment option", argv)
+				}
+			}
+			if test.options.Raw && (!slices.Contains(argv, "diskimage-class=CRawDiskImage") || !slices.Contains(argv, "-noautofsck")) {
+				t.Fatal("driver selection changed raw interpretation or automatic checker policy", argv)
+			}
+		})
+	}
 }
 
 func TestAttachRetriesBusyWithJitterAndPreservesCredentialsAndArguments(t *testing.T) {

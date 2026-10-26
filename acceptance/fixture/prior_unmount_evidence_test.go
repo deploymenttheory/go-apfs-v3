@@ -24,14 +24,14 @@ func (c *priorUnmountCommander) Run(_ context.Context, cmd Command) Result {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.calls = append(c.calls, append([]string(nil), cmd.Argv...))
+	if cmd.Label == "detach" {
+		if c.detachOK {
+			return Result{}
+		}
+		return Result{Status: 16, Stderr: []byte("native eject - Resource busy\n")}
+	}
 	switch cmd.Argv[0] {
 	case "hdiutil":
-		if cmd.Argv[1] == "detach" {
-			if c.detachOK {
-				return Result{}
-			}
-			return Result{Status: 16, Stderr: []byte("hdiutil: couldn't eject disk42 - Resource busy\n")}
-		}
 		return Result{Stdout: c.inventory}
 	case "plutil":
 		return Result{Stdout: append([]byte(nil), cmd.Stdin...)}
@@ -74,7 +74,7 @@ func priorUnmountActions(c *priorUnmountCommander) (unmounts, detaches int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, argv := range c.calls {
-		if len(argv) > 1 && argv[0] == "hdiutil" && argv[1] == "detach" {
+		if len(argv) > 1 && (argv[0] == "hdiutil" && argv[1] == "detach" || argv[0] == "diskutil" && argv[1] == "eject") {
 			detaches++
 		}
 		if len(argv) > 1 && argv[0] == "diskutil" && argv[1] == "unmount" {

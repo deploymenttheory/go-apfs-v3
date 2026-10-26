@@ -25,6 +25,7 @@ go build -o ./bin/apfs ./cmd/apfs
 ./bin/apfs inspect --json image.dmg
 ./bin/apfs list image.dmg /Applications
 ./bin/apfs snapshot list --json image.dmg
+./bin/apfs snapshot delete --image Original.dmg --output Deleted.dmg --snapshot-name com.apple.asr.123
 ./bin/apfs cat --snapshot-name com.apple.asr.123 image.dmg /Fixture/generation.txt
 ./bin/apfs cat image.dmg /Applications/Example.app/Contents/Info.plist
 ./bin/apfs cat --password-file ./volume-password.bin apfs-encrypted.dmg /Fixture/example.txt
@@ -184,9 +185,12 @@ snapshot. Keep the source and owning APFS unlock open; the historical reader
 has no separate `Close`. CLI `list`, `cat` and `extract` accept either `--snapshot-name` or
 `--snapshot-xid`. Missing or damaged selections fail without returning live files.
 Ordinary live edits preserve qualified retained snapshots, including historical
-object versions and shared storage. Snapshot creation, naming, deletion and
-revert, dataless snapshots and sealed-system verification remain outside this
-capability.
+object versions and shared storage. Explicit deletion uses
+`imageedit.DeleteSnapshot` or `apfs snapshot delete` with exactly one retained
+name or XID, preserving the original and publishing a new image. See
+[snapshot deletion](docs/apfs-editing.md#deleting-retained-snapshots) for selectors
+and transaction rules. Snapshot creation, naming and revert, dataless snapshots
+and sealed-system verification remain outside this capability.
 
 `apfs.Volume` and `hfsplus.Volume` implement `filesystem.Reader`. `ReadDir`
 enumerates names and object IDs; `Stat` returns logical metadata;

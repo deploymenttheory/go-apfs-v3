@@ -14,8 +14,14 @@ import (
 )
 
 func snapshots(ctx context.Context, args []string, input io.Reader, out, diagnostics io.Writer) (err error) {
-	if len(args) == 0 || args[0] != "list" {
-		return fmt.Errorf("usage: apfs snapshot list [options] IMAGE")
+	if len(args) == 0 {
+		return fmt.Errorf("usage: apfs snapshot list|delete [options]")
+	}
+	if args[0] == "delete" {
+		return snapshotDelete(ctx, args[1:], input, out, diagnostics)
+	}
+	if args[0] != "list" {
+		return fmt.Errorf("usage: apfs snapshot list|delete [options]")
 	}
 	flags := flag.NewFlagSet("snapshot list", flag.ContinueOnError)
 	flags.SetOutput(diagnostics)

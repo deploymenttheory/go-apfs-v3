@@ -34,12 +34,12 @@ func (c *attachmentEvidenceCommander) Run(_ context.Context, cmd Command) Result
 			return result
 		}
 	}
+	if cmd.Label == "detach" {
+		return Result{Status: 16, Stderr: []byte("Resource busy")}
+	}
 	var value any
 	switch cmd.Argv[0] {
 	case "hdiutil":
-		if cmd.Argv[1] == "detach" {
-			return Result{Status: 16, Stderr: []byte("Resource busy")}
-		}
 		value = map[string]any{"images": []any{map[string]any{
 			"image-path": projectedImagePath(c.image), "hdid-pid": 123,
 			"system-entities": []any{
@@ -82,7 +82,7 @@ func TestBusyDetachEvidenceIncludesFreshRelatedDevicesWithoutAnotherClose(t *tes
 	closes, scopes := 0, 0
 	var holderArgs []string
 	for _, cmd := range c.calls {
-		if cmd.Argv[0] == "hdiutil" && cmd.Argv[1] == "detach" {
+		if cmd.Label == "detach" {
 			closes++
 		}
 		if cmd.Argv[0] == "/usr/sbin/ioreg" {

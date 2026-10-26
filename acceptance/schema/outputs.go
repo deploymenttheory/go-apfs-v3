@@ -29,7 +29,7 @@ type Output struct {
 	Name string `json:"name"`
 	File string `json:"file"`
 	// Operation is build, compress, container, encrypt, decrypt, repack,
-	// edit, copy, recover-checkpoint, recover-journal, appledouble, or workspace-*.
+	// edit, copy, delete-snapshot, recover-checkpoint, recover-journal, appledouble, or workspace-*.
 	Operation string `json:"operation"`
 	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace, appledouble
 	Bytes     int64  `json:"bytes"`
@@ -61,6 +61,9 @@ type CaseRef struct {
 
 // Expectation tells the native verifier what to compare the output with.
 type Expectation struct {
+	// DeletedSnapshots removes only these exact identities from the original
+	// Apple inventory/reference; all live and remaining history stays exact.
+	DeletedSnapshots []SnapshotIdentity `json:"deletedSnapshots,omitempty"`
 	// HostImport selects per-host validation against its original host inventory.
 	HostImport *HostImportExpectation `json:"hostImport,omitempty"`
 	// Container checks every source volume and each declared empty volume in a
@@ -158,4 +161,10 @@ type WorkspaceExpectation struct {
 	// ParentOutput names the preceding exported workspace whose manifest
 	// digest must be retained by this edit, independently on each host.
 	ParentOutput string `json:"parentOutput,omitempty"`
+}
+
+// SnapshotIdentity binds an exact retained name and transaction together.
+type SnapshotIdentity struct {
+	Name string `json:"name"`
+	XID  uint64 `json:"xid"`
 }

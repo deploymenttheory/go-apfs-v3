@@ -48,6 +48,7 @@ type mutation struct {
 	actor                   filesystem.Observation[uint32]
 	reusePrepared           bool
 	history                 *mutationHistory
+	ownership               *storageVolume
 }
 type readOnlyMutation struct{ block.Source }
 
@@ -180,6 +181,7 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 		volume.volumeAddress, volume.super = state.address, bytes.Clone(state.super)
 		volume.volumeMap, volume.vmap = bytes.Clone(state.mapHeader), state.omap
 		volume.fs, volume.extents = state.fs, state.extents
+		volume.ownership = state
 		for _, tree := range []*cowTree{volume.fs, volume.extents, volume.vmap, m.cmap} {
 			tree.newOID = m.nextOID
 		}

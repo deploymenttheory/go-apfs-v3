@@ -196,6 +196,11 @@ func (d *HostDisk) Attach(ctx context.Context, path string, opts AttachOptions) 
 	}
 	if opts.Raw {
 		argv = append(argv, "-imagekey", "diskimage-class=CRawDiskImage", "-noautofsck")
+		if !opts.ReadOnly && !opts.NoKernel && opts.Shadow == "" {
+			// Request the kernel path for plain writable copies. Hosted native
+			// unmounts left whole-disk media open with the out-of-kernel path.
+			argv = append(argv, "-kernel")
+		}
 	}
 	if opts.ReadOnly {
 		argv = append(argv, "-readonly")

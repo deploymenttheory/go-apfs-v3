@@ -15,12 +15,12 @@ func busyDetachCommander(t *testing.T, att *Attachment) *fakeCommander {
 		t.Fatal(err)
 	}
 	var queue []Result
-	for range BusyWait.Attempts {
+	for range BusyWait.Attempts - 1 {
 		queue = append(queue, Result{Stdout: []byte("native image inventory")}, Result{Status: 16, Stderr: []byte("Resource busy")})
 	}
-	// The final inventory is read-only evidence after the close budget failed.
-	queue = append(queue, Result{Stdout: []byte("native image inventory")})
-	return &fakeCommander{sequence: map[string][]Result{"hdiutil": queue}, results: map[string]Result{
+	// Bind the final normal eject, then retain the exhausted-action inventory.
+	queue = append(queue, Result{Stdout: []byte("native image inventory")}, Result{Stdout: []byte("native image inventory")})
+	return &fakeCommander{sequence: map[string][]Result{"hdiutil": queue, "diskutil": {{Status: 16, Stderr: []byte("Resource busy")}}}, results: map[string]Result{
 		"hdiutil": {Stdout: info}, "plutil": {Stdout: info}, "/usr/sbin/lsof": {Status: 1},
 	}}
 }

@@ -66,7 +66,7 @@ func (c *detachActionCommander) Run(_ context.Context, cmd Command) Result {
 	return Result{Stdout: b, Err: err}
 }
 
-func TestBusyDetachRetainsOriginalActionsAndAddsDebugOnlyToExistingRetries(t *testing.T) {
+func TestBusyDetachRetainsEveryActionIncludingFinalNormalEject(t *testing.T) {
 	instantWaits(t)
 	image := detachImage(t, t.TempDir())
 	c := &detachActionCommander{image: image}
@@ -98,6 +98,9 @@ func TestBusyDetachRetainsOriginalActionsAndAddsDebugOnlyToExistingRetries(t *te
 		wantArgs := []string{"hdiutil", "detach", "/dev/disk42"}
 		if i != 0 {
 			wantArgs = []string{"hdiutil", "detach", "-debug", "/dev/disk42"}
+		}
+		if i == BusyWait.Attempts-1 {
+			wantArgs = []string{"diskutil", "eject", "/dev/disk42"}
 		}
 		if !reflect.DeepEqual(command.Argv, wantArgs) || command.Status != "16" || action.Status != 16 {
 			t.Fatalf("request %d changed action or status: %+v", i+1, command)

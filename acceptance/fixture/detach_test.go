@@ -48,11 +48,61 @@ func detachCommander(t *testing.T, inventory map[string]any) *fakeCommander {
 func detachCalls(commander *fakeCommander) int {
 	n := 0
 	for _, argv := range commander.calls {
-		if len(argv) > 1 && argv[0] == "hdiutil" && argv[1] == "detach" {
+		if len(argv) > 1 && (argv[0] == "hdiutil" && argv[1] == "detach" || argv[0] == "diskutil" && argv[1] == "eject") {
 			n++
 		}
 	}
 	return n
+}
+
+func TestDetachUsesNormalDiskEjectAfterRepeatedLegacyBusy(t *testing.T) {
+	instantWaits(t)
+	att := &Attachment{Image: detachImage(t, t.TempDir()), Dev: "/dev/disk42"}
+	commander := busyDetachCommander(t, att)
+	commander.sequence["diskutil"] = []Result{{Stdout: []byte("Disk /dev/disk42 ejected\n")}}
+	disk := imageTestDisk(commander)
+	if err := disk.Detach(context.Background(), att); err != nil {
+		t.Fatal(err)
+	}
+	actions, guards := 0, 0
+	for _, cmd := range disk.T.Commands {
+		if cmd.Label == "hdiutil-info" {
+			guards++
+		}
+		if cmd.Label != "detach" {
+			continue
+		}
+		actions++
+		if actions < BusyWait.Attempts {
+			if cmd.Argv[0] != "hdiutil" || cmd.Status != "16" {
+				t.Fatalf("legacy busy action was replaced or lost: %+v", cmd)
+			}
+		} else if !reflect.DeepEqual(cmd.Argv, []string{"diskutil", "eject", att.Dev}) || cmd.Status != "0" || cmd.StdoutText != "Disk /dev/disk42 ejected\n" {
+			t.Fatalf("final normal eject was not retained: %+v", cmd)
+		}
+	}
+	if actions != BusyWait.Attempts || guards != actions || detachCalls(commander) != actions {
+		t.Fatalf("ejection changed the action bound or omitted an ownership check: actions=%d guards=%d", actions, guards)
+	}
+}
+
+func TestDetachRefusesFinalDiskEjectWhenImageOwnershipChanges(t *testing.T) {
+	instantWaits(t)
+	att := &Attachment{Image: detachImage(t, t.TempDir()), Dev: "/dev/disk42"}
+	commander := busyDetachCommander(t, att)
+	for range BusyWait.Attempts - 1 {
+		commander.sequence["plutil"] = append(commander.sequence["plutil"], commander.results["plutil"])
+	}
+	foreign, err := json.Marshal(map[string]any{"images": []any{attachedImage(detachImage(t, t.TempDir()), att.Dev)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	commander.sequence["plutil"] = append(commander.sequence["plutil"], Result{Stdout: foreign})
+	err = imageTestDisk(commander).Detach(context.Background(), att)
+	var refusal *AttachmentOwnershipError
+	if !errors.As(err, &refusal) || refusal.State != OwnershipForeign || detachCalls(commander) != BusyWait.Attempts-1 {
+		t.Fatalf("final request did not refuse the reassigned device: %v, calls=%v", err, commander.calls)
+	}
 }
 
 func TestDetachConfirmsExactImageOwnershipBeforeRetryingBusyDevice(t *testing.T) {

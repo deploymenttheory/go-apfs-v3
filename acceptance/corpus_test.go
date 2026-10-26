@@ -59,7 +59,7 @@ var consumers = map[string][]string{
 	"compressed-files":             {"TestReadParity", "TestBuildFromFixtures", "TestRepackPreservesEverySector"},
 	"encrypted-volumes":            {"TestReadParity", "TestRepackPreservesEverySector", "TestCloneReadsUseNativeSharedExtents", "TestEncryptedWritersRefuseWithoutPublication"},
 	"encrypted-images":             {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
-	"snapshot-history":             {"TestReadParity", "TestRepackPreservesEverySector", "TestStorageAccountingMatchesNativeAllocation", "TestSnapshotReadersKeepTheirHistoricalOwnership", "TestSnapshotSessionsRetainTheSelectedHistoricalView", "TestLiveEditsPreserveRetainedSnapshotHistories", "TestSnapshotEditFailuresNeverPublishOrAlterSource"},
+	"snapshot-history":             {"TestReadParity", "TestRepackPreservesEverySector", "TestStorageAccountingMatchesNativeAllocation", "TestSnapshotReadersKeepTheirHistoricalOwnership", "TestSnapshotSessionsRetainTheSelectedHistoricalView", "TestSnapshotDeletionPreservesLiveAndRemainingHistories", "TestSnapshotDeletionFailuresDiscardSuccessfulDeletion", "TestLiveEditsPreserveRetainedSnapshotHistories", "TestSnapshotEditFailuresNeverPublishOrAlterSource"},
 	"container-volumes":            {"TestReadParity", "TestRepackPreservesEverySector", "TestConstructedContainersMatchNativeVolumes", "TestStorageAccountingMatchesNativeAllocation", "TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors"},
 	"volume-groups":                {"TestReadParity", "TestRepackPreservesEverySector", "TestConstructedContainersMatchNativeVolumes"},
 	"partitioned-disks":            {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
