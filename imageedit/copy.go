@@ -73,7 +73,7 @@ func copyTo(ctx context.Context, view *mutablePartition, isAPFS bool, o Options,
 	}
 	var reader filesystem.Reader
 	if isAPFS {
-		container, e := apfs.Open(view)
+		container, e := apfs.Open(view.mutationSource())
 		if e != nil {
 			return result, e
 		}

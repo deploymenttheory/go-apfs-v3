@@ -123,7 +123,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, 
 	if editor != nil {
 		f.Visit(func(option *flag.Flag) {
 			switch option.Name {
-			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json", "image-password-file", "password-file", "output-password-file", "encryption":
+			case "image", "output", "partition", "volume", "format", "time", "uid", "session", "scratch-dir", "json", "image-password-file", "password-file", "volume-password-file", "output-password-file", "encryption":
 				err = fmt.Errorf("--%s belongs to the enclosing edit command", option.Name)
 			}
 		})
@@ -147,7 +147,7 @@ func fileCommandWithEditor(ctx context.Context, args []string, input io.Reader, 
 	}
 	f.Visit(func(option *flag.Flag) {
 		switch option.Name {
-		case "partition", "volume", "format", "time", "uid", "image-password-file", "password-file", "output-password-file", "encryption":
+		case "partition", "volume", "format", "time", "uid", "image-password-file", "password-file", "volume-password-file", "output-password-file", "encryption":
 			err = fmt.Errorf("--%s requires --image", option.Name)
 		}
 	})

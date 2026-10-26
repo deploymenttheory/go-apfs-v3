@@ -142,7 +142,7 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 	if e != nil {
 		return nil, e
 	}
-	if le.Uint64(nx[48:]) != 0 || le.Uint64(nx[56:]) != 0 || le.Uint64(nx[1296:]) != 0 || le.Uint64(nx[1304:]) != 0 || le.Uint64(nx[1240:]) != 0 || le.Uint64(nx[1248:]) != 0 || le.Uint64(nx[1256:]) != 0 || le.Uint64(nx[1272:]) != 0 || le.Uint64(nx[1352:]) != 0 || le.Uint64(nx[1360:]) != 0 || le.Uint64(nx[1368:]) != 0 || le.Uint64(nx[1376:]) != 0 || le.Uint64(nx[1400:]) != 0 || le.Uint64(nx[1392:]) != 0 {
+	if le.Uint64(nx[48:]) != 0 || le.Uint64(nx[56:]) != 0 || le.Uint64(nx[1240:]) != 0 || le.Uint64(nx[1248:]) != 0 || le.Uint64(nx[1256:]) != 0 || le.Uint64(nx[1272:]) != 0 || le.Uint64(nx[1352:]) != 0 || le.Uint64(nx[1360:]) != 0 || le.Uint64(nx[1368:]) != 0 || le.Uint64(nx[1376:]) != 0 || le.Uint64(nx[1400:]) != 0 || le.Uint64(nx[1392:]) != 0 {
 		return nil, fmt.Errorf("APFS mutation structural profile: %w", filesystem.ErrUnsupported)
 	}
 	if !bytes.Equal(nx[72:88], c.id[:]) || le.Uint64(nx[96:]) <= uint64(c.XID) || le.Uint64(nx[96:]) == math.MaxUint64 {
@@ -202,8 +202,20 @@ func openMutationVolume(ctx context.Context, disk MutableSource, volumeUUID stri
 	return m, nil
 }
 func admitMutationVolume(v *Volume) error {
-	if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xb) != 0 || v.rootType != 2 {
+	if v.EncryptionRollingStateOID != 0 || v.Sealed || v.Role != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xf) != 0 || v.rootType != 2 {
 		return fmt.Errorf("APFS volume mutation profile: %w", filesystem.ErrUnsupported)
+	}
+	if v.Encrypted {
+		if v.Flags != 8 {
+			return fmt.Errorf("APFS encrypted mutation key profile: %w", filesystem.ErrUnsupported)
+		}
+		if err := v.access(); err != nil {
+			return err
+		}
+		if v.keys.keyBytes != 32 {
+			return fmt.Errorf("APFS encrypted mutation key width: %w", filesystem.ErrUnsupported)
+		}
+		return nil
 	}
 	return nil
 }

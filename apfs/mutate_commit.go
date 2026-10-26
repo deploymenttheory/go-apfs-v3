@@ -40,7 +40,7 @@ func (m *mutation) writeTree(t *cowTree, volume bool) error {
 		if e := m.retireMetadata(n.address, volume); e != nil {
 			return e
 		}
-		if t.storage == 0 && n.address != 0 {
+		if t.storage&0xc0000000 == 0 && n.address != 0 {
 			if e := m.pruneVolumeObject(n.oid); e != nil {
 				return e
 			}
@@ -71,10 +71,15 @@ func (m *mutation) writeTree(t *cowTree, volume bool) error {
 		}
 		b := t.nodeBytes(n, n == t.rootNode)
 		sealMutationObject(b, n.oid, m.xid, le.Uint32(b[24:]), t.subtype)
+		if m.v.Encrypted && volume && t.storage&0xc0000000 == 0 {
+			if e = m.v.keys.encrypt(b, address*8); e != nil {
+				return e
+			}
+		}
 		if e = m.write(b, address*4096); e != nil {
 			return e
 		}
-		if t.storage == 0 {
+		if t.storage&0xc0000000 == 0 {
 			m.mappings[n.oid] = address
 		}
 	}
@@ -121,6 +126,9 @@ func (m *mutation) commit(stamp uint64) error {
 		}
 		key := append(buildUint64(id), buildUint64(m.xid)...)
 		value := make([]byte, 16)
+		if m.v.Encrypted {
+			le.PutUint32(value, 4)
+		}
 		le.PutUint32(value[4:], 4096)
 		le.PutUint64(value[8:], m.mappings[id])
 		if e := m.vmap.put(key, value); e != nil {

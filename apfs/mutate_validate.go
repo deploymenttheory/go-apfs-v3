@@ -74,7 +74,7 @@ func currentMapInventory(tree *cowTree, current map[uint64]uint64) error {
 		return fmt.Errorf("retained object-map inventory: %w", filesystem.ErrUnsupported)
 	}
 	for _, r := range records {
-		if le.Uint32(r.value) != 0 || le.Uint32(r.value[4:]) != 4096 || current[le.Uint64(r.key)] != le.Uint64(r.value[8:]) {
+		if le.Uint32(r.value)&^uint32(4) != 0 || le.Uint32(r.value[4:]) != 4096 || current[le.Uint64(r.key)] != le.Uint64(r.value[8:]) {
 			return corrupt("current object-map ownership", 0)
 		}
 		delete(current, le.Uint64(r.key))

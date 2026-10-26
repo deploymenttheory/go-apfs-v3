@@ -1,0 +1,656 @@
+{
+  "schema": 1,
+  "name": "encrypted-snapshot-history",
+  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert.",
+  "profiles": [
+    "apfs",
+    "apfsx"
+  ],
+  "requires": {
+    "sudo": true
+  },
+  "image": {
+    "create": "hdiutil",
+    "size": "1536m",
+    "layout": "GPTSPUD",
+    "output": "UDZO",
+    "mountOptions": "owners,noatime",
+    "volumeName": "EncryptedHistory",
+    "fsargs": {
+      "apfs": "-E -S $PASSWORD:primary",
+      "apfsx": "-E -S $PASSWORD:primary"
+    }
+  },
+  "passwords": {
+    "primary": "public-encrypted-history-password",
+    "replacement": "public-encrypted-history-replacement-λ",
+    "image": "public-independent-history-envelope",
+    "wrong": "public-incorrect-password",
+    "empty": "",
+    "peer": "public-independent-encrypted-history-peer"
+  },
+  "stages": [
+    {
+      "name": "retained",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:EncryptedHistory/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:EncryptedHistory/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "Peer",
+              "-nomount"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:Peer",
+              "$VOLUME:Peer"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:Peer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:Peer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:Peer/Fixture/preserved-peer",
+            "content": "plaintext peer volume\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "addVolume",
+              "$CONTAINER",
+              "APFS",
+              "EncryptedPeer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedPeer",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "peer"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "-mountPoint",
+              "$MOUNTDIR:EncryptedPeer",
+              "$VOLUME:EncryptedPeer"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "mkdir",
+            "args": [
+              "$MOUNT:EncryptedPeer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "tool": {
+            "program": "chown",
+            "args": [
+              "$UID:$GID",
+              "$MOUNT:EncryptedPeer/Fixture"
+            ],
+            "expect": "0",
+            "sudo": true
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedPeer/Fixture/example.txt",
+            "content": "Native Apple filesystem fixture.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/data",
+            "content": "Encrypted original data.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/data/..namedfork/rsrc",
+            "content": "Encrypted resource fork.\n"
+          }
+        },
+        {
+          "tool": {
+            "program": "cp",
+            "args": [
+              "-c",
+              "$MOUNT:EncryptedHistory/Fixture/data",
+              "$MOUNT:EncryptedHistory/Fixture/clone"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "ln",
+            "args": [
+              "$MOUNT:EncryptedHistory/Fixture/data",
+              "$MOUNT:EncryptedHistory/Fixture/alias"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/asr-padding",
+            "pattern": "sequence",
+            "bytes": 67108864
+          }
+        },
+        {
+          "control": {
+            "action": "asr-snapshot",
+            "name": "retained"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "edited",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/data",
+            "content": "Encrypted edited data.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/created",
+            "content": "Encrypted created file.\n"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "retained-again",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "control": {
+            "action": "asr-snapshot",
+            "name": "retained-again"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "final",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/clone",
+            "content": "Encrypted clone replacement.\n"
+          }
+        },
+        {
+          "fs": {
+            "op": "write",
+            "path": "$MOUNT:EncryptedHistory/Fixture/created",
+            "content": "Encrypted final file.\n"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "password-changed",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "changePassphrase",
+              "$VOLUME:EncryptedHistory",
+              "-user",
+              "disk",
+              "-oldStdinpassphrase",
+              "-newStdinpassphrase"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary",
+              "replacement"
+            ]
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    }
+  ],
+  "derive": [
+    {
+      "name": "aes128-nested",
+      "from": "retained-again",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-128",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    },
+    {
+      "name": "aes256-nested",
+      "from": "retained-again",
+      "steps": [
+        {
+          "program": "hdiutil",
+          "args": [
+            "convert",
+            "$IMAGE",
+            "-format",
+            "UDZO",
+            "-encryption",
+            "AES-256",
+            "-stdinpass",
+            "-o",
+            "$OUT"
+          ],
+          "stdin": [
+            "image"
+          ],
+          "expect": "0"
+        }
+      ],
+      "observe": true,
+      "password": "image",
+      "rejected": [
+        "wrong",
+        "empty"
+      ]
+    }
+  ]
+}

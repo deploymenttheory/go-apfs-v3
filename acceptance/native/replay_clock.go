@@ -26,6 +26,9 @@ type replayClockVolume struct {
 // The source observation supplies preserved clocks and hard-link identities;
 // recipe commands supply changed clocks. No actual output values are consulted.
 func (v *Verifier) replayClockViews(out schema.Output, target *schema.Observation) (map[string]schema.View, error) {
+	if out.Source.Recipe == "encrypted-snapshot-history" && out.Operation == "edit" {
+		return v.encryptedVolumeClocks(out, target)
+	}
 	if out.Source.Recipe == "snapshot-history" && out.Operation == "edit" {
 		return v.snapshotEditClocks(out, target)
 	}

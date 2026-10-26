@@ -545,10 +545,10 @@ func checkInterleavedHistory(t *testing.T, ctx context.Context, observed []schem
 	}
 }
 
-// TestEncryptedWritersRefuseWithoutPublication checks both the
+// TestEncryptedWritersRequireCredentialsBeforeWriting checks both the
 // low-level zero-write boundary and the public image editor's publication
-// contract. Software-encrypted APFS remains outside ordinary mutation support.
-func TestEncryptedWritersRefuseWithoutPublication(t *testing.T) {
+// contract. Missing credentials cannot authorize encrypted mutation.
+func TestEncryptedWritersRequireCredentialsBeforeWriting(t *testing.T) {
 	cases := storageCases(t, map[string]map[string][]string{
 		"encrypted-volumes": {"apfs": encryptedVolumeStages, "apfsx": encryptedVolumeStages},
 	})
@@ -568,24 +568,20 @@ func TestEncryptedWritersRefuseWithoutPublication(t *testing.T) {
 			}
 			changes := []apfs.Change{{Path: "/Fixture/clone", Data: bytes.NewReader([]byte("refused edit"))}}
 			report, err := apfs.ModifyVolume(ctx, source, container.Volumes[0].UUID, changes, fixedClock)
-			if !errors.Is(err, filesystem.ErrUnsupported) || source.writes != 0 || !reflect.DeepEqual(report, apfs.ChangeReport{}) {
-				t.Errorf("history/encryption mutation was not refused before writing: %+v, %d writes: %v", report, source.writes, err)
+			if !errors.Is(err, filesystem.ErrAuthentication) || source.writes != 0 || !reflect.DeepEqual(report, apfs.ChangeReport{}) {
+				t.Errorf("unauthenticated mutation was not refused before writing: %+v, %d writes: %v", report, source.writes, err)
 			}
 			if k.Recipe == "encrypted-volumes" {
 				accounting, err := apfs.InspectStorage(ctx, source)
-				if !errors.Is(err, filesystem.ErrUnsupported) || accounting != (apfs.StorageReport{}) {
-					t.Errorf("encrypted ownership produced a usable accounting report: %+v: %v", accounting, err)
+				if !errors.Is(err, filesystem.ErrAuthentication) || accounting != (apfs.StorageReport{}) {
+					t.Errorf("unauthenticated ownership produced a usable accounting report: %+v: %v", accounting, err)
 				}
 			}
 			dir := t.TempDir()
 			out := filepath.Join(dir, "refused.dmg")
 			options := imageedit.Options{Partition: index, Volume: container.Volumes[0].UUID, Format: "UDZO", Time: fixedClock}
-			wantRefusal := filesystem.ErrUnsupported
-			if k.Observation.Image.Encryption != nil {
-				wantRefusal = filesystem.ErrAuthentication
-			}
-			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, wantRefusal) {
-				t.Errorf("public history/encryption edit did not refuse: %v", err)
+			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, filesystem.ErrAuthentication) {
+				t.Errorf("unauthenticated public edit did not refuse: %v", err)
 			}
 			if _, err = os.Lstat(out); !errors.Is(err, fs.ErrNotExist) {
 				t.Errorf("refused edit published a destination: %v", err)

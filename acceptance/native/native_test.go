@@ -116,6 +116,11 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 		if err != nil {
 			t.Fatal(err)
 		}
+		saved, err := shareIdenticalOutputs(hosts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: verified all host output digests; shared %d bytes of identical image storage", name, saved)
 		groups = append(groups, hosts)
 	}
 	return groups
@@ -266,6 +271,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireCloneForkMappingInput(pairs, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireEncryptedVolumeOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -340,6 +348,21 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
+	if p.Output.Operation == "change-password" && len(p.ByHost) > 1 {
+		var hosts []string
+		for host := range p.ByHost {
+			hosts = append(hosts, host)
+		}
+		sort.Strings(hosts)
+		for _, host := range hosts {
+			one := p
+			one.Primary = host
+			one.ByHost = map[string]schema.Output{host: p.ByHost[host]}
+			one.Name, one.Output.Name = p.Name+"."+host, p.Output.Name+"."+host
+			t.Run(host, func(t *testing.T) { verifyOne(t, v.ForSubtest(), one, rows) })
+		}
+		return
+	}
 	ctx := context.Background()
 	diffs, err := v.VerifyOutput(ctx, p)
 	if err != nil {
@@ -399,6 +422,16 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Each native consumer judges outputs derived from its own producer's
+	// fixtures. Establish its full checker against those exact original
+	// encrypted controls; cross-version mounted parity remains independent.
+	for _, k := range cases {
+		if k.Producer == v.Major && k.Recipe == "encrypted-snapshot-history" && k.Stage == "retained" {
+			if err := v.checkEncryptedFixture(context.Background(), k); err != nil {
+				t.Fatalf("native encrypted checker baseline: %v", err)
+			}
+		}
+	}
 	if err := requireRawImageEncryption(t, v, cases); err != nil {
 		t.Fatalf("raw image encryption proof: %v", err)
 	}
@@ -455,4 +488,15 @@ func writeSummary(t *testing.T, title string, rows []string) {
 	}
 	defer func() { _ = f.Close() }()
 	fmt.Fprintf(f, "## %s\n\n%s\n\n", title, strings.Join(rows, "\n"))
+}
+
+func (v *Verifier) checkEncryptedFixture(ctx context.Context, k corpus.Case) (resultErr error) {
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)))
+	defer finish(&resultErr)
+	lease, err := v.Corpus.AcquireImage(ctx, k)
+	if err != nil {
+		return err
+	}
+	err = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
+	return errors.Join(err, lease.Release(err))
 }

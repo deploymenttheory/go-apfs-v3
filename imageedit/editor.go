@@ -57,6 +57,9 @@ func (e *Editor) collect(r Report) {
 	e.report.Clones = append(e.report.Clones, r.Clones...)
 	e.report.MetadataOmissions = append(e.report.MetadataOmissions, r.MetadataOmissions...)
 	e.report.VolumeID, e.report.FreeBlocks, e.report.Transaction = r.VolumeID, r.FreeBlocks, r.Transaction
+	if r.CryptoUser != "" {
+		e.report.CryptoUser = r.CryptoUser
+	}
 	e.report.Changed = append(e.report.Changed, r.Changed...)
 }
 

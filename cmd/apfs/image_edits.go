@@ -49,7 +49,7 @@ func editImageCommandWithEditor(ctx context.Context, verb string, f *flag.FlagSe
 		return fmt.Errorf("image editing requires --image and --output, with no --session: %w", fs.ErrInvalid)
 	}
 	allowed := map[string]bool{"image": true, "output": true, "partition": true, "volume": true, "format": true, "time": true, "uid": true, "json": true}
-	for _, name := range []string{"image-password-file", "password-file", "output-password-file", "encryption"} {
+	for _, name := range []string{"image-password-file", "password-file", "volume-password-file", "output-password-file", "encryption"} {
 		allowed[name] = true
 	}
 	if verb == "cp" {

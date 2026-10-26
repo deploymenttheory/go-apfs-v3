@@ -91,6 +91,7 @@ type storageChecker struct {
 	report           StorageReport
 	mapHeader        []byte
 	cmap             *cowTree
+	keybagRanges     []storageExtent
 }
 
 func newStorageChecker(ctx context.Context, c *Container) (*storageChecker, error) {
@@ -107,9 +108,9 @@ func newStorageChecker(ctx context.Context, c *Container) (*storageChecker, erro
 	if err != nil {
 		return nil, err
 	}
-	// Fusion, key lockers, EFI state, pinned mappings and pending container
+	// Fusion, EFI state, pinned mappings and pending container
 	// operations need their own ownership interpretation.
-	for _, off := range []int{48, 56, 1240, 1248, 1256, 1272, 1296, 1304, 1352, 1360, 1368, 1376, 1392, 1400} {
+	for _, off := range []int{48, 56, 1240, 1248, 1256, 1272, 1352, 1360, 1368, 1376, 1392, 1400} {
 		if le.Uint64(nx[off:]) != 0 {
 			return nil, fmt.Errorf("container storage feature at %d: %w", off, filesystem.ErrUnsupported)
 		}
@@ -172,6 +173,13 @@ func (s *storageChecker) consumeRecords(n uint64) error {
 }
 
 func (s *storageChecker) objectMap(address uint64, volume string) ([]byte, *cowTree, error) {
+	var v *Volume
+	for i := range s.c.Volumes {
+		if s.c.Volumes[i].UUID == volume {
+			v = &s.c.Volumes[i]
+			break
+		}
+	}
 	b, _, err := s.physical(address, volume, 11)
 	if err != nil {
 		return nil, nil, err
@@ -192,7 +200,7 @@ func (s *storageChecker) objectMap(address uint64, volume string) ([]byte, *cowT
 		if id == 0 || xid == 0 || xid > uint64(s.c.XID) {
 			return nil, nil, corrupt("object-map storage identity", 0)
 		}
-		if flags&^uint32(1) != 0 {
+		if flags&^uint32(5) != 0 {
 			return nil, nil, filesystem.ErrUnsupported
 		}
 		if flags&1 != 0 {
@@ -205,8 +213,16 @@ func (s *storageChecker) objectMap(address uint64, volume string) ([]byte, *cowT
 			return nil, nil, filesystem.ErrLimit
 		}
 		s.objects++
-		object := make([]byte, 4096)
-		if err = block.ReadFull(s.c.source, object, int64(address)*4096); err != nil {
+		var object []byte
+		if flags&4 != 0 {
+			if v == nil || !v.Encrypted {
+				return nil, nil, corrupt("encrypted mapping without volume key owner", 0)
+			}
+			object, err = v.object(objectMapping{PhysicalAddress(address), true}, 0)
+		} else {
+			object, err = s.c.object(PhysicalAddress(address), 0)
+		}
+		if err != nil {
 			return nil, nil, err
 		}
 		if !validChecksum(object) || le.Uint64(object[8:]) != id || le.Uint64(object[16:]) > xid || le.Uint32(object[24:])&0xc0000000 != 0 {
@@ -241,15 +257,19 @@ func (s *storageChecker) objectMap(address uint64, volume string) ([]byte, *cowT
 
 func storageMapping(t *cowTree, oid OID, xid XID) (objectMapping, error) {
 	r, ok := t.floor(append(buildUint64(uint64(oid)), buildUint64(uint64(xid))...))
-	if !ok || OID(le.Uint64(r.key)) != oid || le.Uint32(r.value) != 0 || le.Uint32(r.value[4:]) != 4096 {
+	if !ok || OID(le.Uint64(r.key)) != oid || le.Uint32(r.value)&^uint32(4) != 0 || le.Uint32(r.value[4:]) != 4096 {
 		return objectMapping{}, corrupt("unmapped storage version", 0)
 	}
-	return objectMapping{address: PhysicalAddress(le.Uint64(r.value[8:]))}, nil
+	return objectMapping{address: PhysicalAddress(le.Uint64(r.value[8:])), encrypted: le.Uint32(r.value)&4 != 0}, nil
 }
 
 func (s *storageChecker) filesystem(v *Volume, omap *cowTree) (*cowTree, error) {
 	less := (&volumeLayout{options: VolumeSpec{CaseSensitive: v.CaseSensitive}}).recordLess
-	t, err := loadCOWTree(s.ctx, uint64(v.root), 14, 0, func(id uint64) ([]byte, uint64, error) {
+	storage := uint32(0)
+	if v.Encrypted {
+		storage = 0x10000000 // OBJECT_ENCRYPTED on the native virtual FS nodes.
+	}
+	t, err := loadCOWTree(s.ctx, uint64(v.root), 14, storage, func(id uint64) ([]byte, uint64, error) {
 		if s.objects >= 16000 {
 			return nil, 0, filesystem.ErrLimit
 		}
@@ -258,8 +278,8 @@ func (s *storageChecker) filesystem(v *Volume, omap *cowTree) (*cowTree, error) 
 		if err != nil {
 			return nil, 0, err
 		}
-		b := make([]byte, 4096)
-		if err := block.ReadFull(s.c.source, b, int64(mapping.address)*4096); err != nil {
+		b, err := v.object(mapping, 0)
+		if err != nil {
 			return nil, 0, err
 		}
 		if XID(le.Uint64(b[16:])) > v.xid {
@@ -274,6 +294,9 @@ func (s *storageChecker) filesystem(v *Volume, omap *cowTree) (*cowTree, error) 
 }
 
 func (s *storageChecker) check() error {
+	if err := s.checkKeybags(); err != nil {
+		return err
+	}
 	mapHeader, cmap, err := s.objectMap(le.Uint64(s.nx[160:]), "")
 	if err != nil {
 		return fmt.Errorf("container map: %w", err)
@@ -281,8 +304,16 @@ func (s *storageChecker) check() error {
 	s.mapHeader, s.cmap = mapHeader, cmap
 	for i := range s.c.Volumes {
 		v := &s.c.Volumes[i]
-		if v.Encrypted || v.EncryptionRollingStateOID != 0 || v.Sealed || v.Role != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xf) != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.rootType != 2 {
+		if v.EncryptionRollingStateOID != 0 || v.Sealed || v.Role != 0 || v.ReadOnlyCompatibleFeatures != 0 || v.IncompatibleFeatures&^uint64(0xf) != 0 || v.CompatibleFeatures&^uint64(2) != 0 || v.rootType != 2 {
 			return fmt.Errorf("volume %s storage profile: %w", v.UUID, filesystem.ErrUnsupported)
+		}
+		if v.Encrypted {
+			if v.Flags != 8 {
+				return fmt.Errorf("encrypted storage key profile: %w", filesystem.ErrUnsupported)
+			}
+			if err := v.access(); err != nil {
+				return err
+			}
 		}
 		mapping, err := storageMapping(cmap, v.OID, s.c.XID)
 		if err != nil {
@@ -391,7 +422,7 @@ func (s *storageChecker) checkView(v *Volume, super []byte, omap *cowTree, exten
 	if err != nil {
 		return nil, err
 	}
-	streams, err := scanStorageStreams(s.ctx, t.all(), s.c.BlockCount, super)
+	streams, err := scanStorageStreams(s.ctx, t.all(), s.c.BlockCount, super, v.Encrypted)
 	if err != nil {
 		return nil, err
 	}
@@ -462,6 +493,11 @@ func (s *storageChecker) checkAllocation() error {
 	}
 	for _, r := range [][2]uint64{{0, 1}, {le.Uint64(s.nx[112:]), uint64(le.Uint32(s.nx[104:]))}, {le.Uint64(s.nx[120:]), uint64(le.Uint32(s.nx[108:]))}, {space.bitmapBase, 16}, {space.pool, space.poolCount}} {
 		if err := claim(r[0], r[1], true); err != nil {
+			return err
+		}
+	}
+	for _, r := range s.keybagRanges {
+		if err := claim(r.start, r.end-r.start, true); err != nil {
 			return err
 		}
 	}

@@ -9,9 +9,10 @@ read every completed result immediately.
 
 Existing readers can open native clones, retained snapshots and admitted software
 encryption. Ordinary mutation admits qualified plaintext clones and live edits
-with retained snapshots, and still refuses software-encrypted volume writes.
+with retained snapshots, and authenticates software-encrypted volume edits and Disk-user password changes.
 Read-only storage accounting
-understands admitted plaintext clones and retained history. Ordinary mutation
+understands admitted clones and retained history, using authenticated keys for
+software-encrypted volumes. Ordinary mutation
 uses the same accountant, with separate admission checks for each writer profile.
 
 Live edits retain the object-map versions selected by every historical XID and
@@ -33,13 +34,13 @@ source and completed, no-overwrite publication contract on failure.
 | `cp -c` in existing images | Clone editing | [Clone copy](https://github.com/deploymenttheory/go-apfs-v3/issues/60) |
 | Session sharing and actual clones in packed images | Clone copy | [Sessions and packing](https://github.com/deploymenttheory/go-apfs-v3/issues/61) |
 | Live edits preserving retained snapshots | Storage ownership and clone editing | [Historical preservation](https://github.com/deploymenttheory/go-apfs-v3/issues/62) |
-| Snapshot creation and rename | Historical preservation | [Creation and names](https://github.com/deploymenttheory/go-apfs-v3/issues/63) |
-| Snapshot deletion and final-reference reclamation | Snapshot creation | [Deletion](https://github.com/deploymenttheory/go-apfs-v3/issues/64) |
-| Completed snapshot revert | Snapshot deletion | [Revert](https://github.com/deploymenttheory/go-apfs-v3/issues/65) |
-| Existing-image edits inside encrypted DMGs | Native controls | [Encrypted envelopes](https://github.com/deploymenttheory/go-apfs-v3/issues/66) |
-| Software-encrypted APFS edits and password changes | Revert and encrypted envelopes | [Authenticated mutation](https://github.com/deploymenttheory/go-apfs-v3/issues/67) |
+| Snapshot creation and rename | Historical preservation and native snapshot authority | [Creation and names](https://github.com/deploymenttheory/go-apfs-v3/issues/63) |
+| Snapshot deletion and final-reference reclamation | Historical preservation | [Deletion](https://github.com/deploymenttheory/go-apfs-v3/issues/64) |
+| Completed snapshot revert | Snapshot deletion and native snapshot authority | [Revert](https://github.com/deploymenttheory/go-apfs-v3/issues/65) |
+| Existing-image edits inside encrypted DMGs | Authenticated mutation for nested encrypted APFS | [Encrypted envelopes](https://github.com/deploymenttheory/go-apfs-v3/issues/66) |
+| Software-encrypted APFS edits and password changes | Qualified ownership and clone editing | [Authenticated mutation](https://github.com/deploymenttheory/go-apfs-v3/issues/67) |
 | New software-encrypted volumes | Session sharing and authenticated mutation | [Encrypted construction](https://github.com/deploymenttheory/go-apfs-v3/issues/68) |
-| Existing-volume encryption/decryption conversion | Revert, authenticated mutation and encrypted construction | [Conversion](https://github.com/deploymenttheory/go-apfs-v3/issues/69) |
+| Existing-volume encryption/decryption conversion | Encrypted construction | [Conversion](https://github.com/deploymenttheory/go-apfs-v3/issues/69) |
 | Combined lifecycle and fault qualification | All implementations | [Combined qualification](https://github.com/deploymenttheory/go-apfs-v3/issues/70) |
 | Permanent source/output/verdict bindings | Combined qualification | [Evidence](https://github.com/deploymenttheory/go-apfs-v3/issues/71) |
 | Documentation and completion audit | Permanent evidence | [Closure](https://github.com/deploymenttheory/go-apfs-v3/issues/72) |

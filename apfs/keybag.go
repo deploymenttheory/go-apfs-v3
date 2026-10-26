@@ -24,6 +24,7 @@ type keybagEntry struct {
 type keyRecord struct {
 	id         [16]byte
 	flags      uint32
+	info       [8]byte
 	wrapped    []byte
 	iterations uint64
 	salt       []byte
@@ -32,6 +33,14 @@ type keyRecord struct {
 // keybag uses UUID-derived XTS sectors. This only obscures the outer container;
 // password-derived keys protect the wrapped KEK and VEK inside it.
 func (c *Container) keybag(ctx context.Context, start, count uint64, id [16]byte, kind uint32) ([]keybagEntry, error) {
+	b, err := c.keybagObject(ctx, start, count, id, kind)
+	if err != nil {
+		return nil, err
+	}
+	return decodeKeybagEntries(b, int64(start)*int64(c.BlockSize))
+}
+
+func (c *Container) keybagObject(ctx context.Context, start, count uint64, id [16]byte, kind uint32) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -60,6 +69,10 @@ func (c *Container) keybag(ctx context.Context, start, count uint64, id [16]byte
 	if !validChecksum(b) || le.Uint32(b[24:]) != kind || le.Uint32(b[28:]) != 0 || XID(le.Uint64(b[16:])) > c.XID {
 		return nil, corrupt("keybag object", offset)
 	}
+	return b, nil
+}
+
+func decodeKeybagEntries(b []byte, offset int64) ([]keybagEntry, error) {
 	if le.Uint16(b[32:]) != 2 {
 		return nil, fmt.Errorf("keybag version: %w", filesystem.ErrUnsupported)
 	}
@@ -207,6 +220,7 @@ func parseKeyRecord(data []byte, kek bool) (keyRecord, error) {
 		return result, fmt.Errorf("key record crypto profile: %w", filesystem.ErrUnsupported)
 	}
 	result.flags = binary.LittleEndian.Uint32(info)
+	copy(result.info[:], info)
 	// Current native software-key records use AES-256 key wrapping. Legacy
 	// flag 2 needs a distinct VEK/tweak derivation and native volume evidence.
 	if result.flags&^uint32(0x10) != 0 {

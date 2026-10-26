@@ -42,6 +42,9 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	if volume == nil {
 		return nil, errors.Join(fmt.Errorf("final native continuation lost selected volume %q", selected), v.Disk.Detach(ctx, att))
 	}
+	if err := v.unlockContinuationVolumes(ctx, att, before, recipe); err != nil {
+		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
+	}
 	if err := v.Disk.Mount(ctx, volume, "owners,noatime", filepath.Join(work, "native-after-go-mount"), false); err != nil {
 		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
 	}
@@ -56,10 +59,11 @@ func (v *Verifier) nativeWriteAfterEdit(ctx context.Context, out schema.Output, 
 	if err != nil {
 		return nil, fmt.Errorf("final native allocation on %q: %w", selected, err)
 	}
-	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
+	if err := v.fsckContinuation(ctx, raw, volume.FS, before, recipe); err != nil {
 		return nil, fmt.Errorf("checker after final native allocation: %w", err)
 	}
 	spec := schema.ObserveSpec{Snapshots: hasHistoricalViews(before) || len(out.Expect.DeletedSnapshots) > 0}
+	spec.Unlock, spec.Rejected = volumeCredentials(before)
 	if usesCloneCopyContinuation(out) {
 		spec.Extents, spec.Samples = append(cloneCopyExtentPaths(out.Expect.Subtree), retainedPartialClone), 12
 	}

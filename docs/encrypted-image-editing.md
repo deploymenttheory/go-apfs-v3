@@ -43,16 +43,19 @@ significant. `-` reads stdin through EOF; only one password argument can consume
 stdin. Output passwords must contain 1–4096 bytes and no NUL. Passwords do not
 appear in reports. `--image-password-file` unlocks the DMG envelope;
 `--password-file` supplies a separate APFS volume credential. These credentials
-are never substituted for one another. Software-encrypted APFS volume writes
-remain unsupported, including with correct credentials inside an unlocked DMG.
-Wrong supplied volume credentials fail authentication before that write refusal.
+are never substituted for one another. An admitted software-encrypted APFS
+volume can be edited inside either AES envelope using both credentials. Supply
+`--volume-password-file UUID=FILE` for independently encrypted peers. See
+[APFS volume editing and password changes](apfs-editing.md#editing-software-encrypted-volumes)
+for the admitted crypto-user profile.
 
 The library equivalents are `imageedit.Apply`, `Copy` and ordered `Edit` with
 `Options.ImagePassword`. `Options.Encryption` supplies a borrowed
 `diskimage.EncryptionOptions`; `KeyBits: 0` keeps an encrypted source's strength
 while replacing its password. `Options.Decrypt` explicitly removes encryption
 and conflicts with `Options.Encryption`. `Options.VolumePassword` is independent
-of the envelope credential and does not enable encrypted APFS writes. Borrowed
+of the envelope credential. `Options.VolumeCredentials` supplies encrypted
+peer passwords. Borrowed
 password buffers are neither changed nor retained after the call.
 
 Authentication, admission, command, encoding and cancellation failures before

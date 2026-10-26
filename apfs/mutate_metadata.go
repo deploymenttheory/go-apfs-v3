@@ -208,6 +208,9 @@ func (m *mutation) setAttribute(id uint64, name string, data block.Source) error
 	le.PutUint64(sv, stream)
 	le.PutUint64(sv[8:], uint64(data.Size()))
 	le.PutUint64(sv[16:], blocks*4096)
+	if m.v.Encrypted {
+		le.PutUint64(sv[24:], 4)
+	}
 	le.PutUint64(sv[32:], uint64(data.Size()))
 	return m.fs.put(key, buildXattr(id, name, sv, 1|extra).value)
 }

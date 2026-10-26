@@ -1,6 +1,7 @@
 package apfs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -19,6 +20,7 @@ type streamInventory struct {
 	references map[uint64]uint32
 	inodes     map[uint64]buildRecord
 	extents    []storageExtent
+	encrypted  bool
 }
 
 func (s *streamInventory) add(id uint64, data []byte, attribute bool, sparse uint64) error {
@@ -28,7 +30,11 @@ func (s *streamInventory) add(id uint64, data []byte, attribute bool, sparse uin
 	if le.Uint64(data[8:])%4096 != 0 || sparse%4096 != 0 || sparse > le.Uint64(data[8:]) {
 		return corrupt("stream allocation/sparse-byte count", 0)
 	}
-	if le.Uint64(data[16:]) != 0 {
+	crypto := uint64(0)
+	if s.encrypted {
+		crypto = 4
+	}
+	if le.Uint64(data[16:]) != crypto {
 		return fmt.Errorf("stream allocation or crypto profile: %w", filesystem.ErrUnsupported)
 	}
 	// Native sparse inodes include hole bytes in alloced_size. Their separate
@@ -45,13 +51,14 @@ func (s *streamInventory) add(id uint64, data []byte, attribute bool, sparse uin
 	return nil
 }
 
-func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint64, super []byte) (*streamInventory, error) {
+func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint64, super []byte, encrypted bool) (*streamInventory, error) {
 	if len(records) > maxStorageRecords {
 		return nil, filesystem.ErrLimit
 	}
-	s := &streamInventory{streams: map[uint64]*storageStream{}, references: map[uint64]uint32{}, inodes: map[uint64]buildRecord{}}
+	s := &streamInventory{streams: map[uint64]*storageStream{}, references: map[uint64]uint32{}, inodes: map[uint64]buildRecord{}, encrypted: encrypted}
 	links := map[uint64]uint32{}
 	var files, dirs, symlinks, others uint64
+	cryptoState := false
 	for _, r := range records {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -142,6 +149,11 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 				return nil, corrupt("duplicate data-stream reference", 0)
 			}
 			s.references[p.id] = le.Uint32(r.value)
+		case 7:
+			if !encrypted || p.id != 4 || len(r.key) != 8 || len(r.value) != 24 || le.Uint32(r.value) != 1 || !bytes.Equal(r.value[4:], make([]byte, 20)) {
+				return nil, fmt.Errorf("software crypto-state record: %w", filesystem.ErrUnsupported)
+			}
+			cryptoState = true
 		case 9:
 			if len(r.value) < 18 || links[le.Uint64(r.value)] == math.MaxUint32 {
 				return nil, corrupt("storage directory reference", 0)
@@ -157,6 +169,9 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 		default:
 			return nil, fmt.Errorf("storage filesystem record %d: %w", p.kind, filesystem.ErrUnsupported)
 		}
+	}
+	if encrypted && !cryptoState {
+		return nil, corrupt("missing software crypto-state record", 0)
 	}
 	allocated, logicalEnd := map[uint64]uint64{}, map[uint64]uint64{}
 	for _, r := range records {
@@ -184,7 +199,12 @@ func scanStorageStreams(ctx context.Context, records []buildRecord, blocks uint6
 		if length == 0 || length%4096 != 0 || logical%4096 != 0 || logical < logicalEnd[p.id] || length > math.MaxUint64-logical {
 			return nil, corrupt("file extent logical range", 0)
 		}
-		if le.Uint64(r.value)>>56 != 0 || le.Uint64(r.value[16:]) != 0 {
+		flags, crypto := le.Uint64(r.value)>>56, le.Uint64(r.value[16:])
+		if encrypted && address != 0 {
+			if flags != 1 || crypto == 0 || crypto > math.MaxUint64/8 || length/512-1 > math.MaxUint64-crypto*8 {
+				return nil, fmt.Errorf("encrypted file extent tweak profile: %w", filesystem.ErrUnsupported)
+			}
+		} else if flags != 0 || crypto != 0 {
 			return nil, fmt.Errorf("file extent storage flags/crypto: %w", filesystem.ErrUnsupported)
 		}
 		logicalEnd[p.id] = logical + length

@@ -135,6 +135,7 @@ func TestEncryptedImageCommandsPreserveRekeyAndRemoveEnvelope(t *testing.T) {
 func TestEditEncryptionFlagsStayAtImageBoundary(t *testing.T) {
 	for _, args := range [][]string{
 		{"mkdir", "--session", "unused", "--image-password-file", "-", "/dir"},
+		{"mkdir", "--session", "unused", "--volume-password-file", "peer=-", "/dir"},
 	} {
 		var out, diagnostics bytes.Buffer
 		if err := run(context.Background(), args, strings.NewReader("password"), &out, &diagnostics); err == nil {

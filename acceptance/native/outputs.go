@@ -173,8 +173,17 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 				byInput[input] = p.ByHost[host].SHA256
 			}
 		}
+		passwordChange := p.Output.Operation == "change-password"
+		if passwordChange {
+			if err := validateEncryptedVolumeOutput(p.Output); err != nil {
+				return nil, err
+			}
+			if len(digests) != len(hosts) {
+				return nil, fmt.Errorf("output %s: password changes reused random keybag material", name)
+			}
+		}
 		switch {
-		case !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
+		case !passwordChange && !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
 			return nil, fmt.Errorf("output %s: plaintext bytes differ across hosts: %v", name, digests)
 		case p.Output.Encrypted && len(digests) != len(hosts):
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)
