@@ -34,7 +34,7 @@ session into a new filesystem.
 
 ## Admitted profile
 
-The admitted write profile handles an unencrypted, unsealed, ordinary APFS volume in a
+The admitted write profile handles plaintext or software-encrypted, unsealed ordinary APFS volumes in a
 single-device container. It supports case-sensitive and case-insensitive native
 names, ordinary regular-file hard links, attributes, data and resource forks,
 and active decmpfs replacement. Select `--volume UUID` when a container has several
@@ -44,11 +44,11 @@ original structures. Native reserves and quotas remain in force. Geometry uses
 contiguous checkpoint regions, inline CIB addresses and one internal-pool bitmap.
 Every current and pending-free block must have validated ownership.
 
-Plaintext clone-bearing volumes are admitted when their stream and physical
+Clone-bearing volumes are admitted when their stream and physical
 reference counts reconcile. Shared data, resource forks and attribute streams
 use copy-on-write; hard-link aliases retain their shared inode. Qualified retained
 snapshots remain immutable while ordinary commands edit the live volume.
-System/Data roles, Fusion, software-encrypted APFS volumes, active or nonempty
+System/Data roles, Fusion, hardware-bound or per-file encryption, active or nonempty
 reapers and unrecognized write profiles are refused before disk staging. Tracked directories
 retain their statistics and inheritance; protected filesystem-owned directories
 remain outside user mutation.
@@ -82,6 +82,44 @@ and forks receive the requested mtime/ctime; chmod changes ctime only. Numeric
 chmod preserves ACLs. Set-ID writes require the explicit logical UID described
 below; these metadata effects do not emulate process authorization.
 
+## Editing software-encrypted volumes
+
+Supply the selected volume's exact-byte password and each independently encrypted
+peer's password. All volume keys are authenticated before allocation admission;
+untouched peers retain their own keys and credentials.
+
+```sh
+apfs cp --image Encrypted.dmg --output Edited.dmg --volume VOLUME_UUID \
+  --password-file volume-password --volume-password-file PEER_UUID=peer-password \
+  --from-host ./replacement /Payload/file
+apfs passwd --image Edited.dmg --output Changed.dmg --volume VOLUME_UUID \
+  --password-file volume-password --new-password-file new-volume-password
+```
+
+`--crypto-user UUID` selects the password-change user explicitly; omitting it
+selects the admitted Disk user whose UUID equals the volume UUID. Password changes
+rewrap the existing key in copied keybags, preserving the volume key, UUID,
+shared streams, historical versions and peer credentials. The new password works
+and the replaced password stops working. Fresh keybag salts intentionally make
+password-change output bytes differ between runs, even without a DMG envelope.
+
+The software write profile uses a single native Disk crypto user and the volume's
+ONEKEY key. Hardware-bound keys, per-file keys, unfinished conversion and other
+crypto-user profiles are refused before publication. Ordinary encrypted edits use
+copy-on-write metadata and data encryption, including relocated physical tweaks.
+They preserve retained snapshots; snapshot creation, rename, revert and encrypted
+snapshot deletion retain their separate qualification boundaries.
+
+The engine accepts `apfs.UnlockMutation(ctx, source, credentials...)` and owns the
+resulting volume keys until its returned `MutationSource` is closed. Mutation and
+storage accounting borrow those keys; raw reads still return ciphertext.
+`apfs.ChangeVolumePassword` accepts an `apfs.PasswordChange` with exact-byte old
+and new passwords. The managed equivalent is `imageedit.ChangeVolumePassword`;
+`editor.ChangeVolumePassword` participates in an ordered edit transaction.
+`imageedit.Options.VolumePassword` supplies the selected credential and
+`VolumeCredentials` supplies independent peers. Password buffers are borrowed,
+never serialized or retained by the completed editor.
+
 ## Deleting retained snapshots
 
 Select one retained snapshot by its exact name or XID and publish a new image:
@@ -96,7 +134,8 @@ name is not interpreted as an XID. Missing selections fail without publishing.
 The original image stays read-only, the output path must not exist, and the
 selected partition and APFS volume follow ordinary editing rules. Deletion uses
 the same whole-second `--time`, output format and DMG envelope credential options
-as other edits. Software-encrypted APFS volume writes remain unsupported.
+as other edits. Snapshot deletion currently requires a plaintext APFS volume;
+encrypted deletion remains outside the admitted deletion profile.
 
 The library exposes `imageedit.DeleteSnapshot(ctx, source, destination, options,
 apfs.SnapshotSelector{Name: name})`; use `XID: xid` instead for a transaction

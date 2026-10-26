@@ -91,6 +91,14 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return nil, errors.Join(fmt.Errorf("continuation %s: selected volume %q is missing", out.Name, selected), v.Disk.Detach(ctx, att))
 		}
 	}
+	reference := out.Source
+	if out.Expect.View != "" {
+		reference.Stage = out.Expect.View
+	}
+	expectedObservation := v.Cases[CaseKey(reference)].Observation
+	if err := v.unlockContinuationVolumes(ctx, att, expectedObservation, k.recipe); err != nil {
+		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
+	}
 	for _, vol := range att.Volumes {
 		if vol.Locked {
 			continue
@@ -132,7 +140,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err := v.Disk.Detach(ctx, att); err != nil {
 		return nil, err
 	}
-	if err := v.fsckRaw(ctx, raw, volume.FS); err != nil {
+	if err := v.fsckContinuation(ctx, raw, volume.FS, expectedObservation, k.recipe); err != nil {
 		return nil, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 	}
 	sourceObservation, err := snapshotOutputReference(out, v.Cases[CaseKey(out.Source)].Observation)
@@ -140,6 +148,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation) || len(out.Expect.DeletedSnapshots) > 0}
+	nativeSpec.Unlock, nativeSpec.Rejected = volumeCredentials(expectedObservation)
 	if out.Source.Recipe == "apfs-clones" {
 		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
 	}
@@ -193,6 +202,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	edited := filepath.Join(work, "edited.dmg")
 	argv := []string{v.Product, "edit", "--image", editSource, "--output", edited, "--format", "UDZO", "--time", "2025-06-07T08:09:10Z", "--partition", strconv.Itoa(partition)}
 	argv = append(argv, imageArgs...)
+	volumeArgs, err := continuationVolumeArguments(work, volume.UUID, expectedObservation, k.recipe)
+	if err != nil {
+		return nil, err
+	}
+	argv = append(argv, volumeArgs...)
 	if out.Expect.SystemMember != "" || multiVolume {
 		argv = append(argv, "--volume", volume.UUID)
 	}

@@ -56,12 +56,11 @@
               "mount",
               "-mountOptions",
               "owners,noatime",
-              "-mountPoint",
-              "$MOUNTDIR:EncryptedHistory",
               "$VOLUME:EncryptedHistory"
             ],
             "expect": "0"
-          }
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
         },
         {
           "tool": {
@@ -320,12 +319,11 @@
               "mount",
               "-mountOptions",
               "owners,noatime",
-              "-mountPoint",
-              "$MOUNTDIR:EncryptedHistory",
               "$VOLUME:EncryptedHistory"
             ],
             "expect": "0"
-          }
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
         },
         {
           "fs": {
@@ -396,12 +394,11 @@
               "mount",
               "-mountOptions",
               "owners,noatime",
-              "-mountPoint",
-              "$MOUNTDIR:EncryptedHistory",
               "$VOLUME:EncryptedHistory"
             ],
             "expect": "0"
-          }
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
         },
         {
           "control": {
@@ -464,12 +461,11 @@
               "mount",
               "-mountOptions",
               "owners,noatime",
-              "-mountPoint",
-              "$MOUNTDIR:EncryptedHistory",
               "$VOLUME:EncryptedHistory"
             ],
             "expect": "0"
-          }
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
         },
         {
           "fs": {
@@ -540,12 +536,11 @@
               "mount",
               "-mountOptions",
               "owners,noatime",
-              "-mountPoint",
-              "$MOUNTDIR:EncryptedHistory",
               "$VOLUME:EncryptedHistory"
             ],
             "expect": "0"
-          }
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
         },
         {
           "tool": {

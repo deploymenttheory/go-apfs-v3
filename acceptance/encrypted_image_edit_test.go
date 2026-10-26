@@ -242,8 +242,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 				{"missing-image", nil, volumePassword, filesystem.ErrAuthentication, ""},
 				{"exchanged", volumePassword, imagePassword, filesystem.ErrAuthentication, ""},
 				{"wrong-volume", imagePassword, []byte(recipe.Passwords["wrong"]), filesystem.ErrAuthentication, ""},
-				{"no-volume", imagePassword, nil, filesystem.ErrUnsupported, "software-encrypted APFS image editing: unsupported feature"},
-				{"both-correct", imagePassword, volumePassword, filesystem.ErrUnsupported, "software-encrypted APFS image editing: unsupported feature"},
+				{"no-volume", imagePassword, nil, filesystem.ErrAuthentication, ""},
 			} {
 				out := filepath.Join(t.TempDir(), "refused.dmg")
 				_, err := imageedit.Edit(ctx, fixtureImage(t, k), out, imageedit.Options{Partition: partition, Time: fixedClock, ImagePassword: tc.image, VolumePassword: tc.volume}, func(*imageedit.Editor) error { t.Fatal("encrypted APFS write reached callback"); return nil })
@@ -265,7 +264,7 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 				volume  []byte
 				status  int
 				message string
-			}{{[]byte(recipe.Passwords["wrong"]), 1, filesystem.ErrAuthentication.Error()}, {volumePassword, 5, "software-encrypted APFS image editing: unsupported feature"}} {
+			}{{[]byte(recipe.Passwords["wrong"]), 1, filesystem.ErrAuthentication.Error()}, {nil, 1, filesystem.ErrAuthentication.Error()}} {
 				if err := os.WriteFile(volumePasswordPath, tc.volume, 0600); err != nil {
 					t.Fatal(err)
 				}

@@ -165,7 +165,7 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", sanitize(out.Name)))
 	defer finish(&resultErr)
 	v.setTranscript(&fixture.Transcript{})
-	qualifiedClock := out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") || out.Source.Recipe == "snapshot-history" && out.Operation == "edit"
+	qualifiedClock := out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") || (out.Source.Recipe == "snapshot-history" || out.Source.Recipe == "encrypted-snapshot-history") && out.Operation == "edit"
 	if out.Expect.CommandClockNS != 0 && !qualifiedClock {
 		return nil, fmt.Errorf("output %s declares an unqualified command clock", out.Name)
 	}
@@ -255,6 +255,9 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 			image = filepath.Join(p.Dirs[p.DecryptHosts[0]], p.ByHost[p.DecryptHosts[0]].File)
 		}
 		return v.verifyContainer(ctx, out, image, password, digests, !p.SkipChecksums)
+	}
+	if err := v.checkEncryptedVolumes(ctx, image, password, k.Observation, recipe); err != nil {
+		return nil, fmt.Errorf("encrypted output checker: %w", err)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
 	spec.Snapshots = hasHistoricalViews(k.Observation) || len(out.Expect.DeletedSnapshots) > 0
@@ -496,6 +499,9 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 // passwords, as the observation recorded them; volumes of one container
 // carry different credentials.
 func volumeCredentials(obs *schema.Observation) (map[string]string, map[string][]string) {
+	if obs == nil {
+		return nil, nil
+	}
 	unlock := map[string]string{}
 	rejected := map[string][]string{}
 	for _, vol := range obs.Volumes {

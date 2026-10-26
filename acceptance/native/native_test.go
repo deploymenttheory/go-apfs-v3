@@ -266,6 +266,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireCloneForkMappingInput(pairs, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireEncryptedVolumeOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -340,6 +343,21 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
+	if p.Output.Operation == "change-password" && len(p.ByHost) > 1 {
+		var hosts []string
+		for host := range p.ByHost {
+			hosts = append(hosts, host)
+		}
+		sort.Strings(hosts)
+		for _, host := range hosts {
+			one := p
+			one.Primary = host
+			one.ByHost = map[string]schema.Output{host: p.ByHost[host]}
+			one.Name, one.Output.Name = p.Name+"."+host, p.Output.Name+"."+host
+			t.Run(host, func(t *testing.T) { verifyOne(t, v.ForSubtest(), one, rows) })
+		}
+		return
+	}
 	ctx := context.Background()
 	diffs, err := v.VerifyOutput(ctx, p)
 	if err != nil {
