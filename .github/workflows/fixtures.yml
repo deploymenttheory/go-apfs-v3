@@ -47,24 +47,41 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/deploymenttheory/go-apfs-v3/actions/artifacts/12644632952/zip > "$RUNNER_TEMP/output.zip"
-          python3 - <<'PY'
-          import json, os, zipfile
-          from collections import defaultdict
-          root=os.environ['RUNNER_TEMP']
-          with zipfile.ZipFile(root+'/output.zip') as archive:
-              files=archive.infolist()
-              manifest=json.loads(archive.read('outputs.json'))
-              by_recipe=defaultdict(lambda: {'files':0,'bytes':0})
-              for output in manifest['outputs']:
-                  if output['source']['producer']!=26:continue
-                  group=by_recipe[output['source']['recipe']]
-                  group['files']+=1
-                  group['bytes']+=output['bytes']
-              result={'artifactId':12644632952,'compressedBytes':os.stat(root+'/output.zip').st_size,'diskBytesAfterExtraction':sum(item.file_size for item in files),'files':len(files),'largest':sorted([{'name':item.filename,'bytes':item.file_size} for item in files],key=lambda item:item['bytes'],reverse=True)[:15],'byRecipe':dict(by_recipe)}
-          with open(root+'/artifact-size.json','w') as stream:json.dump(result,stream,indent=2)
+          cat > "$RUNNER_TEMP/inspect-artifact.py" <<'PY'
+          import json, os, struct, sys
+          tail=b''
+          total=0
+          for block in iter(lambda:sys.stdin.buffer.read(1024*1024),b''):
+              total+=len(block)
+              if total>5*1024**3:raise RuntimeError('artifact exceeds 5 GiB network bound')
+              tail=(tail+block)[-2*1024*1024:]
+          position=tail.rfind(b'PK\x05\x06')
+          if position<0:raise RuntimeError('ZIP footer absent')
+          footer=struct.unpack_from('<4s4H2LH',tail,position)
+          size,offset=footer[5],footer[6]
+          if size>len(tail):raise RuntimeError('ZIP directory exceeds 2 MiB metadata bound')
+          cursor=offset-(total-len(tail))
+          stop=cursor+size
+          if cursor<0:raise RuntimeError('ZIP directory outside retained metadata')
+          files=[]
+          while cursor<stop:
+              item=struct.unpack_from('<4s6H3L5H2L',tail,cursor)
+              if item[0]!=b'PK\x01\x02':raise RuntimeError('invalid ZIP directory header')
+              name=tail[cursor+46:cursor+46+item[10]].decode()
+              files.append({'name':name,'bytes':item[9],'compressed':item[8]})
+              cursor+=46+item[10]+item[11]+item[12]
+          groups={}
+          for item in files:
+              parts=item['name'].split('.')
+              name=parts[1] if len(parts)>2 else 'manifest'
+              group=groups.setdefault(name,{'files':0,'bytes':0})
+              group['files']+=1
+              group['bytes']+=item['bytes']
+          result={'artifactId':12644632952,'networkBytes':total,'maximumRetainedMetadataBytes':2*1024*1024,'downloadedImageBytesStored':0,'diskBytesAfterExtraction':sum(item['bytes'] for item in files),'files':len(files),'largest':sorted(files,key=lambda item:item['bytes'],reverse=True)[:15],'byRecipe':groups}
+          with open(os.environ['RUNNER_TEMP']+'/artifact-size.json','w') as stream:json.dump(result,stream,indent=2)
           print(json.dumps(result))
           PY
+          gh api repos/deploymenttheory/go-apfs-v3/actions/artifacts/12644632952/zip | python3 "$RUNNER_TEMP/inspect-artifact.py"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: encrypted-output-storage-size
