@@ -489,3 +489,14 @@ func writeSummary(t *testing.T, title string, rows []string) {
 	defer func() { _ = f.Close() }()
 	fmt.Fprintf(f, "## %s\n\n%s\n\n", title, strings.Join(rows, "\n"))
 }
+
+func (v *Verifier) checkEncryptedFixture(ctx context.Context, k corpus.Case) (resultErr error) {
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)))
+	defer finish(&resultErr)
+	lease, err := v.Corpus.AcquireImage(ctx, k)
+	if err != nil {
+		return err
+	}
+	err = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
+	return errors.Join(err, lease.Release(err))
+}

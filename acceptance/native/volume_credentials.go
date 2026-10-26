@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/deploymenttheory/go-apfs-v3/acceptance/corpus"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
@@ -76,17 +75,6 @@ func hasEncryptedVolumes(observation *schema.Observation) bool {
 		}
 	}
 	return false
-}
-
-func (v *Verifier) checkEncryptedFixture(ctx context.Context, k corpus.Case) (resultErr error) {
-	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)))
-	defer finish(&resultErr)
-	lease, err := v.Corpus.AcquireImage(ctx, k)
-	if err != nil {
-		return err
-	}
-	err = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
-	return errors.Join(err, lease.Release(err))
 }
 
 // DiskManagement's verification supplies the unlocked volume's crypto context
