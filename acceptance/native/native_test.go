@@ -244,6 +244,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requirePreservationSourceOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+		if err := requireEncryptedConstruction(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
 		if err := requireContainerOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
@@ -348,7 +351,7 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
-	if p.Output.Operation == "change-password" && len(p.ByHost) > 1 {
+	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted") && len(p.ByHost) > 1 {
 		var hosts []string
 		for host := range p.ByHost {
 			hosts = append(hosts, host)

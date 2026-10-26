@@ -262,3 +262,37 @@ func parseKeyRecord(data []byte, kek bool) (keyRecord, error) {
 	}
 	return result, nil
 }
+
+// encodeKeyRecord emits the same authenticated software-key record profile
+// used by native Disk users. A zero iteration count denotes a VEK record.
+func encodeKeyRecord(record keyRecord, integritySalt []byte) []byte {
+	payload := encodeDER(0x80, []byte{0})
+	for _, field := range []struct {
+		tag  byte
+		data []byte
+	}{{0x81, record.id[:]}, {0x82, record.info[:]}, {0x83, record.wrapped}} {
+		payload = append(payload, encodeDER(field.tag, field.data)...)
+	}
+	if record.iterations != 0 {
+		var integer [8]byte
+		binary.BigEndian.PutUint64(integer[:], record.iterations)
+		iterations := integer[:]
+		for len(iterations) > 1 && iterations[0] == 0 {
+			iterations = iterations[1:]
+		}
+		if iterations[0]&0x80 != 0 {
+			iterations = append([]byte{0}, iterations...)
+		}
+		payload = append(payload, encodeDER(0x84, iterations)...)
+		payload = append(payload, encodeDER(0x85, record.salt)...)
+	}
+	payload = encodeDER(0xa3, payload)
+	seed := append([]byte{1, 0x16, 0x20, 0x17, 0x15, 5}, integritySalt...)
+	key := sha256.Sum256(seed)
+	mac := hmac.New(sha256.New, key[:])
+	_, _ = mac.Write(payload)
+	result := encodeDER(0x80, []byte{0})
+	result = append(result, encodeDER(0x81, mac.Sum(nil))...)
+	result = append(result, encodeDER(0x82, integritySalt)...)
+	return encodeDER(0x30, append(result, payload...))
+}

@@ -11,6 +11,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -20,12 +21,13 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/internal/names"
 )
 
-// BuildOptions constructs one unencrypted, normalization-insensitive APFS volume.
+// BuildOptions constructs one normalization-insensitive APFS volume.
 // Capacity is container bytes, rounded up to 4096; zero selects automatic sizing.
 // Time is an explicit construction clock, independent of captured file times.
 // Zero UUIDs derive from the canonical metadata and contents. Source readers must
 // remain immutable through planning and writing. No existing disk is modified.
 type BuildOptions struct {
+	Encryption                *VolumeEncryptionOptions `json:"-"`
 	Name                      string
 	CaseSensitive             bool
 	Capacity                  int64
@@ -46,6 +48,7 @@ type buildObject struct {
 	target     string
 }
 type buildStream struct {
+	encrypted                 bool
 	reader                    filesystem.Reader
 	id, source, start, blocks uint64
 	owner                     uint64
@@ -64,14 +67,19 @@ type buildAttribute struct {
 	stream *buildStream
 }
 type buildPart struct {
-	offset int64
-	data   []byte
-	stream *buildStream
+	offset     int64
+	data       []byte
+	stream     *buildStream
+	encryption *buildVolumeEncryption
 }
 
 // Layout is a bounded immutable container plan borrowing all source readers.
 // Write may be called repeatedly. The caller discards partial output on error.
 type Layout struct {
+	mu                  sync.RWMutex
+	closed              bool
+	keylocker           []byte
+	keylockerAddress    uint64
 	options             ContainerBuildOptions
 	volumes             []*volumeLayout
 	parts               []buildPart
@@ -79,6 +87,7 @@ type Layout struct {
 }
 
 type volumeLayout struct {
+	encryption *buildVolumeEncryption
 	reader     filesystem.Reader
 	options    VolumeSpec
 	time       time.Time
@@ -96,7 +105,7 @@ type volumeLayout struct {
 func (p *Layout) Size() int64 { return p.size }
 
 func Plan(ctx context.Context, r filesystem.Reader, o BuildOptions) (*Layout, error) {
-	return PlanContainer(ctx, []VolumeSpec{{Reader: r, Name: o.Name, CaseSensitive: o.CaseSensitive, UUID: o.VolumeUUID}}, ContainerBuildOptions{Capacity: o.Capacity, Time: o.Time, UUID: o.ContainerUUID})
+	return PlanContainer(ctx, []VolumeSpec{{Reader: r, Name: o.Name, CaseSensitive: o.CaseSensitive, UUID: o.VolumeUUID, Encryption: o.Encryption}}, ContainerBuildOptions{Capacity: o.Capacity, Time: o.Time, UUID: o.ContainerUUID})
 }
 
 func (p *volumeLayout) collect(ctx context.Context) error {
@@ -499,6 +508,11 @@ func copyBuildStream(ctx context.Context, out io.Writer, s *buildStream, verify 
 }
 
 func (p *Layout) Write(ctx context.Context, out io.Writer) error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.closed {
+		return fs.ErrClosed
+	}
 	if out == nil {
 		return fs.ErrInvalid
 	}
@@ -543,7 +557,13 @@ func (p *Layout) Write(ctx context.Context, out io.Writer) error {
 			return err
 		}
 		if part.stream != nil {
-			if err := copyBuildStream(ctx, out, part.stream, true); err != nil {
+			target := out
+			var encrypted *encryptedBuildWriter
+			if part.encryption != nil {
+				encrypted = &encryptedBuildWriter{ctx: ctx, out: out, key: part.encryption.keys, offset: part.offset}
+				target = encrypted
+			}
+			if err := copyBuildStream(ctx, target, part.stream, true); err != nil {
 				return err
 			}
 			for _, member := range part.stream.members {
@@ -551,9 +571,23 @@ func (p *Layout) Write(ctx context.Context, out io.Writer) error {
 					return err
 				}
 			}
-			off += part.stream.size
+			if encrypted != nil {
+				if err := encrypted.finish(); err != nil {
+					return err
+				}
+				off = part.offset + int64(part.stream.blocks)*4096
+			} else {
+				off += part.stream.size
+			}
 		} else {
-			if err := write(part.data); err != nil {
+			data := part.data
+			if part.encryption != nil {
+				data = append([]byte(nil), data...)
+				if err := part.encryption.keys.encrypt(data, uint64(part.offset/512)); err != nil {
+					return err
+				}
+			}
+			if err := write(data); err != nil {
 				return err
 			}
 			off += int64(len(part.data))

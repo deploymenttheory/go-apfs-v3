@@ -174,6 +174,15 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 			}
 		}
 		passwordChange := p.Output.Operation == "change-password"
+		construction := p.Output.Operation == "create-encrypted"
+		if construction {
+			if err := validateEncryptedConstruction(p.Output); err != nil {
+				return nil, err
+			}
+			if len(digests) != len(hosts) {
+				return nil, fmt.Errorf("encrypted construction reused random key material")
+			}
+		}
 		if passwordChange {
 			if err := validateEncryptedVolumeOutput(p.Output); err != nil {
 				return nil, err
@@ -183,7 +192,7 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 			}
 		}
 		switch {
-		case !passwordChange && !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
+		case !passwordChange && !construction && !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
 			return nil, fmt.Errorf("output %s: plaintext bytes differ across hosts: %v", name, digests)
 		case p.Output.Encrypted && len(digests) != len(hosts):
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)

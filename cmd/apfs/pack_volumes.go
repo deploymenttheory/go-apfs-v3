@@ -24,6 +24,7 @@ import (
 type packVolume struct {
 	spec                          apfs.VolumeSpec
 	source, sourceKind, groupWith string
+	passwordFile                  string
 	groupUUID                     [16]byte
 	sensitiveSet                  bool
 	uid, gid                      uint32
@@ -91,6 +92,13 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 			return nil
 		})
 	}
+	scoped("volume-password-file", "encrypt the preceding ordinary APFS volume with exact password bytes in FILE; - reads stdin", func(v *packVolume, value string) error {
+		if value == "" || v.passwordFile != "" {
+			return fs.ErrInvalid
+		}
+		v.passwordFile = value
+		return nil
+	})
 	f.BoolFunc("case-sensitive", "case-sensitive names for the preceding directory or empty volume", func(value string) error {
 		if len(volumes) == 0 {
 			return fmt.Errorf("--case-sensitive requires a preceding --volume")
@@ -173,11 +181,35 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 	} else if !errors.Is(e, fs.ErrNotExist) {
 		return e
 	}
+	files := make([]string, len(volumes))
+	for i, v := range volumes {
+		files[i] = v.passwordFile
+	}
+	if err := onePackPasswordInput(encryption, files); err != nil {
+		return err
+	}
 	crypt, err := encryption.options(input, false)
 	if err != nil {
 		return err
 	}
 	defer clearPackPasswords(crypt)
+	defer func() {
+		for _, v := range volumes {
+			if v.spec.Encryption != nil {
+				clear(v.spec.Encryption.Password)
+			}
+		}
+	}()
+	for _, v := range volumes {
+		if v.passwordFile != "" {
+			password, e := readPassword(v.passwordFile, input)
+			if e != nil {
+				return e
+			}
+			v.spec.Encryption = &apfs.VolumeEncryptionOptions{Password: password}
+		}
+	}
+
 	clock := time.Now().UTC().Truncate(time.Second)
 	if *fixed != "" {
 		clock, err = time.Parse(time.RFC3339Nano, *fixed)
@@ -311,6 +343,13 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 		}{1, report, imports})
 	}
 	_, err = fmt.Fprintf(out, "Created %s APFS image with %d volumes: %d bytes (%d-byte container)\nImage encryption: %s\n", report.Format, report.VolumeCount, report.ImageBytes, report.ContainerBytes, packEncryptionLabel(report.Encryption))
+	if err == nil {
+		for _, volume := range report.VolumeEncryption {
+			if _, err = fmt.Fprintf(out, "Volume %s: %s-%d (Disk user %s)\n", volume.Name, volume.Cipher, volume.KeyBits, volume.CryptoUser); err != nil {
+				break
+			}
+		}
+	}
 	if err == nil {
 		err = writePackCompressionReport(out, report.FileCompression, report.Compression)
 	}

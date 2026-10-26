@@ -210,9 +210,15 @@ func constructionRole(t *testing.T, role string) uint16 {
 	}
 }
 
-func checkConstructedContainer(t *testing.T, ctx context.Context, path string, k corpus.Case, inventory []schema.Volume, inputs []apfs.VolumeSpec, options apfs.ContainerBuildOptions) {
+func checkConstructedContainer(t *testing.T, ctx context.Context, path string, k corpus.Case, inventory []schema.Volume, inputs []apfs.VolumeSpec, options apfs.ContainerBuildOptions, password ...[]byte) {
 	t.Helper()
-	img, err := diskimage.Open(path)
+	var img *diskimage.Image
+	var err error
+	if len(password) > 0 && password[0] != nil {
+		img, err = diskimage.OpenWithPassword(ctx, path, password[0])
+	} else {
+		img, err = diskimage.Open(path)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,6 +256,23 @@ func checkConstructedContainer(t *testing.T, ctx context.Context, path string, k
 		checkFresh(v.UUID)
 		if v.Name != in.Name || v.CaseSensitive != in.CaseSensitive || v.Role != in.Role || int64(v.ReserveBlocks)*int64(c.BlockSize) != in.Reserve || int64(v.QuotaBlocks)*int64(c.BlockSize) != in.Quota || v.Encrypted || v.Sealed || v.Snapshots != 0 {
 			t.Errorf("volume %d construction metadata differs: %+v, input %+v", i, v, in)
+		}
+		if v.Encrypted {
+			if _, err := v.Stat(ctx, v.Root()); !errors.Is(err, filesystem.ErrAuthentication) {
+				t.Fatalf("new encrypted volume was readable while locked: %v", err)
+			}
+			if bad, err := v.Unlock(ctx, []byte("public-wrong-construction")); !errors.Is(err, filesystem.ErrAuthentication) {
+				if bad != nil {
+					_ = bad.Close()
+				}
+				t.Fatalf("wrong construction password accepted: %v", err)
+			}
+			unlocked, err := v.Unlock(ctx, in.Encryption.Password)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer closeFixture(t, unlocked)
+			v = unlocked
 		}
 		if i >= len(inventory) {
 			if err := v.ReadDir(ctx, v.Root(), func(e filesystem.DirEntry) error { return fmt.Errorf("fresh empty volume enumerates %q", e.Name) }); err != nil {

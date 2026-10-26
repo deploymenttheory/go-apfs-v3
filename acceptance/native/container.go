@@ -14,7 +14,7 @@ import (
 // content, attributes and group relationships remain independently asserted.
 func (v *Verifier) compareConstructedContainer(got *schema.Observation, source corpus.Case, out schema.Output) ([]Difference, error) {
 	expect := out.Expect.Container
-	if expect == nil || out.Operation != "container" || out.Expect.Subtree != "Fixture" || expect.CapacityBytes <= 0 {
+	if expect == nil || (out.Operation != "container" && out.Operation != "create-encrypted") || out.Expect.Subtree != "Fixture" || expect.CapacityBytes <= 0 {
 		return nil, fmt.Errorf("invalid fresh-container expectation")
 	}
 	wantVolumes, err := fixture.APFSInventory(source.Observation)
@@ -89,7 +89,7 @@ func (v *Verifier) compareConstructedContainer(got *schema.Observation, source c
 		add(name, "volume.role", actual.APFS.Role, expected.APFS.Role)
 		add(name, "volume.reserveBytes", actual.APFS.ReserveBytes, expected.APFS.ReserveBytes)
 		add(name, "volume.quotaBytes", actual.APFS.QuotaBytes, expected.APFS.QuotaBytes)
-		add(name, "volume.encrypted", actual.APFS.Encrypted, false)
+		add(name, "volume.encrypted", actual.APFS.Encrypted, expect.EncryptedVolumes[name] != "")
 		add(name, "volume.snapshots", len(actual.APFS.Snapshots), 0)
 		wantView, err := observedView(source.Observation, expected.Index, "")
 		if err != nil {
@@ -136,12 +136,12 @@ func (v *Verifier) compareConstructedContainer(got *schema.Observation, source c
 			return nil, err
 		}
 		add(name, "empty.entries", len(view.Entries), 0)
-		add(name, "empty.caseSensitive", volume.APFS.CaseSensitive, false)
+		add(name, "empty.caseSensitive", volume.APFS.CaseSensitive, out.Operation == "create-encrypted" && out.Source.Profile == "apfsx")
 		add(name, "empty.role", volume.APFS.Role, "")
 		add(name, "empty.groupUUID", volume.APFS.GroupUUID, "")
 		add(name, "empty.reserveBytes", volume.APFS.ReserveBytes, 0)
 		add(name, "empty.quotaBytes", volume.APFS.QuotaBytes, 0)
-		add(name, "empty.encrypted", volume.APFS.Encrypted, false)
+		add(name, "empty.encrypted", volume.APFS.Encrypted, expect.EncryptedVolumes[name] != "")
 		add(name, "empty.snapshots", len(volume.APFS.Snapshots), 0)
 	}
 	// A relative signature path may occur on several source volumes. Each
@@ -173,6 +173,12 @@ func requireContainerOutputs(pairs []Paired, cases map[string]corpus.Case, major
 	produced := map[string]int{}
 	for _, pair := range pairs {
 		o := pair.Output
+		if o.Operation == "create-encrypted" {
+			if err := validateEncryptedConstruction(o); err != nil {
+				return err
+			}
+			continue
+		}
 		if o.Operation != "container" && o.Expect.Container == nil {
 			continue
 		}

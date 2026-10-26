@@ -171,8 +171,8 @@ Output is a password-only `encrcdsa` v2 envelope around UDRO or UDZO. It uses
 AES-CBC for payload blocks, the format's HMAC-SHA1 block IV derivation, and
 PBKDF2-HMAC-SHA1 with 600,000 iterations and a fresh salt to wrap new payload keys
 using AES-192-CBC. Every call draws a new identity, salt, wrapping IV and keys
-from `crypto/rand`. There is no deterministic-encryption option. Identical build
-inputs and clocks retain identical plaintext image/disk bytes; ciphertext differs
+from `crypto/rand`. There is no deterministic-encryption option. When the volumes are plaintext, identical build
+inputs and clocks retain identical decoded image/disk bytes; envelope ciphertext differs
 between runs and hosts. Unencrypted builds remain byte-identical.
 
 Encryption streams directly into a private ciphertext staging file. It does not
@@ -477,3 +477,46 @@ decrypted outputs must agree across hosts and have no image encryption.
 Source and output hashes remain unchanged by native readback. These checks add
 no new workflow or scenario family and never use a Go decoder for the final
 native verdict.
+
+## Creating software-encrypted APFS volumes
+
+Fresh APFS/APFSX volumes can use the admitted software AES-128-XTS ONEKEY
+profile with one native Disk crypto user. Volume encryption is independent of
+DMG envelope encryption and file compression:
+
+```sh
+apfs pack --filesystem apfs --volume-password-file volume-password \
+  ./payload Encrypted.dmg
+apfs pack --volume Private --directory ./private \
+  --volume-password-file private-password \
+  --volume Public --directory ./public \
+  --volume Archive --volume-password-file archive-password \
+  --encryption AES-256 --output-password-file image-password Mixed.dmg
+```
+
+In a multi-volume command, `--volume-password-file` applies to the preceding
+`--volume`. Each encrypted volume has independent keys and credentials. A volume
+without that option remains plaintext. Only one password file across all volumes
+and the image envelope may consume stdin (`-`); bytes are not trimmed. Passwords
+contain at most 4096 bytes, and a non-nil empty password is distinct from a missing
+credential. Existing images use the separate repack or image-editing commands.
+
+The typed equivalents are `apfs.BuildOptions.Encryption`,
+`apfs.VolumeSpec.Encryption` and `pack.VolumeOptions.Encryption`, each accepting
+`*apfs.VolumeEncryptionOptions`. Packing's existing `Encryption` option continues
+to control only the DMG envelope. Reports identify encrypted volumes and Disk-user
+UUIDs without exposing credentials or keys.
+
+`apfs.Plan` and `PlanContainer` borrow passwords only while planning. Close the
+returned `Layout` after its final `Write` to release its key schedules; closing
+waits for active writes and leaves source readers open. One plan has stable bytes
+across repeated writes. Independently planned encrypted builds generate fresh
+keys and wrapping salts; unspecified container and volume UUIDs are also fresh.
+Plaintext construction retains its deterministic identities and output bytes.
+
+Encrypted construction currently admits ordinary volumes. Hardware-bound,
+per-file, multi-user and encrypted System/Data role profiles remain outside this
+write profile. Explicit clone intent, hard links, resource forks and attributes
+are preserved within each volume. No data is shared across independently keyed
+volumes. Source readers remain immutable and failed managed builds publish no
+incomplete output.

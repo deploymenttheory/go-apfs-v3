@@ -2,7 +2,6 @@ package apfs
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -196,32 +195,8 @@ func rewrapPasswordRecord(ctx context.Context, data, oldPassword, newPassword []
 	if err != nil {
 		return nil, err
 	}
-	var integer [8]byte
-	binary.BigEndian.PutUint64(integer[:], record.iterations)
-	iterations := integer[:]
-	for len(iterations) > 1 && iterations[0] == 0 {
-		iterations = iterations[1:]
-	}
-	if iterations[0]&0x80 != 0 {
-		iterations = append([]byte{0}, iterations...)
-	}
-	payload := encodeDER(0x80, []byte{0})
-	for _, field := range []struct {
-		tag  byte
-		data []byte
-	}{{0x81, record.id[:]}, {0x82, record.info[:]}, {0x83, wrapped}, {0x84, iterations}, {0x85, salt}} {
-		payload = append(payload, encodeDER(field.tag, field.data)...)
-	}
-	payload = encodeDER(0xa3, payload)
-	seed := append([]byte{1, 0x16, 0x20, 0x17, 0x15, 5}, integritySalt...)
-	integrityKey := sha256.Sum256(seed)
-	mac := hmac.New(sha256.New, integrityKey[:])
-	_, _ = mac.Write(payload)
-	result := encodeDER(0x80, []byte{0})
-	result = append(result, encodeDER(0x81, mac.Sum(nil))...)
-	result = append(result, encodeDER(0x82, integritySalt)...)
-	result = append(result, payload...)
-	return encodeDER(0x30, result), ctx.Err()
+	record.wrapped, record.salt = wrapped, salt
+	return encodeKeyRecord(record, integritySalt), ctx.Err()
 }
 
 func encodeDER(tag byte, value []byte) []byte {

@@ -10,6 +10,8 @@ read every completed result immediately.
 Existing readers can open native clones, retained snapshots and admitted software
 encryption. Ordinary mutation admits qualified plaintext clones and live edits
 with retained snapshots, and authenticates software-encrypted volume edits and Disk-user password changes.
+Fresh construction also supports independently credentialed software-encrypted
+ordinary volumes and mixed plaintext/encrypted containers.
 Read-only storage accounting
 understands admitted clones and retained history, using authenticated keys for
 software-encrypted volumes. Ordinary mutation

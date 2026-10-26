@@ -143,8 +143,10 @@ type HostImportExpectation struct {
 // source. Names, case rules, roles, limits and group membership come from the
 // retained native inventory; fresh UUIDs must be nonzero and independent.
 type ContainerExpectation struct {
-	CapacityBytes int64    `json:"capacityBytes"`
-	EmptyVolumes  []string `json:"emptyVolumes,omitempty"`
+	EncryptedVolumes map[string]string `json:"encryptedVolumes,omitempty"`
+	ImageCipher      string            `json:"imageCipher,omitempty"`
+	CapacityBytes    int64             `json:"capacityBytes"`
+	EmptyVolumes     []string          `json:"emptyVolumes,omitempty"`
 }
 
 // AppleDoubleExpectation binds an encoded metadata output to one native export.

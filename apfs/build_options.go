@@ -23,7 +23,8 @@ const (
 // counts rounded up to blocks; zero means no constraint. Native roles currently
 // admitted for construction are None, System and Data.
 type VolumeSpec struct {
-	Reader         filesystem.Reader `json:"-"`
+	Encryption     *VolumeEncryptionOptions `json:"-"`
+	Reader         filesystem.Reader        `json:"-"`
 	Name           string
 	CaseSensitive  bool
 	UUID           [16]byte
@@ -39,7 +40,7 @@ type VolumeGroupSpec struct {
 	UUID         [16]byte
 }
 
-// ContainerBuildOptions describes one fresh, unencrypted APFS container.
+// ContainerBuildOptions describes one fresh APFS container.
 // Volume order is significant and retained. Zero capacity selects automatic
 // sizing; zero UUID derives an identity from all volume inputs and options.
 type ContainerBuildOptions struct {
@@ -51,7 +52,7 @@ type ContainerBuildOptions struct {
 
 // PlanContainer validates every volume and the shared allocation before hashing
 // payloads. It borrows all readers through Write; it never modifies a source.
-func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOptions) (*Layout, error) {
+func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOptions) (result *Layout, resultErr error) {
 	if len(inputs) == 0 || len(inputs) > 100 || o.Capacity < 0 || o.Capacity > 1<<40 || o.Time.IsZero() {
 		return nil, fs.ErrInvalid
 	}
@@ -61,6 +62,11 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 	o.Time = o.Time.UTC()
 	o.Groups = append([]VolumeGroupSpec(nil), o.Groups...)
 	p := &Layout{options: o}
+	defer func() {
+		if resultErr != nil {
+			_ = p.Close()
+		}
+	}()
 	members := make(map[int]bool)
 	groupIDs := make(map[[16]byte]bool)
 	for _, g := range o.Groups {
@@ -95,11 +101,23 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 			}
 			ids[v.UUID] = true
 		}
+		var encryption *buildVolumeEncryption
+		if v.Encryption != nil {
+			if v.Encryption.Password == nil || len(v.Encryption.Password) > 4096 {
+				return nil, fs.ErrInvalid
+			}
+			if v.Role != VolumeRoleNone || members[i] {
+				return nil, fmt.Errorf("encrypted construction role: %w", filesystem.ErrUnsupported)
+			}
+			encryption = &buildVolumeEncryption{}
+		}
+		// The plan retains keys and wrapped records, never borrowed passwords.
+		v.Encryption = nil
 		reader, err := filesystem.PrepareCloneStreams(ctx, v.Reader)
 		if err != nil {
 			return nil, err
 		}
-		volume := &volumeLayout{reader: reader, options: v, time: o.Time, budget: &p.metadataBytes, nextID: 16, grouped: members[i]}
+		volume := &volumeLayout{reader: reader, options: v, time: o.Time, budget: &p.metadataBytes, nextID: 16, grouped: members[i], encryption: encryption}
 		// Native grouped System roots/private directories keep reserved IDs 1–3.
 		// User objects and apfs_next_obj_id use SYSTEM_OBJ_ID_MARK, as observed
 		// in Apple-created volumes. UNIFIED_ID_SPACE_MARK is not an allocator
@@ -109,6 +127,11 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 		}
 		if err := volume.collect(ctx); err != nil {
 			return nil, fmt.Errorf("volume %d (%q): %w", i, v.Name, err)
+		}
+		if encryption != nil {
+			for _, stream := range volume.streams {
+				stream.encrypted = true
+			}
 		}
 		p.volumes = append(p.volumes, volume)
 	}
@@ -135,11 +158,27 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 		return id
 	}
 	if p.options.UUID == [16]byte{} {
-		p.options.UUID = derive("APFS container")
+		if p.hasEncryption() {
+			id, err := randomBuildUUID()
+			if err != nil {
+				return nil, err
+			}
+			p.options.UUID = id
+		} else {
+			p.options.UUID = derive("APFS container")
+		}
 	}
 	for i, v := range p.volumes {
 		if v.options.UUID == [16]byte{} {
-			v.options.UUID = derive(fmt.Sprintf("APFS volume %d", i))
+			if p.hasEncryption() {
+				id, err := randomBuildUUID()
+				if err != nil {
+					return nil, err
+				}
+				v.options.UUID = id
+			} else {
+				v.options.UUID = derive(fmt.Sprintf("APFS volume %d", i))
+			}
 		}
 	}
 	for i, g := range p.options.Groups {
@@ -179,6 +218,9 @@ func PlanContainer(ctx context.Context, inputs []VolumeSpec, o ContainerBuildOpt
 			continue
 		}
 		sealBuildObject(b, le.Uint64(b[8:]), kind, le.Uint32(b[28:]))
+	}
+	if err := p.prepareEncryption(ctx, inputs); err != nil {
+		return nil, err
 	}
 	return p, ctx.Err()
 }

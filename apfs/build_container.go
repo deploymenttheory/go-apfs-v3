@@ -21,6 +21,7 @@ type buildGeometry struct {
 	blocks, chunks, cibs, poolBlocks, poolBitmapBlocks, spacemanBlocks                               uint64
 	bitmapAddressOffset, bitmapFreeOffset, deviceAddressOffset                                       uint32
 	descriptorBlocks, dataBase, dataBlocks, containerMap, bitmapBase, poolBase, payloadBase, usedEnd uint64
+	keylocker, keylockerBlocks, keybagBlocks                                                         uint64
 }
 
 func buildGeometryFor(blocks uint64) buildGeometry {
@@ -72,10 +73,19 @@ func fillBuildTree(t *buildTree, records []buildRecord) {
 
 func (p *Layout) arrange(ctx context.Context) error {
 	var payload, nodes, reserved, reserveAllocated uint64
+	encrypted := 0
 	var trees []volumeTrees
 	for _, v := range p.volumes {
+		if v.encryption != nil {
+			encrypted++
+		}
 		records, extents, _ := v.records()
-		fst, err := newBuildTree(records, 14, 0, false)
+		fst, err := newBuildTree(records, 14, func() uint32 {
+			if v.encryption != nil {
+				return 0x10000000
+			}
+			return 0
+		}(), false)
 		if err != nil {
 			return err
 		}
@@ -149,6 +159,12 @@ func (p *Layout) arrange(ctx context.Context) error {
 			at = v.snapshots.place(at, 0)
 			at = v.omap.place(at, 0)
 		}
+		if encrypted > 0 {
+			g.keylocker = at
+			g.keylockerBlocks = uint64(buildKeybagSize(encrypted) / 4096)
+			g.keybagBlocks = g.keylockerBlocks + uint64(encrypted)
+			at += g.keybagBlocks
+		}
 		g.bitmapBase = at
 		g.poolBase = at + 16*g.poolBitmapBlocks
 		g.payloadBase = g.poolBase + g.poolBlocks
@@ -169,10 +185,24 @@ func (p *Layout) arrange(ctx context.Context) error {
 		// complete growth allowance. A retry must not discard the padding.
 		blocks = required
 	}
-	if err = p.volumes[0].reserve(int64(nodes+uint64(len(cmap.nodes))+g.cibs+g.spacemanBlocks+g.poolBitmapBlocks+(g.usedEnd+32767)/32768+8) * 4096); err != nil {
+	if err = p.volumes[0].reserve(int64(nodes+g.keybagBlocks+uint64(len(cmap.nodes))+g.cibs+g.spacemanBlocks+g.poolBitmapBlocks+(g.usedEnd+32767)/32768+8) * 4096); err != nil {
 		return err
 	}
 	p.size = int64(blocks * 4096)
+	if encrypted > 0 {
+		p.keylockerAddress = g.keylocker
+		p.keylocker = make([]byte, g.keylockerBlocks*4096)
+		p.parts = append(p.parts, buildPart{offset: int64(g.keylocker) * 4096, data: p.keylocker})
+		address := g.keylocker + g.keylockerBlocks
+		for _, v := range p.volumes {
+			if v.encryption != nil {
+				v.encryption.address = address
+				v.encryption.bag = make([]byte, 4096)
+				p.parts = append(p.parts, buildPart{offset: int64(address) * 4096, data: v.encryption.bag})
+				address++
+			}
+		}
+	}
 	at := g.payloadBase
 	for i, t := range trees {
 		v := t.volume
@@ -184,7 +214,7 @@ func (p *Layout) arrange(ctx context.Context) error {
 			stream.start = at
 			at += stream.blocks
 			if stream.blocks != 0 {
-				p.parts = append(p.parts, buildPart{offset: int64(stream.start) * 4096, stream: stream})
+				p.parts = append(p.parts, buildPart{offset: int64(stream.start) * 4096, stream: stream, encryption: v.encryption})
 			}
 		}
 		records, extents, nextDoc := v.records()
@@ -193,10 +223,19 @@ func (p *Layout) arrange(ctx context.Context) error {
 		vm := make([]buildRecord, len(t.fst.nodes))
 		for j, n := range t.fst.nodes {
 			vm[j] = buildMapping(n.oid, n.address)
+			if v.encryption != nil {
+				le.PutUint32(vm[j].value, 4)
+			}
 		}
 		fillBuildTree(t.omap, vm)
 		for _, tree := range []*buildTree{t.fst, t.extents, t.snapshots, t.omap} {
-			p.parts = append(p.parts, tree.blocks()...)
+			parts := tree.blocks()
+			if tree == t.fst {
+				for i := range parts {
+					parts[i].encryption = v.encryption
+				}
+			}
+			p.parts = append(p.parts, parts...)
 		}
 		p.addMap(t.mapAddress, t.omap.root().address, false)
 		p.addVolume(t, uint32(i), nextDoc)
@@ -285,6 +324,9 @@ func (p *Layout) addVolume(t volumeTrees, index, nextDoc uint32) {
 	le.PutUint64(b[224:], v.allocated)
 	copy(b[240:], v.options.UUID[:])
 	le.PutUint64(b[264:], 1)
+	if v.encryption != nil {
+		le.PutUint64(b[264:], 8)
+	}
 	copy(b[272:], "go-apfs-v3")
 	stamp, _ := buildTime(p.options.Time)
 	le.PutUint64(b[304:], stamp)
@@ -340,6 +382,10 @@ func (p *Layout) addCheckpoint(g buildGeometry, nextOID uint64, volumes []volume
 	le.PutUint32(b[180:], uint32(buildMaximumVolumes(g.blocks)))
 	for i, v := range volumes {
 		le.PutUint64(b[184+i*8:], v.oid)
+	}
+	if g.keylockerBlocks != 0 {
+		le.PutUint64(b[1296:], g.keylocker)
+		le.PutUint64(b[1304:], g.keylockerBlocks)
 	}
 	le.PutUint64(b[1312:], buildEphemeralMinimum(g.blocks)<<32|buildFilesystemEphemeralStructures<<16|1)
 	p.addBlock(0, b, 1, 0x80000001, 0)
