@@ -91,7 +91,7 @@ arbitrary Unicode names or successful native rename.
 Software volume encryption and DMG envelope encryption are separate. Current
 APFS keybag admission unwraps a 32-byte combined XTS key, corresponding to
 AES-128-XTS; the AES-256-XTS primitive alone does not establish a native volume
-profile. Future encrypted construction uses secure randomness. Passwords travel
+profile. Fresh encrypted construction uses secure randomness. Passwords travel
 through the existing exact-byte file/stdin interfaces and stay out of production
 logs, fingerprints and manifests. The native controls use explicitly public
 fixture passwords, as the existing encryption families do.

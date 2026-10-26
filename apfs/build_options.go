@@ -42,7 +42,8 @@ type VolumeGroupSpec struct {
 
 // ContainerBuildOptions describes one fresh APFS container.
 // Volume order is significant and retained. Zero capacity selects automatic
-// sizing; zero UUID derives an identity from all volume inputs and options.
+// sizing. Zero container and volume UUIDs derive from the inputs and options for
+// plaintext builds, or use secure randomness if any volume is encrypted.
 type ContainerBuildOptions struct {
 	Capacity int64
 	Time     time.Time

@@ -24,8 +24,9 @@ import (
 // BuildOptions constructs one normalization-insensitive APFS volume.
 // Capacity is container bytes, rounded up to 4096; zero selects automatic sizing.
 // Time is an explicit construction clock, independent of captured file times.
-// Zero UUIDs derive from the canonical metadata and contents. Source readers must
-// remain immutable through planning and writing. No existing disk is modified.
+// Zero UUIDs derive from canonical metadata and contents for plaintext builds,
+// or use secure randomness for encrypted builds. Source readers must remain
+// immutable through planning and writing. No existing disk is modified.
 type BuildOptions struct {
 	Encryption                *VolumeEncryptionOptions `json:"-"`
 	Name                      string

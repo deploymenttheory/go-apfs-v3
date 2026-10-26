@@ -59,7 +59,7 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 	fileCompression := addPackCompressionFlag(f)
 	capacity := f.String("capacity", "", "shared container capacity; default automatic")
 	fixed := f.String("time", "", "fixed RFC3339 construction clock")
-	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived")
+	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived for plaintext, random for encrypted builds")
 	scratch := f.String("scratch-dir", os.Getenv("APFS_SCRATCH_DIR"), "session storage and temporary import root")
 	jsonOutput := f.Bool("json", false, "emit a versioned construction report")
 	var volumes []*packVolume
@@ -129,7 +129,7 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 		return nil
 	})
 	scoped("group-uuid", "UUID for this System/Data pair; default derived", func(v *packVolume, value string) error { v.groupUUID, err = parseBuildUUID(value); return err })
-	scoped("volume-uuid", "UUID for the preceding volume; default derived", func(v *packVolume, value string) error { v.spec.UUID, err = parseBuildUUID(value); return err })
+	scoped("volume-uuid", "UUID for the preceding volume; default derived for plaintext, random for encrypted builds", func(v *packVolume, value string) error { v.spec.UUID, err = parseBuildUUID(value); return err })
 	for _, name := range []string{"reserve", "quota"} {
 		scoped(name, "volume space limit in bytes, KiB, MiB or GiB; 0 clears", func(v *packVolume, value string) error {
 			var n int64

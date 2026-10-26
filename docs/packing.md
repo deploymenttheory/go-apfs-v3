@@ -57,7 +57,7 @@ a session supplies independent copies in separate volumes; hard links stay withi
 their own volume. Volume order is retained.
 
 `--case-sensitive`, `--uid`, `--gid`, `--role`, `--reserve`, `--quota`,
-`--volume-uuid`, `--group-with` and `--group-uuid` apply to the preceding volume.
+`--volume-uuid`, `--volume-password-file`, `--group-with` and `--group-uuid` apply to the preceding volume.
 Session inputs retain their case policy and ownership; use ordinary session
 commands to change metadata. Case and ownership-default flags apply only to
 directory or empty inputs. `--capacity`, `--time`, `--container-uuid`, `--format`,
@@ -79,8 +79,10 @@ Roles are `none` (default), `data` and `system`. System construction requires an
 explicit System/Data pair. Put `--group-with DATA_NAME` on the System clause;
 the Data clause must have `--role data`. Members must have the same case policy,
 and a volume can belong to only one group. `--group-uuid` optionally supplies a
-nonzero canonical UUID on the System clause. Otherwise group, volume and
-container UUIDs derive reproducibly from the complete ordered build inputs.
+nonzero canonical UUID on the System clause. Group UUIDs derive reproducibly
+from the complete ordered build inputs. Container and volume UUIDs also derive
+from those inputs for plaintext builds; when any volume is encrypted, unspecified
+container and volume UUIDs use secure randomness.
 The group records native identity and inode namespaces; it does not install
 macOS, create firmlinks, seal a system volume or produce a bootable installation.
 
@@ -203,7 +205,7 @@ Image encryption does not create or change FileVault/APFS volume keys.
 
 The output is a single-region UDIF without a partition map, with 4096-byte
 filesystem blocks. HFS+/HFSX is clean and nonjournaled. APFS contains one or more
-unencrypted, unsealed volumes and a complete initial checkpoint, object maps,
+unsealed volumes, optionally software-encrypted, and a complete initial checkpoint, object maps,
 filesystem/extent-reference trees, space manager and free queues. It is a fresh
 filesystem; source snapshots, physical addresses and native inode
 numbers are not carried into a rebuild. Explicit whole-stream clone groups are
@@ -358,14 +360,17 @@ explain this policy and its limits.
 
 `--time RFC3339` fixes the construction clock; HFS requires whole seconds while
 APFS accepts nanoseconds. It does not normalize captured file timestamps. Without it the command samples the current UTC clock.
-Default native identifiers derive from canonical metadata and payload hashes.
+Default native identifiers for plaintext builds derive from canonical metadata and payload hashes.
 HFS `--volume-id` accepts an eight-byte identifier as 16 hex digits. APFS accepts
 `--volume-uuid` and `--container-uuid` as nonzero canonical UUIDs; absent values use
-distinct content-derived UUIDs. Options belonging to the other format are refused.
+distinct content-derived UUIDs for plaintext builds, or fresh random UUIDs when
+any volume is encrypted. Options belonging to the other format are refused.
 Enumeration, native object-ID assignment, allocation, zero filling, chunking and zlib settings
 are deterministic. Identical captured inputs and options produce byte-identical
-unencrypted outputs across all three hosts; encrypted output preserves identical
-plaintext bytes but uses fresh randomness. Different host-import observations or Go encoder
+unencrypted outputs across all three hosts. DMG envelope encryption preserves
+identical decoded disk bytes; APFS volume encryption creates fresh keys and
+default identities while preserving the logical filesystem contents and metadata.
+Different host-import observations or Go encoder
 versions are not assumed to be identical. Reproducible builds should pin their
 input session and tool version.
 

@@ -93,7 +93,7 @@ Currently implemented:
   resource-fork replacement within the same ordered batches.
 - Persistent named sessions with managed scratch, host directory import and
   `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
-- Fresh, deterministic APFS containers with one or more volumes, per-volume reserves/quotas and System/Data groups, and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
+- Fresh APFS containers with one or more volumes, per-volume reserves/quotas and System/Data groups, and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs; plaintext builds are deterministic.
   see [packing semantics](docs/packing.md).
 - Sector-preserving raw/UDIF repacking to UDRO/UDZO, including partitioned disks,
   APFS snapshots and encrypted APFS volume sectors; strict container admission.
