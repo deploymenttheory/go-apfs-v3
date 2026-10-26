@@ -71,13 +71,27 @@ func TestEncryptedAPFSStorageBaseline(t *testing.T) {
 			err = v.unlockContinuationVolumes(ctx, att, k.Observation, recipe)
 		}
 		if err == nil {
+			for _, volume := range att.Volumes {
+				if !volume.Locked {
+					command := fixture.Command{Label: "fsck-volume", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", volume.RDev}, Expected: "0"}
+					record(recipeName+" native volume "+volume.Name+" forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+				}
+			}
+			if att.Container != "" {
+				command := fixture.Command{Label: "fsck-container", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", "/dev/r" + att.Container}, Expected: "0"}
+				record(recipeName+" synthesized container forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+			}
 			volume := att.Volume(selected)
 			if volume == nil {
 				err = fmt.Errorf("missing selected volume")
 			} else {
 				err = v.Disk.Mount(ctx, volume, "owners,noatime", filepath.Join(v.Work, recipeName+"-mount"), false)
 				if err == nil {
-					command := fixture.Command{Label: "fsck-mounted", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-l", "-F", att.RDev}, Expected: "0"}
+					command := fixture.Command{Label: "verify-volume", Argv: []string{"diskutil", "verifyVolume", volume.Dev}, Expected: "0"}
+					record(recipeName+" native diskutil verifyVolume", transcript.Record(command, v.C.Run(ctx, command)))
+					command = fixture.Command{Label: "fsck-mounted-volume", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-l", "-F", volume.RDev}, Expected: "0"}
+					record(recipeName+" mounted volume forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+					command = fixture.Command{Label: "fsck-mounted", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-l", "-F", att.RDev}, Expected: "0"}
 					err = transcript.Record(command, v.C.Run(ctx, command))
 				}
 			}
@@ -120,6 +134,22 @@ func TestEncryptedAPFSStorageBaseline(t *testing.T) {
 			}
 			recipe.Passwords["probe"] = "public-probe-replacement"
 			record(recipeName+" Go password output forced fsck", v.checkEncryptedVolumes(ctx, output, nil, &expected, recipe))
+			v.setTranscript(transcript)
+			outputAtt, openErr := v.Disk.Attach(ctx, output, fixture.AttachOptions{ReadOnly: true})
+			if openErr == nil {
+				openErr = v.unlockContinuationVolumes(ctx, outputAtt, &expected, recipe)
+			}
+			if openErr == nil {
+				for _, volume := range outputAtt.Volumes {
+					command := fixture.Command{Label: "fsck-output-volume", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", volume.RDev}, Expected: "0"}
+					record(recipeName+" output volume "+volume.Name+" forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+				}
+			}
+			if outputAtt != nil {
+				openErr = errors.Join(openErr, v.Disk.Detach(ctx, outputAtt))
+			}
+			record(recipeName+" output volume attachment", openErr)
+
 			spec := schema.ObserveSpec{Snapshots: true}
 			spec.Unlock, spec.Rejected = volumeCredentials(&expected)
 			_, err = v.observeImage(ctx, recipeName+"-password-output", output, "UDZO", nil, spec, recipe)
