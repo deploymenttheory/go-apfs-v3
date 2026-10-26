@@ -71,6 +71,29 @@ func retainedLineageTimings(t *testing.T) lineageTimings {
 	return timings
 }
 
+// The complete trace retains all 74 output lineages. Unmeasured encrypted
+// history previously started near the end, leaving three of five slots idle.
+// Replay the same durations through the actual scheduler, without native IO.
+func TestEncryptedOutputLineagesAvoidLongIdleTail(t *testing.T) {
+	data, err := os.ReadFile("testdata/encrypted_lineage_timings.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var trace struct{ Phase timedPhase }
+	if err := json.Unmarshal(data, &trace); err != nil {
+		t.Fatal(err)
+	}
+	if len(trace.Phase.Groups) != 74 {
+		t.Fatal("complete output timing projection lost lineages")
+	}
+	observed := projectLineagePhase(trace.Phase, 5, false)
+	ordered := projectLineagePhase(trace.Phase, 5, true)
+	t.Logf("same complete native workload: observed order %.2fs, scheduled order %.2fs", observed, ordered)
+	if ordered > observed-300 {
+		t.Fatalf("encrypted lineage scheduling retained the long idle tail: %.2fs, want at least five minutes below %.2fs", ordered, observed)
+	}
+}
+
 func TestNativeLineageCostsCoverEverySupportedRetainedCompleteGroup(t *testing.T) {
 	for _, kernel := range retainedLineageTimings(t).Native {
 		if !schema.IsSupportedProducer(kernel.Major) {
