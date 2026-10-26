@@ -1,0 +1,28 @@
+{
+  "26": {
+    "label": "verify-output-volume",
+    "argv": [
+      "diskutil",
+      "verifyVolume",
+      "/dev/disk8s1"
+    ],
+    "status": "0",
+    "expected": "0",
+    "stdoutSHA256": "3e0d8e1084c0e56fecd97226098cb7388f2f9199077a6b68d7f95dd961b52f63",
+    "stdout": "Started file system verification on disk8s1 (EncryptedHistory)\nVerifying file system\nVolume is already unmounted\nPerforming fsck_apfs -n -x /dev/rdisk8s1\nChecking the container superblock\nChecking the checkpoint with transaction ID 12\nChecking the space manager\nChecking the space manager free queue trees\nChecking the object map\nChecking the encryption key structures\nChecking volume /dev/rdisk8s1\nChecking the APFS volume superblock\nThe volume EncryptedHistory was formatted by newfs_apfs (2811.160.7.0.4) and last modified by apfs_kext (2811.160.7.0.4)\nChecking the object map\nChecking the snapshot metadata tree\nChecking the snapshot metadata\nChecking snapshot 1 of 1 (com.apple.asr.47208, transaction ID 7)\nChecking the fsroot tree\nChecking the extent ref tree\nVerifying volume object map space\nVerifying allocated space\nThe volume /dev/rdisk8s1 with UUID 0E39A557-6418-4083-81EA-11D0BB5C2D78 appears to be OK\nFile system check exit code is 0\nRestoring the original state found as unmounted\nFinished file system verification on disk8s1 (EncryptedHistory)\n",
+    "wallNs": 744916084
+  },
+  "27": {
+    "label": "verify-output-volume",
+    "argv": [
+      "diskutil",
+      "verifyVolume",
+      "/dev/disk6s1"
+    ],
+    "status": "0",
+    "expected": "0",
+    "stdoutSHA256": "3c90d004e20a4bb6b477d29148e709dc5a08c1cf09fd40bdba168091f97892fd",
+    "stdout": "Started file system verification on disk6s1 (EncryptedHistory)\nVerifying file system\nVolume is already unmounted\nPerforming fsck_apfs -n -x /dev/rdisk6s1\nChecking the container superblock\nChecking the checkpoint with transaction ID 12\nChecking the space manager\nChecking the space manager free queue trees\nChecking the object map\nChecking the encryption key structures\nChecking volume /dev/rdisk6s1\nChecking the APFS volume superblock\nThe volume EncryptedHistory was formatted by newfs_apfs (3288.1.3) and last modified by apfs_kext (3288.1.3)\nChecking the object map\nChecking the snapshot metadata tree\nChecking the snapshot metadata\nChecking snapshot 1 of 1 (com.apple.asr.74788, transaction ID 7)\nChecking the fsroot tree\nChecking the extent ref tree\nVerifying volume object map space\nVerifying allocated space\nThe volume /dev/rdisk6s1 with UUID CE49C4DD-0D86-4B49-9962-64B61CFCCED1 appears to be OK\nFile system check exit code is 0\nRestoring the original state found as unmounted\nFinished file system verification on disk6s1 (EncryptedHistory)\n",
+    "wallNs": 794727625
+  }
+}

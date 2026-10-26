@@ -471,6 +471,19 @@ func (v *Verifier) CrossVersionDrift(ctx context.Context, k corpus.Case) ([]Diff
 	if enc := k.Observation.Image.Encryption; enc != nil {
 		password = []byte(recipe.Passwords[enc.Password])
 	}
+	// Establish the full decrypted checker on the untouched Apple history
+	// control on each kernel before using that checker to judge Go's outputs.
+	if k.Recipe == "encrypted-snapshot-history" && k.Stage == "retained" {
+		lease, err := v.Corpus.AcquireImage(ctx, k)
+		if err != nil {
+			return nil, nil, err
+		}
+		err = v.checkEncryptedVolumes(ctx, lease.Path(), password, k.Observation, recipe)
+		err = errors.Join(err, lease.Release(err))
+		if err != nil {
+			return nil, nil, fmt.Errorf("native encrypted checker baseline: %w", err)
+		}
+	}
 	spec := schema.ObserveSpec{}
 	for _, view := range k.Observation.Views {
 		spec.Snapshots = spec.Snapshots || view.Snapshot != ""
