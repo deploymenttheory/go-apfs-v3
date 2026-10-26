@@ -298,7 +298,13 @@ func TestNestedEncryptedImageCredentialsRemainIndependent(t *testing.T) {
 
 func encryptedEditPartition(t *testing.T, ctx context.Context, k corpus.Case, password []byte) int {
 	t.Helper()
-	image, err := diskimage.OpenWithPassword(ctx, fixtureImage(t, k), password)
+	var image *diskimage.Image
+	var err error
+	if password == nil {
+		image, err = diskimage.Open(fixtureImage(t, k))
+	} else {
+		image, err = diskimage.OpenWithPassword(ctx, fixtureImage(t, k), password)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
