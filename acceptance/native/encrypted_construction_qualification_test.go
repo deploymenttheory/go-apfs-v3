@@ -87,7 +87,11 @@ func TestEncryptedConstructionWithApple(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			volumes = append(volumes, apfs.VolumeSpec{Reader: nativeConstructionRoot{reader, root}, Name: volume.Name, CaseSensitive: volume.CaseSensitive, Reserve: int64(volume.ReserveBlocks) * 4096, Quota: int64(volume.QuotaBlocks) * 4096, Encryption: encryption})
+			prepared, err := filesystem.PrepareCloneStreams(ctx, reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			volumes = append(volumes, apfs.VolumeSpec{Reader: nativeConstructionRoot{prepared, root}, Name: volume.Name, CaseSensitive: volume.CaseSensitive, Reserve: int64(volume.ReserveBlocks) * 4096, Quota: int64(volume.QuotaBlocks) * 4096, Encryption: encryption})
 		}
 		work := filepath.Join(v.Work, profile)
 		if err := os.MkdirAll(work, 0700); err != nil {
