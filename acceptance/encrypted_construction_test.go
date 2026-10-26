@@ -47,6 +47,12 @@ func TestEncryptedConstructionPreservesNativeCloneAndPeerContents(t *testing.T) 
 				if err != nil {
 					t.Fatal(err)
 				}
+				// Preserve the optional native clone inventory before the
+				// subtree adapter narrows the interface to filesystem.Reader.
+				reader, err = filesystem.PrepareCloneStreams(ctx, reader)
+				if err != nil {
+					t.Fatal(err)
+				}
 				volume := apfs.VolumeSpec{Reader: buildRoot{reader, root}, Name: volumeName(observed), CaseSensitive: observed.APFS.CaseSensitive, Reserve: observed.APFS.ReserveBytes, Quota: observed.APFS.QuotaBytes}
 				if observed.APFS.Encrypted {
 					volume.Encryption = &apfs.VolumeEncryptionOptions{Password: []byte(recipe.Passwords[observed.APFS.Password])}

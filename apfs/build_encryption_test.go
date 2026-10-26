@@ -167,3 +167,21 @@ func TestEncryptedPlansGenerateIndependentKeysAndOmitPasswordOptions(t *testing.
 		t.Fatal("construction options exposed credentials")
 	}
 }
+
+func TestEncryptedConstructionRefusesMissingCredentialsAndUnqualifiedRoles(t *testing.T) {
+	source, _ := declaredCloneInput(t)
+	for _, test := range []struct {
+		encryption *VolumeEncryptionOptions
+		role       uint16
+		want       error
+	}{
+		{&VolumeEncryptionOptions{}, 0, fs.ErrInvalid},
+		{&VolumeEncryptionOptions{Password: make([]byte, 4097)}, 0, fs.ErrInvalid},
+		{&VolumeEncryptionOptions{Password: []byte("public")}, VolumeRoleData, filesystem.ErrUnsupported},
+	} {
+		_, err := PlanContainer(context.Background(), []VolumeSpec{{Reader: source, Name: "Refused", Encryption: test.encryption, Role: test.role}}, ContainerBuildOptions{Time: builtClock})
+		if !errors.Is(err, test.want) {
+			t.Fatal("invalid encrypted admission", err, test.want)
+		}
+	}
+}
