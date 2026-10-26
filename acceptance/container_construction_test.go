@@ -254,7 +254,10 @@ func checkConstructedContainer(t *testing.T, ctx context.Context, path string, k
 	for i := range c.Volumes {
 		v, in := &c.Volumes[i], inputs[i]
 		checkFresh(v.UUID)
-		if v.Name != in.Name || v.CaseSensitive != in.CaseSensitive || v.Role != in.Role || int64(v.ReserveBlocks)*int64(c.BlockSize) != in.Reserve || int64(v.QuotaBlocks)*int64(c.BlockSize) != in.Quota || v.Encrypted || v.Sealed || v.Snapshots != 0 {
+		if v.Encrypted != (in.Encryption != nil) {
+			t.Fatalf("volume %d encryption state %t, requested %t", i, v.Encrypted, in.Encryption != nil)
+		}
+		if v.Name != in.Name || v.CaseSensitive != in.CaseSensitive || v.Role != in.Role || int64(v.ReserveBlocks)*int64(c.BlockSize) != in.Reserve || int64(v.QuotaBlocks)*int64(c.BlockSize) != in.Quota || v.Sealed || v.Snapshots != 0 {
 			t.Errorf("volume %d construction metadata differs: %+v, input %+v", i, v, in)
 		}
 		if v.Encrypted {
