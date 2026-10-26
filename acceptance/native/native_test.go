@@ -116,7 +116,7 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 		if err != nil {
 			t.Fatal(err)
 		}
-		saved, err := shareIdenticalOutputs(hosts)
+		saved, err := ShareIdenticalOutputs(hosts)
 		if err != nil {
 			t.Fatal(err)
 		}

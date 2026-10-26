@@ -35,7 +35,7 @@ func TestIdenticalOutputStorageVerifiesEveryOriginalBeforeSharing(t *testing.T) 
 	if err := os.WriteFile(corrupt, []byte("corrupted bytes"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := shareIdenticalOutputs(hosts); err == nil {
+	if _, err := ShareIdenticalOutputs(hosts); err == nil {
 		t.Fatal("replaced a corrupt copy with another host's correct bytes")
 	}
 	darwin, _ := os.Stat(filepath.Join(hosts["darwin"].Dir, "identical"))
@@ -46,7 +46,7 @@ func TestIdenticalOutputStorageVerifiesEveryOriginalBeforeSharing(t *testing.T) 
 	if err := os.WriteFile(corrupt, []byte("identical bytes"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if saved, err := shareIdenticalOutputs(hosts); err != nil || saved != 30 {
+	if saved, err := ShareIdenticalOutputs(hosts); err != nil || saved != 30 {
 		t.Fatalf("storage sharing: saved %d, error %v", saved, err)
 	}
 	darwin, _ = os.Stat(filepath.Join(hosts["darwin"].Dir, "identical"))
@@ -63,7 +63,7 @@ func TestIdenticalOutputStorageVerifiesEveryOriginalBeforeSharing(t *testing.T) 
 			}
 		}
 	}
-	if saved, err := shareIdenticalOutputs(hosts); err != nil || saved != 0 {
+	if saved, err := ShareIdenticalOutputs(hosts); err != nil || saved != 0 {
 		t.Fatalf("repeat sharing: saved %d, error %v", saved, err)
 	}
 }

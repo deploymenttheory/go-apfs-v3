@@ -8,12 +8,12 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 )
 
-// shareIdenticalOutputs keeps every host's path and manifest, while avoiding
+// ShareIdenticalOutputs keeps every host's path and manifest, while avoiding
 // three physical copies of deterministic output bytes on the native runner.
 // Verify every original copy before replacing anything: a corrupt host's copy
 // must fail, never be hidden by substituting another host's correct bytes.
 // Outputs are immutable inputs; continuations edit separate writable copies.
-func shareIdenticalOutputs(hosts map[string]HostOutputs) (int64, error) {
+func ShareIdenticalOutputs(hosts map[string]HostOutputs) (int64, error) {
 	byDigest := map[string][]string{}
 	sizes := map[string]int64{}
 	for host, outputs := range hosts {

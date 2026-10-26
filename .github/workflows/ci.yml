@@ -46,8 +46,8 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0
-          args: ./... ./.github/scripts/platform-contracts
-      - run: go vet ./... ./.github/scripts/platform-contracts
+          args: ./... ./.github/scripts/platform-contracts ./.github/scripts/output-storage
+      - run: go vet ./... ./.github/scripts/platform-contracts ./.github/scripts/output-storage
       - name: Test platform contract evidence validation
         run: go test -count=1 -timeout 2m ./.github/scripts/platform-contracts
       - name: Vet and build the darwin-only capture tool and native verifier
@@ -313,11 +313,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/wait-for-artifacts.sh "Portable conformance" outputs-linux-macos-${{ matrix.major }} outputs-windows-macos-${{ matrix.major }} outputs-darwin-macos-${{ matrix.major }}
-      - name: Download every host's images derived from this version's fixtures
+      # Extract at most one additional host set before sharing identical bytes.
+      # The three sets occupy about 30 GB before native verification starts.
+      - name: Download linux images derived from this version's fixtures
         uses: actions/download-artifact@v7
         with:
-          pattern: outputs-*-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/host-outputs
+          name: outputs-linux-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-linux-macos-${{ matrix.major }}
+      - name: Verify and share identical linux image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux
+      - name: Download windows images derived from this version's fixtures
+        uses: actions/download-artifact@v7
+        with:
+          name: outputs-windows-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-${{ matrix.major }}
+      - name: Verify and share identical windows image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows
+      - name: Download darwin images derived from this version's fixtures
+        uses: actions/download-artifact@v7
+        with:
+          name: outputs-darwin-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-darwin-macos-${{ matrix.major }}
+      - name: Verify and share identical darwin image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows,darwin
       - name: Verify every host's images with Apple tools
         env:
           APFS_NATIVE_GROUPS: main
