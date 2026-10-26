@@ -66,3 +66,19 @@ func TestAdditionalVolumeCredentialKeepsExactBytesAndClearsOwnedBuffer(t *testin
 		t.Fatal("clearing the credential changed its input file", err)
 	}
 }
+
+func TestAdditionalVolumeCredentialReachesExistingImageAdmission(t *testing.T) {
+	root := t.TempDir()
+	password := filepath.Join(root, "peer-password")
+	if err := os.WriteFile(password, []byte("public-peer"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := os.Stat(filepath.Join(root, "source.dmg"))
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	err = run(context.Background(), []string{"chmod", "--image", filepath.Join(root, "source.dmg"), "--output", filepath.Join(root, "output.dmg"), "--volume-password-file", "peer=" + password, "0600", "/file"}, strings.NewReader(""), io.Discard, io.Discard)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("peer credential was rejected before image admission", err)
+	}
+}

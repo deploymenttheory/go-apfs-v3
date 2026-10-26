@@ -59,7 +59,7 @@ var consumers = map[string][]string{
 	"compressed-files":             {"TestReadParity", "TestBuildFromFixtures", "TestRepackPreservesEverySector"},
 	"encrypted-volumes":            {"TestReadParity", "TestRepackPreservesEverySector", "TestCloneReadsUseNativeSharedExtents", "TestEncryptedWritersRequireCredentialsBeforeWriting"},
 	"encrypted-images":             {"TestReadParity", "TestRepackPreservesEverySector", "TestRepackRefusesSignedAndLockedImages"},
-	"encrypted-snapshot-history":   {"TestReadParity", "TestEncryptedVolumeEditsPreserveHistoryAndPeers", "TestEncryptedVolumePasswordsReplaceOnlySelectedUser"},
+	"encrypted-snapshot-history":   {"TestReadParity", "TestEncryptedVolumeEditsPreserveHistoryAndPeers", "TestEncryptedVolumePasswordsReplaceOnlySelectedUser", "TestEncryptedEditsDiscardIncompleteTransactions"},
 	"snapshot-history":             {"TestReadParity", "TestRepackPreservesEverySector", "TestStorageAccountingMatchesNativeAllocation", "TestSnapshotReadersKeepTheirHistoricalOwnership", "TestSnapshotSessionsRetainTheSelectedHistoricalView", "TestSnapshotDeletionPreservesLiveAndRemainingHistories", "TestSnapshotDeletionFailuresDiscardSuccessfulDeletion", "TestLiveEditsPreserveRetainedSnapshotHistories", "TestSnapshotEditFailuresNeverPublishOrAlterSource"},
 	"container-volumes":            {"TestReadParity", "TestRepackPreservesEverySector", "TestConstructedContainersMatchNativeVolumes", "TestStorageAccountingMatchesNativeAllocation", "TestMultipleVolumeEditingRefusesMissingAndUnknownSelectors"},
 	"volume-groups":                {"TestReadParity", "TestRepackPreservesEverySector", "TestConstructedContainersMatchNativeVolumes"},

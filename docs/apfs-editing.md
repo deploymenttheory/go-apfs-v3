@@ -104,7 +104,7 @@ and the replaced password stops working. Fresh keybag salts intentionally make
 password-change output bytes differ between runs, even without a DMG envelope.
 
 The software write profile uses a single native Disk crypto user and the volume's
-ONEKEY key. Hardware-bound keys, per-file keys, unfinished conversion and other
+AES-128-XTS ONEKEY key (32 combined key bytes). Hardware-bound keys, per-file keys, unfinished conversion and other
 crypto-user profiles are refused before publication. Ordinary encrypted edits use
 copy-on-write metadata and data encryption, including relocated physical tweaks.
 They preserve retained snapshots; snapshot creation, rename, revert and encrypted

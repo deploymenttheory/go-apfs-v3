@@ -18,8 +18,9 @@ import (
 // active decryptions and releases the schedule; Go's AES API does not expose a
 // way to erase its private expanded keys. No password is retained.
 type volumeKeys struct {
-	mu  sync.RWMutex
-	xts *storagecrypto.XTS
+	mu       sync.RWMutex
+	xts      *storagecrypto.XTS
+	keyBytes int
 }
 
 func (k *volumeKeys) check() error {
@@ -148,7 +149,7 @@ func (v *Volume) Unlock(ctx context.Context, password []byte) (*Volume, error) {
 			return nil, err
 		}
 		view := *v
-		view.keys = &volumeKeys{xts: x}
+		view.keys = &volumeKeys{xts: x, keyBytes: len(key)}
 		view.keysBorrowed = false
 		// A verified wrapped key is necessary but not sufficient: require a valid
 		// filesystem root before exposing the view, retaining corruption errors.

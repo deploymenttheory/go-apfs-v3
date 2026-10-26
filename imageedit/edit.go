@@ -191,7 +191,7 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 					if err != nil {
 						return err
 					}
-					defer authenticated.Close()
+					defer func() { _ = authenticated.Close() }()
 					return validate(ctx, authenticated)
 				}
 			} else if o.VolumePassword != nil || len(o.VolumeCredentials) != 0 {

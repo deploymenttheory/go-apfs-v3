@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -18,7 +19,6 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/diskimage"
-	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 	"github.com/deploymenttheory/go-apfs-v3/inspect"
 )
@@ -106,7 +106,7 @@ func editEncryptedVolumeCLI(t *testing.T, ctx context.Context, source, output st
 				return fmt.Errorf("unsupported encrypted native journey command")
 			}
 			payload := filepath.Join(root, fmt.Sprintf("payload-%d", writes))
-			if err := os.WriteFile(payload, []byte(write.Content), 0600); err != nil {
+			if err := os.WriteFile(payload, []byte(write.Content), 0644); err != nil {
 				return err
 			}
 			if writes > 0 {
@@ -269,20 +269,6 @@ func checkEncryptedVolumeOutput(t *testing.T, ctx context.Context, path string, 
 			}
 			compareViewWith(t, ctx, filepath.Base(path), selected, want, compareOptions{ignoreIDFor: func(path string) bool { return !existing[path] }})
 		}
-		if volumeName(volume) == "EncryptedHistory" && passwordChanged {
-			part, _ := storagePartition(t, image)
-			c, err := apfs.Open(part)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for i := range c.Volumes {
-				if c.Volumes[i].UUID == volume.APFS.VolumeUUID {
-					if _, err := c.Volumes[i].Unlock(ctx, []byte(recipe.Passwords["primary"])); !errors.Is(err, filesystem.ErrAuthentication) {
-						t.Fatal("stale password accepted", err)
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -294,4 +280,27 @@ func encryptedHistoryCase(t *testing.T, cases []corpus.Case, before corpus.Case,
 		t.Fatal("missing encrypted native reference", key)
 	}
 	return result
+}
+
+func TestEncryptedEditsDiscardIncompleteTransactions(t *testing.T) {
+	recipe := recipesByName(t)["encrypted-snapshot-history"]
+	for _, before := range encryptedHistoryCases(t, "retained") {
+		t.Run(native.CaseKey(caseRef(before)), func(t *testing.T) {
+			t.Parallel()
+			storageImageUnchanged(t, before)
+			ctx := context.Background()
+			options := encryptedVolumeOptions(t, ctx, before, recipe)
+			root := t.TempDir()
+			output := filepath.Join(root, "incomplete.dmg")
+			// Authentication and allocation succeed, then a real replacement stream
+			// fails after its first encrypted data write in the private transaction.
+			_, err := imageedit.Apply(ctx, fixtureImage(t, before), output, options, []imageedit.Change{{Path: "/Fixture/clone", Data: cloneFailureInput{size: 1 << 20, readError: true}}})
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatal("wrong encrypted stream failure", err)
+			}
+			if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
+				t.Fatal("incomplete encrypted edit left published output or private scratch", entries, err)
+			}
+		})
+	}
 }

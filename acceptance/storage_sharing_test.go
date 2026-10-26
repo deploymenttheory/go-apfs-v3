@@ -580,11 +580,7 @@ func TestEncryptedWritersRequireCredentialsBeforeWriting(t *testing.T) {
 			dir := t.TempDir()
 			out := filepath.Join(dir, "refused.dmg")
 			options := imageedit.Options{Partition: index, Volume: container.Volumes[0].UUID, Format: "UDZO", Time: fixedClock}
-			wantRefusal := filesystem.ErrAuthentication
-			if k.Observation.Image.Encryption != nil {
-				wantRefusal = filesystem.ErrAuthentication
-			}
-			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, wantRefusal) {
+			if _, err = imageedit.Apply(ctx, fixtureImage(t, k), out, options, changes); !errors.Is(err, filesystem.ErrAuthentication) {
 				t.Errorf("unauthenticated public edit did not refuse: %v", err)
 			}
 			if _, err = os.Lstat(out); !errors.Is(err, fs.ErrNotExist) {

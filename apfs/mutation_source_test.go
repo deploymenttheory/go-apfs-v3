@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"testing"
 
+	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	storagecrypto "github.com/deploymenttheory/go-apfs-v3/internal/crypto"
 )
 
@@ -86,5 +87,16 @@ func TestVolumeCredentialReportsDoNotSerializePasswordBytes(t *testing.T) {
 	}
 	if bytes.Contains(data, secret) || bytes.Contains(data, []byte("Password")) {
 		t.Fatal("password material was serialized")
+	}
+}
+
+func TestMutationAdmissionRefusesAReaderOnlyEncryptedKeyWidth(t *testing.T) {
+	x, err := storagecrypto.NewXTS(make([]byte, 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	volume := Volume{Encrypted: true, Flags: 8, rootType: 2, keys: &volumeKeys{xts: x, keyBytes: 64}}
+	if err := admitMutationVolume(&volume); !errors.Is(err, filesystem.ErrUnsupported) {
+		t.Fatal("unqualified encrypted writer key width admitted", err)
 	}
 }

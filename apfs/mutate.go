@@ -209,7 +209,13 @@ func admitMutationVolume(v *Volume) error {
 		if v.Flags != 8 {
 			return fmt.Errorf("APFS encrypted mutation key profile: %w", filesystem.ErrUnsupported)
 		}
-		return v.access()
+		if err := v.access(); err != nil {
+			return err
+		}
+		if v.keys.keyBytes != 32 {
+			return fmt.Errorf("APFS encrypted mutation key width: %w", filesystem.ErrUnsupported)
+		}
+		return nil
 	}
 	return nil
 }
