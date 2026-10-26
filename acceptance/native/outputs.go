@@ -96,6 +96,27 @@ type HostOutputProvenance struct {
 	Commit string
 }
 
+// selectNativeOutputs partitions fully validated pairs between required jobs.
+// Every selected pair retains all host copies; neither partition may be empty.
+func selectNativeOutputs(group string, pairs []Paired) ([]Paired, error) {
+	if group == "" || group == "slow" {
+		return pairs, nil
+	}
+	if group != "main" && group != "encrypted-construction" {
+		return nil, fmt.Errorf("unknown native output group %q", group)
+	}
+	var selected []Paired
+	for _, p := range pairs {
+		if (p.Output.Operation == "create-encrypted") == (group == "encrypted-construction") {
+			selected = append(selected, p)
+		}
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("native output group %q has no required outputs", group)
+	}
+	return selected, nil
+}
+
 // Pair groups outputs by name across hosts and requires every host to have
 // produced every name against the same lock. Plaintext copies must be
 // byte-identical; encrypted copies must all differ (fresh random material).
