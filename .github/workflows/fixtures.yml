@@ -37,3 +37,36 @@ jobs:
             artifacts/encrypted-storage-check/result.json
             artifacts/encrypted-storage-check/commands.json
           if-no-files-found: error
+  artifact-size:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+    steps:
+      - name: Inspect one producer artifact without expanding it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/deploymenttheory/go-apfs-v3/actions/artifacts/12644632952/zip > "$RUNNER_TEMP/output.zip"
+          python3 - <<'PY'
+          import json, os, zipfile
+          from collections import defaultdict
+          root=os.environ['RUNNER_TEMP']
+          with zipfile.ZipFile(root+'/output.zip') as archive:
+              files=archive.infolist()
+              manifest=json.loads(archive.read('outputs.json'))
+              by_recipe=defaultdict(lambda: {'files':0,'bytes':0})
+              for output in manifest['outputs']:
+                  if output['source']['producer']!=26:continue
+                  group=by_recipe[output['source']['recipe']]
+                  group['files']+=1
+                  group['bytes']+=output['bytes']
+              result={'artifactId':12644632952,'compressedBytes':os.stat(root+'/output.zip').st_size,'diskBytesAfterExtraction':sum(item.file_size for item in files),'files':len(files),'largest':sorted([{'name':item.filename,'bytes':item.file_size} for item in files],key=lambda item:item['bytes'],reverse=True)[:15],'byRecipe':dict(by_recipe)}
+          with open(root+'/artifact-size.json','w') as stream:json.dump(result,stream,indent=2)
+          print(json.dumps(result))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: encrypted-output-storage-size
+          path: ${{ runner.temp }}/artifact-size.json
+          if-no-files-found: error

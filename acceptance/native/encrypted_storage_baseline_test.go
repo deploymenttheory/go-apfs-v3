@@ -75,6 +75,9 @@ func TestEncryptedAPFSStorageBaseline(t *testing.T) {
 				if !volume.Locked {
 					command := fixture.Command{Label: "fsck-volume", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", volume.RDev}, Expected: "0"}
 					record(recipeName+" native volume "+volume.Name+" forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+					command = fixture.Command{Label: "verify-input-volume", Argv: []string{"diskutil", "verifyVolume", volume.Dev}, Expected: "0"}
+					record(recipeName+" unmounted native volume "+volume.Name+" diskutil verification", transcript.Record(command, v.C.Run(ctx, command)))
+
 				}
 			}
 			if att.Container != "" {
@@ -143,6 +146,9 @@ func TestEncryptedAPFSStorageBaseline(t *testing.T) {
 				for _, volume := range outputAtt.Volumes {
 					command := fixture.Command{Label: "fsck-output-volume", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", volume.RDev}, Expected: "0"}
 					record(recipeName+" output volume "+volume.Name+" forced fsck", transcript.Record(command, v.C.Run(ctx, command)))
+					command = fixture.Command{Label: "verify-output-volume", Argv: []string{"diskutil", "verifyVolume", volume.Dev}, Expected: "0"}
+					record(recipeName+" output volume "+volume.Name+" diskutil verification", transcript.Record(command, v.C.Run(ctx, command)))
+
 				}
 			}
 			if outputAtt != nil {
