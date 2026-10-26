@@ -93,7 +93,8 @@ apfs cp --image Encrypted.dmg --output Edited.dmg --volume VOLUME_UUID \
   --password-file volume-password --volume-password-file PEER_UUID=peer-password \
   --from-host ./replacement /Payload/file
 apfs passwd --image Edited.dmg --output Changed.dmg --volume VOLUME_UUID \
-  --password-file volume-password --new-password-file new-volume-password
+  --password-file volume-password --new-password-file new-volume-password \
+  --volume-password-file PEER_UUID=peer-password
 ```
 
 `--crypto-user UUID` selects the password-change user explicitly; omitting it

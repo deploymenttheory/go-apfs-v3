@@ -116,6 +116,11 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 		if err != nil {
 			t.Fatal(err)
 		}
+		saved, err := shareIdenticalOutputs(hosts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: verified all host output digests; shared %d bytes of identical image storage", name, saved)
 		groups = append(groups, hosts)
 	}
 	return groups

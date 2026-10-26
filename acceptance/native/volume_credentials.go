@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/fixture"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
@@ -76,9 +77,10 @@ func hasEncryptedVolumes(observation *schema.Observation) bool {
 	return false
 }
 
-// Apple's fsck_apfs -F requires unlocked volumes and checks their decrypted
-// structures, rather than succeeding after skipping encrypted filesystem data.
-// This is read-only; unlocking supplies keys, never a repair authorization.
+// DiskManagement's verification supplies the unlocked volume's crypto context
+// to fsck. Direct fsck_apfs -F cannot validate even the untouched Apple controls
+// on macOS 26/27. Require the full decrypted check, never a skipped-filesystem
+// success. The attachment and verification are read-only.
 func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imagePassword []byte, expected *schema.Observation, recipe schema.Recipe) error {
 	if !hasEncryptedVolumes(expected) {
 		return nil
@@ -89,12 +91,63 @@ func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imag
 	}
 	err = v.unlockContinuationVolumes(ctx, att, expected, recipe)
 	if err == nil {
-		cmd := fixture.Command{Label: "fsck-unlocked", Argv: []string{"/System/Library/Filesystems/apfs.fs/Contents/Resources/fsck_apfs", "-n", "-F", att.RDev}, Expected: "0"}
 		t := &fixture.Transcript{}
 		v.setTranscript(t)
-		err = t.Record(cmd, v.C.Run(ctx, cmd))
+		for _, wanted := range expected.Volumes {
+			if wanted.APFS == nil {
+				continue
+			}
+			var volume *fixture.AttachedVolume
+			for _, found := range att.Volumes {
+				if strings.EqualFold(found.UUID, wanted.APFS.VolumeUUID) {
+					volume = found
+					break
+				}
+			}
+			if volume == nil {
+				err = fmt.Errorf("verification lacks expected APFS volume %s", wanted.APFS.VolumeUUID)
+				break
+			}
+			cmd := fixture.Command{Label: "verify-unlocked-volume", Argv: []string{"diskutil", "verifyVolume", volume.Dev}, Expected: "0"}
+			result := v.C.Run(ctx, cmd)
+			err = t.Record(cmd, result)
+			if err == nil {
+				err = validateAPFSVerification(string(result.Stdout), volume.RDev, wanted.APFS)
+			}
+			if err != nil {
+				break
+			}
+		}
 	}
 	return errors.Join(err, v.Disk.Detach(ctx, att))
+}
+
+func validateAPFSVerification(output, device string, volume *schema.APFSVolume) error {
+	for _, stage := range []string{
+		"Checking the container superblock", "Checking the checkpoint with transaction ID ",
+		"Checking the space manager", "Checking the space manager free queue trees",
+		"Checking the encryption key structures", "Checking the APFS volume superblock",
+		"Checking the object map", "Checking the snapshot metadata tree",
+		"Checking the snapshot metadata", "Checking the fsroot tree",
+		"Checking the extent ref tree", "Verifying volume object map space",
+		"Verifying allocated space", "File system check exit code is 0",
+		fmt.Sprintf("The volume %s with UUID %s appears to be OK", device, volume.VolumeUUID),
+	} {
+		if !strings.Contains(output, stage) {
+			return fmt.Errorf("APFS verification of %s lacks %q", volume.VolumeUUID, stage)
+		}
+	}
+	for _, snapshot := range volume.Snapshots {
+		if !strings.Contains(output, fmt.Sprintf("(%s, transaction ID %d)", snapshot.Name, snapshot.XID)) {
+			return fmt.Errorf("APFS verification omitted snapshot %s at %d", snapshot.Name, snapshot.XID)
+		}
+	}
+	for _, failure := range []string{"skipping", "warning:", "error:"} {
+		if strings.Contains(strings.ToLower(output), failure) {
+			return fmt.Errorf("APFS verification of %s reported %s", volume.VolumeUUID, failure)
+		}
+	}
+	return nil
 }
 
 func (v *Verifier) fsckContinuation(ctx context.Context, raw, fs string, expected *schema.Observation, recipe schema.Recipe) error {
