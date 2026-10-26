@@ -211,6 +211,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		argv = append(argv, "--volume", volume.UUID)
 	}
 	argv = append(argv, "--", "mkdir", "/native-continuation/go", "--next", "cp", "--from-host", filepath.Join(work, "go-payload"), "/native-continuation/go/payload", "--next", "rm", "/native-continuation/entry-00001", "--next", "ln", "/native-continuation/go/payload", "/native-continuation/go/alias")
+	if hasEncryptedVolumes(expectedObservation) {
+		argv = append(argv, "--next", "cp", "--resource-fork", "--from-host", filepath.Join(work, "go-payload"), "/native-continuation/go/payload", "--next", "xattr", "-w", "--value-file", filepath.Join(work, "go-payload"), "org.go-apfs.encrypted", "/native-continuation/go/payload")
+	}
 	if err := os.WriteFile(filepath.Join(work, "go-payload"), []byte(strings.Repeat("continued by the product\n", 400)), 0o644); err != nil {
 		return nil, err
 	}
@@ -252,6 +255,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", envelope.password, spec, k.recipe)
 	if err != nil {
 		return nil, err
+	}
+	if hasEncryptedVolumes(expectedObservation) {
+		if err := checkEncryptedContinuationStreams(obs, volume.Name); err != nil {
+			return obs, err
+		}
 	}
 	if err := compareContinuedContainer(before, obs, volume.Name); err != nil {
 		return obs, fmt.Errorf("continuation %s: %w", out.Name, err)

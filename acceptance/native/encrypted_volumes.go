@@ -1,6 +1,7 @@
 package native
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -127,6 +128,46 @@ func requireEncryptedVolumeOutputs(pairs []Paired, cases map[string]corpus.Case,
 				return fmt.Errorf("encrypted edit %s requires original encrypted history, both peers and one continued output", CaseKey(ref))
 			}
 		}
+	}
+	return nil
+}
+
+// The expected bytes are the explicit continuation command input. Apple's
+// mounted observation must read every byte of both newly encrypted streams,
+// through both hard-link aliases, before later native allocation can proceed.
+func checkEncryptedContinuationStreams(observed *schema.Observation, selected string) error {
+	volume, err := namedVolume(observed, selected)
+	if err != nil {
+		return err
+	}
+	view, err := observedView(observed, volume.Index, "")
+	if err != nil {
+		return err
+	}
+	data := []byte(strings.Repeat("continued by the product\n", 400))
+	expected := fmt.Sprintf("%x", sha256.Sum256(data))
+	count := 0
+	for _, entry := range view.Entries {
+		if entry.Path != "native-continuation/go/payload" && entry.Path != "native-continuation/go/alias" {
+			continue
+		}
+		if len(entry.Xattrs) != 2 {
+			return fmt.Errorf("encrypted continuation lost its resource fork or streamed attribute")
+		}
+		seen := map[string]bool{}
+		for _, attribute := range entry.Xattrs {
+			if seen[attribute.Name] {
+				return fmt.Errorf("duplicate encrypted continuation attribute")
+			}
+			seen[attribute.Name] = true
+			if attribute.Name != "com.apple.ResourceFork" && attribute.Name != "org.go-apfs.encrypted" || attribute.Bytes != int64(len(data)) || attribute.SHA256 != expected {
+				return fmt.Errorf("encrypted continuation stream %s:%s differs from the declared input", entry.Path, attribute.Name)
+			}
+		}
+		count++
+	}
+	if count != 2 {
+		return fmt.Errorf("encrypted continuation lost a stream's hard-link alias")
 	}
 	return nil
 }
