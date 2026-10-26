@@ -205,7 +205,13 @@ func TestEncryptedVolumePasswordsReplaceOnlySelectedUser(t *testing.T) {
 
 func checkEncryptedVolumeOutput(t *testing.T, ctx context.Context, path string, before, after corpus.Case, recipe schema.Recipe, imagePassword []byte, passwordChanged bool) {
 	t.Helper()
-	image, err := diskimage.OpenWithPassword(ctx, path, imagePassword)
+	var image *diskimage.Image
+	var err error
+	if imagePassword == nil {
+		image, err = diskimage.Open(path)
+	} else {
+		image, err = diskimage.OpenWithPassword(ctx, path, imagePassword)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
