@@ -13,6 +13,7 @@ import (
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/native"
 	"github.com/deploymenttheory/go-apfs-v3/acceptance/schema"
 	"github.com/deploymenttheory/go-apfs-v3/apfs"
+	"github.com/deploymenttheory/go-apfs-v3/diskimage"
 	"github.com/deploymenttheory/go-apfs-v3/imageedit"
 )
 
@@ -67,7 +68,18 @@ func volumeConversionOptions(t *testing.T, ctx context.Context, k corpus.Case, s
 	if k.Observation.Image.Encryption != nil {
 		options.ImagePassword = []byte(recipe.Passwords[k.Observation.Image.Encryption.Password])
 	}
-	options.Partition = encryptedEditPartition(t, ctx, k, options.ImagePassword)
+	var image *diskimage.Image
+	var err error
+	if options.ImagePassword == nil {
+		image, err = diskimage.Open(fixtureImage(t, k))
+	} else {
+		image, err = diskimage.OpenWithPassword(ctx, fixtureImage(t, k), options.ImagePassword)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeFixture(t, image)
+	_, options.Partition = storagePartition(t, image)
 	for _, v := range k.Observation.Volumes {
 		if v.APFS == nil {
 			t.Fatal("conversion source has a non-APFS peer")
