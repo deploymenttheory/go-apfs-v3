@@ -1,52 +1,47 @@
-name: Diagnose APFS credential lock state
+name: Diagnose portable image artifact transfer
 on:
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
-  probe:
-    name: APFS credential lock state on macOS ${{ matrix.major }}
-    runs-on: ${{ matrix.runner }}
+  transfer:
+    name: Compare Windows image artifact compression
+    runs-on: windows-2025
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {major: 26, runner: macos-26}
-          - {major: 27, runner: xcode-27}
     env:
       GOTOOLCHAIN: local
-      APFS_EXPECT_MAJOR: ${{ matrix.major }}
-      APFS_NATIVE_GROUPS: fixtures
-      APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Retrieve the exact completed Windows output artifact
+        uses: actions/download-artifact@v7
         with:
-          path: ${{ github.workspace }}/.fixtures
-          key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
-      - name: Build product and set private evidence paths
-        run: |
-          go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
-          echo "APFS_PRODUCT_CLI=$RUNNER_TEMP/apfs" >> "$GITHUB_ENV"
-          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/credential-lock-evidence" >> "$GITHUB_ENV"
-      - name: Reproduce plaintext continuation and fresh encryption attachment
-        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^TestEncryptedVolumeCredentialLockState$' -v
-      - name: Retain original diagnostic and observer sources
-        if: always()
-        run: |
-          mkdir -p "$APFS_NATIVE_WORK"
-          cp acceptance/native/credential_lock_state_probe_test.go "$APFS_NATIVE_WORK/probe.go"
-          cp acceptance/fixture/observe.go "$APFS_NATIVE_WORK/observer.go"
-          cp .github/workflows/fixtures.yml "$APFS_NATIVE_WORK/workflow.yml"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
+          github-token: ${{ github.token }}
+          run-id: 40551820534
+          name: outputs-windows-macos-26
+          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26
+      - name: Verify every original output digest
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer 26 -hosts windows
+      - name: Upload unchanged images with default compression
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: apfs-credential-lock-state-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/credential-lock-evidence/
+          name: apfs-windows-output-transfer-deflated
+          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
+          compression-level: 6
           if-no-files-found: error
+          retention-days: 1
+      - name: Upload unchanged images without repeated compression
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: apfs-windows-output-transfer-stored
+          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
