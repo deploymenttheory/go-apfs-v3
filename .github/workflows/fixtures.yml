@@ -42,7 +42,9 @@ jobs:
           member="encrypted-snapshot-history/apfs.retained.dmg"
           with zipfile.ZipFile(archive) as z:
               data=z.read(member)
+              failure=z.read("encrypted-snapshot-history/apfs.retained.failure.json")
           pathlib.Path(os.environ["APFS_CRYPTO_CONTEXT_IMAGE"]).write_bytes(data)
+          pathlib.Path(os.environ["APFS_CRYPTO_CONTEXT_IMAGE"]+".failure.json").write_bytes(failure)
           root=pathlib.Path(os.environ["APFS_NATIVE_WORK"])
           root.mkdir()
           (root/"input.json").write_text(json.dumps({"run":40461628393,"artifact":${{ matrix.artifact }},"archiveSHA256":digest,"member":member,"imageSHA256":hashlib.sha256(data).hexdigest()},indent=2))

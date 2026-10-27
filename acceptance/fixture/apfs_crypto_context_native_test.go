@@ -118,12 +118,32 @@ func TestAPFSCryptoContextAcrossObservationUnmount(t *testing.T) {
 				}
 				expected := &schema.APFSVolume{VolumeUUID: volume.UUID}
 				if volume.Name == "EncryptedHistory" {
-					snaps, err := disk.Snapshots(ctx, volume.Dev)
+					data, err := os.ReadFile(image + ".failure.json")
 					if err != nil {
 						t.Fatal(err)
 					}
-					for _, snap := range snaps {
-						expected.Snapshots = append(expected.Snapshots, schema.Snapshot{Name: fmt.Sprint(snap["Name"]), XID: uint64(number(snap["XID"]))})
+					var original struct {
+						Commands []schema.Command `json:"commands"`
+					}
+					if err := json.Unmarshal(data, &original); err != nil {
+						t.Fatal(err)
+					}
+					for _, command := range original.Commands {
+						if command.Label != "list-snapshots" || !strings.HasSuffix(command.Argv[len(command.Argv)-1], "s1") {
+							continue
+						}
+						inventory, err := disk.plist(ctx, []byte(command.StdoutText))
+						if err != nil {
+							t.Fatal(err)
+						}
+						snapshots, _ := inventory["Snapshots"].([]any)
+						for _, item := range snapshots {
+							snap := item.(map[string]any)
+							expected.Snapshots = append(expected.Snapshots, schema.Snapshot{Name: fmt.Sprint(snap["Name"]), XID: uint64(number(snap["XID"]))})
+						}
+					}
+					if len(expected.Snapshots) == 0 {
+						t.Fatal("original native snapshot inventory missing")
 					}
 				}
 				if err := ValidateAPFSVerification(string(output), volume.RDev, expected); err != nil {
