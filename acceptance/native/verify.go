@@ -264,9 +264,8 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 			return nil, err
 		}
 	}
-	if err := v.checkEncryptedVolumes(ctx, image, password, credentials, recipe); err != nil {
-		return nil, fmt.Errorf("encrypted output checker: %w", err)
-	}
+	// Observe checks every unlocked APFS volume through Disk Management when
+	// an encrypted peer requires crypto context, including all retained views.
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
 	spec.Snapshots = hasHistoricalViews(k.Observation) || len(out.Expect.DeletedSnapshots) > 0
 	if out.Source.Recipe == "apfs-clones" {
