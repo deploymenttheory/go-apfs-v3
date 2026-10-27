@@ -37,6 +37,12 @@ Independently encrypted peers require their own repeated
 `--volume-password-file UUID=FILE` arguments for container-wide ownership
 validation. Their passwords and keys remain unchanged.
 
+On macOS, explicitly lock an attached encrypted source volume before detaching
+it when preparing to use a converted copy with the same UUID. macOS can retain
+an unlock across detach and report the fresh-key copy as unlocked while refusing
+to mount or authenticate it. The library changes ordinary image files; it does
+not clear the host's cached unlocks or change its mounts.
+
 For an encrypted DMG, supply `--image-password-file FILE`. The output preserves
 its password and AES strength by default, even when decrypting the inner APFS
 volume. Existing `--output-password-file` and `--encryption AES-128|AES-256|none`
