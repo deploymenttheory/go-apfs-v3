@@ -139,8 +139,9 @@ func TestAPFSCryptoContextAcrossObservationUnmount(t *testing.T) {
 						snapshots, _ := inventory["Snapshots"].([]any)
 						for _, item := range snapshots {
 							snap := item.(map[string]any)
-							expected.Snapshots = append(expected.Snapshots, schema.Snapshot{Name: fmt.Sprint(snap["Name"]), XID: uint64(number(snap["XID"]))})
+							expected.Snapshots = append(expected.Snapshots, schema.Snapshot{Name: fmt.Sprint(snap["SnapshotName"]), XID: uint64(number(snap["SnapshotXID"]))})
 						}
+						break
 					}
 					if len(expected.Snapshots) == 0 {
 						t.Fatal("original native snapshot inventory missing")
