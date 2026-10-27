@@ -18,14 +18,16 @@ jobs:
     env:
       GOTOOLCHAIN: local
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
-      APFS_NATIVE_WORK: ${{ runner.temp }}/crypto-context-evidence
-      APFS_CRYPTO_CONTEXT_IMAGE: ${{ runner.temp }}/original-capture.dmg
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set private probe paths
+        run: |
+          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/crypto-context-evidence" >> "$GITHUB_ENV"
+          echo "APFS_CRYPTO_CONTEXT_IMAGE=$RUNNER_TEMP/original-capture.dmg" >> "$GITHUB_ENV"
       - name: Read original failed Apple input by verified digest
         env:
           GH_TOKEN: ${{ github.token }}
