@@ -5,7 +5,9 @@ package native
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,6 +57,22 @@ func TestConstructedVolumeVerificationLockState(t *testing.T) {
 			recipe = r
 		}
 	}
+	private := filepath.Join(work, "native-construction-private.raw")
+	source, err := os.Open(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy, err := os.Create(private)
+	if err != nil {
+		source.Close()
+		t.Fatal(err)
+	}
+	_, copyErr := io.Copy(copy, source)
+	closeErr := copy.Close()
+	source.Close()
+	if copyErr != nil || closeErr != nil {
+		t.Fatal(copyErr, closeErr)
+	}
 	for i := 0; i < 30; i++ {
 		t.Run(fmt.Sprintf("attachment-%d", i), func(t *testing.T) {
 			c := &verificationLockProbe{work: work, attempt: i, passwords: map[string]string{}}
@@ -66,7 +84,42 @@ func TestConstructedVolumeVerificationLockState(t *testing.T) {
 			disk := &fixture.HostDisk{C: c, T: &fixture.Transcript{}}
 			c.disk = disk
 			v := &Verifier{Major: 27, Producer: producer, C: c, Disk: disk}
-			err := v.checkEncryptedVolumes(ctx, raw, nil, &expected, recipe)
+			warmErr := func() (resultErr error) {
+				att, err := disk.Attach(ctx, private, fixture.AttachOptions{Raw: true})
+				if err != nil {
+					return err
+				}
+				defer func() {
+					cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), fixture.DefaultTimeout)
+					defer cancel()
+					resultErr = errors.Join(resultErr, disk.Detach(cleanup, att))
+				}()
+				if err := v.unlockContinuationVolumes(ctx, att, &expected, recipe); err != nil {
+					return err
+				}
+				for _, volume := range att.Volumes {
+					if err := disk.Mount(ctx, volume, "owners,noatime", filepath.Join(work, "writable-mount", volume.Name), false); err != nil {
+						return err
+					}
+				}
+				filename := filepath.Join(att.Volume("Primary").Mount, fmt.Sprintf("verification-key-probe-%d", i))
+				if err := os.WriteFile(filename, []byte("native write before read-only verification\n"), 0600); err != nil {
+					return err
+				}
+				if err := (fixture.HostVolume{}).Fullfsync(filename); err != nil {
+					return err
+				}
+				for _, volume := range att.Volumes {
+					if err := disk.Unmount(ctx, volume); err != nil {
+						return err
+					}
+				}
+				return nil
+			}()
+			if warmErr != nil {
+				t.Fatal(warmErr)
+			}
+			err := v.checkEncryptedVolumes(ctx, private, nil, &expected, recipe)
 			probeJSON(t, work, fmt.Sprintf("verification-attempt-%d.json", i), map[string]any{"error": fmt.Sprint(err), "probeCommands": c.probes.Commands})
 			if err != nil {
 				t.Fatal("original verifier", err)
