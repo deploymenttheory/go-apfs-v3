@@ -85,14 +85,16 @@ jobs:
   portable:
     name: Portable conformance (${{ matrix.host }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    # Keep the replay at 25m; allow setup and compressed artifact transport
+    # outside that test budget so native consumers receive compact images.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {host: linux, runner: ubuntu-24.04, artifact_compression: 6}
-          - {host: windows, runner: windows-2025, artifact_compression: 0}
-          - {host: darwin, runner: macos-26, artifact_compression: 0}
+          - {host: linux, runner: ubuntu-24.04}
+          - {host: windows, runner: windows-2025}
+          - {host: darwin, runner: macos-26}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -138,14 +140,10 @@ jobs:
       # One artifact for each of the two producers: macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.
-      # Windows and macOS store these files without ZIP recompression so transport fits
-      # the job budget after the complete portable replay. File bytes and the
-      # original manifest digests are unchanged.
       - name: Upload the images derived from macOS 26 fixtures
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: outputs-${{ matrix.host }}-macos-26
-          compression-level: ${{ matrix.artifact_compression }}
           path: |
             ${{ runner.temp }}/outputs/outputs.json
             ${{ runner.temp }}/outputs/macos-26.*
@@ -154,7 +152,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: outputs-${{ matrix.host }}-macos-27
-          compression-level: ${{ matrix.artifact_compression }}
           path: |
             ${{ runner.temp }}/outputs/outputs.json
             ${{ runner.temp }}/outputs/macos-27.*
