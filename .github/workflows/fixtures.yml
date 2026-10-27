@@ -6,8 +6,8 @@ permissions:
   actions: read
 jobs:
   transfer:
-    name: Compare Windows image artifact compression
-    runs-on: windows-2025
+    name: Compare macOS image artifact compression
+    runs-on: macos-26
     timeout-minutes: 25
     env:
       GOTOOLCHAIN: local
@@ -32,7 +32,7 @@ jobs:
       - name: Upload unchanged images with default compression
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: apfs-windows-output-transfer-deflated
+          name: apfs-macos-output-transfer-deflated
           path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
           compression-level: 6
           if-no-files-found: error
@@ -40,7 +40,7 @@ jobs:
       - name: Upload unchanged images without repeated compression
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: apfs-windows-output-transfer-stored
+          name: apfs-macos-output-transfer-stored
           path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
           compression-level: 0
           if-no-files-found: error
