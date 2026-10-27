@@ -23,6 +23,11 @@ func TestEncryptedVolumeCredentialLockState(t *testing.T) {
 	v := newVerifier(t)
 	ctx := context.Background()
 	ref := schema.CaseRef{Producer: v.Major, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "aes256-nested"}
+	control := ref
+	control.Stage = "retained"
+	if err := v.checkEncryptedFixture(ctx, v.Cases[CaseKey(control)]); err != nil {
+		t.Fatal("original native checker control", err)
+	}
 	warm := probeVolumeConversion(t, v, ref, "warm-plaintext")
 	encryptedRef := ref
 	encryptedRef.Stage = "decrypted"
