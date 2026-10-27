@@ -102,12 +102,13 @@ func selectNativeOutputs(group string, pairs []Paired) ([]Paired, error) {
 	if group == "" || group == "slow" {
 		return pairs, nil
 	}
-	if group != "main" && group != "encrypted-construction" {
+	if group != "main" && group != "volume-encryption" {
 		return nil, fmt.Errorf("unknown native output group %q", group)
 	}
 	var selected []Paired
 	for _, p := range pairs {
-		if (p.Output.Operation == "create-encrypted") == (group == "encrypted-construction") {
+		volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume"
+		if volumeEncryption == (group == "volume-encryption") {
 			selected = append(selected, p)
 		}
 	}

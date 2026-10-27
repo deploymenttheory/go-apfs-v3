@@ -10,7 +10,7 @@ import (
 
 func TestNativeOutputGroupsPartitionEveryHostCopy(t *testing.T) {
 	var pairs []Paired
-	for _, operation := range []string{"build", "repack", "change-password", "create-encrypted"} {
+	for _, operation := range []string{"build", "repack", "change-password", "create-encrypted", "convert-volume"} {
 		for _, major := range schema.Producers {
 			name := fmt.Sprintf("macos-%d.%s", major, operation)
 			out := schema.Output{Name: name, Operation: operation, Encrypted: true}
@@ -18,13 +18,14 @@ func TestNativeOutputGroupsPartitionEveryHostCopy(t *testing.T) {
 		}
 	}
 	seen := map[string]int{}
-	for _, group := range []string{"main", "encrypted-construction"} {
+	for _, group := range []string{"main", "volume-encryption"} {
 		selected, err := selectNativeOutputs(group, pairs)
 		if err != nil || len(selected) == 0 {
 			t.Fatalf("%s lost required work: %v", group, err)
 		}
 		for _, p := range selected {
-			if (p.Output.Operation == "create-encrypted") != (group == "encrypted-construction") || len(p.ByHost) != 3 {
+			volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume"
+			if volumeEncryption != (group == "volume-encryption") || len(p.ByHost) != 3 {
 				t.Fatalf("%s misrouted %s or lost a host", group, p.Name)
 			}
 			seen[p.Name]++
@@ -50,7 +51,7 @@ func TestNativeOutputGroupsRefuseUnknownAndEmptyWorkloads(t *testing.T) {
 			t.Fatalf("%s accepted an unknown or empty workload", group)
 		}
 	}
-	if _, err := selectNativeOutputs("encrypted-construction", []Paired{{Output: schema.Output{Operation: "repack"}}}); err == nil {
-		t.Fatal("missing encrypted construction passed")
+	if _, err := selectNativeOutputs("volume-encryption", []Paired{{Output: schema.Output{Operation: "repack"}}}); err == nil {
+		t.Fatal("missing volume encryption passed")
 	}
 }
