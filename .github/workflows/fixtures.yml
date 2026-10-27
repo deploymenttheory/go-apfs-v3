@@ -1,47 +1,53 @@
-name: Diagnose portable image artifact transfer
+name: Diagnose APFS verification key cleanup
 on:
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
-  transfer:
-    name: Compare macOS image artifact compression
-    runs-on: macos-26
+  probe:
+    name: Verify retained constructed-volume key state on macOS 27
+    runs-on: xcode-27
     timeout-minutes: 25
     env:
       GOTOOLCHAIN: local
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
-      - name: Retrieve the exact completed Windows output artifact
-        uses: actions/download-artifact@v7
+      - name: Retrieve the exact original failed writable payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/verification-lock-evidence" >> "$GITHUB_ENV"
+          gh api --allow-escape-sequences repos/deploymenttheory/go-apfs-v3/actions/artifacts/12771441703/zip > "$RUNNER_TEMP/original-diagnostics.zip"
+          python3 - <<'PYINNER'
+          from pathlib import Path
+          import hashlib,os,zipfile,json
+          p=Path(os.environ['RUNNER_TEMP'])/'original-diagnostics.zip'
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='8d2e9c457fdb6f892d2ff9ec550ba15997dffa06454ec5da0a706b492b7686bc'
+          root=Path(os.environ['RUNNER_TEMP'])/'verification-lock-evidence';root.mkdir()
+          stem='macos-27.encrypted-volumes.apfsx.clone-shared.create-encrypted.plain.UDZO.dmg.windows'
+          receipt=[]
+          with zipfile.ZipFile(p) as z:
+              for source,target in [('continuation/'+stem+'/writable.raw','native-construction-writable.raw'),('observe/'+stem+'/observation.json','native-construction-observation.json')]:
+                  data=z.read(source);(root/target).write_bytes(data)
+                  receipt.append({'originalEntry':source,'diagnosticName':target,'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)})
+          (root/'original-entry-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PYINNER
+      - name: Replay the unchanged native verifier and retain failed-lock state
+        run: go test -count=1 -timeout 23m -tags native ./acceptance/native -run '^TestConstructedVolumeVerificationLockState$' -v
+      - name: Retain exact diagnostic sources
+        if: always()
+        run: |
+          cp acceptance/native/verification_lock_probe_test.go "$APFS_NATIVE_WORK/probe.go"
+          cp acceptance/native/volume_credentials.go "$APFS_NATIVE_WORK/verifier.go"
+          cp .github/workflows/fixtures.yml "$APFS_NATIVE_WORK/workflow.yml"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
         with:
-          github-token: ${{ github.token }}
-          run-id: 40551820534
-          name: outputs-windows-macos-26
-          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26
-      - name: Verify every original output digest
-        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer 26 -hosts windows
-      - name: Upload unchanged images with default compression
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: apfs-macos-output-transfer-deflated
-          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
-          compression-level: 6
+          name: apfs-verification-lock-state-macos-27
+          path: ${{ runner.temp }}/verification-lock-evidence/
           if-no-files-found: error
-          retention-days: 1
-      - name: Upload unchanged images without repeated compression
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: apfs-macos-output-transfer-stored
-          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-26/
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 1

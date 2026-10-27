@@ -90,8 +90,8 @@ func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imag
 		return err
 	}
 	// This attachment owns the keys it unlocks. Leaving them active at detach
-	// lets macOS reuse the original VEK for a later converted image with the
-	// same volume UUID, even when that image has a fresh keybag.
+	// lets macOS carry an unlocked state into a later converted image with
+	// the same volume UUID, even when that image has a fresh keybag.
 	var acquired []*fixture.AttachedVolume
 	for _, volume := range att.Volumes {
 		if volume.Locked {
