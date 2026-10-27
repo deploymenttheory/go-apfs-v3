@@ -28,6 +28,10 @@ func TestConstructedVolumeVerificationLockState(t *testing.T) {
 		t.Fatal(err)
 	}
 	work := os.Getenv("APFS_NATIVE_WORK")
+	help := fixture.Command{Label: "native-lock-usage", Argv: []string{"diskutil", "apfs", "lockVolume"}, Expected: "record"}
+	helpTranscript := &fixture.Transcript{}
+	_ = helpTranscript.Record(help, (fixture.Exec{}).Run(ctx, help))
+	probeJSON(t, work, "native-lock-usage.json", helpTranscript.Commands)
 	raw := filepath.Join(work, "native-construction-writable.raw")
 	before, err := schema.FileDigest(raw)
 	if err != nil {
@@ -73,6 +77,36 @@ func TestConstructedVolumeVerificationLockState(t *testing.T) {
 	if copyErr != nil || closeErr != nil {
 		t.Fatal(copyErr, closeErr)
 	}
+	stop, done := make(chan struct{}), make(chan error, 1)
+	go func() {
+		background := &fixture.HostDisk{C: fixture.Exec{}, T: &fixture.Transcript{}}
+		for {
+			select {
+			case <-stop:
+				done <- nil
+				return
+			default:
+			}
+			att, err := background.Attach(ctx, filepath.Join(work, "background-ownership.raw"), fixture.AttachOptions{Raw: true, ReadOnly: true, NoInventory: true})
+			if err != nil {
+				done <- err
+				return
+			}
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), fixture.DefaultTimeout)
+			err = background.Detach(cleanup, att)
+			cancel()
+			if err != nil {
+				done <- err
+				return
+			}
+		}
+	}()
+	defer func() {
+		close(stop)
+		if err := <-done; err != nil {
+			t.Error("background image activity", err)
+		}
+	}()
 	for i := 0; i < 30; i++ {
 		t.Run(fmt.Sprintf("attachment-%d", i), func(t *testing.T) {
 			c := &verificationLockProbe{work: work, attempt: i, passwords: map[string]string{}}

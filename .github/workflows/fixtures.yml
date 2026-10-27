@@ -32,7 +32,7 @@ jobs:
           stem='macos-27.encrypted-volumes.apfsx.clone-shared.create-encrypted.plain.UDZO.dmg.windows'
           receipt=[]
           with zipfile.ZipFile(p) as z:
-              for source,target in [('continuation/'+stem+'/writable.raw','native-construction-writable.raw'),('observe/'+stem+'/observation.json','native-construction-observation.json')]:
+              for source,target in [('continuation/'+stem+'/writable.raw','native-construction-writable.raw'),('observe/'+stem+'/observation.json','native-construction-observation.json'),('kernel-image-ownership-contract/images-1707989375/first/ownership.raw','background-ownership.raw')]:
                   data=z.read(source);(root/target).write_bytes(data)
                   receipt.append({'originalEntry':source,'diagnosticName':target,'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)})
           (root/'original-entry-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
