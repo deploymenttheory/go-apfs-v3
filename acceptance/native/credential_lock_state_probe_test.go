@@ -28,7 +28,7 @@ func TestEncryptedVolumeCredentialLockState(t *testing.T) {
 	if err != nil || len(diffs) != 0 {
 		t.Fatal("plaintext native verification", diffs, err)
 	}
-	if _, err := v.Continuation(ctx, warm, v.Cases[CaseKey(ref)]); err != nil {
+	if _, err := v.Continuation(ctx, warm, schemaCase{recipe: v.Recipes[ref.Recipe]}); err != nil {
 		t.Fatal("plaintext native/Go/native continuation", err)
 	}
 	ref.Stage = "decrypted"
