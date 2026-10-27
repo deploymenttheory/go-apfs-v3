@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -41,11 +42,38 @@ func ValidateAPFSVerification(output, device string, volume *schema.APFSVolume) 
 // observeAPFSVolumeChecks checks every APFS volume when an encrypted peer makes
 // a bare container fsck unsuitable. Observation unmounts each volume, which
 // relocks encrypted keys; refresh every encrypted peer before checking any volume.
-func observeAPFSVolumeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation) error {
+func observeAPFSVolumeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation) (resultErr error) {
 	disk, ok := in.Disk.(*HostDisk)
 	if !ok {
 		return fmt.Errorf("APFS verification requires a native disk adapter")
 	}
+	var unlocked []*AttachedVolume
+	defer func() {
+		// A retained image and its writable parent share filesystem UUIDs.
+		// Cached unlocks would auto-mount the next attachment and change its
+		// recipe's credential state. Release only keys this check acquired.
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), DefaultTimeout)
+		defer cancel()
+		for i := len(unlocked) - 1; i >= 0; i-- {
+			volume := unlocked[i]
+			info, err := disk.Info(cleanup, volume.Dev)
+			if err == nil {
+				locked, ok := info["Locked"].(bool)
+				if !ok {
+					err = fmt.Errorf("APFS verification cleanup lacks lock state for %s", volume.UUID)
+				} else if !locked {
+					_, err = disk.run(cleanup, "lock", false, nil, "diskutil", "apfs", "lockVolume", volume.Dev)
+					if err == nil {
+						info, err = disk.Info(cleanup, volume.Dev)
+						if err == nil && info["Locked"] != true {
+							err = fmt.Errorf("APFS verification did not restore locked volume %s", volume.UUID)
+						}
+					}
+				}
+			}
+			resultErr = errors.Join(resultErr, err)
+		}
+	}()
 	type selectedVolume struct {
 		disk     *AttachedVolume
 		expected *schema.APFSVolume
@@ -85,6 +113,7 @@ func observeAPFSVolumeChecks(ctx context.Context, in ObserveInput, obs *schema.O
 				if err := unlockVolume(ctx, in, volume, ref, true); err != nil {
 					return err
 				}
+				unlocked = append(unlocked, volume)
 			}
 		}
 		selected = append(selected, selectedVolume{volume, wanted.APFS})
