@@ -60,6 +60,9 @@ func (e *Editor) collect(r Report) {
 	if r.CryptoUser != "" {
 		e.report.CryptoUser = r.CryptoUser
 	}
+	if r.VolumeEncryption != nil {
+		e.report.VolumeEncryption = r.VolumeEncryption
+	}
 	e.report.Changed = append(e.report.Changed, r.Changed...)
 }
 

@@ -3,7 +3,6 @@ package apfs
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/fs"
@@ -118,66 +117,21 @@ func (p *Layout) prepareEncryption(ctx context.Context, inputs []VolumeSpec) err
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		password := inputs[i].Encryption.Password
-		if len(password) > 4096 {
-			return fs.ErrInvalid
-		}
-		var vek, kek [32]byte
-		var salt [16]byte
-		var integrity [16]byte
-		if _, err := rand.Read(vek[:]); err != nil {
-			return err
-		}
-		if _, err := rand.Read(kek[:]); err != nil {
-			clear(vek[:])
-			return err
-		}
-		err := func() error {
-			defer clear(vek[:])
-			defer clear(kek[:])
-			if _, err := rand.Read(salt[:]); err != nil {
-				return err
-			}
-			if _, err := rand.Read(integrity[:]); err != nil {
-				return err
-			}
-			const iterations = 600_000
-			derived, err := storagecrypto.PBKDF2(ctx, sha256.New, password, salt[:], iterations, 32)
-			defer clear(derived)
-			if err != nil {
-				return err
-			}
-			wrappedKEK, err := storagecrypto.Wrap(derived, kek[:])
-			if err != nil {
-				return err
-			}
-			wrappedVEK, err := storagecrypto.Wrap(kek[:], vek[:])
-			if err != nil {
-				return err
-			}
-			// Profiles observed in the retained native software Disk-user controls.
-			user := keyRecord{id: v.options.UUID, info: [8]byte{0, 0, 0, 0, 2, 0, 0x53, 0x49}, wrapped: wrappedKEK, iterations: iterations, salt: salt[:]}
-			volume := keyRecord{id: v.options.UUID, info: [8]byte{0, 0, 0, 0, 1, 0, 0x53, 0x49}, wrapped: wrappedVEK}
-			if err := encodeBuildKeybag(v.encryption.bag, []keybagEntry{{id: v.options.UUID, tag: 3, data: encodeKeyRecord(user, integrity[:8])}}, 0x72656373); err != nil {
-				return err
-			}
-			if err := encryptBuildKeybag(v.encryption.bag, v.options.UUID, v.encryption.address); err != nil {
-				return err
-			}
-			extent := make([]byte, 16)
-			le.PutUint64(extent, v.encryption.address)
-			le.PutUint64(extent[8:], 1)
-			root = append(root, keybagEntry{id: v.options.UUID, tag: 3, data: extent}, keybagEntry{id: v.options.UUID, tag: 2, data: encodeKeyRecord(volume, integrity[8:])})
-			xts, err := storagecrypto.NewXTS(vek[:])
-			if err != nil {
-				return err
-			}
-			v.encryption.keys = &volumeKeys{xts: xts, keyBytes: 32}
-			return nil
-		}()
+		keys, user, volume, err := newSoftwareVolumeKeys(ctx, v.options.UUID, inputs[i].Encryption.Password)
 		if err != nil {
 			return err
 		}
+		v.encryption.keys = keys
+		if err := encodeBuildKeybag(v.encryption.bag, []keybagEntry{{id: v.options.UUID, tag: 3, data: user}}, 0x72656373); err != nil {
+			return err
+		}
+		if err := encryptBuildKeybag(v.encryption.bag, v.options.UUID, v.encryption.address); err != nil {
+			return err
+		}
+		extent := make([]byte, 16)
+		le.PutUint64(extent, v.encryption.address)
+		le.PutUint64(extent[8:], 1)
+		root = append(root, keybagEntry{id: v.options.UUID, tag: 3, data: extent}, keybagEntry{id: v.options.UUID, tag: 2, data: volume})
 	}
 	if err := encodeBuildKeybag(p.keylocker, root, 0x6b657973); err != nil {
 		return err

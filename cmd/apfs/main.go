@@ -39,6 +39,9 @@ func run(ctx context.Context, args []string, input io.Reader, out, diagnostics i
 	if args[0] == "passwd" {
 		return changeVolumePassword(ctx, args[1:], input, out, diagnostics)
 	}
+	if args[0] == "encrypt" || args[0] == "decrypt" {
+		return convertVolumeEncryption(ctx, args[0], args[1:], input, out, diagnostics)
+	}
 	if args[0] == "licenses" {
 		_, err = fmt.Fprintln(out, "Original go-apfs-v3 code: MIT.\nApple-derived HFS formatter, mutation and journal recovery engines, FinderInfo adapter and AppleDouble codec: Copyright Apple Inc.; APSL-2.0.\nSource and license are supplied with this project and available at:\nhttps://github.com/deploymenttheory/go-apfs-v3\nApple/Berkeley-derived mode parser: BSD-3-Clause. golang.org/x/sys: BSD-3-Clause.\nSee hfsplus/build.go, hfsplus/journal.go, hfsplus/journal_replay.go, hfsplus/mutate_allocation.go, hfsplus/mutate_tree.go, internal/finderinfo/hfs.go, appledouble/appledouble.go, internal/mode/mode.go, LICENSES and THIRD_PARTY_NOTICES.md.")
 		return err

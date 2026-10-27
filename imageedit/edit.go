@@ -53,6 +53,7 @@ type Report struct {
 	FreeBlocks        uint64                              `json:"freeBlocks"`
 	Transaction       uint64                              `json:"transaction,omitempty"`
 	CryptoUser        string                              `json:"cryptoUser,omitempty"`
+	VolumeEncryption  *apfs.VolumeEncryptionReport        `json:"volumeEncryption,omitempty"`
 	Journal           *hfsplus.JournalReplayReport        `json:"journal,omitempty"`
 	Checkpoint        *apfs.CheckpointRecoveryReport      `json:"checkpoint,omitempty"`
 	diskimage.RepackReport
@@ -171,6 +172,7 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	if admission == nil {
 		admission = func(s block.Source, isAPFS bool) error {
 			if isAPFS {
+				authenticatedAPFS = true // The transaction may acquire or remove volume keys.
 				container, err := apfs.Open(s)
 				if err != nil {
 					return err
