@@ -92,7 +92,7 @@ jobs:
         include:
           - {host: linux, runner: ubuntu-24.04, artifact_compression: 6}
           - {host: windows, runner: windows-2025, artifact_compression: 0}
-          - {host: darwin, runner: macos-26, artifact_compression: 6}
+          - {host: darwin, runner: macos-26, artifact_compression: 0}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
@@ -138,7 +138,7 @@ jobs:
       # One artifact for each of the two producers: macOS N verifies only
       # the outputs derived from macOS N's fixtures. Every artifact carries
       # the whole manifest so cross-host pairing sees every name.
-      # Windows stores these files without ZIP recompression so transport fits
+      # Windows and macOS store these files without ZIP recompression so transport fits
       # the job budget after the complete portable replay. File bytes and the
       # original manifest digests are unchanged.
       - name: Upload the images derived from macOS 26 fixtures
