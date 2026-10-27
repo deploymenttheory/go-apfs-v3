@@ -612,8 +612,20 @@ func observeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation
 			}
 			obs.Checks.Verify = lastCommandResult(in.T, "verify")
 		case "fsck":
+			encrypted := false
+			for _, volume := range obs.Volumes {
+				if volume.APFS != nil && volume.APFS.Encrypted {
+					encrypted = true
+					break
+				}
+			}
+			if encrypted {
+				if err := observeAPFSVolumeChecks(ctx, in, obs); err != nil {
+					return err
+				}
+			}
 			for _, vol := range in.Att.Volumes {
-				if vol.FS == "apfs" && obs.Volumes[0].APFS != nil && obs.Volumes[0].APFS.Encrypted {
+				if vol.FS == "apfs" && encrypted {
 					continue
 				}
 				rdev := vol.RDev
