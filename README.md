@@ -93,7 +93,7 @@ Currently implemented:
   resource-fork replacement within the same ordered batches.
 - Persistent named sessions with managed scratch, host directory import and
   `cp`, `chmod`, `chown`, `chflags`, `touch`, `mkdir`, `mv`, `rm`, `ln` and `xattr`.
-- Fresh, deterministic APFS containers with one or more volumes, per-volume reserves/quotas and System/Data groups, and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs;
+- Fresh APFS containers with one or more volumes, per-volume reserves/quotas and System/Data groups, and HFS+/HFSX volumes in uncompressed or zlib UDIF DMGs; plaintext builds are deterministic.
   see [packing semantics](docs/packing.md).
 - Sector-preserving raw/UDIF repacking to UDRO/UDZO, including partitioned disks,
   APFS snapshots and encrypted APFS volume sectors; strict container admission.
@@ -112,6 +112,9 @@ Currently implemented:
 - Authenticated software-encrypted APFS edits and Disk-user password changes through
   the engine, managed editor and `passwd` command; independently encrypted peers
   keep their credentials. See [the admitted write profile](docs/apfs-editing.md#editing-software-encrypted-volumes).
+- Fresh software-encrypted APFS/APFSX construction, including independently
+  credentialed volumes, mixed containers and separate DMG encryption; see
+  [packing](docs/packing.md#creating-software-encrypted-apfs-volumes).
 - Existing APFS/HFS+/HFSX editing inside AES-128/256 DMG envelopes, preserving
   encryption by default with explicit password replacement or removal; see
   [encrypted image editing](docs/encrypted-image-editing.md).

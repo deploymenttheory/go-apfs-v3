@@ -40,6 +40,9 @@ func buildStreamValue(s *buildStream) []byte {
 	b := make([]byte, 40)
 	le.PutUint64(b, uint64(s.size))
 	le.PutUint64(b[8:], s.blocks*4096)
+	if s.encrypted {
+		le.PutUint64(b[16:], 4)
+	}
 	le.PutUint64(b[24:], uint64(s.size))
 	return b
 }
@@ -204,6 +207,11 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 			records = append(records, buildXattr(o.id, a.name, v, flags))
 		}
 	}
+	if p.encryption != nil {
+		state := make([]byte, 24)
+		le.PutUint32(state, 1)
+		records = append(records, buildRecord{buildKey(4, 7, 0), state})
+	}
 	var extents []buildRecord
 	for _, s := range p.streams {
 		if s.attribute == "" {
@@ -217,6 +225,10 @@ func (p *volumeLayout) records() ([]buildRecord, []buildRecord, uint32) {
 		value := make([]byte, 24)
 		le.PutUint64(value, s.blocks*4096)
 		le.PutUint64(value[8:], s.start)
+		if s.encrypted {
+			le.PutUint64(value, s.blocks*4096|1<<56)
+			le.PutUint64(value[16:], s.start)
+		}
 		records = append(records, buildRecord{buildKey(s.id, 8, 8), value})
 		if s.backing == nil {
 			extent := buildExtentReference(s.start, s.blocks, s.owner)

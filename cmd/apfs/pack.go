@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deploymenttheory/go-apfs-v3/apfs"
 	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 	"github.com/deploymenttheory/go-apfs-v3/pack"
 	"github.com/deploymenttheory/go-apfs-v3/session"
@@ -31,6 +32,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 		f.PrintDefaults()
 	}
 	encryption := addPackEncryptionFlags(f, true)
+	volumePassword := f.String("volume-password-file", "", "new APFS volume password bytes in FILE; - reads stdin to EOF")
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	fileCompression := addPackCompressionFlag(f)
@@ -40,8 +42,8 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 	capacity := f.String("capacity", "", "volume size in bytes, or with KiB/MiB/GiB suffix; default automatic")
 	fixed := f.String("time", "", "fixed RFC3339 build clock; file timestamps remain preserved")
 	id := f.String("volume-id", "", "native HFS identifier as 16 hex digits; default derived from contents")
-	volumeUUID := f.String("volume-uuid", "", "APFS volume UUID; default derived from contents")
-	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived from contents")
+	volumeUUID := f.String("volume-uuid", "", "APFS volume UUID; default derived for plaintext, random for encrypted builds")
+	containerUUID := f.String("container-uuid", "", "APFS container UUID; default derived for plaintext, random for encrypted builds")
 	uid := f.Uint("uid", 0, "owner for metadata unavailable on the source host")
 	gid := f.Uint("gid", 0, "group for metadata unavailable on the source host")
 	operands, err := parseCommandFlags(f, args)
@@ -72,7 +74,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			return e
 		}
 		if !info.IsDir() {
-			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir", "file-compression"} {
+			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir", "file-compression", "volume-password-file"} {
 				if flagWasSet(f, option) {
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
@@ -97,6 +99,9 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			return e
 		}
 	}
+	if err := onePackPasswordInput(encryption, []string{*volumePassword}); err != nil {
+		return err
+	}
 	crypt, err := encryption.options(input, false)
 	if err != nil {
 		return err
@@ -110,6 +115,14 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 		}
 	}
 	options := pack.Options{Format: *format, Encryption: crypt.Encryption, FileCompression: *fileCompression, ScratchDir: common.scratch, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
+	if *volumePassword != "" {
+		password, e := readPassword(*volumePassword, input)
+		if e != nil {
+			return e
+		}
+		defer clear(password)
+		options.Volume.Encryption = &apfs.VolumeEncryptionOptions{Password: password}
+	}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)
 		if err != nil {
@@ -224,6 +237,13 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 		}{1, report, provenance.Defaulted, provenance.AttributesUnavailable})
 	}
 	_, err = fmt.Fprintf(out, "Created %s %s image: %d bytes (%d-byte volume)\nImage encryption: %s\n", report.Filesystem, report.Format, report.ImageBytes, report.VolumeBytes, packEncryptionLabel(report.Encryption))
+	if err == nil {
+		for _, volume := range report.VolumeEncryption {
+			if _, err = fmt.Fprintf(out, "Volume %s: %s-%d (Disk user %s)\n", volume.Name, volume.Cipher, volume.KeyBits, volume.CryptoUser); err != nil {
+				break
+			}
+		}
+	}
 	if err == nil {
 		err = writePackCompressionReport(out, report.FileCompression, report.Compression)
 	}

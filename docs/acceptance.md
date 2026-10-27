@@ -12,19 +12,25 @@ Three tiers do this:
 | Portable conformance | Linux, Windows, macOS | The product reads every fixture from every producer and must match the observation; it builds, edits, copies, repacks and encrypts images from the fixtures | Every pull request |
 | Native truth | macOS 26, 27 | Each version judges, with `hdiutil`, `fsck`, `codesign` and mounted readback, the images every host derived from its own fixtures; native writes and a further product edit follow on a representative set; fixtures from the other versions are cross-mounted | Every pull request |
 
-One pull request starts ten jobs, three of them macOS: source checks,
+One pull request starts twelve jobs, five of them macOS: source checks,
 race-checked unit tests, portable conformance on Linux, Windows and macOS,
 the slow bucket on Linux and Windows, native truth on macOS 26 and 27,
+fresh encrypted-construction verification on macOS 26 and 27,
 and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
 before anything merges to `main`.
 
-The native jobs start beside the source checks and portable jobs.
+The existing-image native jobs start beside the source checks and portable jobs.
 Each first reads the other version's fixtures, which
 needs only the corpus, while the portable jobs produce their images; it
 then collects and verifies the slow bucket's images before every host's main
 outputs. The slow artifacts arrive while the main producers are still working,
-so their verification uses that waiting window. Both output phases remain
-required. A phase whose inputs come from a failed job stops at once instead
+so their verification uses that waiting window. Fresh encrypted construction
+has an independent required VM on each kernel, allocated after the portable
+outputs are ready. Each VM calibrates its checker against original Apple
+encrypted controls before judging the new volumes. The output cohorts are
+disjoint and exhaustive, retain every host copy, and use the same checks,
+continuations, worker bound and deadlines. The gate requires all four native
+jobs. A phase whose inputs come from a failed job stops at once instead
 of waiting. Performance qualification still requires complete warm runs.
 
 ## The matrix

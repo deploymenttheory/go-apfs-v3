@@ -256,7 +256,15 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		}
 		return v.verifyContainer(ctx, out, image, password, digests, !p.SkipChecksums)
 	}
-	if err := v.checkEncryptedVolumes(ctx, image, password, k.Observation, recipe); err != nil {
+	credentials := k.Observation
+	if out.Operation == "create-encrypted" {
+		var err error
+		credentials, err = v.constructedCredentials(ctx, image, password, k.Observation, out)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := v.checkEncryptedVolumes(ctx, image, password, credentials, recipe); err != nil {
 		return nil, fmt.Errorf("encrypted output checker: %w", err)
 	}
 	spec := schema.ObserveSpec{Checks: []string{"verify", "fsck"}, Codesign: out.Expect.Codesign}
@@ -267,7 +275,11 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 	if out.Source.Recipe == "clone-copy" && (out.Operation == "edit" || out.Operation == "build") {
 		spec.Extents, spec.Samples = cloneCopyExtentPaths(out.Expect.Subtree), 8
 	}
-	spec.Unlock, spec.Rejected = volumeCredentials(k.Observation)
+	spec.Unlock, spec.Rejected = volumeCredentials(credentials)
+	if out.Operation == "create-encrypted" {
+		spec.Extents = constructionExtentPaths(k.Observation)
+		spec.Samples = 12
+	}
 	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
 	if err != nil {
 		return nil, err
@@ -294,6 +306,14 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		diffs = append(diffs, Difference{Field: "codesign", Got: fmt.Sprint(len(obs.Checks.Codesign)), Want: fmt.Sprint(len(out.Expect.Codesign))})
 	}
 	if out.Expect.Container != nil {
+		if out.Operation == "create-encrypted" {
+			if err := checkConstructionCipher(out, obs); err != nil {
+				return nil, err
+			}
+			if err := checkConstructedSharing(obs, k.Observation); err != nil {
+				return nil, err
+			}
+		}
 		d, err := v.compareConstructedContainer(obs, k, out)
 		return append(diffs, d...), err
 	}

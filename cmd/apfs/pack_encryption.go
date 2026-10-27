@@ -85,3 +85,16 @@ func packEncryptionLabel(e *diskimage.Encryption) string {
 	}
 	return fmt.Sprintf("AES-%d", e.KeyBits)
 }
+
+func onePackPasswordInput(image *packEncryptionFlags, volumes []string) error {
+	count := 0
+	for _, file := range append(append([]string(nil), volumes...), image.sourcePassword, image.outputPassword) {
+		if file == "-" {
+			count++
+		}
+	}
+	if count > 1 {
+		return fmt.Errorf("only one image or volume password file may consume stdin")
+	}
+	return nil
+}

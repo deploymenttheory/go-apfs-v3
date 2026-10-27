@@ -25,6 +25,18 @@ func (v *Verifier) containerWrites(ctx context.Context, att *fixture.Attachment,
 			return err
 		}
 	}
+	if out.Operation == "create-encrypted" {
+		for _, volume := range att.Volumes {
+			file := filepath.Join(volume.Mount, "container-continuation", "encrypted-peer")
+			if err := v.Vol.WriteFile(file, []byte("native peer allocation after encrypted construction\n"), true); err != nil {
+				return err
+			}
+			if err := v.Vol.Fullfsync(file); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if out.Source.Recipe == "container-volumes" {
 		limited, reserved := att.Volume("Limited"), att.Volume("Reserved")
 		if limited == nil || reserved == nil || len(out.Expect.Container.EmptyVolumes) != 1 {

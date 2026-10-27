@@ -36,6 +36,7 @@ type CompressionOutcome = filecompression.Outcome
 // selects the engine; filesystem conversion is not implicit. VolumeID belongs to
 // HFS; the two UUIDs belong to APFS. Inapplicable identity options are refused.
 type VolumeOptions struct {
+	Encryption                *apfs.VolumeEncryptionOptions `json:"-"`
 	Name                      string
 	CaseSensitive             bool
 	Capacity                  int64
@@ -49,6 +50,7 @@ type layout interface {
 	Write(context.Context, io.Writer) error
 }
 type Report struct {
+	VolumeEncryption  []apfs.BuiltVolumeEncryption        `json:"volumeEncryption,omitempty"`
 	MetadataOmissions []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
 	Clones            []CloneOutcome                      `json:"clones,omitempty"`
 	Format            string                              `json:"format"`
@@ -115,9 +117,9 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 			return report, fs.ErrInvalid
 		}
 		hint = "Apple_APFS"
-		plan, err = apfs.Plan(ctx, r, apfs.BuildOptions{Name: v.Name, CaseSensitive: v.CaseSensitive, Capacity: v.Capacity, Time: v.Time, VolumeUUID: v.VolumeUUID, ContainerUUID: v.ContainerUUID})
+		plan, err = apfs.Plan(ctx, r, apfs.BuildOptions{Name: v.Name, CaseSensitive: v.CaseSensitive, Capacity: v.Capacity, Time: v.Time, VolumeUUID: v.VolumeUUID, ContainerUUID: v.ContainerUUID, Encryption: v.Encryption})
 	case "HFS+":
-		if v.VolumeUUID != [16]byte{} || v.ContainerUUID != [16]byte{} {
+		if v.VolumeUUID != [16]byte{} || v.ContainerUUID != [16]byte{} || v.Encryption != nil {
 			return report, fs.ErrInvalid
 		}
 		plan, err = hfsplus.Plan(ctx, r, hfsplus.BuildOptions{Name: v.Name, CaseSensitive: v.CaseSensitive, Capacity: v.Capacity, Time: v.Time, VolumeID: v.VolumeID})
@@ -127,6 +129,9 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 	if err != nil {
 		return report, err
 	}
+	if owned, ok := plan.(interface{ Close() error }); ok {
+		defer func() { err = errors.Join(err, owned.Close()) }()
+	}
 	imageBytes, err := encodeLayout(ctx, out, plan, o.Format, hint, o.Encryption)
 	if err != nil {
 		return report, err
@@ -135,6 +140,11 @@ func Write(ctx context.Context, out io.Writer, r filesystem.Reader, o Options) (
 		return report, err
 	}
 	report = Report{Format: o.Format, Filesystem: r.NameRules().Format, VolumeBytes: plan.Size(), ImageBytes: imageBytes, Encryption: encryptionInfo(o.Encryption)}
+	if encrypted, ok := plan.(interface {
+		EncryptedVolumes() []apfs.BuiltVolumeEncryption
+	}); ok {
+		report.VolumeEncryption = encrypted.EncryptedVolumes()
+	}
 	report.FileCompression, report.Compression = compressionPolicy(o.FileCompression), prepared.Outcomes()
 	report.Clones = clones
 	report.MetadataOmissions = omissions
@@ -154,6 +164,7 @@ type ContainerOptions struct {
 }
 
 type ContainerReport struct {
+	VolumeEncryption  []apfs.BuiltVolumeEncryption        `json:"volumeEncryption,omitempty"`
 	MetadataOmissions []filesystem.MetadataOmissionRecord `json:"metadataOmissions,omitempty"`
 	Clones            []CloneOutcome                      `json:"clones,omitempty"`
 	Format            string                              `json:"format"`
@@ -240,6 +251,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 	if err != nil {
 		return report, err
 	}
+	defer func() { err = errors.Join(err, plan.Close()) }()
 	n, err := encodeLayout(ctx, out, plan, o.Format, "Apple_APFS", o.Encryption)
 	if err != nil {
 		return report, err
@@ -249,7 +261,7 @@ func WriteContainer(ctx context.Context, out io.Writer, volumes []apfs.VolumeSpe
 			return report, err
 		}
 	}
-	return ContainerReport{Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes, Clones: clones, MetadataOmissions: omissions}, nil
+	return ContainerReport{VolumeEncryption: plan.EncryptedVolumes(), Format: o.Format, VolumeCount: len(volumes), ContainerBytes: plan.Size(), ImageBytes: n, Encryption: encryptionInfo(o.Encryption), FileCompression: compressionPolicy(o.FileCompression), Compression: outcomes, Clones: clones, MetadataOmissions: omissions}, nil
 }
 
 func compressionPolicy(policy string) string {

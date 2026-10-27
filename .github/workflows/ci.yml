@@ -46,8 +46,8 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
           version: v2.14.0
-          args: ./... ./.github/scripts/platform-contracts
-      - run: go vet ./... ./.github/scripts/platform-contracts
+          args: ./... ./.github/scripts/platform-contracts ./.github/scripts/output-storage
+      - run: go vet ./... ./.github/scripts/platform-contracts ./.github/scripts/output-storage
       - name: Test platform contract evidence validation
         run: go test -count=1 -timeout 2m ./.github/scripts/platform-contracts
       - name: Vet and build the darwin-only capture tool and native verifier
@@ -224,7 +224,8 @@ jobs:
       actions: read # follow this run's artifacts and jobs
     runs-on: ${{ matrix.runner }}
     # Leave capacity for Darwin producers when CI runs overlap. Each kernel
-    # has one native consumer; retain every pending required verification.
+    # has one existing-image consumer; encrypted construction starts its
+    # independent required consumers only after portable producers finish.
     concurrency:
       group: native-filesystem-verification-${{ matrix.major }}
       queue: max
@@ -234,11 +235,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {major: 26, runner: macos-26}
-          - {major: 27, runner: xcode-27}
+          - {major: 26, runner: macos-26, scope: filesystem-images}
+          - {major: 27, runner: xcode-27, scope: filesystem-images}
     env:
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
-    steps:
+    steps: &native-image-verification
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
@@ -276,7 +277,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: native-image-ownership-macos-${{ matrix.major }}
+          name: native-image-ownership-macos-${{ matrix.major }}${{ matrix.scope == 'encrypted-construction' && '-encrypted-construction' || '' }}
           path: ${{ runner.temp }}/native-work/kernel-image-ownership-contract/
           if-no-files-found: error
       - name: Restore the pinned fixture corpus
@@ -287,6 +288,7 @@ jobs:
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
       - name: Read the other versions' fixtures with this kernel
+        if: matrix.scope != 'encrypted-construction'
         env:
           APFS_NATIVE_GROUPS: fixtures
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
@@ -294,15 +296,18 @@ jobs:
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
         run: go test -count=1 -v -parallel 5 -timeout 30m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
+        if: matrix.scope != 'encrypted-construction'
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/wait-for-artifacts.sh "Slow portable conformance" slow-outputs-linux slow-outputs-windows
       - name: Download the slow bucket's images
+        if: matrix.scope != 'encrypted-construction'
         uses: actions/download-artifact@v7
         with:
           pattern: slow-outputs-*
           path: ${{ runner.temp }}/host-outputs
       - name: Verify the slow bucket's images with Apple tools
+        if: matrix.scope != 'encrypted-construction'
         env:
           APFS_NATIVE_GROUPS: slow
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
@@ -313,14 +318,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/wait-for-artifacts.sh "Portable conformance" outputs-linux-macos-${{ matrix.major }} outputs-windows-macos-${{ matrix.major }} outputs-darwin-macos-${{ matrix.major }}
-      - name: Download every host's images derived from this version's fixtures
+      # Extract at most one additional host set before sharing identical bytes.
+      # The three sets occupy about 30 GB before native verification starts.
+      - name: Download linux images derived from this version's fixtures
         uses: actions/download-artifact@v7
         with:
-          pattern: outputs-*-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/host-outputs
+          name: outputs-linux-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-linux-macos-${{ matrix.major }}
+      - name: Verify and share identical linux image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux
+      - name: Download windows images derived from this version's fixtures
+        uses: actions/download-artifact@v7
+        with:
+          name: outputs-windows-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-${{ matrix.major }}
+      - name: Verify and share identical windows image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows
+      - name: Download darwin images derived from this version's fixtures
+        uses: actions/download-artifact@v7
+        with:
+          name: outputs-darwin-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/host-outputs/outputs-darwin-macos-${{ matrix.major }}
+      - name: Verify and share identical darwin image storage
+        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows,darwin
       - name: Verify every host's images with Apple tools
         env:
-          APFS_NATIVE_GROUPS: main
+          APFS_NATIVE_GROUPS: ${{ matrix.scope == 'encrypted-construction' && 'encrypted-construction' || 'main' }}
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
@@ -332,15 +355,39 @@ jobs:
         if: failure() || matrix.major == 26 || matrix.major == 27
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: native-diagnostics-macos-${{ matrix.major }}
-          # Each successful native run retains its bounded matched pairs.
+          name: native-diagnostics-macos-${{ matrix.major }}${{ matrix.scope == 'encrypted-construction' && '-encrypted-construction' || '' }}
+          # Existing-image jobs retain bounded matched pairs; encrypted
+          # construction retains its complete native observations.
           # Failed jobs keep their complete existing diagnostics directory.
-          path: ${{ job.status == 'failure' && format('{0}/native-work/', runner.temp) || format('{0}/native-work/fork-mapping-pair/', runner.temp) }}
+          path: ${{ job.status == 'failure' && format('{0}/native-work/', runner.temp) || matrix.scope == 'encrypted-construction' && format('{0}/native-work/observe/', runner.temp) || format('{0}/native-work/fork-mapping-pair/', runner.temp) }}
           if-no-files-found: error
+
+  native-encrypted-construction:
+    name: Apple encrypted construction on macOS ${{ matrix.major }}
+    # Allocate a VM only when the immutable host outputs are ready.
+    needs: [portable]
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ${{ matrix.runner }}
+    concurrency:
+      group: native-encrypted-construction-${{ matrix.major }}
+      queue: max
+      cancel-in-progress: false
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {major: 26, runner: macos-26, scope: encrypted-construction}
+          - {major: 27, runner: xcode-27, scope: encrypted-construction}
+    env:
+      APFS_EXPECT_MAJOR: ${{ matrix.major }}
+    steps: *native-image-verification
 
   gate:
     name: Required checks
-    needs: [checks, unit, portable, portable-slow, native]
+    needs: [checks, unit, portable, portable-slow, native, native-encrypted-construction]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -352,4 +399,5 @@ jobs:
           PORTABLE: ${{ needs.portable.result }}
           SLOW: ${{ needs.portable-slow.result }}
           NATIVE: ${{ needs.native.result }}
-        run: test "$CHECKS" = success && test "$UNIT" = success && test "$PORTABLE" = success && test "$SLOW" = success && test "$NATIVE" = success
+          ENCRYPTED_CONSTRUCTION: ${{ needs.native-encrypted-construction.result }}
+        run: test "$CHECKS" = success && test "$UNIT" = success && test "$PORTABLE" = success && test "$SLOW" = success && test "$NATIVE" = success && test "$ENCRYPTED_CONSTRUCTION" = success

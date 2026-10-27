@@ -96,6 +96,12 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		reference.Stage = out.Expect.View
 	}
 	expectedObservation := v.Cases[CaseKey(reference)].Observation
+	if out.Operation == "create-encrypted" {
+		expectedObservation, err = encryptedConstructionReference(att, expectedObservation, out)
+		if err != nil {
+			return nil, errors.Join(err, v.Disk.Detach(ctx, att))
+		}
+	}
 	if err := v.unlockContinuationVolumes(ctx, att, expectedObservation, k.recipe); err != nil {
 		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
 	}

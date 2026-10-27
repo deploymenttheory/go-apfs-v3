@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -35,10 +36,20 @@ func (r *lateFailureReader) OpenRawData(ctx context.Context, id uint64) (filesys
 // A failure in a later volume must stop both streaming sides and leave nothing
 // published, even after the first volume has already supplied its payload.
 func TestContainerLaterVolumeFailure(t *testing.T) {
+	for _, encrypted := range []bool{false, true} {
+		t.Run(fmt.Sprintf("encrypted=%t", encrypted), func(t *testing.T) { testContainerLaterVolumeFailure(t, encrypted) })
+	}
+}
+func testContainerLaterVolumeFailure(t *testing.T, encrypted bool) {
 	s, o := inputFormat(t, "APFS")
 	sentinel := errors.New("second volume source failed")
 	r := &lateFailureReader{Reader: s, err: sentinel}
 	volumes := []apfs.VolumeSpec{{Reader: s, Name: "First"}, {Reader: r, Name: "Second"}}
+	if encrypted {
+		for i := range volumes {
+			volumes[i].Encryption = &apfs.VolumeEncryptionOptions{Password: []byte(fmt.Sprintf("public-volume-%d", i))}
+		}
+	}
 	options := pack.ContainerOptions{APFS: apfs.ContainerBuildOptions{Time: o.Volume.Time}}
 	dir := t.TempDir()
 	if _, err := pack.CreateContainer(context.Background(), filepath.Join(dir, "out.dmg"), volumes, options); !errors.Is(err, sentinel) {

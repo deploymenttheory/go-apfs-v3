@@ -57,7 +57,7 @@ a session supplies independent copies in separate volumes; hard links stay withi
 their own volume. Volume order is retained.
 
 `--case-sensitive`, `--uid`, `--gid`, `--role`, `--reserve`, `--quota`,
-`--volume-uuid`, `--group-with` and `--group-uuid` apply to the preceding volume.
+`--volume-uuid`, `--volume-password-file`, `--group-with` and `--group-uuid` apply to the preceding volume.
 Session inputs retain their case policy and ownership; use ordinary session
 commands to change metadata. Case and ownership-default flags apply only to
 directory or empty inputs. `--capacity`, `--time`, `--container-uuid`, `--format`,
@@ -79,8 +79,10 @@ Roles are `none` (default), `data` and `system`. System construction requires an
 explicit System/Data pair. Put `--group-with DATA_NAME` on the System clause;
 the Data clause must have `--role data`. Members must have the same case policy,
 and a volume can belong to only one group. `--group-uuid` optionally supplies a
-nonzero canonical UUID on the System clause. Otherwise group, volume and
-container UUIDs derive reproducibly from the complete ordered build inputs.
+nonzero canonical UUID on the System clause. Group UUIDs derive reproducibly
+from the complete ordered build inputs. Container and volume UUIDs also derive
+from those inputs for plaintext builds; when any volume is encrypted, unspecified
+container and volume UUIDs use secure randomness.
 The group records native identity and inode namespaces; it does not install
 macOS, create firmlinks, seal a system volume or produce a bootable installation.
 
@@ -171,8 +173,8 @@ Output is a password-only `encrcdsa` v2 envelope around UDRO or UDZO. It uses
 AES-CBC for payload blocks, the format's HMAC-SHA1 block IV derivation, and
 PBKDF2-HMAC-SHA1 with 600,000 iterations and a fresh salt to wrap new payload keys
 using AES-192-CBC. Every call draws a new identity, salt, wrapping IV and keys
-from `crypto/rand`. There is no deterministic-encryption option. Identical build
-inputs and clocks retain identical plaintext image/disk bytes; ciphertext differs
+from `crypto/rand`. There is no deterministic-encryption option. When the volumes are plaintext, identical build
+inputs and clocks retain identical decoded image/disk bytes; envelope ciphertext differs
 between runs and hosts. Unencrypted builds remain byte-identical.
 
 Encryption streams directly into a private ciphertext staging file. It does not
@@ -203,7 +205,7 @@ Image encryption does not create or change FileVault/APFS volume keys.
 
 The output is a single-region UDIF without a partition map, with 4096-byte
 filesystem blocks. HFS+/HFSX is clean and nonjournaled. APFS contains one or more
-unencrypted, unsealed volumes and a complete initial checkpoint, object maps,
+unsealed volumes, optionally software-encrypted, and a complete initial checkpoint, object maps,
 filesystem/extent-reference trees, space manager and free queues. It is a fresh
 filesystem; source snapshots, physical addresses and native inode
 numbers are not carried into a rebuild. Explicit whole-stream clone groups are
@@ -358,14 +360,17 @@ explain this policy and its limits.
 
 `--time RFC3339` fixes the construction clock; HFS requires whole seconds while
 APFS accepts nanoseconds. It does not normalize captured file timestamps. Without it the command samples the current UTC clock.
-Default native identifiers derive from canonical metadata and payload hashes.
+Default native identifiers for plaintext builds derive from canonical metadata and payload hashes.
 HFS `--volume-id` accepts an eight-byte identifier as 16 hex digits. APFS accepts
 `--volume-uuid` and `--container-uuid` as nonzero canonical UUIDs; absent values use
-distinct content-derived UUIDs. Options belonging to the other format are refused.
+distinct content-derived UUIDs for plaintext builds, or fresh random UUIDs when
+any volume is encrypted. Options belonging to the other format are refused.
 Enumeration, native object-ID assignment, allocation, zero filling, chunking and zlib settings
 are deterministic. Identical captured inputs and options produce byte-identical
-unencrypted outputs across all three hosts; encrypted output preserves identical
-plaintext bytes but uses fresh randomness. Different host-import observations or Go encoder
+unencrypted outputs across all three hosts. DMG envelope encryption preserves
+identical decoded disk bytes; APFS volume encryption creates fresh keys and
+default identities while preserving the logical filesystem contents and metadata.
+Different host-import observations or Go encoder
 versions are not assumed to be identical. Reproducible builds should pin their
 input session and tool version.
 
@@ -477,3 +482,46 @@ decrypted outputs must agree across hosts and have no image encryption.
 Source and output hashes remain unchanged by native readback. These checks add
 no new workflow or scenario family and never use a Go decoder for the final
 native verdict.
+
+## Creating software-encrypted APFS volumes
+
+Fresh APFS/APFSX volumes can use the admitted software AES-128-XTS ONEKEY
+profile with one native Disk crypto user. Volume encryption is independent of
+DMG envelope encryption and file compression:
+
+```sh
+apfs pack --filesystem apfs --volume-password-file volume-password \
+  ./payload Encrypted.dmg
+apfs pack --volume Private --directory ./private \
+  --volume-password-file private-password \
+  --volume Public --directory ./public \
+  --volume Archive --volume-password-file archive-password \
+  --encryption AES-256 --output-password-file image-password Mixed.dmg
+```
+
+In a multi-volume command, `--volume-password-file` applies to the preceding
+`--volume`. Each encrypted volume has independent keys and credentials. A volume
+without that option remains plaintext. Only one password file across all volumes
+and the image envelope may consume stdin (`-`); bytes are not trimmed. Passwords
+contain at most 4096 bytes, and a non-nil empty password is distinct from a missing
+credential. Existing images use the separate repack or image-editing commands.
+
+The typed equivalents are `apfs.BuildOptions.Encryption`,
+`apfs.VolumeSpec.Encryption` and `pack.VolumeOptions.Encryption`, each accepting
+`*apfs.VolumeEncryptionOptions`. Packing's existing `Encryption` option continues
+to control only the DMG envelope. Reports identify encrypted volumes and Disk-user
+UUIDs without exposing credentials or keys.
+
+`apfs.Plan` and `PlanContainer` borrow passwords only while planning. Close the
+returned `Layout` after its final `Write` to release its key schedules; closing
+waits for active writes and leaves source readers open. One plan has stable bytes
+across repeated writes. Independently planned encrypted builds generate fresh
+keys and wrapping salts; unspecified container and volume UUIDs are also fresh.
+Plaintext construction retains its deterministic identities and output bytes.
+
+Encrypted construction currently admits ordinary volumes. Hardware-bound,
+per-file, multi-user and encrypted System/Data role profiles remain outside this
+write profile. Explicit clone intent, hard links, resource forks and attributes
+are preserved within each volume. No data is shared across independently keyed
+volumes. Source readers remain immutable and failed managed builds publish no
+incomplete output.

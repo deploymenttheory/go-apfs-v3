@@ -39,6 +39,17 @@ var measuredLineageSeconds = func() map[string]map[string]int {
 	return costs
 }()
 
+// Complete encrypted output timings from run 40361771436, job 121728202582.
+// testdata/encrypted_lineage_timings.json retains all 74 groups and the original
+// log digest. Keep the older measurements intact; these current estimates cover
+// fresh encrypted construction and retained encrypted history added since then.
+var encryptedOutputLineageSeconds = map[string]int{
+	"encrypted-volumes/apfs":           1388,
+	"encrypted-volumes/apfsx":          1490,
+	"encrypted-snapshot-history/apfs":  905,
+	"encrypted-snapshot-history/apfsx": 928,
+}
+
 // prioritizeLineages changes only group start order. Every group and its ordered
 // members remain required. Unmeasured capabilities use a positive default cost.
 func prioritizeLineages(keys []string, kind string) {
@@ -46,7 +57,11 @@ func prioritizeLineages(keys []string, kind string) {
 		if kind == "outputs" && strings.HasPrefix(key, "macos-") {
 			_, key, _ = strings.Cut(key, "/")
 		}
-		if seconds := measuredLineageSeconds[kind][key]; seconds > 0 {
+		seconds := measuredLineageSeconds[kind][key]
+		if kind == "outputs" {
+			seconds = max(seconds, encryptedOutputLineageSeconds[key])
+		}
+		if seconds > 0 {
 			return seconds
 		}
 		return 60

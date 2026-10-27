@@ -65,17 +65,18 @@ func TestMain(m *testing.M) {
 }
 
 // nativeGroup is APFS_NATIVE_GROUPS: "fixtures" (cross-version parity,
-// which needs only the corpus), "main" (every host's outputs), "slow" (the
-// slow bucket's outputs) or empty for all three. CI runs the phases as
-// separate steps so each starts as soon as its inputs exist.
+// which needs only the corpus), "main" (existing image capabilities),
+// "encrypted-construction" (fresh encrypted volumes), "slow" (the slow
+// bucket's outputs) or empty for everything. Both output cohorts are required
+// by CI, and each phase starts as soon as its inputs exist.
 func nativeGroup(t *testing.T) string {
 	t.Helper()
 	group := os.Getenv("APFS_NATIVE_GROUPS")
 	switch group {
-	case "", "fixtures", "main", "slow":
+	case "", "fixtures", "main", "encrypted-construction", "slow":
 		return group
 	}
-	t.Fatalf("APFS_NATIVE_GROUPS=%q, want fixtures, main or slow", group)
+	t.Fatalf("APFS_NATIVE_GROUPS=%q, want fixtures, main, encrypted-construction or slow", group)
 	return ""
 }
 
@@ -105,7 +106,7 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 	for _, host := range []string{"linux", "windows"} {
 		slow[host] = filepath.Join(root, "slow-outputs-"+host)
 	}
-	selected := map[string]map[string]string{"main": main, "slow": slow}
+	selected := map[string]map[string]string{"main": main, "encrypted-construction": main, "slow": slow}
 	order := []string{"main", "slow"}
 	if group := nativeGroup(t); group != "" {
 		order = []string{group}
@@ -116,7 +117,7 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 		if err != nil {
 			t.Fatal(err)
 		}
-		saved, err := shareIdenticalOutputs(hosts)
+		saved, err := ShareIdenticalOutputs(hosts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,7 +197,7 @@ func buildVerifier() (verifier *Verifier, resultErr error) {
 		c.ExpandDir = filepath.Join(work, "fixture-images")
 	}
 	var unpacker string
-	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" {
+	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" || group == "encrypted-construction" {
 		unpacker, err = buildAppleDoubleUnpacker(context.Background(), commander, work)
 		if err != nil {
 			return nil, err
@@ -228,6 +229,13 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		t.Skip("outputs are verified in the main and slow phases")
 	}
 	v := newVerifier(t)
+	if nativeGroup(t) == "encrypted-construction" {
+		cases, err := v.Corpus.Cases()
+		if err != nil {
+			t.Fatal(err)
+		}
+		checkNativeEncryptedControls(t, v, cases)
+	}
 	groups := outputGroups(t, v.Major)
 	var pairs []Paired
 	for _, hosts := range groups {
@@ -242,6 +250,9 @@ func TestOutputsWithAppleTools(t *testing.T) {
 	}
 	if nativeGroup(t) != "slow" {
 		if err := requirePreservationSourceOutputs(pairs, v.Cases, v.Major); err != nil {
+			t.Fatal(err)
+		}
+		if err := requireEncryptedConstruction(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
 		if err := requireContainerOutputs(pairs, v.Cases, v.Major); err != nil {
@@ -277,6 +288,12 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		if err := requireEncryptedEditOutputs(pairs, v.Cases, v.Major); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// Validate the complete paired input cohort above before partitioning.
+	// CI requires both jobs, and neither may silently accept an empty scope.
+	pairs, err := selectNativeOutputs(nativeGroup(t), pairs)
+	if err != nil {
+		t.Fatal(err)
 	}
 	rows := &summary{}
 	lineages, order := groupByLineage(pairs, func(p Paired) string { return outputLineage(p.Output) })
@@ -348,7 +365,7 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
-	if p.Output.Operation == "change-password" && len(p.ByHost) > 1 {
+	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted") && len(p.ByHost) > 1 {
 		var hosts []string
 		for host := range p.ByHost {
 			hosts = append(hosts, host)
@@ -425,13 +442,7 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	// Each native consumer judges outputs derived from its own producer's
 	// fixtures. Establish its full checker against those exact original
 	// encrypted controls; cross-version mounted parity remains independent.
-	for _, k := range cases {
-		if k.Producer == v.Major && k.Recipe == "encrypted-snapshot-history" && k.Stage == "retained" {
-			if err := v.checkEncryptedFixture(context.Background(), k); err != nil {
-				t.Fatalf("native encrypted checker baseline: %v", err)
-			}
-		}
-	}
+	checkNativeEncryptedControls(t, v, cases)
 	if err := requireRawImageEncryption(t, v, cases); err != nil {
 		t.Fatalf("raw image encryption proof: %v", err)
 	}
@@ -474,6 +485,24 @@ func TestFixturesFromOtherVersionsReadIdentically(t *testing.T) {
 	})
 	sort.Strings(rows.rows)
 	writeSummary(t, "Cross-version parity on macOS "+strconv.Itoa(v.Major), append([]string{"| fixture | producer | known drift | unexplained |", "| --- | --- | --- | --- |"}, rows.rows...))
+}
+
+// Each VM calibrates the encrypted checker against both original Apple
+// controls before judging Go output, including a separate construction VM.
+func checkNativeEncryptedControls(t *testing.T, v *Verifier, cases []corpus.Case) {
+	t.Helper()
+	seen := map[string]bool{}
+	for _, k := range cases {
+		if k.Producer == v.Major && k.Recipe == "encrypted-snapshot-history" && k.Stage == "retained" {
+			if err := v.checkEncryptedFixture(context.Background(), k); err != nil {
+				t.Fatalf("native encrypted checker baseline: %v", err)
+			}
+			seen[k.Profile] = true
+		}
+	}
+	if !seen["apfs"] || !seen["apfsx"] {
+		t.Fatal("native encrypted checker requires original APFS and APFSX controls")
+	}
 }
 
 func writeSummary(t *testing.T, title string, rows []string) {
