@@ -347,7 +347,12 @@ func (m *mutation) convertFilesystem(trees []*cowTree, encrypted bool, key *volu
 			return err
 		}
 	}
+	addresses := make([]uint64, 0, len(oldNodes))
 	for address := range oldNodes {
+		addresses = append(addresses, address)
+	}
+	slices.Sort(addresses)
+	for _, address := range addresses {
 		if m.history != nil {
 			delete(m.history.metadata, address)
 		}

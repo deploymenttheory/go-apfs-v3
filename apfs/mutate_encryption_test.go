@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"reflect"
@@ -127,5 +128,42 @@ func TestVolumeConversionPropagatesFailedStorageWrites(t *testing.T) {
 	_ = owner.Close()
 	if !errors.Is(err, io.ErrClosedPipe) || disk.writes != 2 {
 		t.Fatal("storage failure lost", err, disk.writes)
+	}
+}
+
+func TestCompletedDecryptionIsDeterministicAcrossMetadataTreeGrowth(t *testing.T) {
+	ctx := context.Background()
+	disk := newCloneMutationDisk(builtContainer(t, nil))
+	var changes []Change
+	for i := range 200 {
+		changes = append(changes, Change{Path: fmt.Sprintf("/file-%03d", i), Data: bytes.NewReader(nil)})
+	}
+	if _, err := Modify(ctx, disk, changes, builtClock); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := UnlockMutation(ctx, disk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	password := []byte("public-deterministic-decryption-password")
+	if _, err = ConvertVolumeEncryption(ctx, owner, "", EncryptionConversion{Encrypt: true, Password: password}, builtClock); err != nil {
+		t.Fatal(err)
+	}
+	_ = owner.Close()
+	var previous []byte
+	for range 3 {
+		copy := newCloneMutationDisk(disk.data)
+		unlocked, err := UnlockMutation(ctx, copy, VolumeCredential{Password: password})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = ConvertVolumeEncryption(ctx, unlocked, "", EncryptionConversion{}, builtClock); err != nil {
+			t.Fatal(err)
+		}
+		_ = unlocked.Close()
+		if previous != nil && !bytes.Equal(previous, copy.data) {
+			t.Fatal("completed decryption changed bytes for identical source and clock")
+		}
+		previous = copy.data
 	}
 }
