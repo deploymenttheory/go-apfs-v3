@@ -39,12 +39,18 @@ func ValidateAPFSVerification(output, device string, volume *schema.APFSVolume) 
 }
 
 // observeAPFSVolumeChecks checks every APFS volume when an encrypted peer makes
-// a bare container fsck unsuitable. Observe has already unlocked each volume.
+// a bare container fsck unsuitable. Observation unmounts each volume, which
+// relocks encrypted keys; refresh every encrypted peer before checking any volume.
 func observeAPFSVolumeChecks(ctx context.Context, in ObserveInput, obs *schema.Observation) error {
 	disk, ok := in.Disk.(*HostDisk)
 	if !ok {
 		return fmt.Errorf("APFS verification requires a native disk adapter")
 	}
+	type selectedVolume struct {
+		disk     *AttachedVolume
+		expected *schema.APFSVolume
+	}
+	var selected []selectedVolume
 	for _, wanted := range obs.Volumes {
 		if wanted.APFS == nil {
 			continue
@@ -59,16 +65,42 @@ func observeAPFSVolumeChecks(ctx context.Context, in ObserveInput, obs *schema.O
 		if volume == nil {
 			return fmt.Errorf("verification lacks expected APFS volume %s", wanted.APFS.VolumeUUID)
 		}
+		if wanted.APFS.Encrypted {
+			info, err := disk.Info(ctx, volume.Dev)
+			if err != nil {
+				return err
+			}
+			locked, ok := info["Locked"].(bool)
+			if !ok {
+				return fmt.Errorf("APFS verification lacks lock state for %s", wanted.APFS.VolumeUUID)
+			}
+			if locked {
+				ref := in.Spec.Unlock[volume.Name]
+				if ref == "" {
+					ref = in.Spec.Unlock["*"]
+				}
+				if ref == "" || in.Vars == nil {
+					return fmt.Errorf("APFS verification lacks unlock credential for %s", wanted.APFS.VolumeUUID)
+				}
+				if err := unlockVolume(ctx, in, volume, ref, true); err != nil {
+					return err
+				}
+			}
+		}
+		selected = append(selected, selectedVolume{volume, wanted.APFS})
+	}
+	for _, item := range selected {
+		volume, wanted := item.disk, item.expected
 		output, err := disk.run(ctx, "fsck", false, nil, "diskutil", "verifyVolume", volume.Dev)
 		if err != nil {
 			return err
 		}
-		if err := ValidateAPFSVerification(string(output), volume.RDev, wanted.APFS); err != nil {
+		if err := ValidateAPFSVerification(string(output), volume.RDev, wanted); err != nil {
 			return err
 		}
 		xid := SelectedXID(string(output))
 		if xid == 0 || (obs.Checks.SelectedXID != 0 && obs.Checks.SelectedXID != xid) {
-			return fmt.Errorf("APFS volume %s selected inconsistent checkpoint %d", wanted.APFS.VolumeUUID, xid)
+			return fmt.Errorf("APFS volume %s selected inconsistent checkpoint %d", wanted.VolumeUUID, xid)
 		}
 		obs.Checks.SelectedXID = xid
 		if result := lastCommandResult(in.T, "fsck"); result != nil {
