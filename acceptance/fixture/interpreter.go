@@ -333,14 +333,23 @@ func (c *Capture) runStage(ctx context.Context, stage *schema.Stage) error {
 	if err := c.detach(ctx); err != nil {
 		return err
 	}
-	baseline := filepath.Join(c.Work, "baseline", c.prefix()+"."+stage.Name)
-	if err := os.MkdirAll(filepath.Dir(baseline), 0o755); err != nil {
-		return err
+	// Default progression keeps using scratch. Only an explicit later branch
+	// needs a separate writable baseline; retained stage images below remain
+	// independent evidence and are always produced.
+	for _, next := range c.Recipe.Stages {
+		if next.From != stage.Name {
+			continue
+		}
+		baseline := filepath.Join(c.Work, "baseline", c.prefix()+"."+stage.Name)
+		if err := os.MkdirAll(filepath.Dir(baseline), 0o755); err != nil {
+			return err
+		}
+		if err := copyFile(c.scratch, baseline, true); err != nil {
+			return err
+		}
+		c.baselines[stage.Name] = baseline
+		break
 	}
-	if err := copyFile(c.scratch, baseline, true); err != nil {
-		return err
-	}
-	c.baselines[stage.Name] = baseline
 	retained, err := c.retain(ctx, stage)
 	if err != nil {
 		return err

@@ -59,6 +59,10 @@ func TestCaptureRunsStagesFromBaselinesAndRecordsObservations(t *testing.T) {
 	if err := c.Run(context.Background()); err != nil {
 		t.Fatalf("run: %v\ncalls:\n%s", err, strings.Join(disk.calls, "\n"))
 	}
+	baselines, err := os.ReadDir(filepath.Join(work, "baseline"))
+	if err != nil || len(baselines) != 1 || baselines[0].Name() != "apfs.before" {
+		t.Fatalf("only the referenced before stage needs a writable baseline: got %v, error %v", baselines, err)
+	}
 	for _, name := range []string{"apfs.before.observation.json", "apfs.after.observation.json", "apfs.branch.observation.json", "apfs.before.dmg", "apfs.after.dmg", "apfs.branch.dmg", "apfs.aes.dmg"} {
 		if _, err := os.Stat(filepath.Join(out, name)); err != nil {
 			t.Errorf("missing %s", name)
