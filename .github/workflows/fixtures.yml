@@ -35,7 +35,7 @@ jobs:
           echo "APFS_PRODUCT_CLI=$RUNNER_TEMP/apfs" >> "$GITHUB_ENV"
           echo "APFS_NATIVE_WORK=$RUNNER_TEMP/credential-lock-evidence" >> "$GITHUB_ENV"
       - name: Reproduce plaintext continuation and fresh encryption attachment
-        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^TestEncryptedVolumeCredentialLockState$' -v
+        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^Test(EncryptedVolumeCredentialLockState|NativeUnlockedUnmountedCredentialProbe)$' -v
       - name: Retain original diagnostic and observer sources
         if: always()
         run: |

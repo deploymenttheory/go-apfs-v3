@@ -22,7 +22,7 @@ import (
 func TestEncryptedVolumeCredentialLockState(t *testing.T) {
 	v := newVerifier(t)
 	ctx := context.Background()
-	ref := schema.CaseRef{Producer: v.Major, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "retained-again"}
+	ref := schema.CaseRef{Producer: v.Major, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "aes256-nested"}
 	warm := probeVolumeConversion(t, v, ref, "warm-plaintext")
 	encryptedRef := ref
 	encryptedRef.Stage = "decrypted"
@@ -104,6 +104,9 @@ func probeVolumeConversion(t *testing.T, v *Verifier, ref schema.CaseRef, label 
 	}
 	options := imageedit.Options{Format: "UDZO", Partition: 1, Time: time.Unix(1700000000, 0).UTC()}
 	recipe := v.Recipes[ref.Recipe]
+	if before.Observation.Image.Encryption != nil {
+		options.ImagePassword = []byte(recipe.Passwords[before.Observation.Image.Encryption.Password])
+	}
 	for _, vol := range before.Observation.Volumes {
 		if volumeName(vol) == selected {
 			options.Volume = vol.APFS.VolumeUUID
@@ -151,8 +154,84 @@ func probeVolumeConversion(t *testing.T, v *Verifier, ref schema.CaseRef, label 
 		t.Fatal(err)
 	}
 	out := schema.Output{Name: label, File: filepath.Base(path), SHA256: digest, Bytes: stat.Size(), Operation: "convert-volume", Format: "UDZO", Source: ref, Expect: schema.Expectation{View: target, Volume: selected, Continuation: true}}
+	passwords := map[string]string{}
+	if options.ImagePassword != nil {
+		out.Encrypted, out.Password = true, "encrypted-snapshot-history.image"
+		passwords[out.Password] = string(options.ImagePassword)
+	}
 	probeJSON(t, v.Work, label+"-scope.json", map[string]any{"scope": "Diagnostic one producer/APFS history sequence only; no complete corpus or gate verdict", "source": ref, "originalImageSHA256": before.Observation.Image.SHA256, "output": out})
-	return Paired{Name: label, Output: out, Primary: "darwin", ByHost: map[string]schema.Output{"darwin": out}, Dirs: map[string]string{"darwin": dir}}
+	return Paired{Name: label, Output: out, Primary: "darwin", ByHost: map[string]schema.Output{"darwin": out}, Dirs: map[string]string{"darwin": dir}, Passwords: passwords}
+}
+
+// Establish the exact recorded API state using only an untouched Apple image:
+// correct unlock with -nomount, then call the original credential observer.
+func TestNativeUnlockedUnmountedCredentialProbe(t *testing.T) {
+	v := newVerifier(t).ForSubtest()
+	ctx := context.Background()
+	ref := schema.CaseRef{Producer: v.Major, Recipe: "encrypted-snapshot-history", Profile: "apfsx", Stage: "retained-again"}
+	before := v.Cases[CaseKey(ref)]
+	recipe := v.Recipes[ref.Recipe]
+	lease, err := v.Corpus.AcquireImage(ctx, before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := lease.Release(nil); err != nil {
+			t.Error(err)
+		}
+	}()
+	tr := &fixture.Transcript{}
+	v.setTranscript(tr)
+	att, err := v.Disk.Attach(ctx, lease.Path(), fixture.AttachOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := v.Disk.Detach(ctx, att); err != nil {
+			t.Error(err)
+		}
+		probeJSON(t, v.Work, "known-unmounted-commands.json", tr.Commands)
+	}()
+	vol := att.Volume("EncryptedHistory")
+	if vol == nil {
+		t.Fatal("native encrypted control missing")
+	}
+	unlock, rejected := volumeCredentials(before.Observation)
+	cmd := fixture.Command{Label: "known-native-unlock-nomount", Argv: []string{"diskutil", "apfs", "unlockVolume", vol.Dev, "-stdinpassphrase", "-nomount"}, Stdin: []byte(recipe.Passwords[unlock[vol.Name]] + "\n"), Expected: "0"}
+	if err := tr.Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+		t.Fatal(err)
+	}
+	info, err := v.Disk.Info(ctx, vol.Dev)
+	probeJSON(t, v.Work, "known-native-unmounted-state.json", map[string]any{"info": info, "error": fmt.Sprint(err), "source": ref, "originalImageSHA256": before.Observation.Image.SHA256})
+	input := fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "apfsx"}, Stage: "known-native-unmounted", Spec: schema.ObserveSpec{Unlock: unlock, Rejected: rejected, Snapshots: true, Checks: []string{"verify", "fsck"}}, Image: lease.Path(), Format: "UDZO", Att: att, Disk: v.Disk, Vol: v.Vol, Vars: &fixture.Vars{Passwords: recipe.Passwords}, T: tr, Work: filepath.Join(v.Work, "known-probe"), Out: filepath.Join(v.Work, "exports"), Prefix: "known-native-unmounted", Producer: v.Producer, OmitDeviceDigest: true}
+	_, observeErr := fixture.Observe(ctx, input)
+	probeJSON(t, v.Work, "known-native-observation.json", map[string]any{"error": fmt.Sprint(observeErr), "commands": tr.Commands})
+	if observeErr == nil {
+		t.Log("observer handled known native unlock-nomount state")
+		return
+	}
+	t.Error("known native unmounted observer", observeErr)
+	for _, delay := range []time.Duration{time.Second, 3 * time.Second} {
+		time.Sleep(delay)
+		info, err := v.Disk.Info(ctx, vol.Dev)
+		probeJSON(t, v.Work, fmt.Sprintf("known-state-after-%d.json", int(delay/time.Second)), map[string]any{"info": info, "error": fmt.Sprint(err)})
+	}
+	mountErr := v.Disk.Mount(ctx, vol, "owners", "", false)
+	probeJSON(t, v.Work, "known-native-mount.json", map[string]any{"error": fmt.Sprint(mountErr)})
+	if mountErr != nil {
+		return
+	}
+	cmd = fixture.Command{Label: "known-native-mounted-lock", Argv: []string{"diskutil", "apfs", "lockVolume", vol.Dev}, Expected: "0"}
+	if err := tr.Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+		t.Fatal(err)
+	}
+	info, err = v.Disk.Info(ctx, vol.Dev)
+	probeJSON(t, v.Work, "known-native-mounted-lock-state.json", map[string]any{"info": info, "error": fmt.Sprint(err)})
+	_, afterErr := fixture.Observe(ctx, input)
+	probeJSON(t, v.Work, "known-native-after-mount-and-lock.json", map[string]any{"error": fmt.Sprint(afterErr)})
+	if afterErr != nil {
+		t.Error("native original strict checks after mounted lock", afterErr)
+	}
 }
 
 func probeJSON(t *testing.T, root, name string, value any) {
