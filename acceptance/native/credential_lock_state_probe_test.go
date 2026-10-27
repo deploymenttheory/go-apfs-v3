@@ -24,6 +24,9 @@ func TestEncryptedVolumeCredentialLockState(t *testing.T) {
 	ctx := context.Background()
 	ref := schema.CaseRef{Producer: v.Major, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "retained-again"}
 	warm := probeVolumeConversion(t, v, ref, "warm-plaintext")
+	encryptedRef := ref
+	encryptedRef.Stage = "decrypted"
+	reencrypted := probeVolumeConversion(t, v, encryptedRef, "reencrypted")
 	diffs, err := v.VerifyOutput(ctx, warm)
 	if err != nil || len(diffs) != 0 {
 		t.Fatal("plaintext native verification", diffs, err)
@@ -31,8 +34,7 @@ func TestEncryptedVolumeCredentialLockState(t *testing.T) {
 	if _, err := v.Continuation(ctx, warm, schemaCase{recipe: v.Recipes[ref.Recipe]}); err != nil {
 		t.Fatal("plaintext native/Go/native continuation", err)
 	}
-	ref.Stage = "decrypted"
-	reencrypted := probeVolumeConversion(t, v, ref, "reencrypted")
+	ref = encryptedRef
 	image := filepath.Join(reencrypted.Dirs["darwin"], reencrypted.Output.File)
 	transcript := &fixture.Transcript{}
 	v.setTranscript(transcript)
