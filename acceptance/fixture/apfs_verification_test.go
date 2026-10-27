@@ -42,24 +42,30 @@ func apfsVerificationText(device, id string) string {
 
 // Native observation unmounts each encrypted volume, which relocks its keys.
 // A checker command alone cannot restore that crypto context.
-func TestAPFSVerificationRefreshesCredentialsAfterObservationUnmount(t *testing.T) {
-	transcript := &Transcript{}
-	volume := &AttachedVolume{Dev: "/dev/disk8s1", RDev: "/dev/rdisk8s1", UUID: "PRIMARY", Name: "History", FS: "apfs"}
-	obs := &schema.Observation{Volumes: []schema.Volume{{Device: volume.Dev, APFS: &schema.APFSVolume{VolumeUUID: volume.UUID, Encrypted: true}}}}
-	commander := &unmountedAPFSCommander{locked: true, volume: volume}
-	in := ObserveInput{Spec: schema.ObserveSpec{Checks: []string{"fsck"}, Unlock: map[string]string{"History": "primary"}}, Vars: &Vars{Passwords: map[string]string{"primary": "public-context-password"}}, Att: &Attachment{Volumes: []*AttachedVolume{volume}}, Disk: &HostDisk{C: commander, T: transcript}, T: transcript}
-	if err := observeChecks(context.Background(), in, obs); err != nil {
-		t.Fatal(err)
-	}
-	if commander.locked || commander.unlocks != 1 || commander.checks != 1 || len(obs.Checks.Fsck) != 1 {
-		t.Fatal("checker lacked refreshed crypto context", commander)
+func TestAPFSVerificationRestoresKeysAfterObservationUnmount(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(fmt.Sprintf("checker-failure=%t", fail), func(t *testing.T) {
+			transcript := &Transcript{}
+			volume := &AttachedVolume{Dev: "/dev/disk8s1", RDev: "/dev/rdisk8s1", UUID: "PRIMARY", Name: "History", FS: "apfs"}
+			obs := &schema.Observation{Volumes: []schema.Volume{{Device: volume.Dev, APFS: &schema.APFSVolume{VolumeUUID: volume.UUID, Encrypted: true}}}}
+			commander := &unmountedAPFSCommander{locked: true, volume: volume, failChecks: fail}
+			in := ObserveInput{Spec: schema.ObserveSpec{Checks: []string{"fsck"}, Unlock: map[string]string{"History": "primary"}}, Vars: &Vars{Passwords: map[string]string{"primary": "public-context-password"}}, Att: &Attachment{Volumes: []*AttachedVolume{volume}}, Disk: &HostDisk{C: commander, T: transcript}, T: transcript}
+			err := observeChecks(context.Background(), in, obs)
+			if (err != nil) != fail {
+				t.Fatal("checker result changed", err)
+			}
+			if !commander.locked || commander.unlocks != 1 || commander.locks != 1 || commander.checks != 1 {
+				t.Fatal("checker leaked its unlock into the next attachment", commander)
+			}
+		})
 	}
 }
 
 type unmountedAPFSCommander struct {
-	locked          bool
-	volume          *AttachedVolume
-	unlocks, checks int
+	locked                 bool
+	failChecks             bool
+	volume                 *AttachedVolume
+	unlocks, locks, checks int
 }
 
 func (c *unmountedAPFSCommander) Run(_ context.Context, command Command) Result {
@@ -76,9 +82,13 @@ func (c *unmountedAPFSCommander) Run(_ context.Context, command Command) Result 
 		c.locked = false
 		c.unlocks++
 		return Result{}
+	case len(argv) == 4 && argv[0] == "diskutil" && argv[1] == "apfs" && argv[2] == "lockVolume" && argv[3] == c.volume.Dev:
+		c.locked = true
+		c.locks++
+		return Result{}
 	case len(argv) == 3 && argv[0] == "diskutil" && argv[1] == "verifyVolume" && argv[2] == c.volume.Dev:
 		c.checks++
-		if c.locked {
+		if c.locked || c.failChecks {
 			return Result{Status: 1, Stdout: []byte("error: failed to enable crypto I/O mode for container"), Stderr: []byte("Underlying error: 66")}
 		}
 		return Result{Stdout: []byte(apfsVerificationText(c.volume.RDev, c.volume.UUID))}
