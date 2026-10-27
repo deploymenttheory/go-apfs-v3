@@ -37,8 +37,8 @@ func DeleteSnapshot(ctx context.Context, disk MutableSource, volumeUUID string, 
 	if volumeUUID == "" && len(m.c.Volumes) > 1 {
 		return report, fmt.Errorf("select an APFS volume UUID in a multiple-volume container: %w", fs.ErrInvalid)
 	}
-	if m.v.Encrypted {
-		return report, fmt.Errorf("snapshot deletion on encrypted APFS: %w", filesystem.ErrUnsupported)
+	if m.v.Encrypted || m.v.IncompatibleFeatures&4 != 0 {
+		return report, fmt.Errorf("snapshot deletion on encrypted or completed-converted APFS: %w", filesystem.ErrUnsupported)
 	}
 	index := slices.IndexFunc(m.ownership.snapshots, func(snapshot snapshotRecord) bool {
 		return selector.Name != "" && snapshot.Name == selector.Name || selector.XID != 0 && snapshot.XID == selector.XID

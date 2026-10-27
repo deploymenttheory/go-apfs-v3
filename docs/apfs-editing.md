@@ -135,8 +135,9 @@ name is not interpreted as an XID. Missing selections fail without publishing.
 The original image stays read-only, the output path must not exist, and the
 selected partition and APFS volume follow ordinary editing rules. Deletion uses
 the same whole-second `--time`, output format and DMG envelope credential options
-as other edits. Snapshot deletion currently requires a plaintext APFS volume;
-encrypted deletion remains outside the admitted deletion profile.
+as other edits. Snapshot deletion currently requires an unconverted plaintext APFS volume;
+deletion on encrypted or completed-converted volumes remains outside the admitted
+deletion profile.
 
 The library exposes `imageedit.DeleteSnapshot(ctx, source, destination, options,
 apfs.SnapshotSelector{Name: name})`; use `XID: xid` instead for a transaction

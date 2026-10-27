@@ -422,7 +422,9 @@ func (s *storageChecker) checkView(v *Volume, super []byte, omap *cowTree, exten
 	if err != nil {
 		return nil, err
 	}
-	streams, err := scanStorageStreams(s.ctx, t.all(), s.c.BlockCount, super, v.Encrypted)
+	// Completed native decryption retains the original ONEKEY descriptors in
+	// historical records; mapping and payload encryption still use v.Encrypted.
+	streams, err := scanStorageStreams(s.ctx, t.all(), s.c.BlockCount, super, v.Encrypted || v.decryptedSnapshot)
 	if err != nil {
 		return nil, err
 	}

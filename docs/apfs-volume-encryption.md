@@ -79,8 +79,8 @@ ownership accountant. The admitted encryption profile is software AES-128-XTS
 ONEKEY with one native Disk crypto user. System/Data roles, hardware-bound or
 per-file keys, unqualified users/key widths, unfinished native conversions,
 active reaping, unaccounted ownership and unsupported geometry fail explicitly.
-Snapshot create/rename/revert and encrypted snapshot deletion have their own
-writer admission; conversion does not enable them.
+Snapshot create/rename/revert and snapshot deletion on encrypted or completed-
+converted volumes have their own writer admission; conversion does not enable them.
 
 Cancellation, allocation pressure, short writes, flush/encoding failures and
 interrupted publication cannot publish a partially converted destination or

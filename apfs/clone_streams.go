@@ -72,7 +72,7 @@ func (v *Volume) CloneStreams(ctx context.Context, root uint64) (map[uint64]file
 			if logical != end || length == 0 || length%blockSize != 0 || logical%blockSize != 0 || length > (1<<40)-logical || physical >= v.container.BlockCount || physical != 0 && length/blockSize > v.container.BlockCount-physical {
 				return corrupt("captured clone extent geometry", 0)
 			}
-			if flags>>56 != 0 && (flags>>56 != 1 || !v.Encrypted || v.Flags&8 == 0) {
+			if flags>>56 != 0 && (flags>>56 != 1 || !v.Encrypted && !v.decryptedSnapshot || v.Flags&8 == 0) {
 				return filesystem.ErrUnsupported
 			}
 			end += length

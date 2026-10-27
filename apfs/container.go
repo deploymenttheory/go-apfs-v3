@@ -63,10 +63,13 @@ type Volume struct {
 	id                        [16]byte
 	keys                      *volumeKeys
 	keysBorrowed              bool
-	xid                       XID
-	snapMeta                  OID
-	snapMetaType              uint32
-	snapMetaExt               OID
+	// Native completed decryption preserves ONEKEY descriptors in retained
+	// records while their current mappings and physical data are plaintext.
+	decryptedSnapshot bool
+	xid               XID
+	snapMeta          OID
+	snapMetaType      uint32
+	snapMetaExt       OID
 }
 
 // Open borrows source and selects the highest checksummed superblock in the
