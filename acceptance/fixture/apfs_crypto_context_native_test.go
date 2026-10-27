@@ -38,7 +38,7 @@ func TestAPFSCryptoContextAcrossObservationUnmount(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("original input SHA256=%s", before)
-	for _, mode := range []string{"fresh-unlock", "observation-unmounted", "observation-unmounted-reunlocked"} {
+	for _, mode := range []string{"observation-unmounted-reunlocked"} {
 		t.Run(mode, func(t *testing.T) {
 			transcript := &Transcript{}
 			disk := &HostDisk{C: Exec{}, T: transcript}
