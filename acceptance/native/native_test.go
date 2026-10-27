@@ -528,12 +528,15 @@ func writeSummary(t *testing.T, title string, rows []string) {
 }
 
 func (v *Verifier) checkEncryptedFixture(ctx context.Context, k corpus.Case) (resultErr error) {
-	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)))
+	label := fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", label))
 	defer finish(&resultErr)
-	lease, err := v.Corpus.AcquireImage(ctx, k)
-	if err != nil {
-		return err
-	}
-	err = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
-	return errors.Join(err, lease.Release(err))
+	// Calibration must release the original keys before a later conversion
+	// retains this UUID with fresh keys. The existing observer mounts and
+	// unmounts every view and restores its checker-owned unlocks. Continuation
+	// checks keep their established lifecycle, followed by full observation.
+	unlock, rejected := volumeCredentials(k.Observation)
+	spec := schema.ObserveSpec{Unlock: unlock, Rejected: rejected, Snapshots: hasHistoricalViews(k.Observation), Checks: []string{"fsck"}}
+	_, err := v.observeFixture(ctx, k, label, nil, spec, v.Recipes[k.Recipe])
+	return err
 }

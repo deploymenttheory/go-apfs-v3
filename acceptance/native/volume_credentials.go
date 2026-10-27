@@ -81,7 +81,7 @@ func hasEncryptedVolumes(observation *schema.Observation) bool {
 // to fsck. Direct fsck_apfs -F cannot validate even the untouched Apple controls
 // on macOS 26/27. Require the full decrypted check, never a skipped-filesystem
 // success. The attachment and verification are read-only.
-func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imagePassword []byte, expected *schema.Observation, recipe schema.Recipe) (resultErr error) {
+func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imagePassword []byte, expected *schema.Observation, recipe schema.Recipe) error {
 	if !hasEncryptedVolumes(expected) {
 		return nil
 	}
@@ -89,47 +89,6 @@ func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imag
 	if err != nil {
 		return err
 	}
-	// This attachment owns the keys it unlocks. Leaving them active at detach
-	// lets macOS carry an unlocked state into a later converted image with
-	// the same volume UUID, even when that image has a fresh keybag.
-	var acquired []*fixture.AttachedVolume
-	for _, volume := range att.Volumes {
-		if volume.Locked {
-			acquired = append(acquired, volume)
-		}
-	}
-	defer func() {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), fixture.DefaultTimeout)
-		defer cancel()
-		t := &fixture.Transcript{}
-		v.setTranscript(t)
-		restore := func(volume *fixture.AttachedVolume) error {
-			info, err := v.Disk.Info(cleanup, volume.Dev)
-			if err != nil {
-				return err
-			}
-			locked, ok := info["Locked"].(bool)
-			if !ok {
-				return fmt.Errorf("verification cleanup lacks lock state for %s", volume.UUID)
-			}
-			if locked {
-				return nil
-			}
-			cmd := fixture.Command{Label: "lock", Argv: []string{"diskutil", "apfs", "lockVolume", volume.Dev}, Expected: "0"}
-			if err := t.Record(cmd, v.C.Run(cleanup, cmd)); err != nil {
-				return err
-			}
-			info, err = v.Disk.Info(cleanup, volume.Dev)
-			if err == nil && info["Locked"] != true {
-				err = fmt.Errorf("verification did not restore locked volume %s", volume.UUID)
-			}
-			return err
-		}
-		for i := len(acquired) - 1; i >= 0; i-- {
-			resultErr = errors.Join(resultErr, restore(acquired[i]))
-		}
-		resultErr = errors.Join(resultErr, v.Disk.Detach(cleanup, att))
-	}()
 	err = v.unlockContinuationVolumes(ctx, att, expected, recipe)
 	if err == nil {
 		t := &fixture.Transcript{}
@@ -160,7 +119,7 @@ func (v *Verifier) checkEncryptedVolumes(ctx context.Context, image string, imag
 			}
 		}
 	}
-	return err
+	return errors.Join(err, v.Disk.Detach(ctx, att))
 }
 
 func validateAPFSVerification(output, device string, volume *schema.APFSVolume) error {
