@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   probe:
     name: APFS credential lock state on macOS ${{ matrix.major }}
@@ -34,8 +35,24 @@ jobs:
           go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
           echo "APFS_PRODUCT_CLI=$RUNNER_TEMP/apfs" >> "$GITHUB_ENV"
           echo "APFS_NATIVE_WORK=$RUNNER_TEMP/credential-lock-evidence" >> "$GITHUB_ENV"
+      - name: Retrieve exact original failed and successful output bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 acceptance/native/fetch_credential_output.py
+          gh api --allow-escape-sequences repos/deploymenttheory/go-apfs-v3/actions/artifacts/12744278413/zip > "$RUNNER_TEMP/successful-control.zip"
+          python3 - <<'PYINNER'
+          from pathlib import Path
+          import os,zipfile,hashlib
+          p=Path(os.environ['RUNNER_TEMP'])/'successful-control.zip'
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='88373ab351a59629b9692c95c14e9c9f2aefa88745a965d258f98f5d7b6e821e'
+          with zipfile.ZipFile(p) as z:
+              data=z.read('generated/reencrypted.dmg')
+              assert hashlib.sha256(data).hexdigest()=='1ad0a9b0ab1e4f9a263dee960cdca936b83c341680de571496216ee94d8cf11c'
+              (Path(os.environ['APFS_NATIVE_WORK'])/'successful-probe-original.dmg').write_bytes(data)
+          PYINNER
       - name: Reproduce plaintext continuation and fresh encryption attachment
-        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^Test(EncryptedVolumeCredentialLockState|NativeUnlockedUnmountedCredentialProbe)$' -v
+        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^TestExactCIPayloadCredentialState$' -v
       - name: Retain original diagnostic and observer sources
         if: always()
         run: |

@@ -244,3 +244,57 @@ func probeJSON(t *testing.T, root, name string, value any) {
 		t.Error(err)
 	}
 }
+
+// Compare original archived payloads, including their actual random keys.
+func TestExactCIPayloadCredentialState(t *testing.T) {
+	v := newVerifier(t)
+	ctx := context.Background()
+	ref := schema.CaseRef{Producer: 27, Recipe: "encrypted-snapshot-history", Profile: "apfs", Stage: "converted"}
+	recipe := v.Recipes[ref.Recipe]
+	unlock, rejected := volumeCredentials(v.Cases[CaseKey(ref)].Observation)
+	for _, name := range []string{"ci-reencryption-linux-macos27-original.dmg", "successful-probe-original.dmg"} {
+		t.Run(name, func(t *testing.T) {
+			v := v.ForSubtest()
+			tr := &fixture.Transcript{}
+			v.setTranscript(tr)
+			image := filepath.Join(v.Work, name)
+			att, err := v.Disk.Attach(ctx, image, fixture.AttachOptions{ReadOnly: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := v.Disk.Detach(ctx, att); err != nil {
+					t.Error(err)
+				}
+				probeJSON(t, v.Work, name+".commands.json", tr.Commands)
+			}()
+			vol := att.Volume("EncryptedHistory")
+			if vol == nil {
+				t.Fatal("selected volume missing")
+			}
+			info, err := v.Disk.Info(ctx, vol.Dev)
+			probeJSON(t, v.Work, name+".initial-state.json", map[string]any{"info": info, "error": fmt.Sprint(err)})
+			in := fixture.ObserveInput{Recipe: &recipe, Profile: schema.Profile{ID: "apfs"}, Stage: name, Spec: schema.ObserveSpec{Unlock: unlock, Rejected: rejected, Snapshots: true, Checks: []string{"verify", "fsck"}}, Image: image, Format: "UDZO", Att: att, Disk: v.Disk, Vol: v.Vol, Vars: &fixture.Vars{Passwords: recipe.Passwords}, T: tr, Work: filepath.Join(v.Work, "exact", sanitize(name)), Out: filepath.Join(v.Work, "exports"), Prefix: sanitize(name), Producer: v.Producer, OmitDeviceDigest: true}
+			_, observeErr := fixture.Observe(ctx, in)
+			probeJSON(t, v.Work, name+".observation.json", map[string]any{"error": fmt.Sprint(observeErr), "commands": tr.Commands})
+			if observeErr == nil {
+				t.Log("original payload strict native observation passed")
+				return
+			}
+			t.Error("original payload observer", observeErr)
+			for _, delay := range []time.Duration{time.Second, 3 * time.Second} {
+				time.Sleep(delay)
+				info, err := v.Disk.Info(ctx, vol.Dev)
+				probeJSON(t, v.Work, fmt.Sprintf("%s.after-%d.json", name, int(delay/time.Second)), map[string]any{"info": info, "error": fmt.Sprint(err)})
+			}
+			mountErr := v.Disk.Mount(ctx, vol, "owners", "", false)
+			probeJSON(t, v.Work, name+".mount.json", map[string]any{"error": fmt.Sprint(mountErr)})
+			cmd := fixture.Command{Label: "exact-payload-authenticate", Argv: []string{"diskutil", "apfs", "unlockVolume", vol.Dev, "-stdinpassphrase", "-nomount"}, Stdin: []byte(recipe.Passwords[unlock[vol.Name]] + "\n"), Expected: "record"}
+			if err := tr.Record(cmd, v.C.Run(ctx, cmd)); err != nil {
+				t.Error(err)
+			}
+			_, afterErr := fixture.Observe(ctx, in)
+			probeJSON(t, v.Work, name+".after-authentication.json", map[string]any{"error": fmt.Sprint(afterErr)})
+		})
+	}
+}
