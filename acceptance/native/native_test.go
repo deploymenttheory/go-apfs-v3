@@ -365,7 +365,15 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
-	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume") && len(p.ByHost) > 1 {
+	newVolumeKeys := false
+	if p.Output.Operation == "convert-volume" {
+		var err error
+		newVolumeKeys, err = validateVolumeConversionOutput(p.Output)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted" || newVolumeKeys) && len(p.ByHost) > 1 {
 		var hosts []string
 		for host := range p.ByHost {
 			hosts = append(hosts, host)
