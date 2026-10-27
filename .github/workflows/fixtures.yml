@@ -1,20 +1,19 @@
-name: Diagnose APFS crypto context
+name: Diagnose APFS observation key ownership
 on:
   workflow_dispatch:
 permissions:
   contents: read
-  actions: read
 jobs:
   probe:
-    name: APFS crypto context on macOS ${{ matrix.major }}
+    name: APFS observation key ownership on macOS ${{ matrix.major }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {major: 26, runner: macos-26, artifact: 12713848041, digest: 333fa0d52cba63a0c9799843a91c78f6eec9962a1d53ba0a332c47c87eaa70b1}
-          - {major: 27, runner: xcode-27, artifact: 12713848041, digest: 333fa0d52cba63a0c9799843a91c78f6eec9962a1d53ba0a332c47c87eaa70b1}
+          - {major: 26, runner: macos-26}
+          - {major: 27, runner: xcode-27}
     env:
       GOTOOLCHAIN: local
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
@@ -24,42 +23,20 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Set private probe paths
-        run: |
-          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/crypto-context-evidence" >> "$GITHUB_ENV"
-          echo "APFS_CRYPTO_CONTEXT_IMAGE=$RUNNER_TEMP/original-capture.dmg" >> "$GITHUB_ENV"
-      - name: Read original failed Apple input by verified digest
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ARCHIVE_DIGEST: ${{ matrix.digest }}
-        run: |
-          gh api repos/deploymenttheory/go-apfs-v3/actions/artifacts/${{ matrix.artifact }}/zip > "$RUNNER_TEMP/original.zip"
-          python3 - <<'PYTHON'
-          import hashlib, json, os, pathlib, zipfile
-          archive=pathlib.Path(os.environ["RUNNER_TEMP"])/"original.zip"
-          digest=hashlib.file_digest(archive.open("rb"),"sha256").hexdigest()
-          assert digest==os.environ["ARCHIVE_DIGEST"], digest
-          member="encrypted-snapshot-history/apfs.decrypted.dmg"
-          with zipfile.ZipFile(archive) as z:
-              data=z.read(member)
-              failure=z.read("encrypted-snapshot-history/apfs.decrypted.failure.json")
-          pathlib.Path(os.environ["APFS_CRYPTO_CONTEXT_IMAGE"]).write_bytes(data)
-          pathlib.Path(os.environ["APFS_CRYPTO_CONTEXT_IMAGE"]+".failure.json").write_bytes(failure)
-          root=pathlib.Path(os.environ["APFS_NATIVE_WORK"])
-          root.mkdir()
-          (root/"input.json").write_text(json.dumps({"run":40455132066,"sourceProducer":26,"artifact":${{ matrix.artifact }},"archiveSHA256":digest,"member":member,"imageSHA256":hashlib.sha256(data).hexdigest()},indent=2))
-          PYTHON
-      - name: Compare native crypto-context lifetimes
-        run: go test -count=1 -timeout 8m -tags native ./acceptance/fixture -run '^TestAPFSCryptoContextAcrossObservationUnmount$' -v
-      - name: Retain original probe source and command evidence
+      - name: Set private evidence path
+        run: echo "APFS_NATIVE_WORK=$RUNNER_TEMP/crypto-context-evidence" >> "$GITHUB_ENV"
+      - name: Run the original observation and next writable stage
+        run: go test -count=1 -timeout 10m -tags native ./acceptance/fixture -run '^TestAPFSObservationReleasesKeysForNextStage$' -v
+      - name: Retain original probe and checker sources
         if: always()
         run: |
           mkdir -p "$APFS_NATIVE_WORK"
           cp acceptance/fixture/apfs_crypto_context_native_test.go "$APFS_NATIVE_WORK/collector.go"
+          cp acceptance/fixture/apfs_verification.go "$APFS_NATIVE_WORK/apfs-verification.go"
           cp .github/workflows/fixtures.yml "$APFS_NATIVE_WORK/workflow.yml"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: apfs-crypto-context-macos-${{ matrix.major }}
+          name: apfs-observation-key-ownership-macos-${{ matrix.major }}
           path: ${{ runner.temp }}/crypto-context-evidence/
           if-no-files-found: error
