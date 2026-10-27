@@ -231,7 +231,13 @@ func (v *Volume) snapshotVolume(r snapshotRecord) (*Volume, error) {
 	}
 	view := c.volume(b, r.XID)
 	if view.Encrypted != v.Encrypted {
-		return nil, fmt.Errorf("snapshot encryption transition: %w", filesystem.ErrUnsupported)
+		if v.Encrypted || v.Flags != 1 || v.IncompatibleFeatures&4 == 0 || v.EncryptionRollingStateOID != 0 || view.Flags != 8 || view.EncryptionRollingStateOID != 0 {
+			return nil, fmt.Errorf("snapshot encryption transition: %w", filesystem.ErrUnsupported)
+		}
+		// Native completed decryption leaves the snapshot's original flags
+		// and ONEKEY stream descriptors intact. The current object map and
+		// volume state govern physical encryption; no historical key remains.
+		view.Encrypted, view.decryptedSnapshot = false, true
 	}
 	// The retained superblock's apfs_omap_oid is not an independent historical
 	// map. The live volume map preserves versions selected by the snapshot XID.
