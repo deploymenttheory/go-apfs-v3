@@ -154,6 +154,9 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation) || len(out.Expect.DeletedSnapshots) > 0}
+	if out.Operation == "convert-volume" {
+		nativeSpec.Extents, nativeSpec.Samples = conversionExtentPaths(sourceObservation), 8
+	}
 	nativeSpec.Unlock, nativeSpec.Rejected = volumeCredentials(expectedObservation)
 	if out.Source.Recipe == "apfs-clones" {
 		nativeSpec.Extents, nativeSpec.Samples = append(cloneExtentPaths(), retainedPartialClone), 12
@@ -168,6 +171,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if nativeSpec.Snapshots {
 		if err := compareHistoricalViews(before, sourceObservation); err != nil {
 			return before, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
+		}
+	}
+	if out.Operation == "convert-volume" {
+		if err := checkConvertedSharing(before, sourceObservation); err != nil {
+			return before, err
 		}
 	}
 	if len(out.Expect.DeletedSnapshots) > 0 {
@@ -261,6 +269,11 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	obs, err := v.observeImage(ctx, out.Name+".continued", edited, "UDZO", envelope.password, spec, k.recipe)
 	if err != nil {
 		return nil, err
+	}
+	if out.Operation == "convert-volume" {
+		if err := checkConvertedSharing(obs, sourceObservation); err != nil {
+			return obs, err
+		}
 	}
 	if hasEncryptedVolumes(expectedObservation) {
 		if err := checkEncryptedContinuationStreams(obs, volume.Name); err != nil {

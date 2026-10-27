@@ -129,7 +129,7 @@ func requireEncryptedVolumeOutputs(pairs []Paired, cases map[string]corpus.Case,
 			}
 		}
 	}
-	return nil
+	return requireVolumeConversionOutputs(pairs, cases, major)
 }
 
 // The expected bytes are the explicit continuation command input. Apple's

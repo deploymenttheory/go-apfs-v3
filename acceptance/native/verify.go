@@ -280,11 +280,19 @@ func (v *Verifier) VerifyOutput(ctx context.Context, p Paired) (differences []Di
 		spec.Extents = constructionExtentPaths(k.Observation)
 		spec.Samples = 12
 	}
+	if out.Operation == "convert-volume" {
+		spec.Extents, spec.Samples = conversionExtentPaths(k.Observation), 8
+	}
 	obs, err := v.observeImageWithDigest(ctx, out.Name, image, out.Format, password, spec, recipe, out.Expect.DiskSHA256 != "" || out.Expect.Container != nil)
 	if err != nil {
 		return nil, err
 	}
 	var diffs []Difference
+	if out.Operation == "convert-volume" {
+		if err := checkConvertedSharing(obs, k.Observation); err != nil {
+			return nil, err
+		}
+	}
 	if err := v.checkEncryptedEditPolicy(out, obs); err != nil {
 		return nil, err
 	}

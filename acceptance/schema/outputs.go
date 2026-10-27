@@ -29,7 +29,7 @@ type Output struct {
 	Name string `json:"name"`
 	File string `json:"file"`
 	// Operation is build, compress, container, encrypt, decrypt, repack,
-	// edit, copy, change-password, delete-snapshot, recover-checkpoint, recover-journal, appledouble, or workspace-*.
+	// edit, copy, change-password, convert-volume, delete-snapshot, recover-checkpoint, recover-journal, appledouble, or workspace-*.
 	Operation string `json:"operation"`
 	Format    string `json:"format"` // UDRO, UDZO, UDBZ, UDRW, raw, workspace, appledouble
 	Bytes     int64  `json:"bytes"`

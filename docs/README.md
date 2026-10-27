@@ -14,4 +14,5 @@ different things and must not be presented interchangeably.
 - [Editing existing HFS+/HFSX filesystems](hfs-editing.md): commands, allocation/tree mutation, preservation and the completed-output transaction contract.
 - [Copying into existing images](image-copy.md): recursive import, preservation, aliases, forks and independent native qualification.
 
+- [APFS volume conversion](apfs-volume-encryption.md): encrypt or decrypt an existing volume while preserving identities, retained history and sharing.
 - [APFS history, sharing and encryption](apfs-lifecycle.md): dependency-linked lifecycle work, Apple source basis and independent native controls.
