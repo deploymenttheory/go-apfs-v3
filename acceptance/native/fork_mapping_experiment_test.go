@@ -73,7 +73,7 @@ func TestForkMappingObservationsStartAfterTheOriginalWriterReturns(t *testing.T)
 		returned := false
 		err := runForkMappingObservedWriter(func(hook cloneForkCheckpoint) (result error) {
 			defer func() { returned = true; events = append(events, "writer-return") }()
-			for _, point := range []string{"retained-created", "retained-data-written", "retained-resource-written", "retained-original-data-synced"} {
+			for _, point := range []string{"retained-created", "retained-data-written", "retained-resource-written", "retained-original-forks-synced"} {
 				if err := hook.record(point, nil, nil); err != nil {
 					return err
 				}

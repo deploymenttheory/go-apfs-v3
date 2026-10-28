@@ -15,7 +15,7 @@ Three tiers do this:
 One pull request starts twelve jobs, five of them macOS: source checks,
 race-checked unit tests, portable conformance on Linux, Windows and macOS,
 the slow bucket on Linux and Windows, native truth on macOS 26 and 27,
-fresh encrypted-construction verification on macOS 26 and 27,
+volume-encryption verification on macOS 26 and 27,
 and `gate`. Ruleset 24806824 requires `gate` (the `Required checks` status)
 before anything merges to `main`.
 
@@ -25,7 +25,8 @@ needs only the corpus, while the portable jobs produce their images; it
 then collects and verifies the slow bucket's images before every host's main
 outputs. The slow artifacts arrive while the main producers are still working,
 so their verification uses that waiting window. Fresh encrypted construction
-has an independent required VM on each kernel, allocated after the portable
+and existing-volume conversion share an independent required VM on each
+kernel, allocated after the portable
 outputs are ready. Each VM calibrates its checker against original Apple
 encrypted controls before judging the new volumes. The output cohorts are
 disjoint and exhaustive, retain every host copy, and use the same checks,

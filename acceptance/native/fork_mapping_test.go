@@ -116,7 +116,7 @@ func TestForkMappingWriterKeepsItsOriginalFailureAfterLaterMapsChange(t *testing
 	if !errors.Is(err, originalFailure) || !errors.Is(err, diagnostic) {
 		t.Fatal("later measurement masked the original predicate", err)
 	}
-	want := "retained-created,retained-data-written,retained-resource-written,retained-original-data-synced,retained-original-verdict"
+	want := "retained-created,retained-data-written,retained-resource-written,retained-original-forks-synced,retained-original-verdict"
 	if strings.Join(points, ",") != want {
 		t.Fatal("checkpoint order changed", points)
 	}

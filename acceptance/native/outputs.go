@@ -102,12 +102,13 @@ func selectNativeOutputs(group string, pairs []Paired) ([]Paired, error) {
 	if group == "" || group == "slow" {
 		return pairs, nil
 	}
-	if group != "main" && group != "encrypted-construction" {
+	if group != "main" && group != "volume-encryption" {
 		return nil, fmt.Errorf("unknown native output group %q", group)
 	}
 	var selected []Paired
 	for _, p := range pairs {
-		if (p.Output.Operation == "create-encrypted") == (group == "encrypted-construction") {
+		volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume"
+		if volumeEncryption == (group == "volume-encryption") {
 			selected = append(selected, p)
 		}
 	}
@@ -194,6 +195,18 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 				byInput[input] = p.ByHost[host].SHA256
 			}
 		}
+		conversion := p.Output.Operation == "convert-volume"
+		randomConversion := false
+		if conversion {
+			var err error
+			randomConversion, err = validateVolumeConversionOutput(p.Output)
+			if err != nil {
+				return nil, err
+			}
+			if randomConversion && len(digests) != len(hosts) {
+				return nil, fmt.Errorf("volume conversion reused random key material")
+			}
+		}
 		passwordChange := p.Output.Operation == "change-password"
 		construction := p.Output.Operation == "create-encrypted"
 		if construction {
@@ -213,7 +226,7 @@ func Pair(hosts map[string]HostOutputs) ([]Paired, error) {
 			}
 		}
 		switch {
-		case !passwordChange && !construction && !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
+		case !passwordChange && !construction && !randomConversion && !p.Output.Encrypted && p.Output.Expect.Workspace == nil && p.Output.Expect.HostImport == nil && len(digests) != 1:
 			return nil, fmt.Errorf("output %s: plaintext bytes differ across hosts: %v", name, digests)
 		case p.Output.Encrypted && len(digests) != len(hosts):
 			return nil, fmt.Errorf("output %s: encrypted copies are not all distinct: %v", name, digests)

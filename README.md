@@ -115,6 +115,9 @@ Currently implemented:
 - Fresh software-encrypted APFS/APFSX construction, including independently
   credentialed volumes, mixed containers and separate DMG encryption; see
   [packing](docs/packing.md#creating-software-encrypted-apfs-volumes).
+- Completed encryption/decryption of existing APFS volumes through `encrypt` and
+  `decrypt`, preserving volume/file identities, retained snapshots, clones and peers;
+  see [volume conversion](docs/apfs-volume-encryption.md).
 - Existing APFS/HFS+/HFSX editing inside AES-128/256 DMG envelopes, preserving
   encryption by default with explicit password replacement or removal; see
   [encrypted image editing](docs/encrypted-image-editing.md).

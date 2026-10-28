@@ -65,18 +65,18 @@ func TestMain(m *testing.M) {
 }
 
 // nativeGroup is APFS_NATIVE_GROUPS: "fixtures" (cross-version parity,
-// which needs only the corpus), "main" (existing image capabilities),
-// "encrypted-construction" (fresh encrypted volumes), "slow" (the slow
-// bucket's outputs) or empty for everything. Both output cohorts are required
-// by CI, and each phase starts as soon as its inputs exist.
+// which needs only the corpus), "main" (other existing-image capabilities),
+// "volume-encryption" (fresh volumes and existing-volume conversion), "slow"
+// (the slow bucket's outputs) or empty for everything. Both output cohorts are
+// required by CI, and each phase starts as soon as its inputs exist.
 func nativeGroup(t *testing.T) string {
 	t.Helper()
 	group := os.Getenv("APFS_NATIVE_GROUPS")
 	switch group {
-	case "", "fixtures", "main", "encrypted-construction", "slow":
+	case "", "fixtures", "main", "volume-encryption", "slow":
 		return group
 	}
-	t.Fatalf("APFS_NATIVE_GROUPS=%q, want fixtures, main, encrypted-construction or slow", group)
+	t.Fatalf("APFS_NATIVE_GROUPS=%q, want fixtures, main, volume-encryption or slow", group)
 	return ""
 }
 
@@ -106,7 +106,7 @@ func outputGroups(t *testing.T, major int) []map[string]HostOutputs {
 	for _, host := range []string{"linux", "windows"} {
 		slow[host] = filepath.Join(root, "slow-outputs-"+host)
 	}
-	selected := map[string]map[string]string{"main": main, "encrypted-construction": main, "slow": slow}
+	selected := map[string]map[string]string{"main": main, "volume-encryption": main, "slow": slow}
 	order := []string{"main", "slow"}
 	if group := nativeGroup(t); group != "" {
 		order = []string{group}
@@ -197,7 +197,7 @@ func buildVerifier() (verifier *Verifier, resultErr error) {
 		c.ExpandDir = filepath.Join(work, "fixture-images")
 	}
 	var unpacker string
-	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" || group == "encrypted-construction" {
+	if group := os.Getenv("APFS_NATIVE_GROUPS"); group == "" || group == "main" || group == "volume-encryption" {
 		unpacker, err = buildAppleDoubleUnpacker(context.Background(), commander, work)
 		if err != nil {
 			return nil, err
@@ -229,7 +229,7 @@ func TestOutputsWithAppleTools(t *testing.T) {
 		t.Skip("outputs are verified in the main and slow phases")
 	}
 	v := newVerifier(t)
-	if nativeGroup(t) == "encrypted-construction" {
+	if nativeGroup(t) == "volume-encryption" {
 		cases, err := v.Corpus.Cases()
 		if err != nil {
 			t.Fatal(err)
@@ -365,7 +365,15 @@ func nativeLineageAdmission() *lineageAdmission { return nativeLineages() }
 
 // verifyOne judges one paired output and records its verdict.
 func verifyOne(t *testing.T, v *Verifier, p Paired, rows *summary) {
-	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted") && len(p.ByHost) > 1 {
+	newVolumeKeys := false
+	if p.Output.Operation == "convert-volume" {
+		var err error
+		newVolumeKeys, err = validateVolumeConversionOutput(p.Output)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if (p.Output.Operation == "change-password" || p.Output.Operation == "create-encrypted" || newVolumeKeys) && len(p.ByHost) > 1 {
 		var hosts []string
 		for host := range p.ByHost {
 			hosts = append(hosts, host)
@@ -520,12 +528,15 @@ func writeSummary(t *testing.T, title string, rows []string) {
 }
 
 func (v *Verifier) checkEncryptedFixture(ctx context.Context, k corpus.Case) (resultErr error) {
-	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)))
+	label := fmt.Sprintf("native-encrypted-control-macos-%d-%s", k.Producer, k.Profile)
+	finish := v.recordVerificationCommands(filepath.Join(v.Work, "verify", label))
 	defer finish(&resultErr)
-	lease, err := v.Corpus.AcquireImage(ctx, k)
-	if err != nil {
-		return err
-	}
-	err = v.checkEncryptedVolumes(ctx, lease.Path(), nil, k.Observation, v.Recipes[k.Recipe])
-	return errors.Join(err, lease.Release(err))
+	// Calibration must release the original keys before a later conversion
+	// retains this UUID with fresh keys. The existing observer mounts and
+	// unmounts every view and restores its checker-owned unlocks. Continuation
+	// checks keep their established lifecycle, followed by full observation.
+	unlock, rejected := volumeCredentials(k.Observation)
+	spec := schema.ObserveSpec{Unlock: unlock, Rejected: rejected, Snapshots: hasHistoricalViews(k.Observation), Checks: []string{"fsck"}}
+	_, err := v.observeFixture(ctx, k, label, nil, spec, v.Recipes[k.Recipe])
+	return err
 }

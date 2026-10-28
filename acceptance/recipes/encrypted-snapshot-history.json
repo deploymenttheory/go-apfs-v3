@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "encrypted-snapshot-history",
-  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert.",
+  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert. Completed native decryption and re-encryption retain both snapshots, clone/fork sharing and independent peers.",
   "profiles": [
     "apfs",
     "apfsx"
@@ -23,7 +23,7 @@
   },
   "passwords": {
     "primary": "public-encrypted-history-password",
-    "replacement": "public-encrypted-history-replacement-λ",
+    "replacement": "public-encrypted-history-replacement-\u03bb",
     "image": "public-independent-history-envelope",
     "wrong": "public-incorrect-password",
     "empty": "",
@@ -571,6 +571,159 @@
           "EncryptedHistory": [
             "wrong",
             "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "decrypted",
+      "from": "retained-again",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          },
+          "note": "ASR requires the default /Volumes mount. Mount there initially so remounting cannot re-lock the encrypted source."
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "decryptVolume",
+              "$VOLUME:EncryptedHistory",
+              "-user",
+              "disk",
+              "-stdinpassphrase"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "control": {
+            "action": "settle-encryption",
+            "name": "EncryptedHistory",
+            "params": {
+              "fileVault": "false"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "converted",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "encryptVolume",
+              "$VOLUME:EncryptedHistory",
+              "-user",
+              "disk",
+              "-stdinpassphrase"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "control": {
+            "action": "settle-encryption",
+            "name": "EncryptedHistory",
+            "params": {
+              "fileVault": "true"
+            }
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
           ],
           "EncryptedPeer": [
             "wrong",

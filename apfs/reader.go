@@ -237,7 +237,7 @@ func (v *Volume) stream(ctx context.Context, id, size uint64) (filesystem.Value,
 		// Native single-key encrypted extents use flag 1 for crypto_id as a
 		// tweak. The 2020 reference predates this flag; qualify it through
 		// encrypted native file/clone reads, keeping other encodings explicit.
-		if flags>>56 != 0 && (flags>>56 != 1 || !v.Encrypted || v.Flags&8 == 0) {
+		if flags>>56 != 0 && (flags>>56 != 1 || !v.Encrypted && !v.decryptedSnapshot || v.Flags&8 == 0) {
 			return fmt.Errorf("file extent flags %#x: %w", flags>>56, filesystem.ErrUnsupported)
 		}
 		bs := uint64(v.container.BlockSize)

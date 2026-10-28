@@ -85,7 +85,9 @@ jobs:
   portable:
     name: Portable conformance (${{ matrix.host }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    # Keep the replay at 25m; allow setup and compressed artifact transport
+    # outside that test budget so native consumers receive compact images.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -277,7 +279,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: native-image-ownership-macos-${{ matrix.major }}${{ matrix.scope == 'encrypted-construction' && '-encrypted-construction' || '' }}
+          name: native-image-ownership-macos-${{ matrix.major }}${{ matrix.scope == 'volume-encryption' && '-volume-encryption' || '' }}
           path: ${{ runner.temp }}/native-work/kernel-image-ownership-contract/
           if-no-files-found: error
       - name: Restore the pinned fixture corpus
@@ -288,7 +290,7 @@ jobs:
       - name: Build the product binary the continuation edits with
         run: go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
       - name: Read the other versions' fixtures with this kernel
-        if: matrix.scope != 'encrypted-construction'
+        if: matrix.scope != 'volume-encryption'
         env:
           APFS_NATIVE_GROUPS: fixtures
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
@@ -296,18 +298,18 @@ jobs:
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
         run: go test -count=1 -v -parallel 5 -timeout 30m -tags native ./acceptance/native
       - name: Wait for the slow bucket's images
-        if: matrix.scope != 'encrypted-construction'
+        if: matrix.scope != 'volume-encryption'
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/wait-for-artifacts.sh "Slow portable conformance" slow-outputs-linux slow-outputs-windows
       - name: Download the slow bucket's images
-        if: matrix.scope != 'encrypted-construction'
+        if: matrix.scope != 'volume-encryption'
         uses: actions/download-artifact@v7
         with:
           pattern: slow-outputs-*
           path: ${{ runner.temp }}/host-outputs
       - name: Verify the slow bucket's images with Apple tools
-        if: matrix.scope != 'encrypted-construction'
+        if: matrix.scope != 'volume-encryption'
         env:
           APFS_NATIVE_GROUPS: slow
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
@@ -343,7 +345,7 @@ jobs:
         run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows,darwin
       - name: Verify every host's images with Apple tools
         env:
-          APFS_NATIVE_GROUPS: ${{ matrix.scope == 'encrypted-construction' && 'encrypted-construction' || 'main' }}
+          APFS_NATIVE_GROUPS: ${{ matrix.scope == 'volume-encryption' && 'volume-encryption' || 'main' }}
           APFS_HOST_OUTPUTS: ${{ runner.temp }}/host-outputs
           APFS_PRODUCT_CLI: ${{ runner.temp }}/apfs
           APFS_NATIVE_WORK: ${{ runner.temp }}/native-work
@@ -355,15 +357,15 @@ jobs:
         if: failure() || matrix.major == 26 || matrix.major == 27
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: native-diagnostics-macos-${{ matrix.major }}${{ matrix.scope == 'encrypted-construction' && '-encrypted-construction' || '' }}
-          # Existing-image jobs retain bounded matched pairs; encrypted
-          # construction retains its complete native observations.
+          name: native-diagnostics-macos-${{ matrix.major }}${{ matrix.scope == 'volume-encryption' && '-volume-encryption' || '' }}
+          # Existing-image jobs retain bounded matched pairs; volume
+          # encryption retains its complete native observations.
           # Failed jobs keep their complete existing diagnostics directory.
-          path: ${{ job.status == 'failure' && format('{0}/native-work/', runner.temp) || matrix.scope == 'encrypted-construction' && format('{0}/native-work/observe/', runner.temp) || format('{0}/native-work/fork-mapping-pair/', runner.temp) }}
+          path: ${{ job.status == 'failure' && format('{0}/native-work/', runner.temp) || matrix.scope == 'volume-encryption' && format('{0}/native-work/observe/', runner.temp) || format('{0}/native-work/fork-mapping-pair/', runner.temp) }}
           if-no-files-found: error
 
-  native-encrypted-construction:
-    name: Apple encrypted construction on macOS ${{ matrix.major }}
+  native-volume-encryption:
+    name: Apple volume encryption on macOS ${{ matrix.major }}
     # Allocate a VM only when the immutable host outputs are ready.
     needs: [portable]
     permissions:
@@ -371,7 +373,7 @@ jobs:
       actions: read
     runs-on: ${{ matrix.runner }}
     concurrency:
-      group: native-encrypted-construction-${{ matrix.major }}
+      group: native-volume-encryption-${{ matrix.major }}
       queue: max
       cancel-in-progress: false
     timeout-minutes: 120
@@ -379,15 +381,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {major: 26, runner: macos-26, scope: encrypted-construction}
-          - {major: 27, runner: xcode-27, scope: encrypted-construction}
+          - {major: 26, runner: macos-26, scope: volume-encryption}
+          - {major: 27, runner: xcode-27, scope: volume-encryption}
     env:
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
     steps: *native-image-verification
 
   gate:
     name: Required checks
-    needs: [checks, unit, portable, portable-slow, native, native-encrypted-construction]
+    needs: [checks, unit, portable, portable-slow, native, native-volume-encryption]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -399,5 +401,5 @@ jobs:
           PORTABLE: ${{ needs.portable.result }}
           SLOW: ${{ needs.portable-slow.result }}
           NATIVE: ${{ needs.native.result }}
-          ENCRYPTED_CONSTRUCTION: ${{ needs.native-encrypted-construction.result }}
-        run: test "$CHECKS" = success && test "$UNIT" = success && test "$PORTABLE" = success && test "$SLOW" = success && test "$NATIVE" = success && test "$ENCRYPTED_CONSTRUCTION" = success
+          VOLUME_ENCRYPTION: ${{ needs.native-volume-encryption.result }}
+        run: test "$CHECKS" = success && test "$UNIT" = success && test "$PORTABLE" = success && test "$SLOW" = success && test "$NATIVE" = success && test "$VOLUME_ENCRYPTION" = success
