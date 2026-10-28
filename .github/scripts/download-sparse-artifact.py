@@ -5,15 +5,49 @@ Native macOS runners use bsdtar's sparse ZIP extraction. Verify the entire
 archive digest before publishing the directory; the existing output-storage
 step still verifies every original image against its manifest before sharing.
 """
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import stat
+import struct
 import subprocess
 import sys
 import tempfile
+
+
+def deallocate_zero_blocks(directory):
+    # APFS can eagerly allocate small seek-created holes. F_PUNCHHOLE makes
+    # the zero ranges explicit instead of depending on automatic sparsity.
+    # Apple bsd/sys/fcntl.h: fpunchhole_t = uint32 flags/reserved, off_t/length.
+    # https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/fcntl.h
+    block_size = os.statvfs(directory).f_bsize
+    chunk_size = max(128 * 1024, block_size)
+    if chunk_size % block_size:
+        raise ValueError("unsupported sparse storage block size")
+    zeros = bytes(chunk_size)
+    for path in Path(directory).rglob("*"):
+        if not stat.S_ISREG(path.lstat().st_mode):
+            continue
+        with path.open("r+b") as output:
+            start = None
+            offset = 0
+            while True:
+                chunk = output.read(chunk_size)
+                if chunk == zeros:
+                    if start is None:
+                        start = offset
+                else:
+                    if start is not None:
+                        request = struct.pack("=IIqq", 0, 0, start, offset - start)
+                        fcntl.fcntl(output.fileno(), 99, request)  # F_PUNCHHOLE
+                        start = None
+                    if not chunk:
+                        break
+                offset += len(chunk)
 
 
 def download(name, destination):
@@ -74,6 +108,7 @@ def download(name, destination):
                     raise ValueError("artifact download failed")
                 if "sha256:" + checksum.hexdigest() != digest:
                     raise ValueError("artifact SHA-256 mismatch")
+                deallocate_zero_blocks(work)
                 os.rename(work, destination)
             except BaseException:
                 source.terminate()
