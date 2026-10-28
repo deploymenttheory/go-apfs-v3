@@ -155,7 +155,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	}
 	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation) || len(out.Expect.DeletedSnapshots) > 0}
 	if requiresPreservedForkSharing(out) {
-		nativeSpec.Extents, nativeSpec.Samples = conversionExtentPaths(sourceObservation), 8
+		nativeSpec.Extents, nativeSpec.Samples = observedForkExtentPaths(sourceObservation), 8
 	}
 	nativeSpec.Unlock, nativeSpec.Rejected = volumeCredentials(expectedObservation)
 	if out.Source.Recipe == "apfs-clones" {
@@ -174,7 +174,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		}
 	}
 	if requiresPreservedForkSharing(out) {
-		if err := checkConvertedSharing(before, sourceObservation); err != nil {
+		if err := checkPreservedForkSharing(before, sourceObservation); err != nil {
 			return before, err
 		}
 	}
@@ -271,7 +271,7 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	if requiresPreservedForkSharing(out) {
-		if err := checkConvertedSharing(obs, sourceObservation); err != nil {
+		if err := checkPreservedForkSharing(obs, sourceObservation); err != nil {
 			return obs, err
 		}
 	}

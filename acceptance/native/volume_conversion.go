@@ -87,7 +87,7 @@ func requireVolumeConversionOutputs(pairs []Paired, cases map[string]corpus.Case
 	return nil
 }
 
-func conversionExtentPaths(source *schema.Observation) []string {
+func observedForkExtentPaths(source *schema.Observation) []string {
 	var result []string
 	seen := map[string]bool{}
 	for _, view := range source.Views {
@@ -101,7 +101,7 @@ func conversionExtentPaths(source *schema.Observation) []string {
 	return result
 }
 
-func checkConvertedSharing(got, want *schema.Observation) error {
+func checkPreservedForkSharing(got, want *schema.Observation) error {
 	for _, expected := range want.Views {
 		volume := want.Volumes[expected.Volume]
 		actualVolume, err := namedVolume(got, volumeName(volume))
@@ -122,7 +122,7 @@ func checkConvertedSharing(got, want *schema.Observation) error {
 			}
 			x, ok := entries[a.Path]
 			if !ok || x.Extents == nil {
-				return fmt.Errorf("conversion omitted native extent evidence for %s:%s", expected.Snapshot, a.Path)
+				return fmt.Errorf("missing native extent evidence for %s:%s", expected.Snapshot, a.Path)
 			}
 			for _, b := range expected.Entries {
 				if a.Path >= b.Path || b.Extents == nil {
@@ -130,10 +130,10 @@ func checkConvertedSharing(got, want *schema.Observation) error {
 				}
 				y, ok := entries[b.Path]
 				if !ok || y.Extents == nil {
-					return fmt.Errorf("conversion omitted native extent evidence for %s:%s", expected.Snapshot, b.Path)
+					return fmt.Errorf("missing native extent evidence for %s:%s", expected.Snapshot, b.Path)
 				}
 				if sharedPhysicalBytes(a.Extents.Data, b.Extents.Data) != sharedPhysicalBytes(x.Extents.Data, y.Extents.Data) || sharedPhysicalBytes(a.Extents.Resource, b.Extents.Resource) != sharedPhysicalBytes(x.Extents.Resource, y.Extents.Resource) {
-					return fmt.Errorf("conversion changed native data/fork sharing in %s:%s/%s", expected.Snapshot, a.Path, b.Path)
+					return fmt.Errorf("native data/fork sharing changed in %s:%s/%s", expected.Snapshot, a.Path, b.Path)
 				}
 			}
 		}
