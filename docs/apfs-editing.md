@@ -108,8 +108,9 @@ The software write profile uses a single native Disk crypto user and the volume'
 AES-128-XTS ONEKEY key (32 combined key bytes). Hardware-bound keys, per-file keys, unfinished conversion and other
 crypto-user profiles are refused before publication. Ordinary encrypted edits use
 copy-on-write metadata and data encryption, including relocated physical tweaks.
-They preserve retained snapshots; snapshot creation, rename, revert and encrypted
-snapshot deletion retain their separate qualification boundaries.
+They preserve retained snapshots. Explicit snapshot deletion supports this same
+software profile, including completed encryption/decryption conversion; snapshot
+creation, rename and revert remain outside the admitted writer.
 
 The engine accepts `apfs.UnlockMutation(ctx, source, credentials...)` and owns the
 resulting volume keys until its returned `MutationSource` is closed. Mutation and
@@ -135,9 +136,20 @@ name is not interpreted as an XID. Missing selections fail without publishing.
 The original image stays read-only, the output path must not exist, and the
 selected partition and APFS volume follow ordinary editing rules. Deletion uses
 the same whole-second `--time`, output format and DMG envelope credential options
-as other edits. Snapshot deletion currently requires an unconverted plaintext APFS volume;
-deletion on encrypted or completed-converted volumes remains outside the admitted
-deletion profile.
+as other edits. Deletion supports admitted plaintext and software-encrypted
+APFS/APFSX volumes, including completed encryption/decryption conversions.
+For an encrypted selected volume, supply `--password-file FILE`; every encrypted
+peer requires its own `--volume-password-file UUID=FILE`. An encrypted DMG also
+requires the independent `--image-password-file FILE`. Deletion preserves the
+selected volume's key and password, surviving snapshot identities and contents,
+data/resource-fork sharing and untouched peer volumes.
+
+```sh
+apfs snapshot delete --image Encrypted.dmg --output Deleted.dmg \
+  --partition 1 --volume VOLUME_UUID --snapshot-name com.apple.asr.123 \
+  --password-file volume-password --volume-password-file PEER_UUID=peer-password \
+  --image-password-file image-password
+```
 
 The library exposes `imageedit.DeleteSnapshot(ctx, source, destination, options,
 apfs.SnapshotSelector{Name: name})`; use `XID: xid` instead for a transaction
@@ -145,7 +157,11 @@ selector. `editor.DeleteSnapshot(selector)` can share an `imageedit.Edit`
 transaction with other commands. A failed deletion invalidates that whole
 transaction even when its callback ignores the error. The engine preserves live
 content, remaining snapshots and other owners; final references are reclaimed
-only when their retained ownership permits it. Independent Apple checking and
+only when their retained ownership permits it. Removed metadata mappings retain
+survivors' encryption flags and physical tweaks; final-reference allocations
+enter the existing checkpoint-protected free queue before reuse. At the engine
+boundary, authenticate selected and peer volumes with `apfs.UnlockMutation`
+before calling `apfs.DeleteSnapshot`. Independent Apple checking and
 continued allocation remain required qualification, not a consequence of the
 CLI or Go API returning successfully.
 

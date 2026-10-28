@@ -71,6 +71,45 @@ func TestSnapshotDeletionOutputsRequireBothProfilesEveryOrderAndContinuation(t *
 			pairs = append(pairs, Paired{Output: schema.Output{Source: ref, Operation: "delete-snapshot", Format: "UDZO", Expect: schema.Expectation{DeletedSnapshots: deleted, Continuation: true}}})
 		}
 	}
+	for _, profile := range []string{"apfs", "apfsx"} {
+		for stage := range encryptedSnapshotDeletionMatrix() {
+			ref := schema.CaseRef{Producer: 26, Recipe: "encrypted-snapshot-history", Profile: profile, Stage: stage}
+			original := snapshotEditingControl()
+			original.Volumes[0].Diskutil["VolumeName"] = "EncryptedHistory"
+			original.Volumes[0].APFS.VolumeUUID = "10000000-0000-4000-8000-000000000001"
+			original.Volumes[0].APFS.ContainerUUID = "20000000-0000-4000-8000-000000000001"
+			original.Volumes[0].APFS.Role = "Data"
+			original.Volumes[0].APFS.Encrypted = stage != "decrypted"
+			bindMetadataInventory(original)
+			cases[CaseKey(ref)] = corpus.Case{Observation: original}
+			orders, err := EncryptedSnapshotDeletionOrders(ref, original)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, deleted := range orders {
+				out := schema.Output{Source: ref, Operation: "delete-snapshot", Format: "UDZO",
+					Expect: schema.Expectation{Volume: "EncryptedHistory", DeletedSnapshots: deleted, Continuation: true}}
+				if stage == "aes128-nested" || stage == "aes256-nested" {
+					out.Encrypted, out.Password = true, "encrypted-snapshot-history.image"
+				}
+				pairs = append(pairs, Paired{Output: out})
+			}
+		}
+		for _, control := range encryptedSnapshotDeletionControls() {
+			ref := schema.CaseRef{Producer: 26, Recipe: "encrypted-snapshot-history", Profile: profile, Stage: control.source}
+			before := cases[CaseKey(ref)].Observation
+			orders, err := VolumeSnapshotDeletionOrders(before, "EncryptedHistory")
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := VolumeSnapshotDeletionReference(before, "EncryptedHistory", orders[control.order])
+			if err != nil {
+				t.Fatal(err)
+			}
+			ref.Stage = control.stage
+			cases[CaseKey(ref)] = corpus.Case{Observation: after}
+		}
+	}
 	if err := requireSnapshotDeletionOutputs(pairs, cases, 26); err != nil {
 		t.Fatal(err)
 	}
@@ -93,5 +132,39 @@ func TestSnapshotDeletionOutputsRequireBothProfilesEveryOrderAndContinuation(t *
 		if err := requireSnapshotDeletionOutputs(altered, cases, 26); err == nil {
 			t.Fatal("relaxed/mismatched deletion contract accepted")
 		}
+	}
+}
+
+func TestSelectedSnapshotDeletionPreservesPeerHistoryAndCredentials(t *testing.T) {
+	original := snapshotEditingControl()
+	original.Volumes[0].Diskutil["VolumeName"] = "EncryptedHistory"
+	original.Volumes[0].APFS.Encrypted = true
+	original.Volumes[0].APFS.Password = "primary"
+	peer := snapshotEditingControl()
+	peer.Volumes[0].Index = 1
+	peer.Volumes[0].APFS.Encrypted = true
+	peer.Volumes[0].APFS.Password = "peer"
+	original.Volumes = append(original.Volumes, peer.Volumes[0])
+	for _, view := range peer.Views {
+		view.Volume = 1
+		original.Views = append(original.Views, view)
+	}
+	before, err := json.Marshal(original)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := VolumeSnapshotDeletionReference(original, "EncryptedHistory", []schema.SnapshotIdentity{{Name: "before", XID: 10}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Volumes[0].APFS.Snapshots) != 1 || len(got.Views) != 5 ||
+		!reflect.DeepEqual(got.Volumes[1], original.Volumes[1]) ||
+		!reflect.DeepEqual(got.Views[2:], original.Views[3:]) ||
+		got.Volumes[0].APFS.Password != "primary" {
+		t.Fatal("selected deletion changed a peer, survivor or credential")
+	}
+	after, err := json.Marshal(original)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("selected deletion changed original evidence", err)
 	}
 }

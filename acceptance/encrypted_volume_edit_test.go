@@ -225,6 +225,11 @@ func checkEncryptedVolumeOutput(t *testing.T, ctx context.Context, path string, 
 		if close != nil {
 			defer close()
 		}
+		if volume.APFS != nil {
+			if snapshots, ok := reader.(*apfs.Volume); ok {
+				compareSnapshots(t, ctx, filepath.Base(path), snapshots, volume.APFS.Snapshots)
+			}
+		}
 		for _, want := range after.Observation.Views {
 			if want.Volume != volume.Index {
 				continue

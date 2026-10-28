@@ -140,3 +140,8 @@ func checkConvertedSharing(got, want *schema.Observation) error {
 	}
 	return nil
 }
+
+func requiresPreservedForkSharing(out schema.Output) bool {
+	return out.Operation == "convert-volume" ||
+		out.Operation == "delete-snapshot" && out.Source.Recipe == "encrypted-snapshot-history"
+}
