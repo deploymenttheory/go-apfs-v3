@@ -49,7 +49,12 @@ volume can be edited inside either AES envelope using both credentials. Supply
 [APFS volume editing and password changes](apfs-editing.md#editing-software-encrypted-volumes)
 for the admitted crypto-user profile.
 
-The library equivalents are `imageedit.Apply`, `Copy` and ordered `Edit` with
+Snapshot deletion and completed APFS volume conversion use these same envelope
+options while retaining their separate inner-volume credentials. See
+[snapshot deletion](apfs-editing.md#deleting-retained-snapshots) and
+[volume conversion](apfs-volume-encryption.md).
+
+The library equivalents include `imageedit.Apply`, `Copy`, `DeleteSnapshot` and ordered `Edit` with
 `Options.ImagePassword`. `Options.Encryption` supplies a borrowed
 `diskimage.EncryptionOptions`; `KeyBits: 0` keeps an encrypted source's strength
 while replacing its password. `Options.Decrypt` explicitly removes encryption

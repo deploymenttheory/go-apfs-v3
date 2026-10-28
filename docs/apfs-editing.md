@@ -191,8 +191,9 @@ Snapshot lifecycle operations and encrypted-volume mutation retain separate
 admission limits.
 Independent qualification requires the plaintext `apfs-clones` and `clone-copy`
 controls, physical-sharing observations, Apple checks and subsequent native
-clone writes on macOS 15/26/27. New native controls and generated outputs must
-pass the required gates before the new copy path is considered qualified.
+clone writes. Original qualification included macOS 15/26/27; current required
+native verification uses macOS 26/27 with portable Linux/Windows/macOS outputs.
+The [current acceptance pipeline](acceptance.md) defines those gates.
 
 ## File and directory operations
 
@@ -281,22 +282,26 @@ power-loss durability of a storage device.
 
 The retained macOS 15/26/27 sources and native before/peak/final states were captured
 in [run 38171484746](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38171484746).
-They remain immutable under `acceptance/testdata/apfs-editing`, with image hashes,
-OS/tool provenance, exact capture sources and command diagnostics. Capture mounts
+Their original image hashes, OS/tool provenance, exact capture sources and
+command diagnostics remain historical evidence. The historical checkout used
+`acceptance/testdata/apfs-editing`; current fixtures come from the versioned
+bundles pinned by `acceptance/fixtures.lock.json`. Capture mounts
 use `owners`; `noowners` can store UID 99 while mounted reads report a calling user.
 
 Portable acceptance checks contents, all existing identities, hard links, modes,
 timestamps, native-visible attributes, raw compression/fork storage, source hashes
-and repeated-output hashes. Six source images replay locally using file reads only.
-Fresh independent captures remain required in CI. Linux, Windows and macOS produce
-actual edited images; each macOS version qualifies all output triples with Apple
+and repeated-output hashes. Original local replay used six source images and
+ordinary file reads only. Current PRs use the independently captured pinned corpus;
+Linux, Windows and macOS produce actual edited images, and macOS 26/27 qualify
+those outputs with Apple
 fsck, exact raw-copy native readback, codesign, continued native allocation and a
 further Go/native cycle. All native commands are restricted to disposable VMs.
 
 Directory creation/move/unlink and removal/reuse references were captured in
 [run 38177430983](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38177430983)
-and are retained separately under `acceptance/testdata/apfs-directory-editing`.
-The exact capture sources and native command/tool/OS evidence accompany them.
+and used `acceptance/testdata/apfs-directory-editing` in the historical checkout.
+Their exact capture sources and native command/tool/OS evidence retain their
+original identities. Current replay uses the declarative recipe corpus.
 Native captures retain siblings when the link count reaches one and qualify
 primary-name/parent repair. The same required APFS pipeline refreshes both file
 and directory controls; each native version checks all host output triples and

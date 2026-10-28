@@ -86,6 +86,9 @@ Currently implemented:
   unlocked views with explicit key lifetimes.
 - APFS snapshot inventories and independent historical readers selected by exact
   snapshot name or XID; live and historical reads share the same file APIs.
+- Snapshot deletion on admitted plaintext, software-encrypted and completed-converted
+  volumes, retaining live data, surviving history, clone sharing and peer credentials;
+  see [the lifecycle guide](docs/apfs-lifecycle.md).
 - Portable extraction with original names, logical/raw data, metadata, attributes,
   resource forks, symlink targets and hard-link identities; verified workspace readers.
 - Ordered workspace creation, rename, removal, link and data replacement batches.

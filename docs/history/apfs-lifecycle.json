@@ -1,0 +1,8 @@
+{
+  "sourcePath": "docs/apfs-lifecycle.md",
+  "sourceCommit": "fd6b5bad7d124e209347ef442471d059ba911b2e",
+  "sourceSHA256": "ba29664f1786b2bbc097034ab6cbb9ba900570fae767933ab522fdff5a6c4196",
+  "archivePath": "docs/history/apfs-lifecycle.md.gz",
+  "archiveSHA256": "7ef4cfdeb1cd8808c2e3afb89d9d5243ad41b36b6a5cafc8b1a8049e05ebf59c",
+  "preservation": "Exact prior documentation, compressed without changing its bytes. Paths, run identities and version lists describe their original historical checkout; they are not current capture instructions. No native image, command log, collector source, observation or original evidence digest is changed."
+}
