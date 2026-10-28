@@ -11,6 +11,7 @@ import (
 	"crypto/sha1" // Required by Apple's encrcdsa v2 format.
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 
@@ -197,6 +198,7 @@ type encryptionWriter struct {
 	out    io.Writer
 	cipher cipher.Block
 	ivKey  [20]byte
+	ivHash hash.Hash
 	buffer [512]byte
 	used   int
 	size   int64
@@ -238,7 +240,12 @@ func (w *encryptionWriter) flush() error {
 	}
 	var counter [4]byte
 	binary.BigEndian.PutUint32(counter[:], uint32(w.index))
-	m := hmac.New(sha1.New, w.ivKey[:])
+	if w.ivHash == nil {
+		w.ivHash = hmac.New(sha1.New, w.ivKey[:])
+	} else {
+		w.ivHash.Reset()
+	}
+	m := w.ivHash
 	_, _ = m.Write(counter[:])
 	var iv [20]byte
 	m.Sum(iv[:0])
