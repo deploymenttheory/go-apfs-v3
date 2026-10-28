@@ -3,27 +3,28 @@ print('platform',platform.platform(),platform.machine(),flush=True)
 for location in [os.environ['RUNNER_TEMP'],os.environ['GITHUB_WORKSPACE'],'/private/tmp']:
  with tempfile.TemporaryDirectory(prefix='ordinary-storage-',dir=location) as work:
   root=pathlib.Path(work); p=root/'seek.bin'
-  size=64*1024*1024
+  size=8*1024*1024
   with p.open('wb') as f:
-   f.write(b'a'*65536); f.seek(size,os.SEEK_CUR); f.write(b'z'*65536)
+   f.write(b'begin'); f.seek(size,os.SEEK_CUR); f.write(b'end')
   info=p.stat()
   print(json.dumps({'location':location,'kind':'seek','logical':info.st_size,'allocated':info.st_blocks*512,'device':info.st_dev,'flags':info.st_flags}),flush=True)
-  payload=b'a'*65536+bytes(size)+b'z'*65536
+  payload=b'begin'+bytes(size)+b'end'
   expected=hashlib.sha256(payload).hexdigest()
   p.unlink()
   archive=root/'payload.zip'
   with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:z.writestr('payload.bin',payload)
+  with zipfile.ZipFile(archive) as z:print('ZIP fields', z.infolist()[0].flag_bits,z.infolist()[0].compress_type,z.infolist()[0].file_size,flush=True)
   for mode,args,pipe,extra in [
    ('dense-file',['-xf'],False,{}),
    ('sparse-file',['-xSf'],False,{}),
-   ('sparse-pipe',['-xSf'],True,{}),
+   ('stdin-file',['-xSf'],True,{}),
    ('sparse-no-copyfile',['-xSf'],True,{'COPYFILE_DISABLE':'1'}),
    ('sparse-no-metadata',['-xS','--no-mac-metadata','-f'],True,{}),
   ]:
    dest=root/mode;dest.mkdir();env=dict(os.environ,**extra)
-   input_file=archive.open('rb') if pipe else None
+   input_file=None
    try:
-    r=subprocess.run(['/usr/bin/tar',*args,'-' if pipe else str(archive),'-C',str(dest)],stdin=input_file,env=env,capture_output=True,text=True)
+    r=subprocess.run(['/usr/bin/tar',*args,'-' if pipe else str(archive),'-C',str(dest)],input=archive.read_bytes() if pipe else None,env=env,capture_output=True); r.stderr=r.stderr.decode(errors='replace')
    finally:
     if input_file:input_file.close()
    out=dest/'payload.bin'
@@ -33,3 +34,6 @@ for location in [os.environ['RUNNER_TEMP'],os.environ['GITHUB_WORKSPACE'],'/priv
     assert record['sha256']==expected
     out.unlink()
    print(json.dumps(record),flush=True)
+
+# Exercise the exact downloader and generated archive as used in CI.
+subprocess.run(['python3','-m','unittest','discover','-s','.github/scripts','-p','test_download_sparse_artifact.py','-v'],check=False)
