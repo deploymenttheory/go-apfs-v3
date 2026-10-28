@@ -220,9 +220,11 @@ func transformImage(ctx context.Context, sourcePath, destination string, o Optio
 	if o.Format != "UDRO" && o.Format != "UDZO" {
 		return report, filesystem.ErrUnsupported
 	}
-	// Repack admission verifies source CRCs, complete sector coverage and the
-	// supported UDIF resource profile. This pass does not retain output bytes.
-	if _, err = diskimage.RepackWithOptions(ctx, io.Discard, source, diskimage.RepackOptions{Format: "UDRO", SourcePassword: o.ImagePassword, Decrypt: true}); err != nil {
+	// Apply the same source CRC, coverage and resource checks as repacking,
+	// without encoding an image that would immediately be discarded. Staging
+	// reads every decoded byte before mutation; final repacking still verifies
+	// its complete logical fingerprint before publication.
+	if err = diskimage.ValidateRepackSource(ctx, source, o.ImagePassword); err != nil {
 		return report, err
 	}
 	disk, err := block.Stage(ctx, &decodedDisk{image}, "")
