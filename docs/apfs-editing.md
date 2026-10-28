@@ -108,8 +108,9 @@ The software write profile uses a single native Disk crypto user and the volume'
 AES-128-XTS ONEKEY key (32 combined key bytes). Hardware-bound keys, per-file keys, unfinished conversion and other
 crypto-user profiles are refused before publication. Ordinary encrypted edits use
 copy-on-write metadata and data encryption, including relocated physical tweaks.
-They preserve retained snapshots; snapshot creation, rename, revert and encrypted
-snapshot deletion retain their separate qualification boundaries.
+They preserve retained snapshots. Explicit snapshot deletion supports this same
+software profile, including completed encryption/decryption conversion; snapshot
+creation, rename and revert remain outside the admitted writer.
 
 The engine accepts `apfs.UnlockMutation(ctx, source, credentials...)` and owns the
 resulting volume keys until its returned `MutationSource` is closed. Mutation and
@@ -135,9 +136,20 @@ name is not interpreted as an XID. Missing selections fail without publishing.
 The original image stays read-only, the output path must not exist, and the
 selected partition and APFS volume follow ordinary editing rules. Deletion uses
 the same whole-second `--time`, output format and DMG envelope credential options
-as other edits. Snapshot deletion currently requires an unconverted plaintext APFS volume;
-deletion on encrypted or completed-converted volumes remains outside the admitted
-deletion profile.
+as other edits. Deletion supports admitted plaintext and software-encrypted
+APFS/APFSX volumes, including completed encryption/decryption conversions.
+For an encrypted selected volume, supply `--password-file FILE`; every encrypted
+peer requires its own `--volume-password-file UUID=FILE`. An encrypted DMG also
+requires the independent `--image-password-file FILE`. Deletion preserves the
+selected volume's key and password, surviving snapshot identities and contents,
+data/resource-fork sharing and untouched peer volumes.
+
+```sh
+apfs snapshot delete --image Encrypted.dmg --output Deleted.dmg \
+  --partition 1 --volume VOLUME_UUID --snapshot-name com.apple.asr.123 \
+  --password-file volume-password --volume-password-file PEER_UUID=peer-password \
+  --image-password-file image-password
+```
 
 The library exposes `imageedit.DeleteSnapshot(ctx, source, destination, options,
 apfs.SnapshotSelector{Name: name})`; use `XID: xid` instead for a transaction
@@ -145,7 +157,11 @@ selector. `editor.DeleteSnapshot(selector)` can share an `imageedit.Edit`
 transaction with other commands. A failed deletion invalidates that whole
 transaction even when its callback ignores the error. The engine preserves live
 content, remaining snapshots and other owners; final references are reclaimed
-only when their retained ownership permits it. Independent Apple checking and
+only when their retained ownership permits it. Removed metadata mappings retain
+survivors' encryption flags and physical tweaks; final-reference allocations
+enter the existing checkpoint-protected free queue before reuse. At the engine
+boundary, authenticate selected and peer volumes with `apfs.UnlockMutation`
+before calling `apfs.DeleteSnapshot`. Independent Apple checking and
 continued allocation remain required qualification, not a consequence of the
 CLI or Go API returning successfully.
 
@@ -175,8 +191,9 @@ Snapshot lifecycle operations and encrypted-volume mutation retain separate
 admission limits.
 Independent qualification requires the plaintext `apfs-clones` and `clone-copy`
 controls, physical-sharing observations, Apple checks and subsequent native
-clone writes on macOS 15/26/27. New native controls and generated outputs must
-pass the required gates before the new copy path is considered qualified.
+clone writes. Original qualification included macOS 15/26/27; current required
+native verification uses macOS 26/27 with portable Linux/Windows/macOS outputs.
+The [current acceptance pipeline](acceptance.md) defines those gates.
 
 ## File and directory operations
 
@@ -265,22 +282,26 @@ power-loss durability of a storage device.
 
 The retained macOS 15/26/27 sources and native before/peak/final states were captured
 in [run 38171484746](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38171484746).
-They remain immutable under `acceptance/testdata/apfs-editing`, with image hashes,
-OS/tool provenance, exact capture sources and command diagnostics. Capture mounts
+Their original image hashes, OS/tool provenance, exact capture sources and
+command diagnostics remain historical evidence. The historical checkout used
+`acceptance/testdata/apfs-editing`; current fixtures come from the versioned
+bundles pinned by `acceptance/fixtures.lock.json`. Capture mounts
 use `owners`; `noowners` can store UID 99 while mounted reads report a calling user.
 
 Portable acceptance checks contents, all existing identities, hard links, modes,
 timestamps, native-visible attributes, raw compression/fork storage, source hashes
-and repeated-output hashes. Six source images replay locally using file reads only.
-Fresh independent captures remain required in CI. Linux, Windows and macOS produce
-actual edited images; each macOS version qualifies all output triples with Apple
+and repeated-output hashes. Original local replay used six source images and
+ordinary file reads only. Current PRs use the independently captured pinned corpus;
+Linux, Windows and macOS produce actual edited images, and macOS 26/27 qualify
+those outputs with Apple
 fsck, exact raw-copy native readback, codesign, continued native allocation and a
 further Go/native cycle. All native commands are restricted to disposable VMs.
 
 Directory creation/move/unlink and removal/reuse references were captured in
 [run 38177430983](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38177430983)
-and are retained separately under `acceptance/testdata/apfs-directory-editing`.
-The exact capture sources and native command/tool/OS evidence accompany them.
+and used `acceptance/testdata/apfs-directory-editing` in the historical checkout.
+Their exact capture sources and native command/tool/OS evidence retain their
+original identities. Current replay uses the declarative recipe corpus.
 Native captures retain siblings when the link count reaches one and qualify
 primary-name/parent repair. The same required APFS pipeline refreshes both file
 and directory controls; each native version checks all host output triples and

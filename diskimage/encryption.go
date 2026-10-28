@@ -11,6 +11,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"sort"
@@ -251,7 +252,7 @@ func (s *encryptedImage) Close() error {
 	return nil
 }
 
-func (s *encryptedImage) decrypt(b []byte, index uint32) error {
+func (s *encryptedImage) decrypt(b []byte, index uint32, m hash.Hash) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.aes == nil {
@@ -259,7 +260,7 @@ func (s *encryptedImage) decrypt(b []byte, index uint32) error {
 	}
 	var counter [4]byte
 	binary.BigEndian.PutUint32(counter[:], index)
-	m := hmac.New(sha1.New, s.ivKey[:])
+	m.Reset()
 	_, _ = m.Write(counter[:])
 	var iv [20]byte
 	m.Sum(iv[:0])
@@ -282,21 +283,32 @@ func (s *encryptedImage) ReadAt(p []byte, off int64) (int, error) {
 		p = p[:s.size-off]
 	}
 	blockSize := int64(s.info.BlockSize)
-	b := make([]byte, blockSize)
+	// Read adjacent encrypted sectors together while retaining their independent
+	// CBC streams. Large sequential reads must not issue one syscall per sector.
+	last := (off + int64(len(p)) - 1) / blockSize
+	b := make([]byte, min(last-off/blockSize+1, (64<<10)/blockSize)*blockSize)
 	defer clear(b)
+	// Each read owns its hash state; concurrent reads cannot share a sector IV.
+	s.mu.RLock()
+	m := hmac.New(sha1.New, s.ivKey[:])
+	s.mu.RUnlock()
 	n := 0
 	for len(p) > 0 {
 		index := off / blockSize
-		if err := block.ReadFull(s.source, b, s.offset+index*blockSize); err != nil {
+		batch := b[:min(int64(len(b)), (last-index+1)*blockSize)]
+		if err := block.ReadFull(s.source, batch, s.offset+index*blockSize); err != nil {
 			return n, err
 		}
-		if err := s.decrypt(b, uint32(index)); err != nil {
-			return n, err
+		for at := int64(0); at < int64(len(batch)); at += blockSize {
+			sector := batch[at : at+blockSize]
+			if err := s.decrypt(sector, uint32(index+at/blockSize), m); err != nil {
+				return n, err
+			}
+			amount := copy(p, sector[off%blockSize:])
+			p = p[amount:]
+			off += int64(amount)
+			n += amount
 		}
-		amount := copy(p, b[off%blockSize:])
-		p = p[amount:]
-		off += int64(amount)
-		n += amount
 	}
 	if n < want {
 		return n, io.EOF

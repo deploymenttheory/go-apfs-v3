@@ -243,6 +243,8 @@ jobs:
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
     steps: &native-image-verification
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify sparse artifact extraction
+        run: python3 -m unittest discover -s .github/scripts -p 'test_download_sparse_artifact.py' -v
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
@@ -320,27 +322,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/scripts/wait-for-artifacts.sh "Portable conformance" outputs-linux-macos-${{ matrix.major }} outputs-windows-macos-${{ matrix.major }} outputs-darwin-macos-${{ matrix.major }}
-      # Extract at most one additional host set before sharing identical bytes.
-      # The three sets occupy about 30 GB before native verification starts.
-      - name: Download linux images derived from this version's fixtures
-        uses: actions/download-artifact@v7
-        with:
-          name: outputs-linux-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/host-outputs/outputs-linux-macos-${{ matrix.major }}
-      - name: Verify and share identical linux image storage
-        run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux
-      - name: Download windows images derived from this version's fixtures
-        uses: actions/download-artifact@v7
-        with:
-          name: outputs-windows-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/host-outputs/outputs-windows-macos-${{ matrix.major }}
-      - name: Verify and share identical windows image storage
+      # Stream at most two sparse host sets concurrently, verify every original
+      # image, then share identical bytes before downloading the third set.
+      - name: Download and verify linux and windows images
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          download_host() {
+            local host=$1
+            python3 .github/scripts/download-sparse-artifact.py "outputs-$host-macos-$APFS_EXPECT_MAJOR" "$RUNNER_TEMP/host-outputs/outputs-$host-macos-$APFS_EXPECT_MAJOR" &&
+              go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts "$host"
+          }
+          download_host linux &
+          linux_pid=$!
+          download_host windows &
+          windows_pid=$!
+          status=0
+          wait "$linux_pid" || status=1
+          wait "$windows_pid" || status=1
+          exit "$status"
+      - name: Verify and share identical linux and windows image storage
         run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows
       - name: Download darwin images derived from this version's fixtures
-        uses: actions/download-artifact@v7
-        with:
-          name: outputs-darwin-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/host-outputs/outputs-darwin-macos-${{ matrix.major }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/download-sparse-artifact.py "outputs-darwin-macos-$APFS_EXPECT_MAJOR" "$RUNNER_TEMP/host-outputs/outputs-darwin-macos-$APFS_EXPECT_MAJOR"
       - name: Verify and share identical darwin image storage
         run: go run ./.github/scripts/output-storage -root "$RUNNER_TEMP/host-outputs" -producer "$APFS_EXPECT_MAJOR" -hosts linux,windows,darwin
       - name: Verify every host's images with Apple tools

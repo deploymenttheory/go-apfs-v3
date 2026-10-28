@@ -57,6 +57,34 @@ func fixture(t *testing.T, formats ...string) string {
 	}
 	return source
 }
+
+func TestCorruptSourceChecksumPreventsTheEditCallbackAndPublication(t *testing.T) {
+	source := fixture(t, "APFS")
+	input, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input[len(input)-512+88] ^= 1 // Declared data CRC; filesystem bytes stay intact.
+	if err := os.WriteFile(source, input, 0600); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "unpublished.dmg")
+	called := false
+	_, err = imageedit.Edit(context.Background(), source, output, imageedit.Options{Time: clock}, func(*imageedit.Editor) error {
+		called = true
+		return nil
+	})
+	if !errors.Is(err, filesystem.ErrCorrupt) || called {
+		t.Fatal("corrupt source reached the edit callback", err, called)
+	}
+	if _, err := os.Stat(output); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("corrupt source published an output", err)
+	}
+	if got, err := os.ReadFile(source); err != nil || !bytes.Equal(got, input) {
+		t.Fatal("admission changed source bytes", err)
+	}
+}
+
 func TestExistingImageOutputPreservesSourceAndIsReproducible(t *testing.T) {
 	ctx := context.Background()
 	source := fixture(t)
