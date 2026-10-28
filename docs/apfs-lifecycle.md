@@ -169,5 +169,3 @@ Its collector/testdata paths describe the historical checkout. That record inclu
 [native run 38699211349](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38699211349),
 its original 72 states and observed `SIGKILL`/`EPERM`/`EINVAL` outcomes; those facts
 are unchanged and do not qualify pending operations or define current CI targets.
-The former separate evidence-ledger and whole-programme closure sequence is not a
-prerequisite for implementing or documenting an individual capability.

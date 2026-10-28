@@ -21,6 +21,24 @@ See [the current support policy](acceptance.md#supported-macos-releases).
 | Read/write mounts on Linux/macOS/Windows | Pending |
 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
 
+## Current verification
+
+[Acceptance testing](acceptance.md) defines the current pinned corpus, portable
+Linux/Windows/macOS outputs and macOS 26/27 native checks. The capability matrix
+above and the linked feature guides describe current APIs and admission limits.
+
+## Historical implementation records
+
+<details>
+<summary>Original implementation scopes and qualification results</summary>
+
+These records retain their original scope, timing measurements, version lists
+and source references. Statements about pending work or proposed acceptance
+families describe that original implementation; the current capability matrix
+and feature guides supersede them. In particular, snapshot deletion and
+existing-volume conversion are implemented, while create/rename/revert remain
+pending. Original macOS 15 results remain historical evidence.
+
 ## Current evidence
 
 The current required coverage is described in [acceptance.md](acceptance.md).
@@ -824,3 +842,6 @@ See [the contract, evidence and bounds](apfs-checkpoint-recovery.md). In-place
 commit with ordered flushes, live journal writing and physical storage power-loss
 qualification remain separate from completed-output publication and require
 their own qualification before snapshot/clone mutation and writable mounts.
+
+
+</details>
