@@ -7,8 +7,6 @@ import (
 	"io/fs"
 	"slices"
 	"time"
-
-	"github.com/deploymenttheory/go-apfs-v3/filesystem"
 )
 
 // SnapshotSelector identifies exactly one snapshot by its exact name or XID.
@@ -20,7 +18,8 @@ type SnapshotSelector struct {
 // DeleteSnapshot removes one retained view from an exclusively owned,
 // unpublished copy. Surviving views retain their identities and contents.
 // Retired allocations enter the checkpoint-protected free queue; they are not
-// made immediately reusable. Any error invalidates the unpublished copy.
+// made immediately reusable. Encrypted volumes and peers require the keys owned
+// by UnlockMutation. Any error invalidates the unpublished copy.
 func DeleteSnapshot(ctx context.Context, disk MutableSource, volumeUUID string, selector SnapshotSelector, when time.Time) (ChangeReport, error) {
 	var report ChangeReport
 	if disk == nil || (selector.Name == "") == (selector.XID == 0) || selector.Name != "" && !validSnapshotName(selector.Name) || when.IsZero() || when.Nanosecond() != 0 {
@@ -36,9 +35,6 @@ func DeleteSnapshot(ctx context.Context, disk MutableSource, volumeUUID string, 
 	}
 	if volumeUUID == "" && len(m.c.Volumes) > 1 {
 		return report, fmt.Errorf("select an APFS volume UUID in a multiple-volume container: %w", fs.ErrInvalid)
-	}
-	if m.v.Encrypted || m.v.IncompatibleFeatures&4 != 0 {
-		return report, fmt.Errorf("snapshot deletion on encrypted or completed-converted APFS: %w", filesystem.ErrUnsupported)
 	}
 	index := slices.IndexFunc(m.ownership.snapshots, func(snapshot snapshotRecord) bool {
 		return selector.Name != "" && snapshot.Name == selector.Name || selector.XID != 0 && snapshot.XID == selector.XID
@@ -103,9 +99,11 @@ func (m *mutation) deleteSnapshot(deleted int) error {
 			history.xids = append(history.xids, xid)
 			history.metadata[uint64(state.snapshots[i].superblock)] = true
 		}
+		// Admission already authenticated each stored version. The encrypted
+		// mapping bit is part of a survivor's identity and must remain intact.
 		for _, node := range view.fs.nodes {
 			record, ok := m.vmap.floor(append(buildUint64(node.oid), buildUint64(uint64(xid))...))
-			if !ok || le.Uint64(record.key) != node.oid || le.Uint32(record.value) != 0 {
+			if !ok || le.Uint64(record.key) != node.oid || le.Uint32(record.value)&^uint32(4) != 0 {
 				return corrupt("snapshot deletion filesystem mapping", 0)
 			}
 			keepMappings[string(record.key)] = true
@@ -124,7 +122,7 @@ func (m *mutation) deleteSnapshot(deleted int) error {
 		}
 		if oid := uint64(m.v.snapMetaExt); oid != 0 {
 			record, ok := m.vmap.floor(append(buildUint64(oid), buildUint64(uint64(xid))...))
-			if !ok || le.Uint64(record.key) != oid || le.Uint32(record.value) != 0 {
+			if !ok || le.Uint64(record.key) != oid || le.Uint32(record.value)&^uint32(4) != 0 {
 				return corrupt("snapshot deletion UUID mapping", 0)
 			}
 			keepMappings[string(record.key)] = true
