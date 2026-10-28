@@ -1,4 +1,4 @@
-name: Diagnose APFS credential lock state
+name: Diagnose native clone fork synchronization
 on:
   workflow_dispatch:
 permissions:
@@ -6,9 +6,9 @@ permissions:
   actions: read
 jobs:
   probe:
-    name: APFS credential lock state on macOS ${{ matrix.major }}
+    name: Native clone fork synchronization on macOS ${{ matrix.major }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -18,37 +18,41 @@ jobs:
     env:
       GOTOOLCHAIN: local
       APFS_EXPECT_MAJOR: ${{ matrix.major }}
-      APFS_NATIVE_GROUPS: fixtures
-      APFS_FIXTURE_CACHE: ${{ github.workspace }}/.fixtures
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        with:
-          path: ${{ github.workspace }}/.fixtures
-          key: fixtures-${{ hashFiles('acceptance/fixtures.lock.json') }}
-      - name: Build product and set private evidence paths
+      - name: Retrieve unchanged original native-pair input
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          go build -o "$RUNNER_TEMP/apfs" ./cmd/apfs
-          echo "APFS_PRODUCT_CLI=$RUNNER_TEMP/apfs" >> "$GITHUB_ENV"
-          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/credential-lock-evidence" >> "$GITHUB_ENV"
-      - name: Reproduce plaintext continuation and fresh encryption attachment
-        run: go test -count=1 -timeout 20m -tags native ./acceptance/native -run '^TestEncryptedVolumeCredentialLockState$' -v
-      - name: Retain original diagnostic and observer sources
+          echo "APFS_NATIVE_WORK=$RUNNER_TEMP/fork-sync-evidence" >> "$GITHUB_ENV"
+          gh api --allow-escape-sequences repos/deploymenttheory/go-apfs-v3/actions/artifacts/12778032099/zip > "$RUNNER_TEMP/original-native-evidence.zip"
+          python3 - <<'PYINNER'
+          from pathlib import Path
+          import hashlib,os,zipfile,json
+          p=Path(os.environ['RUNNER_TEMP'])/'original-native-evidence.zip'
+          assert hashlib.sha256(p.read_bytes()).hexdigest()=='7204fff32ecd8cff1f024ff2618d79bb4e13bde2719698a112baec9492d3cdc0'
+          root=Path(os.environ['RUNNER_TEMP'])/'fork-sync-evidence';root.mkdir()
+          with zipfile.ZipFile(p) as z:
+              name='fork-mapping-pair/source.raw.gz';data=z.read(name)
+              (root/'original-source.raw.gz').write_bytes(data)
+              (root/'original-pair.json').write_bytes(z.read('fork-mapping-pair/pair.json'))
+              (root/'source-receipt.json').write_text(json.dumps({'originalEntry':name,'diagnosticName':'original-source.raw.gz','sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)},indent=2)+'\n')
+          PYINNER
+      - name: Compare original writer with resource-open and resource-sync controls
+        run: go test -count=1 -timeout 25m -tags native ./acceptance/native -run '^TestNativeCloneForkSynchronization$' -v
+      - name: Retain exact replay sources
         if: always()
         run: |
-          mkdir -p "$APFS_NATIVE_WORK"
-          cp acceptance/native/credential_lock_state_probe_test.go "$APFS_NATIVE_WORK/probe.go"
-          cp acceptance/fixture/observe.go "$APFS_NATIVE_WORK/observer.go"
-          cp acceptance/native/native_test.go "$APFS_NATIVE_WORK/calibration.go"
-          cp acceptance/native/volume_credentials.go "$APFS_NATIVE_WORK/verifier.go"
+          cp acceptance/native/fork_sync_probe_test.go "$APFS_NATIVE_WORK/probe.go"
+          cp acceptance/native/clones.go "$APFS_NATIVE_WORK/writer.go"
           cp .github/workflows/fixtures.yml "$APFS_NATIVE_WORK/workflow.yml"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: apfs-credential-lock-state-macos-${{ matrix.major }}
-          path: ${{ runner.temp }}/credential-lock-evidence/
+          name: native-clone-fork-synchronization-macos-${{ matrix.major }}
+          path: ${{ runner.temp }}/fork-sync-evidence/
           if-no-files-found: error
