@@ -46,7 +46,7 @@ func TestNativeCloneForkSynchronization(t *testing.T) {
 	}()
 	counts := map[string]int{}
 	completed := map[string]int{}
-	for round := 0; round < 24; round++ {
+	for round := 0; round < 96; round++ {
 		modes := []string{"original", "open-resource", "sync-resource"}
 		if round%2 != 0 {
 			modes[0], modes[2] = modes[2], modes[0]
@@ -60,7 +60,9 @@ func TestNativeCloneForkSynchronization(t *testing.T) {
 			if err := corpus.ExpandGzipContext(ctx, source, raw); err != nil {
 				t.Fatal(err)
 			}
-			volume := &forkSyncProbeVolume{HostVolume: fixture.HostVolume{}, mode: mode}
+			arm := &forkMappingArm{}
+			observed := &forkMappingVolume{Volume: fixture.HostVolume{}, arm: arm, start: time.Now(), ctx: ctx}
+			volume := &forkSyncProbeVolume{Volume: observed, mode: mode}
 			disk := &fixture.HostDisk{C: fixture.Exec{}, T: &fixture.Transcript{}}
 			v := &Verifier{C: fixture.Exec{}, Disk: disk, Vol: volume, Work: root, Major: major, Producer: producer}
 			var state *nativeCloneState
@@ -93,7 +95,7 @@ func TestNativeCloneForkSynchronization(t *testing.T) {
 			if runErr != nil {
 				counts[mode]++
 			}
-			probeJSON(t, root, filepath.Base(work)+".json", map[string]any{"mode": mode, "error": fmt.Sprint(runErr), "original": state, "syncCalls": volume.calls})
+			probeJSON(t, root, filepath.Base(work)+".json", map[string]any{"mode": mode, "error": fmt.Sprint(runErr), "original": state, "syncCalls": volume.calls, "writerCalls": arm.WriterCalls, "writerMaps": arm.WriterMaps})
 			if runErr != nil && !strings.Contains(runErr.Error(), "partial clone") {
 				t.Fatal("different failure", runErr)
 			}
@@ -115,13 +117,13 @@ func TestNativeCloneForkSynchronization(t *testing.T) {
 }
 
 type forkSyncProbeVolume struct {
-	fixture.HostVolume
+	fixture.Volume
 	mode  string
 	calls []string
 }
 
 func (v *forkSyncProbeVolume) Fullfsync(path string) error {
-	if err := v.HostVolume.Fullfsync(path); err != nil {
+	if err := v.Volume.Fullfsync(path); err != nil {
 		return err
 	}
 	if filepath.Base(path) != "first" && filepath.Base(path) != "partial" {
@@ -140,7 +142,7 @@ func (v *forkSyncProbeVolume) Fullfsync(path string) error {
 		return f.Close()
 	case "sync-resource":
 		v.calls = append(v.calls, "F_FULLFSYNC:"+resource)
-		return v.HostVolume.Fullfsync(resource)
+		return v.Volume.Fullfsync(resource)
 	default:
 		return fmt.Errorf("invalid mode")
 	}
