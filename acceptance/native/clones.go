@@ -391,8 +391,12 @@ func (v *Verifier) continueCloneWritesObserved(ctx context.Context, mount, stage
 	if err := run("chmod", []string{alias, "0600"}, func() error { return v.Vol.Lchmod(alias, 0o600) }); err != nil {
 		return err
 	}
-	if err := run("fullfsync", []string{first}, func() error { return v.Vol.Fullfsync(first) }); err != nil {
-		return err
+	// The resource fork has its own descriptor; synchronize both forks before
+	// asking the kernel for their physical ranges.
+	for _, path := range []string{first, filepath.Join(first, "..namedfork", "rsrc")} {
+		if err := run("fullfsync", []string{path}, func() error { return v.Vol.Fullfsync(path) }); err != nil {
+			return err
+		}
 	}
 	changed, err := v.cloneNativeState(first)
 	if err != nil {
@@ -472,10 +476,12 @@ func (v *Verifier) continueCloneWritesObserved(ctx context.Context, mount, stage
 			return err
 		}
 	}
-	if err := run("fullfsync", []string{retained}, func() error { return v.Vol.Fullfsync(retained) }); err != nil {
-		return err
+	for _, path := range []string{retained, filepath.Join(retained, "..namedfork", "rsrc")} {
+		if err := run("fullfsync", []string{path}, func() error { return v.Vol.Fullfsync(path) }); err != nil {
+			return err
+		}
 	}
-	if err := checkpoint.record("retained-original-data-synced", nil, nil); err != nil {
+	if err := checkpoint.record("retained-original-forks-synced", nil, nil); err != nil {
 		return err
 	}
 	partial, err := v.cloneNativeState(retained)
