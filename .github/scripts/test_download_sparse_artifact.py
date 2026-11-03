@@ -22,9 +22,15 @@ spec.loader.exec_module(downloader)
 class SparseArtifactDownload(unittest.TestCase):
     def test_zero_blocks_are_sparse_and_corrupt_archives_are_not_published(self):
         data = b"begin" + bytes(8 * 1024 * 1024) + b"end"
-        archive = io.BytesIO()
+        class StreamingZip(io.BytesIO):
+            def seek(self, *args):
+                raise io.UnsupportedOperation("non-seekable ZIP producer")
+
+        archive = StreamingZip()
+        zero_tail = b"x" * 40960 + bytes(12)
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as writer:
             writer.writestr("nested/payload.bin", data)
+            writer.writestr("zero-tail.bin", zero_tail)
             # A real cohort has more than 1,300 entries. Its central directory
             # is larger than a pipe buffer and must be included in the digest.
             for i in range(1400):
@@ -57,6 +63,8 @@ class SparseArtifactDownload(unittest.TestCase):
                 target = root / "verified"
                 downloader.download("outputs-host", target)
                 extracted = target / "nested/payload.bin"
+                self.assertEqual((target / "zero-tail.bin").read_bytes(), zero_tail)
+                self.assertEqual((target / "tail.bin").stat().st_size, 512 * 1024)
                 self.assertEqual(extracted.read_bytes(), data)
                 self.assertLess(extracted.stat().st_blocks * 512, len(data) // 4)
                 # The ZIP is still structurally valid; only full-archive digest
