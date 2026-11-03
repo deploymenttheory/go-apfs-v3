@@ -52,9 +52,9 @@ Only after authority is established would bundle construction and per-OS disposa
 
 On 2026-11-03, the maintainer-authorised Chrome session could access Certificates, Identifiers & Profiles. The App ID registration preview exposed its Capabilities and Capability Requests lists; no entry containing APFS, VFS or snapshot was present. No identifier, capability request, certificate or provisioning profile was registered during this inspection. This establishes what was visible in that registration context, not entitlement availability for every App ID or team. Some managed capabilities are App-ID-specific. [Apple capability guidance](https://developer.apple.com/help/account/reference/provisioning-with-managed-capabilities), [Apple DTS explanation](https://developer.apple.com/forums/thread/726882).
 
-## Draft inquiry for Apple Developer Support
+## Inquiry submitted to Apple Developer Support
 
-Status: prepared for maintainer review; not submitted. Submission would contact Apple from the maintainer's account and requires explicit approval.
+Status: submitted to Apple Developer Support under Entitlements with the maintainer's explicit approval on 2026-11-03. Apple confirmed receipt; its case reference is retained in the private handoff. Awaiting clarification of entitlement availability, signing/provisioning requirements and supported native alternatives. The request text below is the submitted draft; no successful snapshot authority or native mutation is claimed.
 
 Subject: **Supported authorisation for APFS snapshot APIs on disposable image volumes**
 
