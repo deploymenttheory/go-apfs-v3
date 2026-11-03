@@ -10,22 +10,29 @@ import (
 
 func TestNativeOutputGroupsPartitionEveryHostCopy(t *testing.T) {
 	var pairs []Paired
-	for _, operation := range []string{"build", "repack", "change-password", "create-encrypted", "convert-volume"} {
-		for _, major := range schema.Producers {
-			name := fmt.Sprintf("macos-%d.%s", major, operation)
-			out := schema.Output{Name: name, Operation: operation, Encrypted: true}
-			pairs = append(pairs, Paired{Name: name, Output: out, ByHost: map[string]schema.Output{"linux": out, "windows": out, "darwin": out}})
+	for _, operation := range []string{"build", "repack", "change-password", "create-encrypted", "convert-volume", "delete-snapshot"} {
+		for _, recipe := range []string{"snapshot-history", "encrypted-snapshot-history"} {
+			for _, major := range schema.Producers {
+				name := fmt.Sprintf("macos-%d.%s.%s", major, recipe, operation)
+				out := schema.Output{Name: name, Operation: operation, Source: schema.CaseRef{Producer: major, Recipe: recipe}, Encrypted: true}
+				pairs = append(pairs, Paired{Name: name, Output: out, ByHost: map[string]schema.Output{"linux": out, "windows": out, "darwin": out}})
+			}
 		}
 	}
 	seen := map[string]int{}
+	originals := map[string]Paired{}
+	for _, p := range pairs {
+		originals[p.Name] = p
+	}
 	for _, group := range []string{"main", "volume-encryption"} {
 		selected, err := selectNativeOutputs(group, pairs)
 		if err != nil || len(selected) == 0 {
 			t.Fatalf("%s lost required work: %v", group, err)
 		}
 		for _, p := range selected {
-			volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume"
-			if volumeEncryption != (group == "volume-encryption") || len(p.ByHost) != 3 {
+			volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume" ||
+				(p.Output.Operation == "delete-snapshot" && p.Output.Source.Recipe == "encrypted-snapshot-history")
+			if volumeEncryption != (group == "volume-encryption") || !reflect.DeepEqual(p, originals[p.Name]) {
 				t.Fatalf("%s misrouted %s or lost a host", group, p.Name)
 			}
 			seen[p.Name]++

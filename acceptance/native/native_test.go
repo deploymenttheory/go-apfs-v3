@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 // nativeGroup is APFS_NATIVE_GROUPS: "fixtures" (cross-version parity,
 // which needs only the corpus), "main" (other existing-image capabilities),
-// "volume-encryption" (fresh volumes and existing-volume conversion), "slow"
+// "volume-encryption" (construction, conversion and encrypted-history deletion), "slow"
 // (the slow bucket's outputs) or empty for everything. Both output cohorts are
 // required by CI, and each phase starts as soon as its inputs exist.
 func nativeGroup(t *testing.T) string {
