@@ -47,3 +47,28 @@ bless.8     ddeea4727577c30cb8e6c4cd09d09bcaca500eb4387f8f2c06ed01ce847ca7ae
 A custom helper route needs Apple confirmation that the required snapshot entitlement is available to this developer/app and distribution context, an actual authorizing profile, and access to its matching signing identity through an approved signing facility. Availability of those assets is unknown; none is inferred from an entitlement file or ordinary developer membership. Apple directs special-entitlement troubleshooting to the Apple group that authorized it. [Apple entitlement diagnostics](https://developer.apple.com/documentation/bundleresources/diagnosing-issues-with-entitlements).
 
 Only after authority is established would bundle construction and per-OS disposable-VM qualification resolve launch acceptance, API acceptance, named snapshot history and completed reversion after remount. Existing ad-hoc signing cannot create that authority. A native-tool replacement would instead need a documented route covering the full target/name/lifecycle contract. Until either prerequisite exists, preserve the blocker and original failures; neither a speculative helper bundle nor another equivalent privilege probe establishes recovery.
+
+## Authenticated account inspection
+
+On 2026-11-03, the maintainer-authorised Chrome session could access Certificates, Identifiers & Profiles. The App ID registration preview exposed its Capabilities and Capability Requests lists; no entry containing APFS, VFS or snapshot was present. No identifier, capability request, certificate or provisioning profile was registered during this inspection. This establishes what was visible in that registration context, not entitlement availability for every App ID or team. Some managed capabilities are App-ID-specific. [Apple capability guidance](https://developer.apple.com/help/account/reference/provisioning-with-managed-capabilities), [Apple DTS explanation](https://developer.apple.com/forums/thread/726882).
+
+## Draft inquiry for Apple Developer Support
+
+Status: prepared for maintainer review; not submitted. Submission would contact Apple from the maintainer's account and requires explicit approval.
+
+Subject: **Supported authorisation for APFS snapshot APIs on disposable image volumes**
+
+We maintain the open-source go-apfs-v3 portable APFS reader/editor:
+https://github.com/deploymenttheory/go-apfs-v3
+
+We need a small macOS helper using the supported fs_snapshot_create, fs_snapshot_rename and fs_snapshot_revert APIs on disposable ordinary APFS/APFSX disk-image volumes on macOS 26 and 27. These native operations establish interoperable snapshot behaviour for our portable implementation. The intended scope is isolated image volumes on disposable CI VMs, with existing host security policy preserved.
+
+Our retained experiments show EPERM from the unentitled helper and launch rejection when the snapshot entitlement is claimed through ad-hoc signing. In our authenticated developer account's App ID registration interface, we cannot find an APFS/VFS snapshot entry in Capabilities or Capability Requests.
+
+Could you confirm:
+1. Whether com.apple.developer.vfs.snapshot is available to third-party developers for this use, and the supported request, signing and provisioning route if so?
+2. Which development or Developer ID distribution options are supported, including any registered-device restrictions relevant to disposable hosted macOS CI runners?
+3. If this entitlement is unavailable, which supported Apple tool or API can perform arbitrary named snapshot creation/rename and completed revert on ordinary disk-image volumes?
+
+Our source review and retained operation evidence are linked from:
+https://github.com/deploymenttheory/go-apfs-v3/issues/74
