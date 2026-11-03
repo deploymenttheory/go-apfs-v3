@@ -116,27 +116,50 @@ func TestEncryptedImageConcurrentUnalignedReadsAndTruncation(t *testing.T) {
 		t.Fatal("decrypted size", e.Size())
 	}
 	whole := make([]byte, e.Size())
+	counted := &countedEncryptedImageSource{Reader: bytes.NewReader(b)}
+	e.source = counted
 	if _, err := e.ReadAt(whole, 0); err != nil || !bytes.Equal(whole, want) {
 		t.Fatal("aligned whole read", err)
 	}
+	if counted.reads > 256 || counted.largest > 64<<10 {
+		t.Fatal("sequential encrypted reads must amortize I/O with bounded storage", counted.reads, counted.largest)
+	}
+	e.source = bytes.NewReader(b)
 	var wg sync.WaitGroup
-	for _, off := range []int64{0, 1, 15, 16, 511, 512, 513, 4095, e.Size() - 513, e.Size() - 1, e.Size()} {
-		wg.Go(func() {
-			p := make([]byte, 517)
-			n, err := e.ReadAt(p, off)
-			expected := want[off:min(off+517, e.Size())]
-			if !bytes.Equal(p[:n], expected) || (len(expected) < len(p) && !errors.Is(err, io.EOF)) || (len(expected) == len(p) && err != nil) {
-				t.Errorf("offset %d: %d %v", off, n, err)
-			}
-		})
+	for _, off := range []int64{0, 1, 15, 16, 511, 512, 513, 4095, 65535, 65536, 65537, e.Size() - 513, e.Size() - 1, e.Size()} {
+		for _, size := range []int{517, 131587} {
+			wg.Go(func() {
+				p := make([]byte, size)
+				n, err := e.ReadAt(p, off)
+				expected := want[off:min(off+int64(size), e.Size())]
+				if !bytes.Equal(p[:n], expected) || (len(expected) < len(p) && !errors.Is(err, io.EOF)) || (len(expected) == len(p) && err != nil) {
+					t.Errorf("offset %d size %d: %d %v", off, size, n, err)
+				}
+			})
+		}
 	}
 	wg.Wait()
 	if _, err := e.ReadAt(make([]byte, 1), -1); !errors.Is(err, fs.ErrInvalid) {
 		t.Fatal(err)
 	}
+	e.source = bytes.NewReader(b[:len(b)-1])
+	if n, err := e.ReadAt(make([]byte, 512), e.Size()-512); n != 0 || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatal("truncated sector must not be returned as decrypted bytes", n, err)
+	}
 	if _, _, err := readEnvelope(bytes.NewReader(b[:len(b)-1])); !errors.Is(err, filesystem.ErrCorrupt) {
 		t.Fatal("truncated final encrypted block", err)
 	}
+}
+
+type countedEncryptedImageSource struct {
+	*bytes.Reader
+	reads, largest int
+}
+
+func (s *countedEncryptedImageSource) ReadAt(p []byte, off int64) (int, error) {
+	s.reads++
+	s.largest = max(s.largest, len(p))
+	return s.Reader.ReadAt(p, off)
 }
 
 func FuzzEncryptedImageHeader(f *testing.F) {

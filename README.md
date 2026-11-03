@@ -86,6 +86,9 @@ Currently implemented:
   unlocked views with explicit key lifetimes.
 - APFS snapshot inventories and independent historical readers selected by exact
   snapshot name or XID; live and historical reads share the same file APIs.
+- Snapshot deletion on admitted plaintext, software-encrypted and completed-converted
+  volumes, retaining live data, surviving history, clone sharing and peer credentials;
+  see [the lifecycle guide](docs/apfs-lifecycle.md).
 - Portable extraction with original names, logical/raw data, metadata, attributes,
   resource forks, symlink targets and hard-link identities; verified workspace readers.
 - Ordered workspace creation, rename, removal, link and data replacement batches.
@@ -196,7 +199,9 @@ has no separate `Close`. CLI `list`, `cat` and `extract` accept either `--snapsh
 Ordinary live edits preserve qualified retained snapshots, including historical
 object versions and shared storage. Explicit deletion uses
 `imageedit.DeleteSnapshot` or `apfs snapshot delete` with exactly one retained
-name or XID, preserving the original and publishing a new image. See
+name or XID on admitted plaintext, software-encrypted and completed-converted
+volumes, preserving the original and publishing a new image. Encrypted volumes
+and peers use the ordinary editing credentials. See
 [snapshot deletion](docs/apfs-editing.md#deleting-retained-snapshots) for selectors
 and transaction rules. Snapshot creation, naming and revert, dataless snapshots
 and sealed-system verification remain outside this capability.

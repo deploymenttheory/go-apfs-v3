@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "encrypted-snapshot-history",
-  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert. Completed native decryption and re-encryption retain both snapshots, clone/fork sharing and independent peers.",
+  "purpose": "Software-encrypted APFS retained views and shared clone data before/after ordinary native writes and a Disk-user password change, preserving plaintext and independently encrypted peers and independent encrypted DMG envelopes. ASR supplies retained snapshots without claiming successful arbitrary snapshot naming or revert. Completed native decryption and re-encryption retain both snapshots, clone/fork sharing and independent peers. Native encrypted deletion retains every surviving view and peer after oldest/newest/final deletion in both orders, password changes and completed conversion.",
   "profiles": [
     "apfs",
     "apfsx"
@@ -712,6 +712,435 @@
             "params": {
               "fileVault": "true"
             }
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "primary",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "empty"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "oldest-deleted",
+      "from": "password-changed",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "replacement"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "newest-deleted",
+      "from": "password-changed",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "replacement"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained-again",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "all-oldest-first",
+      "from": "oldest-deleted",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "replacement"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained-again",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "all-newest-first",
+      "from": "newest-deleted",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "replacement"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedHistory": "replacement",
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedHistory": [
+            "wrong",
+            "primary"
+          ],
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "decrypted-oldest-deleted",
+      "from": "decrypted",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained",
+              "-wait"
+            ],
+            "expect": "0"
+          }
+        }
+      ],
+      "observe": {
+        "unlock": {
+          "EncryptedPeer": "peer"
+        },
+        "rejected": {
+          "EncryptedPeer": [
+            "wrong",
+            "empty",
+            "primary"
+          ]
+        },
+        "snapshots": true,
+        "checks": [
+          "verify",
+          "fsck"
+        ],
+        "extents": [
+          "Fixture/data",
+          "Fixture/clone"
+        ],
+        "samples": 4
+      }
+    },
+    {
+      "name": "converted-newest-deleted",
+      "from": "converted",
+      "steps": [
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "unlockVolume",
+              "$VOLUME:EncryptedHistory",
+              "-stdinpassphrase",
+              "-nomount"
+            ],
+            "expect": "0",
+            "stdin": [
+              "primary"
+            ]
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "mount",
+              "-mountOptions",
+              "owners,noatime",
+              "$VOLUME:EncryptedHistory"
+            ],
+            "expect": "0"
+          }
+        },
+        {
+          "tool": {
+            "program": "diskutil",
+            "args": [
+              "apfs",
+              "deleteSnapshot",
+              "$VOLUME:EncryptedHistory",
+              "-name",
+              "$SNAPSHOT:retained-again",
+              "-wait"
+            ],
+            "expect": "0"
           }
         }
       ],

@@ -50,6 +50,20 @@ type RepackOptions struct {
 	Decrypt        bool
 }
 
+// ValidateRepackSource checks the supported source layout, envelope resources,
+// complete logical coverage and declared CRCs without encoding an output.
+// sourcePassword follows RepackOptions.SourcePassword. Storage is borrowed and
+// must remain immutable during validation and any subsequent use. This checks
+// admission, not a fingerprint of unchecksummed input or a completed output.
+func ValidateRepackSource(ctx context.Context, source block.Source, sourcePassword []byte) error {
+	image, _, err := openRepackSource(ctx, source, sourcePassword, true)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = image.Close() }()
+	return nil
+}
+
 // RepackWithOptions preserves every decoded sector while replacing the image
 // envelope. Encrypted output requires an empty io.WriteSeeker. No APFS password
 // is used and separately encrypted APFS sectors remain opaque and unchanged.
@@ -76,35 +90,11 @@ func RepackWithOptions(ctx context.Context, out io.Writer, source block.Source, 
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	var image *Image
-	var err error
-	if o.SourcePassword != nil {
-		image, err = NewWithPassword(ctx, source, o.SourcePassword)
-	} else {
-		image, err = New(source)
-	}
+	image, layout, err := openRepackSource(ctx, source, o.SourcePassword, o.Encryption != nil || o.Decrypt)
 	if err != nil {
 		return report, err
 	}
 	defer func() { _ = image.Close() }()
-	if image.envelope != nil {
-		if o.Encryption == nil && !o.Decrypt {
-			return report, fmt.Errorf("encrypted source requires an explicit output encryption policy: %w", fs.ErrInvalid)
-		}
-		if err = admitRepackEnvelope(source, image.envelope); err != nil {
-			return report, err
-		}
-		source = image.envelope
-	}
-	layout, err := repackLayout(source, image)
-	if err != nil {
-		return report, err
-	}
-	if image.decoded != nil {
-		if err = verifyUDIF(ctx, source, image.decoded, layout); err != nil {
-			return report, err
-		}
-	}
 	hash := sha256.New()
 	reader := &contextReader{ctx: ctx, source: io.NewSectionReader(image.source, 0, image.Size())}
 	if _, err = io.CopyBuffer(hash, reader, make([]byte, 128<<10)); err != nil {
@@ -136,6 +126,47 @@ func RepackWithOptions(ctx context.Context, out io.Writer, source block.Source, 
 		report.Encryption = &Encryption{Version: 2, Cipher: "AES-CBC", KeyBits: o.Encryption.KeyBits, BlockSize: 512}
 	}
 	return report, nil
+}
+
+// Both admission-only consumers and encoders require this exact source profile.
+// Errors close the opened image here; success transfers its ownership to caller.
+func openRepackSource(ctx context.Context, source block.Source, password []byte, allowEncrypted bool) (image *Image, layout encodingLayout, err error) {
+	if source == nil {
+		return nil, layout, fs.ErrInvalid
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, layout, err
+	}
+	if password != nil {
+		image, err = NewWithPassword(ctx, source, password)
+	} else {
+		image, err = New(source)
+	}
+	if err != nil {
+		return nil, layout, err
+	}
+	admitted := false
+	defer func() {
+		if !admitted {
+			_ = image.Close()
+			image = nil
+		}
+	}()
+	if image.envelope != nil {
+		if !allowEncrypted {
+			return image, layout, fmt.Errorf("encrypted source requires an explicit output encryption policy: %w", fs.ErrInvalid)
+		}
+		if err = admitRepackEnvelope(source, image.envelope); err != nil {
+			return image, layout, err
+		}
+		source = image.envelope
+	}
+	layout, err = repackLayout(source, image)
+	if err == nil && image.decoded != nil {
+		err = verifyUDIF(ctx, source, image.decoded, layout)
+	}
+	admitted = err == nil
+	return image, layout, err
 }
 
 type contextReader struct {

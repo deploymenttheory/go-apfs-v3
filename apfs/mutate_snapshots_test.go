@@ -409,6 +409,15 @@ func snapshotVolumeBytes(t *testing.T, disk MutableSource, uuid string) string {
 }
 
 func TestSnapshotVolumeEditsPreserveAllPeerHistoryAndStorageBytes(t *testing.T) {
+	for _, profile := range []string{"plaintext", "encrypted"} {
+		t.Run(profile, func(t *testing.T) {
+			testSnapshotVolumePeerHistory(t, profile == "encrypted")
+		})
+	}
+}
+
+func testSnapshotVolumePeerHistory(t *testing.T, encrypted bool) {
+	t.Helper()
 	ctx := context.Background()
 	seed := newCloneMutationDisk(cloneMutationImage(t))
 	source, err := Open(seed)
@@ -439,24 +448,39 @@ func TestSnapshotVolumeEditsPreserveAllPeerHistoryAndStorageBytes(t *testing.T) 
 	for _, volume := range c.Volumes {
 		retainSyntheticSnapshot(t, disk, volume.UUID)
 	}
-	for index, volume := range c.Volumes {
-		peer := c.Volumes[1-index].UUID
-		before := snapshotVolumeBytes(t, disk, peer)
-		for round := 0; round < 3; round++ {
-			if _, err := ModifyVolume(ctx, disk, volume.UUID, []Change{{Path: "/clone-a", Data: bytes.NewReader([]byte(fmt.Sprintf("selected %d/%d", index, round)))}}, builtClock); err != nil {
+	var authenticated MutableSource = disk
+	if encrypted {
+		owner, err := UnlockMutation(ctx, disk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = owner.Close() })
+		for _, volume := range c.Volumes {
+			conversion := EncryptionConversion{Encrypt: true, Password: []byte("public-independent-password-" + volume.UUID)}
+			if _, err := ConvertVolumeEncryption(ctx, owner, volume.UUID, conversion, builtClock); err != nil {
 				t.Fatal(err)
 			}
-			if got := snapshotVolumeBytes(t, disk, peer); got != before {
+		}
+		authenticated = owner
+	}
+	for index, volume := range c.Volumes {
+		peer := c.Volumes[1-index].UUID
+		before := snapshotVolumeBytes(t, authenticated, peer)
+		for round := 0; round < 3; round++ {
+			if _, err := ModifyVolume(ctx, authenticated, volume.UUID, []Change{{Path: "/clone-a", Data: bytes.NewReader([]byte(fmt.Sprintf("selected %d/%d", index, round)))}}, builtClock); err != nil {
+				t.Fatal(err)
+			}
+			if got := snapshotVolumeBytes(t, authenticated, peer); got != before {
 				t.Fatal("editing one volume changed peer metadata/history/data storage")
 			}
 		}
-		if _, err := DeleteSnapshot(ctx, disk, "", SnapshotSelector{Name: "retained-history"}, builtClock); !errors.Is(err, fs.ErrInvalid) {
+		if _, err := DeleteSnapshot(ctx, authenticated, "", SnapshotSelector{Name: "retained-history"}, builtClock); !errors.Is(err, fs.ErrInvalid) {
 			t.Fatal("snapshot deletion accepted an ambiguous volume", err)
 		}
-		if _, err := DeleteSnapshot(ctx, disk, volume.UUID, SnapshotSelector{Name: "retained-history"}, builtClock); err != nil {
+		if _, err := DeleteSnapshot(ctx, authenticated, volume.UUID, SnapshotSelector{Name: "retained-history"}, builtClock); err != nil {
 			t.Fatal("delete selected volume history", err)
 		}
-		if got := snapshotVolumeBytes(t, disk, peer); got != before {
+		if got := snapshotVolumeBytes(t, authenticated, peer); got != before {
 			t.Fatal("deleting one volume history changed peer metadata/history/data storage")
 		}
 	}

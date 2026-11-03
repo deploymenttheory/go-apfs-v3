@@ -56,6 +56,10 @@ func encode(ctx context.Context, out io.Writer, source io.Reader, size int64, fo
 	}
 	const chunkSize = 4 << 20
 	raw := make([]byte, chunkSize)
+	// Each chunk is an independent zlib stream. Reuse its scratch storage
+	// instead of allocating another compressor and payload buffer per chunk.
+	var compressed bytes.Buffer
+	var compressor *zlib.Writer
 	dataCRC, masterCRC := crc32.NewIEEE(), crc32.NewIEEE()
 	var plist bytes.Buffer
 	plist.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>resource-fork</key><dict><key>blkx</key><array>")
@@ -97,15 +101,20 @@ func encode(ctx context.Context, out io.Writer, source io.Reader, size int64, fo
 				kind = 0
 				payload = nil
 			} else if format == "UDZO" {
-				var compressed bytes.Buffer
-				z, err := zlib.NewWriterLevel(&compressed, zlib.BestCompression)
-				if err != nil {
+				compressed.Reset()
+				if compressor == nil {
+					var err error
+					compressor, err = zlib.NewWriterLevel(&compressed, zlib.BestCompression)
+					if err != nil {
+						return err
+					}
+				} else {
+					compressor.Reset(&compressed)
+				}
+				if _, err := compressor.Write(b); err != nil {
 					return err
 				}
-				if _, err = z.Write(b); err != nil {
-					return err
-				}
-				if err = z.Close(); err != nil {
+				if err := compressor.Close(); err != nil {
 					return err
 				}
 				if compressed.Len() < len(b) {

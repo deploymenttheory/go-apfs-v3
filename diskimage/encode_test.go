@@ -3,7 +3,9 @@ package diskimage
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 )
@@ -29,6 +31,11 @@ func TestEncodeNativeChunkBoundAndChecksums(t *testing.T) {
 	var encoded bytes.Buffer
 	if err := Encode(context.Background(), &encoded, bytes.NewReader(raw), int64(len(raw)), "UDZO"); err != nil {
 		t.Fatal(err)
+	}
+	// Recorded before compressor reuse: chunk streams, checksums and resource
+	// tables must retain the exact existing deterministic encoding.
+	if got := fmt.Sprintf("%x", sha256.Sum256(encoded.Bytes())); got != "59e0a4c5594872d6c0ae135b20ac953e56ef2e7b1bb5b93407edcf3fca642fde" {
+		t.Fatal("UDZO encoding changed", got)
 	}
 	source := bytes.NewReader(encoded.Bytes())
 	u, err := openUDIF(source, encoded.Bytes()[encoded.Len()-512:])

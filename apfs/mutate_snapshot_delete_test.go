@@ -395,7 +395,7 @@ func snapshotDeleteInput(t *testing.T) []byte {
 	return bytes.Clone(disk.data)
 }
 
-func deleteTestSnapshots(t *testing.T, disk *cloneMutationDisk) (*Container, []Snapshot) {
+func deleteTestSnapshots(t *testing.T, disk MutableSource) (*Container, []Snapshot) {
 	t.Helper()
 	c, err := Open(disk)
 	if err != nil {
@@ -411,9 +411,45 @@ func deleteTestSnapshots(t *testing.T, disk *cloneMutationDisk) (*Container, []S
 func TestSnapshotDeletionPreservesEverySurvivorInDifferentOrders(t *testing.T) {
 	input := snapshotDeleteInput(t)
 	inputSHA := sha256.Sum256(input)
+	for _, profile := range []string{"plaintext", "encrypted", "decrypted", "reencrypted"} {
+		t.Run(profile, func(t *testing.T) {
+			testSnapshotDeletionOrders(t, input, profile)
+		})
+	}
+	if sha256.Sum256(input) != inputSHA {
+		t.Fatal("immutable regression input changed")
+	}
+}
+
+func testSnapshotDeletionOrders(t *testing.T, input []byte, profile string) {
+	t.Helper()
 	for orderIndex, order := range [][]string{{"retained-history", "middle", "newest"}, {"middle", "newest", "retained-history"}, {"newest", "retained-history", "middle"}} {
 		t.Run(order[0], func(t *testing.T) {
-			disk := newCloneMutationDisk(input)
+			var disk MutableSource = newCloneMutationDisk(input)
+			if profile != "plaintext" {
+				owner, err := UnlockMutation(context.Background(), disk)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = owner.Close() })
+				conversions := []bool{true}
+				if profile == "decrypted" || profile == "reencrypted" {
+					conversions = append(conversions, false)
+				}
+				if profile == "reencrypted" {
+					conversions = append(conversions, true)
+				}
+				for _, encrypt := range conversions {
+					conversion := EncryptionConversion{Encrypt: encrypt}
+					if encrypt {
+						conversion.Password = []byte("public-snapshot-deletion-password")
+					}
+					if _, err := ConvertVolumeEncryption(context.Background(), owner, "", conversion, builtClock); err != nil {
+						t.Fatal(err)
+					}
+				}
+				disk = owner
+			}
 			c, snapshots := deleteTestSnapshots(t, disk)
 			if len(snapshots) != 3 {
 				t.Fatal("control must contain three distinct histories", snapshots)
@@ -486,10 +522,20 @@ func TestSnapshotDeletionPreservesEverySurvivorInDifferentOrders(t *testing.T) {
 				if _, err := InspectStorage(context.Background(), disk); err != nil {
 					t.Fatal("delete accounting", name, err)
 				}
+				// Exercise new allocation and release while survivor history and
+				// encrypted keys remain owned, including after final deletion.
+				changes := []Change{
+					{Path: "/after-deletion", Data: bytes.NewReader(bytes.Repeat([]byte("reuse"), 4096))},
+					{Operation: "rm", Path: "/after-deletion"},
+				}
+				if _, err := ModifyVolume(context.Background(), disk, volumeID, changes, builtClock); err != nil {
+					t.Fatal("allocation after deletion", name, err)
+				}
+				previousXID++
+				if err := ValidateMutation(context.Background(), disk); err != nil {
+					t.Fatal("allocation ownership after deletion", name, err)
+				}
 			}
 		})
-	}
-	if sha256.Sum256(input) != inputSHA {
-		t.Fatal("immutable regression input changed")
 	}
 }

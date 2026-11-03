@@ -107,7 +107,11 @@ func selectNativeOutputs(group string, pairs []Paired) ([]Paired, error) {
 	}
 	var selected []Paired
 	for _, p := range pairs {
-		volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume"
+		// Retained encrypted history shares filesystem UUIDs across operations.
+		// Keep deletion beside conversion on its existing required VM so the
+		// main lineage's serial work stays within the measured test budget.
+		volumeEncryption := p.Output.Operation == "create-encrypted" || p.Output.Operation == "convert-volume" ||
+			(p.Output.Operation == "delete-snapshot" && p.Output.Source.Recipe == "encrypted-snapshot-history")
 		if volumeEncryption == (group == "volume-encryption") {
 			selected = append(selected, p)
 		}

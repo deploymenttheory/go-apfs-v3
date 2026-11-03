@@ -1,274 +1,171 @@
 # APFS history, sharing and software encryption
 
-The [lifecycle tracker](https://github.com/deploymenttheory/go-apfs-v3/issues/56)
-extends the qualified offline editor. The intended operations are ordinary copy
-commands with explicit clone intent, snapshot create/rename/delete/revert,
-authenticated encrypted edits, password changes, encrypted construction and
-completed encryption/decryption conversion. Linux and Windows must be able to
-read every completed result immediately.
+The library and CLI read and modify ordinary APFS/APFSX images through portable
+file I/O. Managed changes open the source read-only and publish a validated,
+completed image at a new path. Linux, Windows and macOS can read that result
+immediately; a later macOS mount is not needed to finish an operation.
 
-Existing readers can open native clones, retained snapshots and admitted software
-encryption. Ordinary mutation admits qualified plaintext clones and live edits
-with retained snapshots, and authenticates software-encrypted volume edits and Disk-user password changes.
-Fresh construction also supports independently credentialed software-encrypted
-ordinary volumes and mixed plaintext/encrypted containers.
-Read-only storage accounting
-understands admitted clones and retained history, using authenticated keys for
-software-encrypted volumes. Ordinary mutation
-uses the same accountant, with separate admission checks for each writer profile.
+## Available operations
 
-Live edits retain the object-map versions selected by every historical XID and
-protect historical metadata and stream extents independently of recoverable
-container checkpoints. The live physical-extent tree records its reference
-deltas against the newest immutable snapshot; a live unlink cannot release
-blocks still owned by an older history. Repeated replacements, resource-fork
-and attribute edits, and temporary allocation must leave all historical reads
-and snapshot identities unchanged. The public image editor retains its immutable
-source and completed, no-overwrite publication contract on failure.
-
-## Dependencies and completion
-
-| Work | Prerequisite | Tracking |
+| Capability | API or command | Current boundary |
 | --- | --- | --- |
-| Independent native controls and source inventory | Qualified offline editing | [Native controls](https://github.com/deploymenttheory/go-apfs-v3/issues/57) |
-| Retained-version and shared-storage accounting | Native controls | [Storage ownership](https://github.com/deploymenttheory/go-apfs-v3/issues/58) |
-| Safe edits to existing clones | Storage ownership | [Clone editing](https://github.com/deploymenttheory/go-apfs-v3/issues/59) |
-| `cp -c` in existing images | Clone editing | [Clone copy](https://github.com/deploymenttheory/go-apfs-v3/issues/60) |
-| Session sharing and actual clones in packed images | Clone copy | [Sessions and packing](https://github.com/deploymenttheory/go-apfs-v3/issues/61) |
-| Live edits preserving retained snapshots | Storage ownership and clone editing | [Historical preservation](https://github.com/deploymenttheory/go-apfs-v3/issues/62) |
-| Snapshot creation and rename | Historical preservation and native snapshot authority | [Creation and names](https://github.com/deploymenttheory/go-apfs-v3/issues/63) |
-| Snapshot deletion and final-reference reclamation | Historical preservation | [Deletion](https://github.com/deploymenttheory/go-apfs-v3/issues/64) |
-| Completed snapshot revert | Snapshot deletion and native snapshot authority | [Revert](https://github.com/deploymenttheory/go-apfs-v3/issues/65) |
-| Existing-image edits inside encrypted DMGs | Authenticated mutation for nested encrypted APFS | [Encrypted envelopes](https://github.com/deploymenttheory/go-apfs-v3/issues/66) |
-| Software-encrypted APFS edits and password changes | Qualified ownership and clone editing | [Authenticated mutation](https://github.com/deploymenttheory/go-apfs-v3/issues/67) |
-| New software-encrypted volumes | Session sharing and authenticated mutation | [Encrypted construction](https://github.com/deploymenttheory/go-apfs-v3/issues/68) |
-| Existing-volume encryption/decryption conversion | Encrypted construction | [Conversion](https://github.com/deploymenttheory/go-apfs-v3/issues/69) |
-| Combined lifecycle and fault qualification | All implementations | [Combined qualification](https://github.com/deploymenttheory/go-apfs-v3/issues/70) |
-| Permanent source/output/verdict bindings | Combined qualification | [Evidence](https://github.com/deploymenttheory/go-apfs-v3/issues/71) |
-| Documentation and completion audit | Permanent evidence | [Closure](https://github.com/deploymenttheory/go-apfs-v3/issues/72) |
+| Read retained snapshots | `Volume.ListSnapshots`, `OpenSnapshot`, `OpenSnapshotName`; `snapshot list`, historical `list`/`cat`/`extract` | Exact name or XID; borrowed historical reader |
+| Edit the live filesystem with retained history | `apfs.ModifyVolume`, `imageedit.Edit`; ordinary image commands | Historical contents, identities and storage remain protected |
+| Copy and edit clones | `cp -c`, `imageedit.CopyOptions.Clone`; ordinary writes | Copy-on-write for data/forks/attributes; hard-link aliases retain their inode |
+| Keep clone intent through sessions and packing | Session commands and `pack` | Explicit whole-stream lineage; equal bytes alone do not create sharing; partially shared streams refuse fresh packing |
+| Delete retained snapshots | `apfs.DeleteSnapshot`, `imageedit.DeleteSnapshot`, `Editor.DeleteSnapshot`; `snapshot delete` | Admitted plaintext, software-encrypted and completed-converted volumes; preserve every survivor and peer |
+| Edit encrypted volumes and change passwords | Authenticated mutation, `imageedit.ChangeVolumePassword`; image commands and `passwd` | Admitted software ONEKEY profile; password changes rewrap the existing volume key |
+| Construct new encrypted volumes | `apfs.BuildOptions.Encryption`, `VolumeSpec.Encryption`; `pack --volume-password-file` | Fresh keys and identities; independently credentialed ordinary volumes and mixed containers |
+| Encrypt/decrypt an existing volume | `apfs.ConvertVolumeEncryption`, `imageedit.ConvertVolumeEncryption`; `encrypt`/`decrypt` | Completed conversion preserves volume/file identities, retained history and physical data/fork sharing |
 
-Each implementation adds its own independent native capture, portable replay and
-Apple checker/readback/continued-write requirements. Combined qualification adds
-cross-capability scenarios; it does not postpone individual compatibility gates.
-Issues remain open until their stated requirements are actually satisfied.
+Snapshot creation and rename are [pending](https://github.com/deploymenttheory/go-apfs-v3/issues/63).
+Completed snapshot revert is also [pending](https://github.com/deploymenttheory/go-apfs-v3/issues/65).
+Their required successful native create/rename/revert operations depend on
+[unresolved execution authority](https://github.com/deploymenttheory/go-apfs-v3/issues/74).
+Observed API refusals and readable historical views do not establish successful
+creation, naming or revert. The [lifecycle tracker](https://github.com/deploymenttheory/go-apfs-v3/issues/56)
+therefore remains open.
 
-## Source basis
+## Selecting history and deleting snapshots
 
-[Apple's APFS reference](https://developer.apple.com/support/apple-file-system/Apple-File-System-Reference.pdf)
-describes stream references, physical extent references, retained object-map
-versions, snapshot metadata/name records and encryption state. In particular,
-creating a snapshot moves the current extent-reference tree into the snapshot
-and starts an empty live tree. Revert fields request work during a later native
-mount; a portable writer must instead publish a completely reverted state.
+Select the on-disk partition index reported by `inspect`. Select an APFS volume
+UUID when a container has several volumes. Snapshot names use exact retained
+spelling; an XID is a separate selector, never a number parsed from a name.
 
-Pinned [Apple cp C](https://github.com/apple-oss-distributions/file_cmds/blob/659a8a301e2acf0343f8b8673a154a2ca4d07084/cp/utils.c)
-calls `clonefileat` for `-c`, removes an existing destination before the clone
-attempt, and falls back to copying only for `EXDEV` or `ENOTSUP`. That differs
-from ordinary destination truncation. Recursive and preservation options must
-compose with those decisions. The separate
-[copyfile API](https://github.com/apple-oss-distributions/copyfile/blob/9f91eb6ced021952278816cdc76ad68da8631ccb/copyfile.3)
-also has best-effort and forced clone flags, optional ACL copying and an explicit
-cloned-state observation. Equal bytes alone cannot establish shared storage.
+```sh
+apfs snapshot list --json --partition 1 --volume VOLUME_UUID Original.dmg
+apfs cat --partition 1 --volume VOLUME_UUID --snapshot-name com.apple.asr.123 \
+  Original.dmg /Fixture/generation.txt
+apfs snapshot delete --image Original.dmg --output Deleted.dmg \
+  --partition 1 --volume VOLUME_UUID --snapshot-xid 123
+```
 
-The installed macOS 15 `cp -c` instead rejects a cross-volume `EXDEV` with no
-destination. The captured macOS 26 and 27 tools perform the fallback. Older
-[Apple cp source](https://github.com/apple-oss-distributions/file_cmds/blob/35ca7d4a702664134a55f1ff6b54188ee48e1177/cp/utils.c)
-falls back only for `ENOTSUP`, explaining the older outcome. Each source version
-retains its actual command result and destination observation. A separate peer
-file supplies preservation controls; no ordinary copy overwrites the refusal.
+Deletion requires exactly one name or XID and removes only that retained view.
+The live filesystem, surviving snapshot names/XIDs/UUIDs, contents, metadata,
+forks, shared storage and peer volumes remain intact. Deletion works before or
+after admitted encrypted edits, password changes and completed conversion.
+Blocks become reusable only after their final owner disappears and the existing
+checkpoint-protected free mechanism permits reuse.
 
-The pinned [XNU snapshot dispatcher](https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/vfs/vfs_syscalls.c)
-checks snapshot entitlements before create/rename/delete/revert syscalls, even
-for root. Its rename path refuses an existing name with `EEXIST`. Public C source
-establishes these API rules; it does not supply the private APFS implementation.
-ASR snapshot retention, Apple inventory and native mounts remain the independently
-qualified creation/reading control. The new control also invokes the supported
-name-based create, rename and revert APIs using the developer snapshot entitlement.
-API availability is observed independently on each required OS. A refusal leaves
-the corresponding positive control blocked; ASR names alone do not qualify
-arbitrary Unicode names or successful native rename.
+`Editor.DeleteSnapshot` can share one `imageedit.Edit` transaction with other
+commands. Later commands see the removal. Any failed command invalidates the
+whole unpublished transaction, even if its callback ignores the error. The
+existing CLI `edit` batch covers ordinary file commands; use `snapshot delete`
+for the standalone CLI deletion operation.
 
-Software volume encryption and DMG envelope encryption are separate. Current
-APFS keybag admission unwraps a 32-byte combined XTS key, corresponding to
-AES-128-XTS; the AES-256-XTS primitive alone does not establish a native volume
-profile. Fresh encrypted construction uses secure randomness. Passwords travel
-through the existing exact-byte file/stdin interfaces and stay out of production
-logs, fingerprints and manifests. The native controls use explicitly public
-fixture passwords, as the existing encryption families do.
+## Independent encryption layers
 
-Native conversion controls exposed a reader admission error: a completed
-`diskutil apfs encryptVolume` sets `APFS_INCOMPAT_ENC_ROLLED` (0x4), which the
-original reader mask rejected. Apple's reference defines this as past key changes;
-`apfs_er_state_oid` separately identifies a conversion still in progress. The
-reader now decodes and reports that state OID, refuses unfinished transitions,
-and admits the historical flag for completed reads. Writer admission retains its
-existing separate qualification requirements. Full native observation replay
-must qualify the completed encrypted and decrypted states.
+APFS volume encryption protects one filesystem. A DMG envelope protects the
+encoded image and may contain plaintext, encrypted or mixed APFS volumes.
+Their passwords, keys and policies are independent.
 
-## Native control family
+For existing images, `--password-file` authenticates the selected encrypted APFS
+volume. Each independently encrypted peer requires
+`--volume-password-file UUID=FILE`, even when it is unchanged: allocation
+admission accounts for the whole container. `--image-password-file` opens an
+encrypted DMG envelope.
 
-`acceptance/native/apfs_lifecycle.py` extends the existing compatibility workflow,
-without adding profile jobs or another capture mode. Its current controls are:
+```sh
+apfs snapshot delete --image Nested.dmg --output Deleted.dmg \
+  --partition 1 --volume VOLUME_UUID --snapshot-name com.apple.asr.123 \
+  --password-file volume-password --volume-password-file PEER_UUID=peer-password \
+  --image-password-file image-password
+apfs passwd --image Encrypted.dmg --output Changed.dmg --volume VOLUME_UUID \
+  --password-file old-volume-password --new-password-file new-volume-password \
+  --volume-password-file PEER_UUID=peer-password
+```
 
-- Both APFS name policies: native `cp -c`, independent inode identity, data and
-  resource-fork physical sharing through Darwin `F_LOG2PHYS_EXT`, ordinary-copy
-  nonsharing, replacement of an existing hard-link destination, cross-volume
-  fallback, independent data/fork/metadata writes, truncation and owner removal.
-- Settled native encryption and decryption, changed-password rejection/acceptance,
-  encrypted clone writes, a plaintext peer and a newly created independently
-  credentialed encrypted peer. Every completed state is detached, retained,
-  reattached read-only, natively checked and observed. Migration probes must show
-  an explicitly settled state before the completed reference is published.
-- Both snapshot name policies: supported name-based create/rename/revert API
-  observations, original ASR history, final selected-history preservation and
-  subsequent native allocation. Successful APIs must produce observed Unicode
-  names and completed revert. An explicit `EPERM` instead retains unchanged
-  live/historical observations, a separately labelled positive native deletion
-  control, and the [unresolved positive-control blocker](https://github.com/deploymenttheory/go-apfs-v3/issues/74).
-  An unavailable revert never receives a `reverted` image label. Original parent
-  image bytes and digests remain unchanged.
+Existing-image edits preserve the envelope's password and AES-128/AES-256
+strength by default, generating fresh envelope material. Output password
+replacement and explicit envelope removal use the separate
+[image encryption options](encrypted-image-editing.md).
+Deleting a snapshot retains the APFS keys and credentials. A password change
+rewraps the existing volume key and rejects the replaced password.
 
-The installed utility's `-R` implementation passes its argument as the path to
-`fsctl(APFSIOC_REVERT_TO_SNAPSHOT)` with XID zero. The public XNU revert fallback
-applies the same request internally to a selected snapshot vnode. Supplying a
-snapshot-name string as the utility manual suggests produced `ENOENT`; a
-snapshot mount path with its zero-XID argument produced `EINVAL` on all three
-required versions. The nonzero-XID helper also returned `EINVAL` on macOS 27.
-The pinned XNU `fsctl_internal` dispatcher explicitly rejects this request before
-calling APFS; changing its argument cannot fix that refusal. A kernel-internal
-ioctl constant does not establish a supported userspace XID interface. The
-supported name-based snapshot syscall has a separate entitlement check. These
-failed attempts remain diagnostic evidence, not completed native controls.
+Password files contain exact bytes, including whitespace and final newlines.
+`-` consumes stdin through EOF, and only one credential may use it. APFS permits
+an explicitly empty password; DMG passwords retain their separate restrictions.
+Passwords and keys are omitted from production reports and manifests and are
+not literal CLI arguments. Capture recipes use explicitly public fixture passwords.
 
-`apfs_snapshot.c` now calls the SDK's `fs_snapshot_create`, `fs_snapshot_rename`
-and `fs_snapshot_revert` interfaces. The collector signs this bounded observer
-with `com.apple.developer.vfs.snapshot`, retains the entitlement source and the
-signed binary's digest, and records its displayed entitlements. This does not
-claim an Apple-provisioned identity or change runner security settings. The
-retained macOS 15, 26 and 27 controls all killed the developer-entitled observer
-with `SIGKILL` and returned `EPERM` through the baseline observer's supported APIs.
-A launch probe now records that result before filesystem work. If the entitled
-binary is killed, a separately retained baseline binary from the same source
-must launch normally and observe the APIs without claiming that entitlement.
-Both binary digests and the positive-control blocker are retained. Its output
-separates successful observation from the actual syscall status/errno;
-only `(0, 0)` is successful mutation. A valid observed `(-1, EPERM)` is explicit
-unavailability linked to the blocker. Other errors, malformed results,
-unexpected launch failures or incomplete observations fail capture. The affected mutation tickets
-remain open until their positive controls are available and qualified.
+## Fresh construction and retained-identity conversion
 
-The Go acceptance family checks each native state on Linux, Windows and macOS:
-volume identity, name policy, locked/unlocked credentials, files, links, forks,
-attributes, metadata and every retained historical view. Fresh controls come from
-macOS 26 and 27. Missing supported evidence fails rather than becoming a skip.
+Fresh construction creates a new filesystem from a directory or session. Each
+encrypted volume receives independent keys; a volume without a password option
+remains plaintext. `pack` can independently encrypt the outer DMG.
 
-The collector and its C storage observer require `GITHUB_ACTIONS=true` and
-`RUNNER_ENVIRONMENT=github-hosted` before opening files or invoking native tools.
-Local checks use ordinary-file Go replay and mocked orchestration only. A disk
-image does not isolate a working Mac's kernel.
+```sh
+apfs pack --volume Private --directory ./private --volume-password-file private-password \
+  --volume Public --directory ./public \
+  --encryption AES-256 --output-password-file image-password Mixed.dmg
+apfs encrypt --image Original.dmg --output Encrypted.dmg \
+  --partition 1 --volume VOLUME_UUID --new-password-file volume-password
+apfs decrypt --image Encrypted.dmg --output Plain.dmg \
+  --partition 1 --volume VOLUME_UUID --password-file volume-password
+```
 
-Original controls from
-[native run 38699211349](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38699211349)
-are retained in `acceptance/testdata/apfs-lifecycle`: 24 states per source OS,
-original source/tool identity, command observations, independent parent history
-and GitHub artifact digests. Original manifests are stored verbatim in gzip;
-small retention receipts expose the cases without rewriting native values.
-All 72 states passed ordinary-file Go replay during that qualification. The
-current required workflow replays supported producer sources on Linux, Windows
-and macOS to establish portable qualification; original macOS 15 controls remain
-archived outside mandatory replay. Source review and mocked tests do not supply a native verdict.
-Conversion of retained encrypted history and successful arbitrary snapshot naming
-have their own required controls in the corresponding implementation tickets.
+Conversion changes an existing volume, retaining its UUID, file identities,
+snapshot names/XIDs and historical contents, metadata, clone sharing and untouched
+peers. Shared physical data/fork ranges retain their addresses and are converted
+once; filesystem metadata is rewritten for the target crypto state. Encryption
+generates fresh keys and wrapping material. Decrypting the APFS volume preserves
+an encrypted outer envelope unless its removal is requested explicitly.
+See [volume conversion](apfs-volume-encryption.md) and
+[encrypted construction](packing.md#creating-software-encrypted-apfs-volumes).
 
-## Storage ownership and reclamation
+## Admission, ownership and failure guarantees
 
-`apfs.InspectStorage(ctx, source)` reads an APFS partition without writing. For the
-bounded plaintext profile it reconciles every live volume and retained snapshot,
-their transaction-selected filesystem trees, all stored object-map versions,
-data and attribute streams, physical extent references, volume allocation
-counters, and the main-device/internal-pool allocation maps. A corrupt count,
-unexplained allocation, cross-link, unsupported feature, active reaper or budget
-exhaustion returns an error and no successful report. Encryption and unfinished
-conversion remain explicit unsupported accounting profiles.
+The current writer admits bounded, unsealed ordinary volumes in a single-device
+container with 4096-byte blocks. Software encryption uses AES-128-XTS ONEKEY with
+one native Disk crypto user and a 32-byte combined XTS key. An AES-256 DMG does
+not change that inner volume profile. Hardware-bound/per-file keys, other users
+or key widths, unfinished conversion, System/Data role-bearing edits, active reaping,
+unaccounted allocations and unsupported geometry are explicit refusals.
+See the [full editing profile](apfs-editing.md#admitted-profile).
 
-A shared data stream has one physical extent set even when several clone inodes
-refer to it. Hard-link directory aliases do not add stream owners. Independent
-resource-fork streams can instead share physical ranges. Physical extent counts
-are signed: each retained snapshot contributes its chronological NEW/UPDATE tree,
-and a zero current count cannot erase an older view's ownership. The original
-physical `owning_obj_id` can outlive its inode, so general ownership does not
-require that hint to resolve to a current inode. Plaintext clone mutation uses
-these reconciled counts to split and decrement shared physical ranges, retaining
-surviving references and retiring storage only when its final reference is gone.
+`apfs.InspectStorage` reconciles live and retained versions, shared streams,
+physical references, metadata, allocation maps, deferred frees and peer volumes.
+For encrypted input, first authenticate every encrypted volume through
+`apfs.UnlockMutation` and keep its `MutationSource` open. Accounting and mutation
+borrow its keys while raw source reads remain ciphertext. Close the source to
+release those keys. Direct engine mutation requires an exclusively owned,
+unpublished copy; discard that copy after any mutation error. The managed editor
+owns this copy and its key lifetime for callers.
 
-Native sparse inodes include sparse bytes in their stream allocation field.
-The explicit sparse-byte field and logical extent coverage must reconcile before
-subtracting holes; no physical blocks are invented for that allocation surplus.
-Single-owner attribute streams can omit `DSTREAM_ID`; shared streams require an
-explicit matching count. Empty native reaper-list pages contain stale free-entry
-bytes, which are not active owners. Nonempty lists and active reaping are refused.
+Hard-link aliases do not add stream owners. Removing a live file cannot free
+storage retained by a snapshot, clone or peer. Deletion placeholders remain
+version barriers when needed by a surviving historical XID. Deferred frees stay
+allocated until checkpoint and retained-root protections permit reclamation.
+These are offline scratch-copy transactions, not mounted writes or a promise of
+physical power-loss atomicity or secure erasure.
 
-The report separates bitmap `FreeBlocks`, main-device `PendingFreeBlocks` and
-`ProtectedBlocks`. Apple's `diskutil` available capacity includes deferred frees;
-it equals `(FreeBlocks + PendingFreeBlocks) * BlockSize` in all retained plaintext
-controls. Deferred blocks are still allocated and are never automatically safe
-to overwrite. `RetainedCheckpoints` counts structurally complete descriptor/map
-sequences, not healthy historical filesystems. Their transaction bounds
-conservatively protect deferred ranges, exposed as `CheckpointProtectedBlocks`.
-No historical bitmap authorizes allocation in the selected transaction.
+Managed operations require a new destination and publish only after validation,
+flush and close. Authentication, admission, selection, allocation, cancellation,
+short-write, flush and publication failures cannot replace the source or publish
+a partial result. An abrupt process termination can leave private temporary files;
+see [completed-output publication](output-publication.md).
 
-Before the ordinary writer's first allocation/write, it disables older checkpoint
-descriptors in the unpublished scratch copy and then reclaims eligible deferred
-ranges. Current/historical root protection is checked independently of queue age.
-The selected checkpoint, its maps/data and its allocations survive until the new
-checkpoint is published. No-op commands do not retire checkpoints or write bytes.
-Object-map pruning can retain each historical view's predecessor mapping, including
-deletion placeholders; the current ordinary writer admits no such extra views.
-This is file-backed scratch-copy recovery, not a claim of in-place power-loss
-atomicity or writable snapshot support. Existing plaintext clone editing uses
-the same scratch-copy transaction; see [clone editing](apfs-editing.md#editing-existing-clones).
+## Compatibility and evidence
 
-## Sessions and fresh clone construction
+Supported macOS releases start at 26. Current fixture producers and native
+verifiers are macOS 26/27; portable conformance runs on Linux, Windows and macOS.
+Filesystem structures determine reader admission, rather than an image's origin
+OS. Native disk operations run only on guarded disposable VMs. Local checks use
+ordinary files; a disk image does not isolate a developer Mac's kernel.
 
-Sessions record explicit clone lineage for each raw data stream and attribute,
-separately from inode identity, hard-link aliases and content-addressed blobs.
-Only the changed stream detaches during data, fork or attribute replacement.
-Metadata remains independent, and removing or renaming the original owner does
-not break surviving members. Private revision schema 2 retains those groups
-across reopen while continuing to read older sessions.
+The existing [acceptance pipeline](acceptance.md) captures native states through
+`cmd/apfs-fixture` and the declarative [recipes](../acceptance/recipes/README.md),
+pins bundles in `acceptance/fixtures.lock.json`, checks portable outputs and
+verifies them with Apple checkers, mounted live/history readback and subsequent
+native/Go/native writes. The encrypted-history recipe includes successful native
+snapshot deletion; arbitrary create/rename/revert authority remains a separate
+unresolved prerequisite. Each feature owns its required verification.
 
-Fresh APFS construction translates whole-stream groups into actual stream and
-physical reference records. Data clones share a stream ID; distinct attribute
-stream IDs can share physical extents. Hard-link aliases add no stream owner.
-All members are checked, including a member whose bytes are not separately
-written to the output. Independent equal bytes never create a group. New
-allocation addresses are deterministic construction choices rather than retained
-native physical addresses.
-
-Native session capture inventories exact physical mappings once per subtree.
-It uses actual stream descriptors, including the distinction between an owned
-data stream and a descriptor-less private-ID hint. Exact complete shared maps
-become opaque source-scoped identities. Differing maps with physical overlap are
-recorded as partially shared streams. APFS packing explicitly refuses those
-markers before payload reads or output; its current model does not represent
-shared subranges. Metadata edits preserve the marker, and replacing the complete
-marked stream removes only that marker.
-
-Packing reports actual shared storage, embedded/empty-stream copies and explicit
-HFS independent-copy fallback. Compression changes derive representation
-identities only from declared lineage. Snapshot preservation and software volume
-encryption retain their separate admission gates; a fresh image is not a retained
-history or encryption conversion. The `clone-copy` family supplies independent
-Apple copy and fallback states for reopened-session packing, followed by native
-checker, mounted readback and continued modification on all required kernels.
-
-Tree/mapping traversal is bounded by 16,000 object reads and 1,048,576 records,
-alongside the existing checkpoint, space-manager, 4,096-snapshot and 64 MiB
-allocation-bitmap limits. Extent sweeps use interval
-boundaries rather than a per-block owner map, and payload bytes are not read.
-The existing lifecycle acceptance family compares all 108 retained plaintext
-views and Apple's capacity observations on every portable host. Negative controls
-alter native reference counts, retained mappings, sparse fields and unknown
-profiles with repaired checksums. Existing ordinary-edit, allocation-pressure,
-checkpoint interruption and native continued-write gates remain required through
-the same capture → portable replay → Apple verification workflow.
+Original macOS 15 captures and failed native API experiments remain historical
+evidence with their original version identities and digests. The
+[prior lifecycle guide](history/apfs-lifecycle.md.gz) is preserved byte-for-byte
+inside gzip, with a [digest and source-revision receipt](history/apfs-lifecycle.json).
+Its collector/testdata paths describe the historical checkout. That record includes
+[native run 38699211349](https://github.com/deploymenttheory/go-apfs-v3/actions/runs/38699211349),
+its original 72 states and observed `SIGKILL`/`EPERM`/`EINVAL` outcomes; those facts
+are unchanged and do not qualify pending operations or define current CI targets.

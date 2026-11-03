@@ -45,7 +45,8 @@ func (v *Verifier) checkReplacedImagePassword(ctx context.Context, p Paired, ima
 // checkEncryptedEditPolicy compares Apple's measured output encryption with
 // the captured native source policy independently of the product's report.
 func (v *Verifier) checkEncryptedEditPolicy(out schema.Output, observed *schema.Observation) error {
-	if out.Operation != "edit" && out.Operation != "convert-volume" || (out.Source.Recipe != "encrypted-image-edits" && out.Source.Recipe != "encrypted-snapshot-history") {
+	checksEnvelope := out.Operation == "edit" || out.Operation == "convert-volume" || out.Operation == "delete-snapshot"
+	if !checksEnvelope || (out.Source.Recipe != "encrypted-image-edits" && out.Source.Recipe != "encrypted-snapshot-history") {
 		return nil
 	}
 	if observed == nil {

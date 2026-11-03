@@ -133,6 +133,18 @@ func observeVolume(ctx context.Context, in ObserveInput, obs *schema.Observation
 		// macOS may reuse an earlier unlock when the image is re-attached.
 		// Lock explicitly so the credential checks and the recorded locked
 		// state are genuine.
+		// lockVolume requires a mounted volume. Cached keys can also leave an
+		// unlocked, unmounted attachment, so establish its native mount first.
+		mounted := false
+		if point, _ := info["MountPoint"].(string); point != "" {
+			from, err := mountedFrom(point)
+			mounted = err == nil && from == vol.Dev
+		}
+		if !mounted {
+			if err := in.Disk.Mount(ctx, vol, "owners", "", false); err != nil {
+				return err
+			}
+		}
 		cmd := Command{Label: "lock", Argv: []string{"diskutil", "apfs", "lockVolume", vol.Dev}, Expected: "0"}
 		if err := in.T.Record(cmd, in.Disk.(*HostDisk).C.Run(ctx, cmd)); err != nil {
 			return err

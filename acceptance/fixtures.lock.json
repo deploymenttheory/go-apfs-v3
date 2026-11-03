@@ -1,21 +1,21 @@
 {
   "schema": 1,
-  "release": "fixtures/2026.10.27-40485931844",
-  "recipesSHA256": "df8ce476819abd316dad4cacdbc0428df4b3eb26b479a1bab44834a002aaa85e",
+  "release": "fixtures/2026.10.28-40647069992",
+  "recipesSHA256": "96b9b87cebcd8857dfa89fb4017e0985481940ac3b9836df074abbe2e26935f0",
   "bundles": {
     "macos-26": {
-      "asset": "fixtures-macos-26-a34bceb6578689d2.tar.gz",
-      "sha256": "a34bceb6578689d2588ad03809a1e8da5978f2e920add3d392e822414f940f7b",
-      "bytes": 1209094936,
+      "asset": "fixtures-macos-26-cbe736cc307ce556.tar.gz",
+      "sha256": "cbe736cc307ce556906bb8b146bc4417b9617908a42bfb60b96fc1e563652acd",
+      "bytes": 1884706380,
       "build": "25G83",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/40485931844"
+      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/40647069992"
     },
     "macos-27": {
-      "asset": "fixtures-macos-27-6c240f303a64f367.tar.gz",
-      "sha256": "6c240f303a64f367cb1f6e6cd89ac1922f58fcb4df7688879ddc007a03e46d8f",
-      "bytes": 1208503996,
+      "asset": "fixtures-macos-27-888be8f01098b809.tar.gz",
+      "sha256": "888be8f01098b80972c5a5f918044658dd609db203ccc2e90778f82216c9f5dc",
+      "bytes": 1884135816,
       "build": "26A434",
-      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/40485931844"
+      "captureRun": "https://github.com/deploymenttheory/go-apfs-v3/actions/runs/40647069992"
     }
   }
 }

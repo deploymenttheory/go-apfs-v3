@@ -17,9 +17,27 @@ See [the current support policy](acceptance.md#supported-macos-releases).
 | Preservation-aware extraction, workspaces, replacement, AppleDouble | Immutable extraction, verified workspace readers, streaming AppleDouble and staged content replacement implemented; ordered tree, metadata, attribute and resource-fork edit batches implemented; file-command sessions and host directory import implemented. The required corpus matrix covers workspace/session edits, AppleDouble native unpack, historical session selection and packing reopened preservation sources; recursive host archive imports preserve supported actual-host metadata and retain typed unavailable/unsupported results through reopen, export and packing, with independent input inventories and per-host native qualification required |
 | Deterministic creation, packing, DMG encoding/repacking, volume groups | Fresh APFS containers with multiple volumes, reserves/quotas and System/Data groups, HFS+/HFSX construction, sector-preserving raw/UDIF repacking and fresh AES-128/256 DMG encryption/password changes implemented; transparent zlib file-compression writing implemented with native qualification required |
 | Existing-filesystem edits, allocation, tree mutation, durable transactions | Clean HFS+/HFSX file/fork/mode and catalog creation/move/removal (nonjournaled or validated empty internal journal) and completed-output transactions; retained native references and required portable/native/Go/native cycles on macOS 15/26/27. Plaintext APFS file commands, selected-volume editing, directory statistics and copy-on-write allocation/tree/object-map/checkpoint transactions implemented; HFS metadata initialization, overflow growth and node-map extension implemented; ordinary ACL/set-ID metadata effects, ordered commands and completed-output persistence are qualified by the closed offline editing checklist; current internal HFS journal recovery implemented with independently retained Apple replay-only disks; explicit APFS checkpoint recovery implemented with shared mapping/object validation, retained Apple interruption/damage controls and required portable/native continued-write qualification; physical power-loss qualification and broader mutation pending |
-| Snapshot lifecycle, clones, encrypted modification/creation | [Native history/sharing/encryption controls](apfs-lifecycle.md) retained from macOS 15/26/27; completed-key-change reads corrected. Plaintext clone editing, ordinary clone copying, persistent session clone packing, encrypted-DMG envelope editing and ordinary live edits preserving retained snapshots implemented, with independent native qualification required; authenticated software-encrypted APFS edits, Disk-user password changes and plaintext snapshot deletion are implemented with independent native output qualification required; fresh independently encrypted ordinary-volume construction is implemented with native output qualification required; completed existing-volume encryption/decryption conversion is implemented with independent native output qualification required; snapshot creation/naming/revert remain pending. Positive snapshot lifecycle oracle tracked in [#74](https://github.com/deploymenttheory/go-apfs-v3/issues/74) |
+| Snapshot lifecycle, clones, encrypted modification/creation | [Current lifecycle capabilities and limits](apfs-lifecycle.md): retained historical reads and live preservation; clone editing/copying and session packing; authenticated software-encrypted edits/password changes; plaintext, encrypted and completed-converted snapshot deletion; independently encrypted fresh volumes; completed existing-volume encryption/decryption; independent AES-128/256 DMG envelopes. Snapshot creation/rename and completed revert remain pending their [native execution-authority prerequisite](https://github.com/deploymenttheory/go-apfs-v3/issues/74). Current verification uses the existing macOS 26/27 and Linux/Windows/macOS matrix. |
 | Read/write mounts on Linux/macOS/Windows | Pending |
 | Deleted-file recovery, allocation-aware scanning, consumer qualification | Pending |
+
+## Current verification
+
+[Acceptance testing](acceptance.md) defines the current pinned corpus, portable
+Linux/Windows/macOS outputs and macOS 26/27 native checks. The capability matrix
+above and the linked feature guides describe current APIs and admission limits.
+
+## Historical implementation records
+
+<details>
+<summary>Original implementation scopes and qualification results</summary>
+
+These records retain their original scope, timing measurements, version lists
+and source references. Statements about pending work or proposed acceptance
+families describe that original implementation; the current capability matrix
+and feature guides supersede them. In particular, snapshot deletion and
+existing-volume conversion are implemented, while create/rename/revert remain
+pending. Original macOS 15 results remain historical evidence.
 
 ## Current evidence
 
@@ -824,3 +842,6 @@ See [the contract, evidence and bounds](apfs-checkpoint-recovery.md). In-place
 commit with ordered flushes, live journal writing and physical storage power-loss
 qualification remain separate from completed-output publication and require
 their own qualification before snapshot/clone mutation and writable mounts.
+
+
+</details>

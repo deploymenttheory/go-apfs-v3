@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"slices"
 	"testing"
 
@@ -141,8 +142,18 @@ func TestCompletedDecryptionReadsAndConvertsRetainedONEKEYDescriptors(t *testing
 	}
 	check(disk)
 	deletion := newCloneMutationDisk(disk.data)
-	if _, err := DeleteSnapshot(ctx, deletion, "", SnapshotSelector{Name: "retained-history"}, builtClock); !errors.Is(err, filesystem.ErrUnsupported) || deletion.writes != 0 {
-		t.Fatal("completed conversion enabled unqualified snapshot deletion", err, deletion.writes)
+	if _, err := DeleteSnapshot(ctx, deletion, "", SnapshotSelector{Name: "retained-history"}, builtClock); err != nil {
+		t.Fatal("delete completed-decryption history", err)
+	}
+	deleted, snapshots := deleteTestSnapshots(t, deletion)
+	if len(snapshots) != 0 || !bytes.Equal(cloneContents(t, deletion, "/payload", ""), []byte("live plaintext")) {
+		t.Fatal("completed-decryption deletion changed the live state", snapshots)
+	}
+	if _, err := deleted.Volumes[0].OpenSnapshotName(ctx, "retained-history"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal("deleted completed-decryption history remains selectable", err)
+	}
+	if err := ValidateMutation(ctx, deletion); err != nil {
+		t.Fatal("completed-decryption deletion ownership", err)
 	}
 	owner, err := UnlockMutation(ctx, disk)
 	if err != nil {

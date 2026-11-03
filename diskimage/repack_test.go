@@ -30,6 +30,9 @@ func repackInput(t *testing.T) ([]byte, []byte) {
 func TestRepackPreservesAllSectorsAndIsDeterministic(t *testing.T) {
 	raw, encoded := repackInput(t)
 	for _, input := range [][]byte{raw, encoded} {
+		if err := ValidateRepackSource(context.Background(), bytes.NewReader(input), nil); err != nil {
+			t.Fatal(err)
+		}
 		for _, format := range []string{"UDRO", "UDZO"} {
 			var out, repeat bytes.Buffer
 			report, err := Repack(context.Background(), &out, bytes.NewReader(input), format)
@@ -112,6 +115,9 @@ func TestRepackRejectsCorruptionAndUnsupportedEnvelopeBeforeOutput(t *testing.T)
 			if !errors.Is(err, tt.want) || out.Len() != 0 {
 				t.Fatalf("got %v and %d output bytes; want %v", err, out.Len(), tt.want)
 			}
+			if err := ValidateRepackSource(context.Background(), bytes.NewReader(b), nil); !errors.Is(err, tt.want) {
+				t.Fatalf("source admission differs from repack: got %v, want %v", err, tt.want)
+			}
 		})
 	}
 }
@@ -124,6 +130,9 @@ func TestRepackCancellationAndOutputFailure(t *testing.T) {
 	if _, err := Repack(ctx, &out, bytes.NewReader(input), "UDZO"); !errors.Is(err, context.Canceled) || out.Len() != 0 {
 		t.Fatal(err)
 	}
+	if err := ValidateRepackSource(ctx, bytes.NewReader(input), nil); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
 	failure := errors.New("destination failed")
 	if _, err := Repack(context.Background(), errorWriter{failure}, bytes.NewReader(raw), "UDRO"); !errors.Is(err, failure) {
 		t.Fatal(err)
@@ -131,6 +140,29 @@ func TestRepackCancellationAndOutputFailure(t *testing.T) {
 	if _, err := Repack(context.Background(), shortRepackWriter{}, bytes.NewReader(raw), "UDRO"); !errors.Is(err, io.ErrShortWrite) {
 		t.Fatal(err)
 	}
+}
+
+func TestRepackRejectsSourceChangesDuringEncoding(t *testing.T) {
+	raw, _ := repackInput(t)
+	var out bytes.Buffer
+	writer := &sourceChangingRepackWriter{Writer: &out, raw: raw}
+	if _, err := Repack(context.Background(), writer, bytes.NewReader(raw), "UDRO"); !errors.Is(err, filesystem.ErrCorrupt) {
+		t.Fatal("encoding accepted a different logical fingerprint", err)
+	}
+}
+
+type sourceChangingRepackWriter struct {
+	io.Writer
+	raw     []byte
+	changed bool
+}
+
+func (w *sourceChangingRepackWriter) Write(p []byte) (int, error) {
+	if !w.changed {
+		w.raw[8<<20] ^= 1
+		w.changed = true
+	}
+	return w.Writer.Write(p)
 }
 
 type errorWriter struct{ err error }

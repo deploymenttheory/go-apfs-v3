@@ -19,21 +19,26 @@ func nativeEncryptedOutputPolicy() (*Verifier, Paired, *schema.Observation) {
 }
 
 func TestEncryptedEditPolicyUsesApplesMeasuredSourceAndOutputCipher(t *testing.T) {
-	v, p, observed := nativeEncryptedOutputPolicy()
-	if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
-		t.Fatal(err)
-	}
-	observed.Image.Imageinfo = encryptedImageInfo("AES-128")
-	if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
-		t.Fatal("native cipher downgrade passed despite product policy")
-	}
-	p.Output.Encrypted, p.Output.Password = false, ""
-	if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
-		t.Fatal("explicit decryption accepted a still-encrypted image")
-	}
-	observed.Image.Imageinfo = map[string]any{"Properties": map[string]any{"Encrypted": false}}
-	if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
-		t.Fatal(err)
+	for _, operation := range []string{"edit", "convert-volume", "delete-snapshot"} {
+		t.Run(operation, func(t *testing.T) {
+			v, p, observed := nativeEncryptedOutputPolicy()
+			p.Output.Operation = operation
+			if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
+				t.Fatal(err)
+			}
+			observed.Image.Imageinfo = encryptedImageInfo("AES-128")
+			if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
+				t.Fatal("native cipher downgrade passed despite product policy")
+			}
+			p.Output.Encrypted, p.Output.Password = false, ""
+			if err := v.checkEncryptedEditPolicy(p.Output, observed); err == nil {
+				t.Fatal("explicit decryption accepted a still-encrypted image")
+			}
+			observed.Image.Imageinfo = map[string]any{"Properties": map[string]any{"Encrypted": false}}
+			if err := v.checkEncryptedEditPolicy(p.Output, observed); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }
 

@@ -96,6 +96,10 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		reference.Stage = out.Expect.View
 	}
 	expectedObservation := v.Cases[CaseKey(reference)].Observation
+	expectedObservation, err = snapshotOutputReference(out, expectedObservation)
+	if err != nil {
+		return nil, errors.Join(err, v.Disk.Detach(ctx, att))
+	}
 	if out.Operation == "create-encrypted" {
 		expectedObservation, err = encryptedConstructionReference(att, expectedObservation, out)
 		if err != nil {
@@ -154,8 +158,8 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 		return nil, err
 	}
 	nativeSpec := schema.ObserveSpec{Snapshots: hasHistoricalViews(sourceObservation) || len(out.Expect.DeletedSnapshots) > 0}
-	if out.Operation == "convert-volume" {
-		nativeSpec.Extents, nativeSpec.Samples = conversionExtentPaths(sourceObservation), 8
+	if requiresPreservedForkSharing(out) {
+		nativeSpec.Extents, nativeSpec.Samples = observedForkExtentPaths(sourceObservation), 8
 	}
 	nativeSpec.Unlock, nativeSpec.Rejected = volumeCredentials(expectedObservation)
 	if out.Source.Recipe == "apfs-clones" {
@@ -173,8 +177,8 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 			return before, fmt.Errorf("continuation %s after native writes: %w", out.Name, err)
 		}
 	}
-	if out.Operation == "convert-volume" {
-		if err := checkConvertedSharing(before, sourceObservation); err != nil {
+	if requiresPreservedForkSharing(out) {
+		if err := checkPreservedForkSharing(before, sourceObservation); err != nil {
 			return before, err
 		}
 	}
@@ -270,8 +274,8 @@ func (v *Verifier) Continuation(ctx context.Context, p Paired, k schemaCase) (ob
 	if err != nil {
 		return nil, err
 	}
-	if out.Operation == "convert-volume" {
-		if err := checkConvertedSharing(obs, sourceObservation); err != nil {
+	if requiresPreservedForkSharing(out) {
+		if err := checkPreservedForkSharing(obs, sourceObservation); err != nil {
 			return obs, err
 		}
 	}
