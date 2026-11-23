@@ -25,6 +25,7 @@ type packVolume struct {
 	spec                          apfs.VolumeSpec
 	source, sourceKind, groupWith string
 	passwordFile                  string
+	keyBits                       int
 	groupUUID                     [16]byte
 	sensitiveSet                  bool
 	uid, gid                      uint32
@@ -97,6 +98,14 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 			return fs.ErrInvalid
 		}
 		v.passwordFile = value
+		return nil
+	})
+	scoped("volume-key-bits", "key size for the preceding encrypted volume: 128 (default) or 256", func(v *packVolume, value string) error {
+		bits, e := strconv.Atoi(value)
+		if e != nil || (bits != 128 && bits != 256) {
+			return fs.ErrInvalid
+		}
+		v.keyBits = bits
 		return nil
 	})
 	f.BoolFunc("case-sensitive", "case-sensitive names for the preceding directory or empty volume", func(value string) error {
@@ -201,12 +210,15 @@ func packVolumesCommand(ctx context.Context, args []string, input io.Reader, out
 		}
 	}()
 	for _, v := range volumes {
+		if v.keyBits != 0 && v.passwordFile == "" {
+			return fmt.Errorf("--volume-key-bits requires --volume-password-file: %w", fs.ErrInvalid)
+		}
 		if v.passwordFile != "" {
 			password, e := readPassword(v.passwordFile, input)
 			if e != nil {
 				return e
 			}
-			v.spec.Encryption = &apfs.VolumeEncryptionOptions{Password: password}
+			v.spec.Encryption = &apfs.VolumeEncryptionOptions{Password: password, KeyBits: v.keyBits}
 		}
 	}
 

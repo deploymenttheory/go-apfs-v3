@@ -33,6 +33,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 	}
 	encryption := addPackEncryptionFlags(f, true)
 	volumePassword := f.String("volume-password-file", "", "new APFS volume password bytes in FILE; - reads stdin to EOF")
+	volumeKeyBits := f.Int("volume-key-bits", 0, "APFS volume key size: 128 (default) or 256")
 	common := addSessionFlags(f)
 	format := f.String("format", "UDZO", "DMG encoding: UDRO or UDZO")
 	fileCompression := addPackCompressionFlag(f)
@@ -74,7 +75,7 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 			return e
 		}
 		if !info.IsDir() {
-			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir", "file-compression", "volume-password-file"} {
+			for _, option := range []string{"filesystem", "volume-name", "capacity", "time", "volume-id", "volume-uuid", "container-uuid", "case-sensitive", "uid", "gid", "scratch-dir", "file-compression", "volume-password-file", "volume-key-bits"} {
 				if flagWasSet(f, option) {
 					return fmt.Errorf("--%s does not apply to image repacking", option)
 				}
@@ -115,13 +116,19 @@ func packCommand(ctx context.Context, args []string, input io.Reader, out, diagn
 		}
 	}
 	options := pack.Options{Format: *format, Encryption: crypt.Encryption, FileCompression: *fileCompression, ScratchDir: common.scratch, Volume: pack.VolumeOptions{Name: *name, Time: clock}}
+	if *volumeKeyBits != 0 && *volumeKeyBits != 128 && *volumeKeyBits != 256 {
+		return fmt.Errorf("--volume-key-bits must be 128 or 256: %w", fs.ErrInvalid)
+	}
+	if *volumeKeyBits != 0 && *volumePassword == "" {
+		return fmt.Errorf("--volume-key-bits requires --volume-password-file: %w", fs.ErrInvalid)
+	}
 	if *volumePassword != "" {
 		password, e := readPassword(*volumePassword, input)
 		if e != nil {
 			return e
 		}
 		defer clear(password)
-		options.Volume.Encryption = &apfs.VolumeEncryptionOptions{Password: password}
+		options.Volume.Encryption = &apfs.VolumeEncryptionOptions{Password: password, KeyBits: *volumeKeyBits}
 	}
 	if *capacity != "" {
 		options.Volume.Capacity, err = parseCapacity(*capacity)

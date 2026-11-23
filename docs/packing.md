@@ -492,6 +492,8 @@ DMG envelope encryption and file compression:
 ```sh
 apfs pack --filesystem apfs --volume-password-file volume-password \
   ./payload Encrypted.dmg
+apfs pack --filesystem apfs --volume-password-file volume-password \
+  --volume-key-bits 256 ./payload Encrypted256.dmg
 apfs pack --volume Private --directory ./private \
   --volume-password-file private-password \
   --volume Public --directory ./public \
@@ -499,8 +501,10 @@ apfs pack --volume Private --directory ./private \
   --encryption AES-256 --output-password-file image-password Mixed.dmg
 ```
 
-In a multi-volume command, `--volume-password-file` applies to the preceding
-`--volume`. Each encrypted volume has independent keys and credentials. A volume
+`--volume-key-bits` selects 128 (default) or 256 for the preceding encrypted
+volume; 256 uses a 64-byte AES-XTS volume key and a 72-byte wrapped keybag
+record. In a multi-volume command, `--volume-password-file` and
+`--volume-key-bits` apply to the preceding `--volume`. Each encrypted volume has independent keys and credentials. A volume
 without that option remains plaintext. Only one password file across all volumes
 and the image envelope may consume stdin (`-`); bytes are not trimmed. Passwords
 contain at most 4096 bytes, and a non-nil empty password is distinct from a missing

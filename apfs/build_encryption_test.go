@@ -185,3 +185,50 @@ func TestEncryptedConstructionRefusesMissingCredentialsAndUnqualifiedRoles(t *te
 		}
 	}
 }
+
+// A 256-bit volume key must survive construction, report its size, and read
+// back through the public unlock path.
+func TestEncryptedConstructionAES256VolumeKey(t *testing.T) {
+	ctx := context.Background()
+	source, _ := declaredCloneInput(t)
+	password := []byte("public-aes256-password")
+	options := BuildOptions{Name: "AES256", Time: builtClock, Capacity: 8 << 20, Encryption: &VolumeEncryptionOptions{Password: password, KeyBits: 256}}
+	plan, err := Plan(ctx, source, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer plan.Close()
+	volumes := plan.EncryptedVolumes()
+	if len(volumes) != 1 || volumes[0].KeyBits != 256 {
+		t.Fatalf("reported encryption = %+v, want one AES-XTS-256 volume", volumes)
+	}
+	var data bytes.Buffer
+	if err = plan.Write(ctx, &data); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Open(bytes.NewReader(data.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	unlocked, err := c.Volumes[0].Unlock(ctx, password)
+	if err != nil {
+		t.Fatalf("unlock AES-XTS-256 volume: %v", err)
+	}
+	defer unlocked.Close()
+	id, err := filesystem.LookupExact(ctx, unlocked, "/source")
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := unlocked.OpenData(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := io.ReadAll(io.NewSectionReader(value, 0, value.Size()))
+	_ = value.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, cloneData) {
+		t.Fatal("AES-XTS-256 volume returned the wrong file contents")
+	}
+}

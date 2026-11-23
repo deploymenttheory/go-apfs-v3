@@ -10,11 +10,13 @@ import (
 	storagecrypto "github.com/deploymenttheory/go-apfs-v3/internal/crypto"
 )
 
-// VolumeEncryptionOptions creates the admitted software AES-128-XTS Disk-user
-// profile. Password is borrowed by Plan only; nil is invalid, non-nil empty is
-// valid. It is independent of image-envelope encryption and never fingerprinted.
+// VolumeEncryptionOptions creates a software-encrypted Disk-user profile.
+// Password is borrowed by Plan only; nil is invalid, non-nil empty is valid.
+// KeyBits is 128 (default) or 256, selecting a 32- or 64-byte AES-XTS volume
+// key. It is independent of image-envelope encryption and never fingerprinted.
 type VolumeEncryptionOptions struct {
 	Password []byte `json:"-"`
+	KeyBits  int    `json:"keyBits,omitempty"`
 }
 
 // BuiltVolumeEncryption describes storage and the selected native Disk user,
@@ -33,7 +35,7 @@ func (p *Layout) EncryptedVolumes() []BuiltVolumeEncryption {
 	var result []BuiltVolumeEncryption
 	for _, v := range p.volumes {
 		if v.encryption != nil {
-			result = append(result, BuiltVolumeEncryption{Name: v.options.Name, VolumeUUID: uuid(v.options.UUID[:]), CryptoUser: uuid(v.options.UUID[:]), Cipher: "AES-XTS", KeyBits: 128})
+			result = append(result, BuiltVolumeEncryption{Name: v.options.Name, VolumeUUID: uuid(v.options.UUID[:]), CryptoUser: uuid(v.options.UUID[:]), Cipher: "AES-XTS", KeyBits: v.encryption.keyBits})
 		}
 	}
 	return result
@@ -43,6 +45,7 @@ type buildVolumeEncryption struct {
 	keys    *volumeKeys
 	bag     []byte
 	address uint64
+	keyBits int
 }
 
 func (p *Layout) hasEncryption() bool {
@@ -79,9 +82,10 @@ func (p *Layout) Close() error {
 }
 
 func buildKeybagSize(encrypted int) int {
-	// One 124-byte wrapped VEK and one 16-byte extent per encrypted volume,
-	// each with its 24-byte entry header and native 16-byte alignment.
-	return (48 + encrypted*(160+48) + 4095) / 4096 * 4096
+	// One wrapped VEK record (72 bytes of wrapped key for AES-XTS-256) and one
+	// 16-byte extent per encrypted volume, each with its 24-byte entry header
+	// and native 16-byte alignment.
+	return (48 + encrypted*256 + 4095) / 4096 * 4096
 }
 
 func encodeBuildKeybag(dst []byte, entries []keybagEntry, kind uint32) error {
@@ -117,11 +121,19 @@ func (p *Layout) prepareEncryption(ctx context.Context, inputs []VolumeSpec) err
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		keys, user, volume, err := newSoftwareVolumeKeys(ctx, v.options.UUID, inputs[i].Encryption.Password)
+		keyBits := inputs[i].Encryption.KeyBits
+		if keyBits == 0 {
+			keyBits = 128
+		}
+		if keyBits != 128 && keyBits != 256 {
+			return fmt.Errorf("volume encryption key bits %d: %w", keyBits, fs.ErrInvalid)
+		}
+		keys, user, volume, err := newSoftwareVolumeKeys(ctx, v.options.UUID, inputs[i].Encryption.Password, keyBits)
 		if err != nil {
 			return err
 		}
 		v.encryption.keys = keys
+		v.encryption.keyBits = keyBits
 		if err := encodeBuildKeybag(v.encryption.bag, []keybagEntry{{id: v.options.UUID, tag: 3, data: user}}, 0x72656373); err != nil {
 			return err
 		}
