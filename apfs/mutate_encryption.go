@@ -59,7 +59,7 @@ func ConvertVolumeEncryption(ctx context.Context, disk *MutationSource, volumeUU
 	var key *volumeKeys
 	var user, wrapped []byte
 	if conversion.Encrypt {
-		key, user, wrapped, err = newSoftwareVolumeKeys(ctx, m.v.id, conversion.Password)
+		key, user, wrapped, err = newSoftwareVolumeKeys(ctx, m.v.id, conversion.Password, 128)
 		if err != nil {
 			return report, err
 		}

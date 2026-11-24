@@ -6,7 +6,9 @@ snapshot names/XIDs and historical contents, clone sharing, resource forks,
 metadata and untouched peer volumes. Physical data/fork extents retain their
 addresses and sharing; filesystem metadata is rewritten for the target crypto
 state. Fresh construction through `pack` assigns new identities and is a
-separate operation.
+separate operation: it supports a 32-byte AES-XTS-128 volume key (the default)
+and a 64-byte AES-XTS-256 key via `--volume-key-bits 256`. Conversion through
+`encrypt` keeps the AES-XTS-128 profile.
 
 ```sh
 apfs encrypt --image Original.dmg --output EncryptedVolume.dmg \

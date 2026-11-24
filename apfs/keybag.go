@@ -230,7 +230,7 @@ func parseKeyRecord(data []byte, kek bool) (keyRecord, error) {
 	if err != nil {
 		return result, err
 	}
-	if len(result.wrapped) != 40 {
+	if len(result.wrapped) != 40 && len(result.wrapped) != 72 {
 		return result, fmt.Errorf("wrapped APFS key length: %w", filesystem.ErrUnsupported)
 	}
 	if kek {
